@@ -34,8 +34,11 @@ grid <- TempoGrid(41, c(-4, 4))
 Q <- TempoGenerator(grid, theta = 0.01)
 rates <- BinRates(grid, lambda = 0.51, mu = 0.5)
 set.seed(2)
-tree <- ReconstructedTree(SimulateDCET(40, grid$x, Q, rates$lambda,
-                                       rates$mu, start = 21))
+repeat { # Until the clade survives
+  tree <- ReconstructedTree(SimulateDCET(40, grid$x, Q, rates$lambda,
+                                         rates$mu, start = 21))
+  if (!is.null(tree)) break
+}
 SimulateCharacters(tree, 5)
 }
 \seealso{

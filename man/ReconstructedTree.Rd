@@ -39,9 +39,12 @@ grid <- TempoGrid(41, c(-4, 4))
 Q <- TempoGenerator(grid, theta = 0.01)
 rates <- BinRates(grid, lambda = 0.51, mu = 0.5, psi = 0.05)
 set.seed(3)
-history <- SimulateDCET(60, grid$x, Q, rates$lambda, rates$mu, rates$psi,
-                        start = 21)
-tree <- ReconstructedTree(history)
+repeat { # Until at least two lineages are sampled
+  history <- SimulateDCET(60, grid$x, Q, rates$lambda, rates$mu, rates$psi,
+                          start = 21)
+  tree <- ReconstructedTree(history)
+  if (!is.null(tree)) break
+}
 table(attr(tree, "tipType"))
 }
 \seealso{

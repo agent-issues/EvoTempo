@@ -22,9 +22,12 @@
 #' Q <- TempoGenerator(grid, theta = 0.01)
 #' rates <- BinRates(grid, lambda = 0.51, mu = 0.5, psi = 0.05)
 #' set.seed(3)
-#' history <- SimulateDCET(60, grid$x, Q, rates$lambda, rates$mu, rates$psi,
-#'                         start = 21)
-#' tree <- ReconstructedTree(history)
+#' repeat { # Until at least two lineages are sampled
+#'   history <- SimulateDCET(60, grid$x, Q, rates$lambda, rates$mu, rates$psi,
+#'                           start = 21)
+#'   tree <- ReconstructedTree(history)
+#'   if (!is.null(tree)) break
+#' }
 #' table(attr(tree, "tipType"))
 #' @family simulation
 #' @export
@@ -159,8 +162,11 @@ ReconstructedTree <- function(history, gamma = 1, rate = 1, complete = FALSE) {
 #' Q <- TempoGenerator(grid, theta = 0.01)
 #' rates <- BinRates(grid, lambda = 0.51, mu = 0.5)
 #' set.seed(2)
-#' tree <- ReconstructedTree(SimulateDCET(40, grid$x, Q, rates$lambda,
-#'                                        rates$mu, start = 21))
+#' repeat { # Until the clade survives
+#'   tree <- ReconstructedTree(SimulateDCET(40, grid$x, Q, rates$lambda,
+#'                                          rates$mu, start = 21))
+#'   if (!is.null(tree)) break
+#' }
 #' SimulateCharacters(tree, 5)
 #' @family simulation
 #' @importFrom stats runif

@@ -17,7 +17,7 @@ Pct <- function(a, b) sprintf("%+.1f%%", 100 * (a / b - 1))
 Png <- function(name, width = 17, height = 8.5) {
   png(file.path(repDir, name), width = width, height = height, units = "cm", res = 200,
       pointsize = 9)
-  par(mar = c(3.6, 3.8, 1.6, 0.8), mgp = c(2.3, 0.7, 0), las = 1)
+  par(mar = c(4.4, 4.8, 1.8, 0.8), mgp = c(3.3, 0.7, 0), las = 1, cex.main = 0.95)
 }
 
 # Clade-size summaries from P_n (start x = 0, T = 500)
@@ -134,7 +134,7 @@ for (i in 1:3) {
   w <- r2$branches[[i]][, "w"]
   plot(qexp(qq, lambda + mu), quantile(w, qq), pch = 16, cex = 0.4,
        xlab = "Exp(lambda + mu) quantile", ylab = "Simulated branch w",
-       main = sprintf("x0 = %g: KS p = %.2f; control p = %.1e", c(-2, 0, 2)[i],
+       main = sprintf("x0 = %g: KS p = %.2f; control p = %.1g", c(-2, 0, 2)[i],
                       r2$branchTable$ksP[i], r2$branchTable$ksPcontrol[i]))
   points(qexp(qq, lambda + mu), quantile(r2$control[[i]][, "w"], qq), pch = 1, cex = 0.4,
          col = "#D55E00")
@@ -152,9 +152,10 @@ Png("fig-tempo-distribution.png", width = 9, height = 7)
 th <- r2$tempoHist
 plot(th$x, th$simulated / sum(th$simulated), type = "h", lwd = 3, col = "grey60",
      xlab = "Log-tempo x", ylab = "Proportion of extant species", xlim = c(-3, 4),
+     ylim = c(0, 1.3 * max(th$expected)),
      main = "Extant tempo, T = 100 Myr, x0 = 0")
 lines(th$x, th$expected, type = "b", pch = 16, cex = 0.5)
-legend("topright", c("simulated (pooled)", "replicator-mutation ODE"), lwd = c(3, 1),
+legend("topleft", c("simulated (pooled)", "replicator-mutation ODE"), lwd = c(3, 1),
        col = c("grey60", "black"), bty = "n")
 dev.off()
 
@@ -216,10 +217,12 @@ MdTable <- function(m) {
     paste("|", paste(rep("---", ncol(m)), collapse = " | "), "|"),
     apply(m, 1, function(r) paste("|", paste(r, collapse = " | "), "|")))
 }
+# Observed order from successive differences: |q_i - q_{i+1}| ~ h_i^p
 Order <- function(d, q) {
-  d <- d[order(-d$h), ]
+  n <- nrow(d)
+  if (n < 3L) return(rep(NA, n))
   e <- abs(diff(d[[q]]))
-  c(NA, NA, log(e[-length(e)] / e[-1]) / log(d$h[-c(nrow(d) - 1, nrow(d))] / d$h[-(1:2)]))
+  c(NA, NA, log(e[-length(e)] / e[-1]) / log(d$h[seq_len(n - 2L)] / d$h[seq_len(n - 2L) + 1L]))
 }
 convRows <- do.call(rbind, lapply(split(cv, paste(cv$scheme, cv$zMax)), function(d) {
   d <- d[order(-d$h), ]
@@ -236,6 +239,8 @@ colnames(convTable) <- c("scheme", "z_max", "h", "K", "S0(500)", "mean clade", "
 
 bt <- r2$branchTable
 ct <- r2$cladeTable
+colnames(ct) <- c("x0", "nClade", paste0("dcet.", colnames(ct)[3:9]),
+                  paste0("cet.", colnames(ct)[10:16]))
 nu <- r2$numerics
 cn <- r2$convergedNumerics
 Z <- function(sim, se, ref) sprintf("%.2f", (sim - ref) / se)
@@ -272,14 +277,19 @@ cetRows <- cbind(
   "z vs converged (survival, n)" = paste(Z(ct[, "cet.survival"], ct[, "cet.seSurvival"], cn$survival),
                                          Z(ct[, "cet.meanN"], ct[, "cet.seMeanN"], cn$meanN), sep = ", ")
 )
+dc <- r2$durationCheck
+durationRows <- cbind(Simulator = dc$simulator, Branches = dc$n,
+                      "Mean duration" = sprintf("%.5f +- %.5f", dc$mean, dc$se),
+                      Expected = round(dc$expected, 5), z = Z(dc$mean, dc$se, dc$expected))
 st <- r2$samplingTable
 samplingRows <- cbind(Quantity = st$quantity,
                       Simulated = sprintf("%.4f +- %.4f", st$simulated, st$se),
                       Expected = round(st$expected, 4),
                       z = Z(st$simulated, st$se, st$expected))
 saveRDS(list(rung1 = rung1, convergence = convTable, branch = branchRows, clade = cladeRows,
-             cet = cetRows, sampling = samplingRows, pnSummary = pnSum),
+             cet = cetRows, sampling = samplingRows, durations = durationRows, pnSummary = pnSum),
         file.path(repDir, "tables.rds"))
 writeLines(c(MdTable(rung1), "", MdTable(convTable), "", MdTable(branchRows), "",
-             MdTable(cladeRows), "", MdTable(cetRows), "", MdTable(samplingRows)),
+             MdTable(durationRows), "", MdTable(cladeRows), "", MdTable(cetRows), "",
+             MdTable(samplingRows)),
            file.path(repDir, "tables.md"))

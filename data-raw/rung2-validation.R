@@ -52,6 +52,19 @@ if (Run("branches")) {
           file.path(outDir, "branches.rds"))
 }
 
+# Follow-up: x0 = 2 durations with 10x the branches (dCET) and 7.5x (CET)
+if (Run("durations")) {
+  set.seed(2)
+  end <- (lambda + mu) * exp(grid$x)
+  dcetD <- vapply(seq_len(40000), function(i) {
+    SimulateDCET(1e9, grid$x, Q, 0, end, start = startBin[3])$edges$end[1]
+  }, 0)
+  cetD <- vapply(seq_len(30000), function(i) {
+    SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = 2)$edges$end[1]
+  }, 0)
+  saveRDS(list(dcet = dcetD, cet = cetD), file.path(outDir, "durations.rds"))
+}
+
 # 3-4. Clades to T = 100: survival, mean diversity, tempo distribution
 Clades <- function(n, Simulate) {
   lapply(seq_len(n), function(i) {
@@ -150,6 +163,14 @@ branchTable <- data.frame(
   seDurationContinuous = vapply(continuousBranches,
                                 function(b) sd(b[, "duration"]) / nBranch^0.5, 0)
 )
+d2 <- readRDS(file.path(outDir, "durations.rds"))
+durationCheck <- data.frame(
+  simulator = c("dCET", "continuous CET"), n = c(length(d2$dcet), length(d2$cet)),
+  mean = c(mean(d2$dcet), mean(d2$cet)),
+  se = c(sd(d2$dcet) / sqrt(length(d2$dcet)), sd(d2$cet) / sqrt(length(d2$cet))),
+  expected = c(BranchExpectation(Q, out)[startBin[3]],
+               BranchExpectation(fineQ, fineRates$lambda + fineRates$mu)[fineBin[3]])
+)
 dcetClades <- lapply(1:3, function(i) readRDS(file.path(outDir, paste0("dcet", i, ".rds"))))
 cetClades <- lapply(1:3, function(i) readRDS(file.path(outDir, paste0("cet", i, ".rds"))))
 cladeTable <- cbind(
@@ -181,6 +202,7 @@ samplingTable <- data.frame(
 saveRDS(list(branchTable = branchTable, branches = branches, control = control,
              continuousBranches = continuousBranches, cladeTable = cladeTable,
              numerics = numerics, convergedNumerics = convergedNumerics,
-             coarse = coarse, tempoHist = tempoHist, samplingTable = samplingTable),
+             coarse = coarse, tempoHist = tempoHist, samplingTable = samplingTable,
+             durationCheck = durationCheck),
         file.path(outDir, "rung2.rds"))
 }

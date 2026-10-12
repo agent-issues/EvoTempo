@@ -55,14 +55,19 @@ SimulateDCET <- function(time, x, Q, lambda, mu, psi = 0, start, rho = 1,
                  rep_len(psi, nBin))
   total <- rowSums(rates)
   cumProb <- t(apply(rates, 1, cumsum)) / total
-  store <- .EdgeStore(start)
+  capacity <- 64L
+  parent <- rep(NA_integer_, capacity)
+  startTime <- endTime <- numeric(capacity)
+  startBin <- endType <- integer(capacity)
+  startBin[1] <- start
+  paths <- vector("list", capacity)
   fossils <- list()
   nEdge <- 1L
   e <- 0L
   while (e < nEdge) {
     e <- e + 1L
-    t <- store$startTime[[e]]
-    k <- store$startX[[e]]
+    t <- startTime[[e]]
+    k <- startBin[[e]]
     knotT <- t
     knotK <- k
     repeat {
@@ -90,50 +95,37 @@ SimulateDCET <- function(time, x, Q, lambda, mu, psi = 0, start, rho = 1,
       type <- event - 1L # 2: speciation; 3: extinction
       break
     }
-    store$endTime[e] <- t
-    store$endType[e] <- type
-    store$paths[[e]] <- list(t = knotT, x = x[knotK])
+    endTime[e] <- t
+    endType[e] <- type
+    paths[[e]] <- list(t = knotT, x = x[knotK])
     if (type == 2L) {
-      nEdge <- .AddDaughters(store, e, nEdge, t, k, maxEdges)
+      .CheckEdges(nEdge, maxEdges)
+      if (nEdge + 2L > capacity) {
+        capacity <- 2L * capacity
+        length(parent) <- length(startTime) <- length(endTime) <- capacity
+        length(startBin) <- length(endType) <- length(paths) <- capacity
+      }
+      daughters <- nEdge + 1:2
+      parent[daughters] <- e
+      startTime[daughters] <- t
+      startBin[daughters] <- k
+      nEdge <- nEdge + 2L
     }
   }
-  .TempoHistory(store, nEdge, fossils, rho, time, "discrete")
+  .TempoHistory(parent, startTime, endTime, endType, paths, nEdge, fossils, rho,
+                time, "discrete")
 }
 
-# Branch storage, grown by doubling; branches are created and processed in
-# order of their index, so no queue is needed.
-.EdgeStore <- function(start, capacity = 64L) {
-  store <- new.env()
-  store$parent <- rep(NA_integer_, capacity)
-  store$startTime <- store$endTime <- store$startX <- numeric(capacity)
-  store$endType <- integer(capacity)
-  store$paths <- vector("list", capacity)
-  store$startX[1] <- start
-  store
-}
-
-.AddDaughters <- function(store, e, nEdge, t, startX, maxEdges) {
+.CheckEdges <- function(nEdge, maxEdges) {
   if (nEdge + 2L > maxEdges) {
     stop("More than `maxEdges` branches; reduce `time` or raise `maxEdges`")
   }
-  if (nEdge + 2L > length(store$parent)) {
-    size <- 2L * length(store$parent)
-    for (field in c("parent", "startTime", "endTime", "startX", "endType", "paths")) {
-      v <- store[[field]]
-      length(v) <- size
-      store[[field]] <- v
-    }
-  }
-  daughters <- nEdge + 1:2
-  store$parent[daughters] <- e
-  store$startTime[daughters] <- t
-  store$startX[daughters] <- startX
-  nEdge + 2L
 }
 
-.TempoHistory <- function(store, nEdge, fossils, rho, time, kind) {
+.TempoHistory <- function(parent, startTime, endTime, endType, paths, nEdge,
+                          fossils, rho, time, kind) {
   used <- seq_len(nEdge)
-  types <- c("present", "speciation", "extinction", "removed")[store$endType[used]]
+  types <- c("present", "speciation", "extinction", "removed")[endType[used]]
   present <- types == "present"
   sampled <- rep(NA, length(types))
   sampled[present] <- rbinom(sum(present), 1, rho) == 1
@@ -145,9 +137,9 @@ SimulateDCET <- function(time, x, Q, lambda, mu, psi = 0, start, rho = 1,
   }
   structure(
     list(
-      edges = data.frame(parent = store$parent[used], start = store$startTime[used],
-                         end = store$endTime[used], type = types, sampled = sampled),
-      paths = store$paths[used], fossils = fossils, time = time
+      edges = data.frame(parent = parent[used], start = startTime[used],
+                         end = endTime[used], type = types, sampled = sampled),
+      paths = paths[used], fossils = fossils, time = time
     ),
     class = "TempoHistory", kind = kind
   )
@@ -195,14 +187,19 @@ SimulateCET <- function(time, theta, s, lambda, mu, psi = 0, delta = 0,
   wRate <- lambda + mu + delta * psi
   decay <- exp(-theta * dw)
   noise <- s * sqrt(1 - decay^2)
-  store <- .EdgeStore(x0)
+  capacity <- 64L
+  parent <- rep(NA_integer_, capacity)
+  startTime <- endTime <- startX <- numeric(capacity)
+  endType <- integer(capacity)
+  startX[1] <- x0
+  paths <- vector("list", capacity)
   fossils <- list()
   nEdge <- 1L
   e <- 0L
   while (e < nEdge) {
     e <- e + 1L
-    knotT <- store$startTime[[e]]
-    knotX <- store$startX[[e]]
+    knotT <- startTime[[e]]
+    knotX <- startX[[e]]
     knotW <- 0
     repeat {
       seg <- .OUSegment(rexp(1, wRate), knotX[[length(knotX)]], theta, s, dw,
@@ -256,15 +253,25 @@ SimulateCET <- function(time, theta, s, lambda, mu, psi = 0, delta = 0,
         }
       }
     }
-    store$endTime[e] <- knotT[[length(knotT)]]
-    store$endType[e] <- type
-    store$paths[[e]] <- list(t = knotT, x = knotX, w = knotW)
+    endTime[e] <- knotT[[length(knotT)]]
+    endType[e] <- type
+    paths[[e]] <- list(t = knotT, x = knotX, w = knotW)
     if (type == 2L) {
-      nEdge <- .AddDaughters(store, e, nEdge, knotT[[length(knotT)]],
-                             knotX[[length(knotX)]], maxEdges)
+      .CheckEdges(nEdge, maxEdges)
+      if (nEdge + 2L > capacity) {
+        capacity <- 2L * capacity
+        length(parent) <- length(startTime) <- length(endTime) <- capacity
+        length(startX) <- length(endType) <- length(paths) <- capacity
+      }
+      daughters <- nEdge + 1:2
+      parent[daughters] <- e
+      startTime[daughters] <- endTime[[e]]
+      startX[daughters] <- knotX[[length(knotX)]]
+      nEdge <- nEdge + 2L
     }
   }
-  .TempoHistory(store, nEdge, fossils, rho, time, "continuous")
+  .TempoHistory(parent, startTime, endTime, endType, paths, nEdge, fossils, rho,
+                time, "continuous")
 }
 
 # Exact OU over tempo-time `width` from `x0`, in steps of `dw`.

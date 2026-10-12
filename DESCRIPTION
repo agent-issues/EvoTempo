@@ -19,6 +19,7 @@ Depends:
     R (>= 4.1)
 Imports:
     deSolve,
+    parallel,
     stats
 Suggests:
     ReacTran,
@@ -31,4 +32,4 @@ Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 URL: https://github.com/ms609/EvoTempo
 BugReports: https://github.com/ms609/EvoTempo/issues
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.0

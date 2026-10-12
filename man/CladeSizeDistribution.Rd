@@ -31,7 +31,7 @@ rates, e.g. from \code{\link[=BinRates]{BinRates()}}; recycled to \code{nrow(Q)}
 
 \item{nMax}{Integer giving the largest clade size to report.}
 
-\item{nPoint}{Integer giving the number of contour points.}
+\item{nPoint}{Even integer giving the number of contour points.}
 
 \item{radius}{Numeric giving the contour radius.}
 

@@ -12,6 +12,8 @@ test_that("CladeSizeDistribution() matches the birth-death geometric law", {
   expect_equal(p[, 2], expected, tolerance = 1e-8)
   expect_error(CladeSizeDistribution(time, Q, lambda, mu, 1, 30, nPoint = 16),
                "nPoint")
+  expect_error(CladeSizeDistribution(time, Q, lambda, mu, 1, 30, nPoint = 63),
+               "nPoint")
 })
 
 test_that("CladeSizeDistribution() agrees with moments and runs in parallel", {

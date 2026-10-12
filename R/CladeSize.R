@@ -16,7 +16,7 @@
 #' @param time Numeric giving the clade age.
 #' @param start Integer vector giving the founding bins to report.
 #' @param nMax Integer giving the largest clade size to report.
-#' @param nPoint Integer giving the number of contour points.
+#' @param nPoint Even integer giving the number of contour points.
 #' @param radius Numeric giving the contour radius.
 #' @param cores Integer giving the number of parallel worker processes.
 #' @returns `CladeSizeDistribution()` returns a matrix with rows
@@ -37,8 +37,8 @@ CladeSizeDistribution <- function(time, Q, lambda, mu, start, nMax,
                                   nPoint = 2^ceiling(log2(4 * (nMax + 1))),
                                   radius = 1e-10^(1 / nPoint), cores = 1L,
                                   rtol = 1e-10, atol = 1e-14) {
-  if (nPoint <= nMax) {
-    stop("`nPoint` must exceed `nMax`")
+  if (nPoint <= nMax || nPoint %% 2 != 0) {
+    stop("`nPoint` must be even and exceed `nMax`")
   }
   nBin <- nrow(Q)
   lambda <- rep_len(lambda, nBin)
@@ -53,7 +53,8 @@ CladeSizeDistribution <- function(time, Q, lambda, mu, start, nMax,
       jactype = "fullusr", rtol = rtol, atol = atol, maxsteps = 1e6
     )[2, -1L][start]
   }
-  z <- radius * exp(2i * pi * (seq_len(nPoint) - 1) / nPoint)
+  half <- seq_len(nPoint %/% 2L + 1L)
+  z <- radius * exp(2i * pi * (half - 1) / nPoint)
   values <- if (cores > 1L) {
     cl <- makeCluster(cores)
     on.exit(stopCluster(cl))
@@ -64,7 +65,10 @@ CladeSizeDistribution <- function(time, Q, lambda, mu, start, nMax,
   } else {
     lapply(z, Solve)
   }
-  values <- matrix(unlist(values), nPoint, length(start), byrow = TRUE)
+  values <- matrix(unlist(values), length(half), length(start), byrow = TRUE)
+  # G(conj(z)) = conj(G(z)): the second half of the contour is conjugate
+  mirror <- rev(half[-c(1L, length(half))])
+  values <- rbind(values, Conj(values[mirror, , drop = FALSE]))
   n <- 0:nMax
   apply(values, 2, function(g) Re(fft(g))[n + 1L]) / nPoint / radius^n
 }

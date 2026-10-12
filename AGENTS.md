@@ -69,8 +69,10 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `R/Extinction.R` | E_k(t) with rho, psi; analytic FBD p0 |
 | `R/Moments.R` | Mean diversity, second moment, survivor means, tempo distribution, equilibrium, branch moments |
 | `R/CladeSize.R` | Clade-size distribution by inversion of the probability generating function |
-| `R/Simulate*.R` | Forward simulators (dCET Gillespie; continuous CET exact in tempo-time); sampling; characters |
-| `data-raw/` | Budd & Mann reproduction, convergence and Monte Carlo validation scripts and reports |
+| `R/Simulate.R` | Forward simulators (dCET Gillespie; continuous CET exact in tempo-time); fossils, rho; `BranchClock()` |
+| `R/Reconstruct.R` | Sampled and complete trees from a history (sampled ancestors as zero-length tips); characters |
+| `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
+| `data-raw/rung2-validation.R`, `data-raw/validation-report.R` | Monte Carlo validation and the rung 1-2 report |
 
 ## Naming
 

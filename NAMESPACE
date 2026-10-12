@@ -2,6 +2,7 @@
 
 export(AncestralTempo)
 export(BinRates)
+export(BranchClock)
 export(BranchDurationDensity)
 export(BranchExpectation)
 export(BuddMannGenerator)
@@ -9,6 +10,10 @@ export(CladeSizeDistribution)
 export(DiversityMoments)
 export(ExtinctionProbability)
 export(FBDExtinction)
+export(ReconstructedTree)
+export(SimulateCET)
+export(SimulateCharacters)
+export(SimulateDCET)
 export(SurvivorDiversity)
 export(TempoDistribution)
 export(TempoEquilibrium)
@@ -24,4 +29,12 @@ importFrom(parallel,
   parLapply,
   stopCluster
 )
-importFrom(stats,fft)
+importFrom(stats,
+  fft,
+  filter,
+  rbinom,
+  rexp,
+  rnorm,
+  rpois,
+  runif
+)

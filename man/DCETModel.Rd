@@ -92,6 +92,10 @@ DCETModel(beta = 0)
 \seealso{
 Other dCET inference:
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoMCMC]{TempoMCMC()}},
+\code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},
 \code{\link[=TreeLikelihood]{TreeLikelihood()}}
 }

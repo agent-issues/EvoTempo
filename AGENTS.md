@@ -72,9 +72,12 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `R/Simulate.R` | Forward simulators (dCET Gillespie; continuous CET exact in tempo-time); fossils, rho; `BranchClock()` |
 | `R/Reconstruct.R` | Sampled and complete trees from a history (sampled ancestors as zero-length tips); characters |
 | `R/TreeLikelihood.R` | `TempoTree()` (ages, tip types), `DCETModel()`, marginal likelihood by joint E/D integration, closed-form FBD |
+| `R/Paths.R` | Tempo paths: exact augmented density (E and its integral on a Hermite grid), frozen-E slices, FFBS messages, direct-sampling bridges, importance weights |
+| `R/MCMC.R` | `TempoMCMC()` (data augmentation), `MarginalMCMC()`, `SampleTempoPaths()`, priors and parameter moves |
 | `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
 | `data-raw/rung2-validation.R`, `data-raw/validation-report.R` | Monte Carlo validation and the rung 1-2 report |
 | `data-raw/rung3-validation.R` | Rung 3: beta = 0 collapse, castor MuSSE comparison, Monte Carlo on tiny trees |
+| `data-raw/rung4-validation.R` | Rung 4: augmented vs marginal posterior, FFBS summaries, bridge Laplace transform, sum over paths |
 
 ## Naming
 

@@ -6,7 +6,7 @@
 \alias{EvoTempo-package}
 \title{EvoTempo: Covariant Evolutionary Tempo Models}
 \description{
-Implements the covariant evolutionary tempo model of Budd and Mann (2025) \doi{10.1093/sysbio/syaf020}, in which a heritable log-tempo scales speciation, extinction and character change. A discretized-tempo formulation provides extinction probabilities with extant and fossil sampling, diversity moments and tempo distributions, exact forward simulators for discretized and continuous tempo, and the exact tempo-marginal likelihood of a time tree with fossils.
+Implements the covariant evolutionary tempo model of Budd and Mann (2025) \doi{10.1093/sysbio/syaf020}, in which a heritable log-tempo scales speciation, extinction and character change. A discretized-tempo formulation provides extinction probabilities with extant and fossil sampling, diversity moments and tempo distributions, exact forward simulators for discretized and continuous tempo, the exact tempo-marginal likelihood of a time tree with fossils, and data-augmented Markov chain Monte Carlo over tempo paths.
 }
 \seealso{
 Useful links:

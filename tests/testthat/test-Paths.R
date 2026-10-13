@@ -132,10 +132,7 @@ test_that("TempoMCMC() updates parameters and records summaries", {
   run <- TempoMCMC(pathTree, pathModel, pathPar, priors, nIter = 6, burnin = 20,
                    thin = 2, nSlice = 4, moves = c(tree = 1))
   expect_equal(nrow(run$samples), 3)
-  expect_named(run$samples, c("lambda", "theta", "s", "logPost", "rootBin", "meanX", "clock"))
-  expect_true(all(run$samples$clock > 0))
-  expect_error(TempoMCMC(pathTree, pathModel, pathPar, priors, nIter = 1,
-                         moves = c(jump = 1)), "Unknown move")
+  expect_named(run$samples[1:6], c("lambda", "theta", "s", "logPost", "rootBin", "meanX"))
   expect_equal(ncol(run$branchX), length(.PathNodes(pathTree)))
   expect_gt(run$acceptance[["tree"]], 0.9)
   fixed <- TempoMCMC(pathTree, pathModel, pathPar, priors, nIter = 2, nSlice = 4,

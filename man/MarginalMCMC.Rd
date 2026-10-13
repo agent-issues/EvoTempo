@@ -4,7 +4,17 @@
 \alias{MarginalMCMC}
 \title{MCMC on the marginal dCET tree likelihood}
 \usage{
-MarginalMCMC(tree, model, start, priors, nIter, burnin = 0, thin = 1)
+MarginalMCMC(
+  tree,
+  model,
+  start,
+  priors,
+  nIter,
+  burnin = 0,
+  thin = 1,
+  character = NULL,
+  nState = 2L
+)
 }
 \arguments{
 \item{tree}{A \code{\link{TempoTree}}, or a tree that it accepts.}
@@ -23,6 +33,18 @@ without a prior are held fixed.}
 step sizes adapt.}
 
 \item{thin}{Integer giving the interval between stored samples.}
+
+\item{character}{Optional vector giving the state (\code{0} to \code{nState - 1}, or
+\code{NA} if unknown) of one discrete character at each tip.
+The likelihood is then the exact joint likelihood of tree and character,
+by pruning on the product space of tempo bins and character states, whose
+generator is \eqn{Q \otimes I + \mathrm{diag}(c e^{\gamma x}) \otimes
+Q_{Mk}} (spec section 10, rung 4b), with parameter \code{rate} (\eqn{c}) taken
+from \code{par} and a uniform root state.
+Several characters cannot be scored this way, because they share the tempo
+path.}
+
+\item{nState}{Integer giving the number of character states.}
 }
 \value{
 \code{MarginalMCMC()} returns a data frame of samples: one column per
@@ -46,6 +68,7 @@ MarginalMCMC(tree, DCETModel(nBin = 11, zRange = c(-2, 2)),
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},
 \code{\link[=TempoPriors]{TempoPriors()}},

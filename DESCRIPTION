@@ -13,7 +13,8 @@ Description: Implements the covariant evolutionary tempo model of Budd and
     sampling, diversity moments and tempo distributions, exact forward
     simulators for discretized and continuous tempo, the exact
     tempo-marginal likelihood of a time tree with fossils, and
-    data-augmented Markov chain Monte Carlo over tempo paths.
+    data-augmented Markov chain Monte Carlo over tempo paths, characters
+    and time trees.
 License: GPL (>= 3)
 Encoding: UTF-8
 Language: en-GB

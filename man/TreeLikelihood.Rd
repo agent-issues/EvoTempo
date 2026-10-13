@@ -4,7 +4,15 @@
 \alias{TreeLikelihood}
 \title{Marginal dCET tree likelihood}
 \usage{
-TreeLikelihood(tree, par, model = DCETModel(), rtol = 1e-10, atol = 1e-14)
+TreeLikelihood(
+  tree,
+  par,
+  model = DCETModel(),
+  character = NULL,
+  nState = 2L,
+  rtol = 1e-10,
+  atol = 1e-14
+)
 }
 \arguments{
 \item{tree}{A \code{\link{TempoTree}}, or a tree that it accepts.}
@@ -13,6 +21,18 @@ TreeLikelihood(tree, par, model = DCETModel(), rtol = 1e-10, atol = 1e-14)
 \code{theta}, \code{s}, and optionally \code{psi} (default 0).}
 
 \item{model}{A \code{\link{DCETModel}}.}
+
+\item{character}{Optional vector giving the state (\code{0} to \code{nState - 1}, or
+\code{NA} if unknown) of one discrete character at each tip.
+The likelihood is then the exact joint likelihood of tree and character,
+by pruning on the product space of tempo bins and character states, whose
+generator is \eqn{Q \otimes I + \mathrm{diag}(c e^{\gamma x}) \otimes
+Q_{Mk}} (spec section 10, rung 4b), with parameter \code{rate} (\eqn{c}) taken
+from \code{par} and a uniform root state.
+Several characters cannot be scored this way, because they share the tempo
+path.}
+
+\item{nState}{Integer giving the number of character states.}
 
 \item{rtol, atol}{Numerics giving the tolerances of the stiff solver.}
 }
@@ -39,6 +59,7 @@ Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},
 \code{\link[=TempoPriors]{TempoPriors()}},

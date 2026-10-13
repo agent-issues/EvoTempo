@@ -43,6 +43,7 @@ Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},

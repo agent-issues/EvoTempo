@@ -78,6 +78,7 @@ TempoPriors <- function(meanlog = c(lambda = log(0.5), mu = log(0.2),
 #' @param burnin Integer giving the number of burn-in iterations, during which
 #' step sizes adapt.
 #' @param thin Integer giving the interval between stored samples.
+#' @inheritParams TreeLikelihood
 #' @returns `MarginalMCMC()` returns a data frame of samples: one column per
 #' free parameter, and `logLik`.
 #' @examples
@@ -91,9 +92,11 @@ TempoPriors <- function(meanlog = c(lambda = log(0.5), mu = log(0.2),
 #' @family dCET inference
 #' @export
 MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
-                         thin = 1) {
+                         thin = 1, character = NULL, nState = 2L) {
   tree <- TempoTree(tree)
-  Target <- function(par) list(value = TreeLikelihood(tree, par, model))
+  Target <- function(par) {
+    list(value = TreeLikelihood(tree, par, model, character, nState))
+  }
   .RunParameterChain(start, priors, nIter, burnin, thin, Target)
 }
 
@@ -122,10 +125,12 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
   as.data.frame(out)
 }
 
-#' Data-augmented dCET MCMC on a fixed time tree
+#' Data-augmented dCET MCMC
 #'
-#' Samples parameters jointly with the tempo path on every branch of a fixed
-#' time tree, under the exact augmented density (spec section 3.4).
+#' Samples parameters jointly with the tempo path on every branch of a time
+#' tree, under the exact augmented density (spec section 3.4), optionally with
+#' discrete characters scored on tempo-weighted branch lengths and with moves
+#' on node ages, fossil ages and topology.
 #'
 #' Path moves propose from a frozen-extinction model, in which
 #' \eqn{E(\tau)} is held at its value at the midpoint of each of `nSlice`
@@ -136,26 +141,51 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' Within each slice, paths are drawn exactly from the endpoint-conditioned
 #' frozen law (Hobolth & Stone 2009, direct sampling).
 #' Every path move is accepted by Metropolis-Hastings on the ratio of exact to
-#' frozen densities, so the chain targets the exact model; without characters
-#' acceptance is close to one.
-#' Parameters are updated by multiplicative random walks with the paths held
-#' fixed as bin indices.
+#' frozen densities, times the character likelihood ratio, so the chain
+#' targets the exact model.
+#'
+#' Tree moves (root age fixed): `nodeAge` redraws the age of a bifurcation
+#' uniformly between its children and parent; `fossilAge` redraws a fossil's
+#' age within its stratigraphic range (see [TempoTree()]); `slide` prunes a
+#' subtree and regrafts it at a uniform height onto a uniformly chosen branch
+#' crossing that height; `saJump` converts a fossil tip to a sampled ancestor
+#' or back (Gavryushkina et al. 2014).
+#' Each redraws affected node bins and paths from the frozen model, with
+#' proposal densities in the Hastings ratio.
+#' The target is the density of the unoriented labelled tree, i.e. the
+#' oriented density of [TreeLikelihood()] times \eqn{2^{|V|}}, \eqn{|V|} the
+#' number of bifurcations.
+#'
+#' Characters follow the Mk model on branch lengths
+#' \eqn{\ell_e = c \int_e e^{\gamma x} dt}, with \eqn{c} the parameter `rate`
+#' and \eqn{\gamma} from `model`; see [MkLikelihood()].
 #'
 #' @inheritParams MarginalMCMC
+#' @inheritParams MkLikelihood
 #' @param nSlice Integer giving the number of time slices of the proposal.
-#' @param moves Named numeric vector giving the number of each path move per
+#' @param moves Named numeric vector giving the number of each move per
 #' iteration (see Details); unnamed moves are not used.
+#' @param characters Optional matrix of character states, as for
+#' [MkLikelihood()].
 #' @param updateParameters Logical; if `FALSE`, hold parameters fixed.
 #' @returns `TempoMCMC()` returns a list with elements
 #' - `samples`: data frame with one column per free parameter, `logPost`
-#'   (augmented log density plus log prior), `rootBin`, `meanX`
-#'   (lineage-time-averaged log-tempo over the tree) and `clock`
-#'   (\eqn{\sum_e \int_e e^x dt});
+#'   (log augmented density, plus character log-likelihood and log prior),
+#'   `rootBin`, `meanX` (lineage-time-averaged log-tempo over the tree) and
+#'   tree statistics: `nAncestor`, `treeLength`, `meanNodeAge` (of non-root
+#'   bifurcations), `cherries`, `oldestFossil`, `youngestFossil`, `clock`
+#'   (\eqn{\sum_e \int_e e^x dt}) and `inverseClock`
+#'   (\eqn{\sum_e \int_e e^{-x} dt});
 #' - `occupancy`: matrix of time spent in each bin (columns), per sample;
-#' - `branchX`: matrix of the time-averaged log-tempo on each branch;
+#' - `branchX`: matrix of the time-averaged log-tempo on each branch (for
+#'   chains without tree moves);
 #' - `acceptance`: acceptance rate of each move;
 #' - `state`: the final state.
 #' @references
+#' Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference
+#' of sampled ancestor trees for epidemiology and fossil calibration. PLoS
+#' Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}
+#'
 #' Hobolth A, Stone EA (2009). Simulation from endpoint-conditioned,
 #' continuous-time Markov chains on a finite state space, with applications to
 #' molecular evolution. Annals of Applied Statistics 3:1204--1231.
@@ -172,19 +202,28 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' @family dCET inference
 #' @export
 TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
-                      nSlice = 20, moves = c(tree = 1), updateParameters = TRUE) {
+                      nSlice = 20, moves = c(tree = 1), characters = NULL,
+                      nState = 2L, updateParameters = TRUE) {
   tree <- TempoTree(tree)
   if (model[["start"]] != "root") {
     stop("TempoMCMC() supports `start = \"root\"` only")
   }
-  moveNames <- c("tree", "node", "tip", "branch")
+  moveNames <- c("tree", "node", "tip", "branch", "nodeAge", "fossilAge",
+                 "slide", "saJump")
   if (!all(names(moves) %in% moveNames)) {
     stop("Unknown move: ", paste(setdiff(names(moves), moveNames), collapse = ", "))
   }
   moves <- replace(setNames(numeric(length(moveNames)), moveNames), names(moves),
                    moves)
   par <- as.list(start)
-  CharLL <- function(tr, paths, p, set) 0
+  CharLL <- function(tr, paths, p, set) {
+    if (is.null(characters)) {
+      return(0)
+    }
+    MkLikelihood(tr, characters,
+                 .CharacterLengths(tr, set[["grid"]][["x"]], paths, p[["rate"]],
+                                   model[["gamma"]]), nState)
+  }
   set <- .AddSlices(tree, .Precompute(tree, par, model), nSlice)
   msg <- .Messages(tree, set)
   draw <- .SampleTree(tree, set, msg)
@@ -200,17 +239,23 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   hits <- numeric(length(priors))
   pathNodes <- .PathNodes(tree)
   nKeep <- nIter %/% thin
-  samples <- matrix(NA_real_, nKeep, length(priors) + 4L,
+  statNames <- names(.TreeStats(tree))
+  samples <- matrix(NA_real_, nKeep, length(priors) + 3L + length(statNames),
                     dimnames = list(NULL, c(names(priors), "logPost", "rootBin",
-                                            "meanX", "clock")))
+                                            "meanX", statNames)))
   occupancy <- matrix(NA_real_, nKeep, model[["nBin"]])
   branchX <- matrix(NA_real_, nKeep, length(pathNodes))
   moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L),
                                  c(moveNames, "parameters"))
+  treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
   for (i in seq_len(burnin + nIter)) {
     for (move in moveNames[moves > 0]) {
       for (rep in seq_len(moves[[move]])) {
-        res <- .PathMove(move, st, CharLL)
+        res <- if (move %in% treeMoves) {
+          .TreeMove(move, st, CharLL)
+        } else {
+          .PathMove(move, st, CharLL)
+        }
         st <- res[["state"]]
         moveTry[[move]] <- moveTry[[move]] + 1
         moveAcc[[move]] <- moveAcc[[move]] + res[["accepted"]]
@@ -245,14 +290,43 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
         .LogAugmented(tr, st[["set"]], st[["paths"]], st[["bin"]]) +
           st[["charLL"]] + .LogPrior(st[["par"]], priors),
         st[["bin"]][[tr[["root"]]]], summ[["meanX"]],
-        sum(summ[["occupancy"]] * exp(x)))
+        .TreeStats(tr, .CharacterLengths(tr, x, st[["paths"]], 1, 1),
+                   .CharacterLengths(tr, x, st[["paths"]], 1, -1)))
       occupancy[j / thin, ] <- summ[["occupancy"]]
-      branchX[j / thin, ] <- summ[["branchX"]]
+      if (length(summ[["branchX"]]) == ncol(branchX)) {
+        branchX[j / thin, ] <- summ[["branchX"]]
+      }
     }
   }
   list(samples = as.data.frame(samples), occupancy = occupancy,
        branchX = branchX, acceptance = moveAcc / pmax(moveTry, 1),
        state = st)
+}
+
+# One tree move, accepted on the exact target
+.TreeMove <- function(move, st, CharLL) {
+  tree <- st[["tree"]]
+  set <- st[["set"]]
+  prop <- .ProposeTreeMove(move, tree, set, st)
+  if (is.null(prop)) {
+    return(list(state = st, accepted = FALSE))
+  }
+  newTree <- prop[["tree"]]
+  newChar <- CharLL(newTree, prop[["paths"]], st[["par"]], set)
+  nBif <- function(tr) sum(!tr[["sampled"]])
+  logRatio <- .LogAugmented(newTree, set, prop[["paths"]], prop[["bin"]]) -
+    .LogAugmented(tree, set, st[["paths"]], st[["bin"]]) +
+    (nBif(newTree) - nBif(tree)) * log(2) + newChar - st[["charLL"]] +
+    prop[["logHastings"]]
+  if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+    st[["tree"]] <- newTree
+    st[["paths"]] <- prop[["paths"]]
+    st[["bin"]] <- prop[["bin"]]
+    st[["charLL"]] <- newChar
+    st[["msg"]] <- .Messages(newTree, set)
+    return(list(state = st, accepted = TRUE))
+  }
+  list(state = st, accepted = FALSE)
 }
 
 # Dwell per bin, and time-averaged log-tempo per branch and overall

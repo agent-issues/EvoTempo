@@ -22,3 +22,10 @@
   parameter random walks), `MarginalMCMC()` on the exact marginal likelihood,
   `SampleTempoPaths()` (importance-weighted stochastic mapping) and
   `TempoPriors()` ([#4](https://github.com/agent-issues/EvoTempo/issues/4)).
+- Characters and time-tree moves: `MkLikelihood()` (pure-R Mk pruning, a
+  stand-in for the MkPrime kernels); `TempoMCMC()` gains characters on
+  tempo-weighted branch lengths and moves on node ages, fossil ages within
+  stratigraphic ranges (`TempoTree(ranges = )`), subtree position and
+  sampled ancestor <-> tip; `TreeLikelihood(character = )` gives the exact
+  product-space likelihood of one character, and `MarginalMCMC()` accepts it
+  ([#5](https://github.com/agent-issues/EvoTempo/issues/5)).

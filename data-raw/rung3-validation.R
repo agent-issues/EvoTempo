@@ -42,7 +42,7 @@ collapse$diff <- collapse$dcet - collapse$fbd
 
 # (b) castor MuSSE ------------------------------------------------------------
 CastorLL <- function(tree, Q, lam, mu, rho, prior, cond = "none", psi = 0,
-                     fossilTips = integer(0)) {
+                     fossilTips = integer(0), resolution = 10000) {
   n <- length(tree$tip.label)
   K <- nrow(Q)
   dist <- castor::get_all_distances_to_root(tree)
@@ -61,7 +61,7 @@ CastorLL <- function(tree, Q, lam, mu, rho, prior, cond = "none", psi = 0,
     root_prior = prior, root_conditioning = cond,
     include_ancestral_likelihoods = FALSE, include_warnings = FALSE,
     max_condition_number = 1e4, relative_ODE_step = 1e-5, E_value_step = 1e-6,
-    D_temporal_resolution = 10000, runtime_out_seconds = 0)$loglikelihood
+    D_temporal_resolution = resolution, runtime_out_seconds = 0)$loglikelihood
 }
 set.seed(3)
 ultra <- rcoal(12)
@@ -90,12 +90,22 @@ castorCmp <- do.call(rbind, lapply(seq_len(nrow(points)), function(i) {
     crown = CastorLL(ultra, Q, r$lambda, r$mu, 0.7, prior, "crown") -
       .PruneTree(TempoTree(ultra), Q, r$lambda, r$mu, 0, 0.7, 0, prior,
                  "extant", TRUE, "root"),
+    # Coarser resolution: fossil trees are slow in castor and agree already
     fossil = CastorLL(nonUltra, Q, r$lambda, r$mu, 0.7, prior, psi = r$psi,
-                      fossilTips = fossils) -
+                      fossilTips = fossils, resolution = 1000) -
       (.PruneTree(ttNonUltra, Q, r$lambda, r$mu, r$psi, 0.7, 1, w / sum(w),
                   "none", FALSE, "root") + log(sum(w)))
   )
 }))
+
+if ("castor" %in% commandArgs(trailingOnly = TRUE)) {
+  # Refresh the castor comparison only
+  saved <- readRDS(file.path(outDir, "rung3.rds"))
+  saved$castor <- castorCmp
+  saveRDS(saved, file.path(outDir, "rung3.rds"))
+  print(sapply(castorCmp[, -1], function(x) c(spread = diff(range(x)), mean = mean(x))))
+  quit(save = "no")
+}
 
 # (c) Monte Carlo on tiny trees -----------------------------------------------
 mcPar <- list(lambda = 0.6, mu = 0.3, psi = 0.25, theta = 0.5, s = 1)

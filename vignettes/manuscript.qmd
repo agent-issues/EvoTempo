@@ -1,0 +1,28 @@
+---
+title: "Inferring covariant evolutionary tempo from phylogenies and morphology"
+author:
+  - name: Martin R. Smith
+    email: martin.smith@durham.ac.uk
+    orcid: 0000-0001-5660-1727
+    affiliation:
+      - name: Department of Earth Sciences, Durham University
+        city: Durham
+        country: UK
+date: today
+abstract: |
+  Budd and Mann proposed that a heritable evolutionary tempo jointly scales speciation, extinction and molecular change. We implement a discretized-tempo version of their model with fossil sampling, giving exact forward simulation and a data-augmented likelihood for tip-dated trees and character data. TODO: results.
+keywords:
+  - evolutionary tempo
+  - diversification
+  - relaxed clock
+  - fossilized birth-death
+  - data augmentation
+  - morphological clocks
+---
+
+```{r setup}
+#| include: false
+library("EvoTempo")
+```
+
+## Introduction

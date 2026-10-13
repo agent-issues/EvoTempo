@@ -1,0 +1,27 @@
+project:
+  type: default
+
+format:
+  pdf:
+    documentclass: article
+    classoption: [a4paper, 11pt]
+    geometry:
+      - margin=1in
+    fontfamily: lmodern
+    colorlinks: true
+    linkcolor: black
+    citecolor: black
+    urlcolor: blue
+    fig-pos: "tbp"
+    number-sections: true
+    keep-tex: true
+
+execute:
+  cache: true
+  echo: false
+  message: false
+  warning: false
+
+bibliography: references.bib
+csl: systematic-biology.csl
+link-citations: true

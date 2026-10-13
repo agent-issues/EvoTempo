@@ -1,0 +1,16 @@
+.Rproj.user
+.Rhistory
+.RData
+*.Rcheck/
+*.tar.gz
+.agent*/
+src/*.o
+src/*.dll
+data-raw/output/
+vignettes/manuscript.pdf
+vignettes/manuscript.tex
+vignettes/manuscript_files/
+vignettes/_freeze/
+.quarto/
+data-raw/rung2-results/*
+!data-raw/rung2-results/rung2.rds

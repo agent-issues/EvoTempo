@@ -211,10 +211,20 @@
   }
 }
 
+# Signal a proposal that cannot be drawn numerically; callers reject it
+.Infeasible <- function() {
+  stop(structure(class = c("infeasibleProposal", "error", "condition"),
+                 list(message = "Infeasible bridge", call = NULL)))
+}
+
 # One draw from weights `w` (negative round-off treated as zero)
 .Sample1 <- function(w) {
   cw <- cumsum(pmax(w, 0))
-  findInterval(stats::runif(1) * cw[[length(cw)]], cw) + 1L
+  total <- cw[[length(cw)]]
+  if (!is.finite(total) || !(total > 0)) {
+    stop("No positive finite weight to sample from")
+  }
+  findInterval(stats::runif(1) * total, cw) + 1L
 }
 
 # Endpoint-conditioned path under the frozen generator of a slice, over
@@ -249,6 +259,11 @@
     jAll <- J(remain)
     w <- c(if (a == j) exp(gaa * remain) else 0,
            vapply(coef, function(cf) sum(cf * jAll), 0))
+    if (!(sum(pmax(w, 0)) > 0)) {
+      # Endpoints too far apart for the remaining time: the bridge density
+      # underflows and cannot be sampled
+      .Infeasible()
+    }
     pick <- .Sample1(w)
     if (pick == 1L) {
       break

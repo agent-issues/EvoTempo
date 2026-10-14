@@ -156,3 +156,22 @@ test_that("FBDTreeLikelihood() matches quadrature of the D equation", {
                2 * (log(rho) + integrate(g, 0, 2, rel.tol = 1e-12)$value),
                tolerance = 1e-9)
 })
+
+test_that("Trees incompatible with crown conditioning have zero likelihood", {
+  # Root daughters: (a, b) with an extant tip, and a lone fossil c
+  fossilSide <- Phylo(rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)), c(1, 2, 2, 1),
+                      c("a", "b", "c"))
+  tt <- TempoTree(fossilSide, tipType = c("extant", "extant", "fossil"))
+  par <- list(lambda = 0.5, mu = 0.2, psi = 0.1, theta = 0.4, s = 1)
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2))
+  expect_equal(TreeLikelihood(tt, par, model), -Inf)
+  expect_equal(FBDTreeLikelihood(tt, 0.5, 0.2, 0.1), -Inf)
+  model$condition <- "survival"
+  expect_true(is.finite(TreeLikelihood(tt, par, model)))
+  expect_true(.Compatible(tt, "survival"))
+  # With an origin, at least one extant tip is needed
+  fossilsOnly <- TempoTree(fossilSide, ages = c(1, 1, 2, 3, 2),
+                           tipType = rep("fossil", 3))
+  expect_false(.Compatible(fossilsOnly, "extant", origin = TRUE))
+  expect_true(.Compatible(tt, "extant", origin = TRUE))
+})

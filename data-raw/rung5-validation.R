@@ -41,7 +41,8 @@ if (part %in% c("4b", "both")) {
   edgeLen <- len[phylo4b$edge[, 2]]
   character <- as.vector(SimulateCharacters(phylo4b, 1, 2, edgeLen))
   priors4b <- c(priors, rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
-  jobs4b <- expand.grid(i = seq_len(nChain), kind = c("DA", "marginal"),
+  # Four chains of each kind (memory limits on the development machine)
+  jobs4b <- expand.grid(i = seq_len(4), kind = c("DA", "marginal"),
                         stringsAsFactors = FALSE)
   cl <- makeCluster(nrow(jobs4b))
   invisible(clusterCall(cl, function() {
@@ -109,19 +110,26 @@ if (part %in% c("5", "both")) {
       tries <- tries + 1
       par <- PriorDraw()
       set <- .Setup(par, model5)
-      k <- .Sample1(set$prior)
-      h <- tryCatch(lapply(1:2, function(i) {
-        SimulateDCET(crown, set$grid$x, set$Q, set$lambda, set$mu, set$psi,
-                     start = k, rho = model5$rho, maxEdges = 5000)
-      }), error = function(e) NULL)
+      # The likelihood is conditioned on survival: resimulate at the same
+      # parameters until both crown daughters have sampled extant descendants
+      repeat {
+        k <- .Sample1(set$prior)
+        h <- tryCatch(lapply(1:2, function(i) {
+          SimulateDCET(crown, set$grid$x, set$Q, set$lambda, set$mu, set$psi,
+                       start = k, rho = model5$rho, maxEdges = 5000)
+        }), error = function(e) NULL)
+        if (is.null(h)) break
+        ext <- vapply(h, function(hi) sum(hi$edges$sampled %in% TRUE), 0)
+        if (all(ext > 0)) break
+      }
       if (is.null(h)) {
-        # More than 5000 branches: fails the tip and fossil counts in practice
+        # More than 5000 branches: survives, but fails the tip and fossil
+        # counts in practice
         exploded <- exploded + 1
         next
       }
-      ext <- vapply(h, function(hi) sum(hi$edges$sampled %in% TRUE), 0)
       fos <- vapply(h, function(hi) nrow(hi$fossils), 0)
-      if (any(ext == 0) || sum(ext) != nExtant || sum(fos) != nFossil) next
+      if (sum(ext) != nExtant || sum(fos) != nFossil) next
       joint <- Join(h[[1]], h[[2]], set$grid$x[k])
       tree <- ReconstructedTree(joint, gamma = 1)
       inv <- ReconstructedTree(joint, gamma = -1)
@@ -138,9 +146,17 @@ if (part %in% c("5", "both")) {
   }))
   clusterExport(cl, c("model5", "crown", "nExtant", "nFossil", "PriorDraw",
                       "Join", "Simulate", "meanlog5", "sdlog5"))
-  t0 <- Sys.time()
-  sims <- parLapply(cl, seq_len(nCore), function(i) Simulate(500 + i, 200))
-  simTime <- difftime(Sys.time(), t0, units = "mins")
+  simFile <- file.path(outDir, "rung5-simulations.rds")
+  if (file.exists(simFile)) {
+    cached <- readRDS(simFile)
+    sims <- cached$sims
+    simTime <- cached$simTime
+  } else {
+    t0 <- Sys.time()
+    sims <- parLapply(cl, seq_len(nCore), function(i) Simulate(500 + i, 200))
+    simTime <- difftime(Sys.time(), t0, units = "mins")
+    saveRDS(list(sims = sims, simTime = simTime), simFile)
+  }
   simStats <- as.data.frame(do.call(rbind, lapply(sims, `[[`, "stats")))
   # Starting tree: one simulated tree with the target counts
   set.seed(1)
@@ -148,10 +164,11 @@ if (part %in% c("5", "both")) {
     par <- PriorDraw()
     set <- .Setup(par, model5)
     k <- .Sample1(set$prior)
-    h <- lapply(1:2, function(i) {
+    h <- tryCatch(lapply(1:2, function(i) {
       SimulateDCET(crown, set$grid$x, set$Q, set$lambda, set$mu, set$psi,
-                   start = k, rho = model5$rho, maxEdges = 2000)
-    })
+                   start = k, rho = model5$rho, maxEdges = 5000)
+    }), error = function(e) NULL)
+    if (is.null(h)) next
     ext <- vapply(h, function(hi) sum(hi$edges$sampled %in% TRUE), 0)
     fos <- vapply(h, function(hi) nrow(hi$fossils), 0)
     if (all(ext > 0) && sum(ext) == nExtant && sum(fos) == nFossil) break
@@ -163,21 +180,30 @@ if (part %in% c("5", "both")) {
                    ranges = cbind(0, ifelse(tt5$tipType == "extant", 0, crown)))
   start5 <- as.list(exp(meanlog5))
   clusterExport(cl, c("tt5", "start5", "priors5", "nIter", "burnin"))
-  t0 <- Sys.time()
-  chains5 <- parLapply(cl, seq_len(nChain), function(i) {
-    set.seed(3000 + i)
-    TempoMCMC(tt5, model5, start5, priors5, nIter = nIter, burnin = burnin,
-              nSlice = 16,
-              moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 2,
-                        fossilAge = 2, slide = 2, saJump = 2))[c("samples", "acceptance")]
-  })
+  # Chains are cached separately from the simulations (delete to rerun)
+  chainFile <- file.path(outDir, "rung5-chains.rds")
+  if (file.exists(chainFile)) {
+    cachedChains <- readRDS(chainFile)
+    chains5 <- cachedChains$chains
+    chainTime <- cachedChains$runtime
+  } else {
+    t0 <- Sys.time()
+    chains5 <- parLapply(cl, seq_len(nChain), function(i) {
+      set.seed(3000 + i)
+      TempoMCMC(tt5, model5, start5, priors5, nIter = nIter, burnin = burnin,
+                nSlice = 16,
+                moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 2,
+                          fossilAge = 2, slide = 2, saJump = 2))[c("samples", "acceptance")]
+    })
+    chainTime <- difftime(Sys.time(), t0, units = "mins")
+    saveRDS(list(chains = chains5, runtime = chainTime), chainFile)
+  }
   stopCluster(cl)
   saveRDS(list(model = model5, priors = list(meanlog = meanlog5, sdlog = sdlog5),
                crown = crown, nExtant = nExtant, nFossil = nFossil,
                sims = simStats, simTries = sum(vapply(sims, `[[`, 0, "tries")),
                simExploded = sum(vapply(sims, `[[`, 0, "exploded")),
                simTime = simTime, startTree = startTree, chains = chains5,
-               nIter = nIter, burnin = burnin,
-               runtime = difftime(Sys.time(), t0, units = "mins")),
+               nIter = nIter, burnin = burnin, runtime = chainTime),
           file.path(outDir, "rung5.rds"))
 }

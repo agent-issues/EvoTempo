@@ -164,3 +164,29 @@ test_that("Path moves reject when the character likelihood forbids them", {
   expect_false(res$accepted)
   expect_identical(res$state$paths, st$paths)
 })
+
+test_that("Infeasible bridges are signalled and their moves rejected", {
+  set <- .AddSlices(pathTree, .Precompute(pathTree, pathPar, pathModel), 4)
+  expect_error(.Bridge(set, 1, 1e-9, 1, 11), class = "infeasibleProposal")
+  # A tree 1e-7 Myr deep whose node bins alternate between the extreme bins
+  tiny <- TempoTree(structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
+                                   edge.length = c(1, 1, 1, 2) * 1e-7,
+                                   tip.label = c("a", "b", "c"), Nnode = 2),
+                              class = "phylo"))
+  set <- .AddSlices(tiny, .Precompute(tiny, pathPar, pathModel), 2)
+  bin <- c(11L, 11L, 1L, 11L, 1L)
+  st <- list(tree = tiny, par = pathPar, set = set, msg = .Messages(tiny, set),
+             paths = list(), bin = bin, charLL = 0)
+  res <- .PathMove("branch", st, function(...) 0)
+  expect_false(res$accepted)
+})
+
+test_that(".Sample1() draws in proportion and rejects empty weights", {
+  set.seed(9)
+  draws <- vapply(1:4000, function(i) .Sample1(c(0.2, 0, 0.5, 0.3)), 0L)
+  expect_equal(as.vector(table(factor(draws, 1:4))) / 4000, c(0.2, 0, 0.5, 0.3),
+               tolerance = 0.1)
+  expect_equal(.Sample1(5), 1L)
+  expect_error(.Sample1(c(0, -1e-18)), "No positive")
+  expect_error(.Sample1(c(NaN, 1)), "No positive")
+})

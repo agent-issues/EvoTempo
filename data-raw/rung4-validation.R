@@ -86,6 +86,8 @@ chains <- parLapply(cl, seq_len(nrow(jobs)), function(j) {
   out
 })
 runtime <- difftime(Sys.time(), t0, units = "mins")
+saveRDS(list(jobs = jobs, chains = chains, runtime = runtime),
+        file.path(outDir, "rung4-chains.rds"))
 
 # 4a(ii): local path moves at fixed parameters vs FFBS maps ----------------
 mapJob <- parLapply(cl, 1:2, function(j) {
@@ -112,7 +114,7 @@ sl <- set$slices[[s]]
 G <- .AddDiag(set$Q, 2 * set$lambda * sl$eBar - set$sigma)
 clock <- exp(set$grid$x)
 set.seed(5)
-laplace <- do.call(rbind, lapply(list(c(14, 14), c(13, 17), c(20, 18)), function(ends) {
+laplace <- do.call(rbind, lapply(list(c(8, 8), c(7, 10), c(12, 10)), function(ends) {
   ell <- replicate(20000, {
     br <- .Bridge(set, s, span, ends[1], ends[2])
     sum(clock[br$k] * diff(c(0, br$t, span)))

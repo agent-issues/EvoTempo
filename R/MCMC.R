@@ -384,56 +384,62 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   bin <- st[["bin"]]
   paths <- st[["paths"]]
   nodes <- .PathNodes(tree)
-  switch(
-    move,
-    tree = {
-      draw <- .SampleTree(tree, set, msg)
-      changed <- nodes
-      newPaths <- draw[["paths"]]
-      newBin <- draw[["bin"]]
-    },
-    tip = {
-      tips <- nodes[nodes <= nTip]
-      v <- tips[[.Sample1(rep(1, length(tips)))]]
-      draw <- .SampleClade(tree, set, msg, paths, bin, v, bin[[parent[[v]]]])
-      changed <- v
-      newPaths <- draw[["paths"]]
-      newBin <- draw[["bin"]]
-    },
-    branch = {
-      v <- nodes[[.Sample1(rep(1, length(nodes)))]]
-      changed <- v
-      newPaths <- paths
-      newPaths[[v]] <- .SampleBranch(set, msg[["pieces"]][[v]], NULL,
-                                     bin[[parent[[v]]]], bin[[v]])
-      newBin <- bin
-    },
-    node = {
-      internal <- tree[["postorder"]]
-      v <- internal[[.Sample1(rep(1, length(internal)))]]
-      kids <- .PathKids(tree, v)
-      w <- if (v == tree[["root"]]) {
-        set[["prior"]] / (if (set[["joint"]]) set[["survive"]] else 1)
-      } else if (tree[["sampled"]][v - nTip]) {
-        set[["psi"]] * .TransferRow(msg[["pieces"]][[v]], bin[[parent[[v]]]])
-      } else {
-        set[["lambda"]] * .TransferRow(msg[["pieces"]][[v]], bin[[parent[[v]]]])
+  proposal <- tryCatch({
+    switch(
+      move,
+      tree = {
+        draw <- .SampleTree(tree, set, msg)
+        changed <- nodes
+        newPaths <- draw[["paths"]]
+        newBin <- draw[["bin"]]
+      },
+      tip = {
+        tips <- nodes[nodes <= nTip]
+        v <- tips[[.Sample1(rep(1, length(tips)))]]
+        draw <- .SampleClade(tree, set, msg, paths, bin, v, bin[[parent[[v]]]])
+        changed <- v
+        newPaths <- draw[["paths"]]
+        newBin <- draw[["bin"]]
+      },
+      branch = {
+        v <- nodes[[.Sample1(rep(1, length(nodes)))]]
+        changed <- v
+        newPaths <- paths
+        newPaths[[v]] <- .SampleBranch(set, msg[["pieces"]][[v]], NULL,
+                                       bin[[parent[[v]]]], bin[[v]])
+        newBin <- bin
+      },
+      node = {
+        internal <- tree[["postorder"]]
+        v <- internal[[.Sample1(rep(1, length(internal)))]]
+        kids <- .PathKids(tree, v)
+        w <- if (v == tree[["root"]]) {
+          set[["prior"]] / (if (set[["joint"]]) set[["survive"]] else 1)
+        } else if (tree[["sampled"]][v - nTip]) {
+          set[["psi"]] * .TransferRow(msg[["pieces"]][[v]], bin[[parent[[v]]]])
+        } else {
+          set[["lambda"]] * .TransferRow(msg[["pieces"]][[v]], bin[[parent[[v]]]])
+        }
+        for (kid in kids) {
+          w <- w * .TransferCol(msg[["pieces"]][[kid]], bin[[kid]])
+        }
+        newBin <- bin
+        newBin[v] <- .Sample1(w)
+        sa <- tree[["kids"]][v - nTip, ]
+        newBin[sa[sa <= nTip & tree[["tipType"]][pmin(sa, nTip)] == "ancestor"]] <- newBin[v]
+        changed <- c(if (v != tree[["root"]]) v, kids)
+        newPaths <- paths
+        for (u in changed) {
+          newPaths[[u]] <- .SampleBranch(set, msg[["pieces"]][[u]], NULL,
+                                         newBin[[parent[[u]]]], newBin[[u]])
+        }
       }
-      for (kid in kids) {
-        w <- w * .TransferCol(msg[["pieces"]][[kid]], bin[[kid]])
-      }
-      newBin <- bin
-      newBin[v] <- .Sample1(w)
-      sa <- tree[["kids"]][v - nTip, ]
-      newBin[sa[sa <= nTip & tree[["tipType"]][pmin(sa, nTip)] == "ancestor"]] <- newBin[v]
-      changed <- c(if (v != tree[["root"]]) v, kids)
-      newPaths <- paths
-      for (u in changed) {
-        newPaths[[u]] <- .SampleBranch(set, msg[["pieces"]][[u]], NULL,
-                                       newBin[[parent[[u]]]], newBin[[u]])
-      }
-    }
-  )
+    )
+    TRUE
+  }, infeasibleProposal = function(e) NULL)
+  if (is.null(proposal)) {
+    return(list(state = st, accepted = FALSE))
+  }
   newChar <- CharLL(tree, newPaths, st[["par"]], set)
   logRatio <- .LogWeight(tree, set, msg, newPaths, changed) -
     .LogWeight(tree, set, msg, paths, changed) + newChar - st[["charLL"]]

@@ -69,6 +69,7 @@
                tree[["age"]])
   set[["eg"]] <- eg
   set[["joint"]] <- model[["joint"]]
+  set[["condition"]] <- model[["condition"]]
   set[["removal"]] <- removal
   set[["rho"]] <- rho
   set[["sigma"]] <- set[["lambda"]] + set[["mu"]] + set[["psi"]]
@@ -212,9 +213,9 @@
 }
 
 # Signal a proposal that cannot be drawn numerically; callers reject it
-.Infeasible <- function() {
+.Infeasible <- function(message = "Infeasible bridge") {
   stop(structure(class = c("infeasibleProposal", "error", "condition"),
-                 list(message = "Infeasible bridge", call = NULL)))
+                 list(message = message, call = NULL)))
 }
 
 # One draw from weights `w` (negative round-off treated as zero)
@@ -222,7 +223,8 @@
   cw <- cumsum(pmax(w, 0))
   total <- cw[[length(cw)]]
   if (!is.finite(total) || !(total > 0)) {
-    stop("No positive finite weight to sample from")
+    # Weights underflow when fixed end bins cannot be connected numerically
+    .Infeasible("No positive finite weight to sample from")
   }
   findInterval(stats::runif(1) * total, cw) + 1L
 }
@@ -377,6 +379,9 @@
 
 # Exact log augmented density (spec equation 3.4), start at the root
 .LogAugmented <- function(tree, set, paths, bin) {
+  if (!.Compatible(tree, set[["condition"]])) {
+    return(-Inf)
+  }
   nTip <- tree[["nTip"]]
   age <- tree[["age"]]
   parent <- tree[["parent"]]

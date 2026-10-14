@@ -175,7 +175,7 @@ TempoTree <- function(tree, ages = NULL, tipType = NULL, present = NULL,
 #'  - a numeric vector of weights, one per bin.
 #' @param condition Character string specifying the survival conditioning:
 #'  - `extant`: each root daughter (or the stem) has a sampled extant
-#'    descendant;
+#'    descendant (trees without one have likelihood zero);
 #'  - `survival`: each has any sampled descendant;
 #'  - `none`: no conditioning.
 #' @param joint Logical; if `TRUE`, condition on survival given the start bin
@@ -294,6 +294,28 @@ TreeLikelihood <- function(tree, par, model = DCETModel(), character = NULL,
              tipMask = mask[, rep(seq_len(nState), nBin), drop = FALSE])
 }
 
+# Whether the tree is possible under the conditioning: with extant (crown)
+# conditioning each root daughter, or with an origin the tree, needs a
+# sampled extant descendant
+.Compatible <- function(tree, condition, origin = FALSE) {
+  if (condition != "extant") {
+    return(TRUE)
+  }
+  extant <- which(tree[["tipType"]] == "extant")
+  if (origin) {
+    return(length(extant) > 0)
+  }
+  root <- tree[["root"]]
+  # Child of the root above each extant tip
+  top <- vapply(extant, function(v) {
+    while (tree[["parent"]][[v]] != root) {
+      v <- tree[["parent"]][[v]]
+    }
+    v
+  }, 0)
+  all(tree[["kids"]][root - tree[["nTip"]], ] %in% top)
+}
+
 # Exact pruning for arbitrary generator `Q` and per-bin rates
 .PruneTree <- function(tree, Q, lambda, mu, psi, rho, removal, prior,
                        condition, joint, start, rtol = 1e-10, atol = 1e-14,
@@ -313,6 +335,9 @@ TreeLikelihood <- function(tree, par, model = DCETModel(), character = NULL,
   }
   if (any(tree[["tipType"]] != "extant") && !all(psi > 0)) {
     stop("Fossil tips and sampled ancestors need `psi > 0`")
+  }
+  if (!.Compatible(tree, condition, origin)) {
+    return(-Inf)
   }
   topAge <- age[tree[["root"]]] + if (origin) tree[["stem"]] else 0
   sorted <- sort(unique(c(age, topAge)))
@@ -438,6 +463,9 @@ FBDTreeLikelihood <- function(tree, lambda, mu, psi = 0, rho = 1, removal = 0,
   tree <- TempoTree(tree)
   condition <- match.arg(condition)
   origin <- match.arg(start) == "origin"
+  if (!.Compatible(tree, condition, origin)) {
+    return(-Inf)
+  }
   nTip <- tree[["nTip"]]
   age <- tree[["age"]]
   tipType <- tree[["tipType"]]

@@ -190,6 +190,17 @@ test_that(".Sample1() draws in proportion and rejects empty weights", {
   expect_equal(as.vector(table(factor(draws, 1:4))) / 4000, c(0.2, 0, 0.5, 0.3),
                tolerance = 0.1)
   expect_equal(.Sample1(5), 1L)
-  expect_error(.Sample1(c(0, -1e-18)), "No positive")
+  expect_error(.Sample1(c(0, -1e-18)), "No positive", class = "infeasibleProposal")
   expect_error(.Sample1(c(NaN, 1)), "No positive")
+})
+
+test_that("The augmented density is zero for trees outside the conditioning", {
+  fossilSide <- TempoTree(structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
+                                         edge.length = c(1, 2, 2, 1),
+                                         tip.label = c("a", "b", "c"), Nnode = 2),
+                                    class = "phylo"),
+                          tipType = c("extant", "extant", "fossil"))
+  set <- .AddSlices(fossilSide, .Precompute(fossilSide, pathPar, pathModel), 4)
+  d <- .SampleTree(fossilSide, set, .Messages(fossilSide, set))
+  expect_equal(.LogAugmented(fossilSide, set, d$paths, d$bin), -Inf)
 })

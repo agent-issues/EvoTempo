@@ -154,3 +154,17 @@ test_that("MarginalMCMC() accepts one character", {
                       nIter = 2, character = c(0, 1, 1, NA, 0))
   expect_equal(dim(out), c(2, 3))
 })
+
+test_that("Tree moves with infeasible bridges are rejected", {
+  tiny <- TempoTree(structure(list(edge = rbind(c(5, 6), c(6, 7), c(7, 1), c(7, 2),
+                                                c(6, 3), c(5, 4)),
+                                   edge.length = c(1, 1, 1, 1, 2, 3) * 1e-7,
+                                   tip.label = c("a", "b", "c", "d"), Nnode = 3),
+                              class = "phylo"))
+  set <- .AddSlices(tiny, .Precompute(tiny, movePar, moveModel), 2)
+  bin <- c(11L, 11L, 1L, 1L, 1L, 11L, 1L)
+  st <- list(tree = tiny, par = movePar, set = set, msg = .Messages(tiny, set),
+             paths = list(), bin = bin, charLL = 0)
+  res <- .TreeMove("nodeAge", st, function(...) 0)
+  expect_false(res$accepted)
+})

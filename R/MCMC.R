@@ -307,7 +307,8 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 .TreeMove <- function(move, st, CharLL) {
   tree <- st[["tree"]]
   set <- st[["set"]]
-  prop <- .ProposeTreeMove(move, tree, set, st)
+  prop <- tryCatch(.ProposeTreeMove(move, tree, set, st),
+                   infeasibleProposal = function(e) NULL)
   if (is.null(prop)) {
     return(list(state = st, accepted = FALSE))
   }

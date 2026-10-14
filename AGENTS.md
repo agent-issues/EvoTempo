@@ -81,6 +81,16 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung3-validation.R` | Rung 3: beta = 0 collapse, castor MuSSE comparison, Monte Carlo on tiny trees |
 | `data-raw/rung4-validation.R` | Rung 4: augmented vs marginal posterior, FFBS summaries, bridge Laplace transform, sum over paths |
 | `data-raw/rung5-validation.R` | Rung 4b (one character, product-space oracle) and rung 5 (prior-only MCMC vs simulator) |
+| `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |
+| `data-raw/rung5-fixed-parameters.R` | Rung 5 at fixed parameters (tree moves only) vs rejection simulation; regression check for tree-move Hastings ratios |
+
+## Tree-move proposals
+
+The reverse proposal density of a tree move must include every path the forward move
+redraws, including branches whose endpoints are unchanged but whose parent changes
+(the regraft target of `slide`). Omitting one is invisible when paths rarely jump
+(coarse grid, small theta) and shows up as old node ages on finer grids;
+`data-raw/rung5-fixed-parameters.R` detects it.
 
 ## Naming
 

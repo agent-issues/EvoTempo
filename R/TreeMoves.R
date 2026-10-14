@@ -247,7 +247,7 @@
       nodesNew <- unique(c(p, y, v, sib))
       fwd <- Redraw(newTree, nodesNew, newBin)
       list(tree = newTree, bin = newBin, paths = fwd[["paths"]],
-           logHastings = OldQ(c(p, sib, v)) + lwOld[[bin[[p]]]] - .LogSumExp(lwOld) -
+           logHastings = OldQ(unique(c(p, sib, v, y))) + lwOld[[bin[[p]]]] - .LogSumExp(lwOld) -
              fwd[["logQ"]] - draw[["logQ"]] +
              log(length(fwdTargets)) - log(length(revTargets)) +
              log(length(cand)) - log(length(.SlideNodes(newTree))))

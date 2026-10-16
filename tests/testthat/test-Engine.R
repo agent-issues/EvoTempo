@@ -51,6 +51,13 @@ test_that("Tree likelihoods agree between engines", {
       }
     }
   }
+  # Solver counters (profiling) record the steps taken, then reset
+  invisible(.SolverCountsCpp())
+  TreeLikelihood(engineTree, enginePar, engineModel, engine = "cpp")
+  counts <- .SolverCountsCpp()
+  expect_gt(counts[["steps"]], 0)
+  expect_gte(counts[["newton"]], counts[["steps"]])
+  expect_equal(.SolverCountsCpp()[["steps"]], 0)
   # Stiff generator: high tempo at the edges of a wide grid
   stiff <- DCETModel(nBin = 26, zRange = c(-5, 5), rho = 0.7)
   par <- replace(enginePar, c("theta", "s"), list(1, 1.5))

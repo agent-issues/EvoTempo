@@ -211,6 +211,7 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #'                  TempoPriors()[c("lambda", "theta")], nIter = 5, nSlice = 4)
 #' run$samples
 #' @family dCET inference
+#' @importFrom stats setNames
 #' @export
 TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                       nSlice = 20, moves = c(tree = 1), characters = NULL,

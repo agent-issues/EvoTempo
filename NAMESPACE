@@ -47,6 +47,7 @@ importFrom(stats,
   rexp,
   rnorm,
   rpois,
-  runif
+  runif,
+  setNames
 )
 useDynLib(EvoTempo, .registration = TRUE)

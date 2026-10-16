@@ -83,6 +83,8 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung5-validation.R` | Rung 4b (one character, product-space oracle) and rung 5 (prior-only MCMC vs simulator) |
 | `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |
 | `data-raw/rung5-fixed-parameters.R` | Rung 5 at fixed parameters (tree moves only) vs rejection simulation; regression check for tree-move Hastings ratios |
+| `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
+| `data-raw/rung4b-theta-identity.R` | Importance-sampling identity (augmented to marginal likelihood) across theta, with or without the character |
 | `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
 | `data-raw/validation-report-phase2.R` | Summary CSVs for the rungs 3-6 report (`data-raw/validation-report-phase2/README.md`) |
 
@@ -93,6 +95,14 @@ redraws, including branches whose endpoints are unchanged but whose parent chang
 (the regraft target of `slide`). Omitting one is invisible when paths rarely jump
 (coarse grid, small theta) and shows up as old node ages on finer grids;
 `data-raw/rung5-fixed-parameters.R` detects it.
+
+## Default grid
+
+Validation scripts run at the package default grid (K = 26, z in [-5, 5]) when
+`EVOTEMPO_GRID=default` is set, writing `-K26` result files; the summary is
+`data-raw/validation-report-default-grid/README.md`. Run such jobs one at a time:
+two 15-worker clusters at once have lost all their workers on the development
+machine.
 
 ## Validation simulators
 

@@ -29,7 +29,7 @@ if (part %in% c("4b", "both")) {
   # K = 11 on z in [-2, 2]: the product space (K x 2 states) makes the
   # marginal chains about twice as costly as in rung 4
   model4b <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.5)
-  nIter4b <- 3000L
+  nIter4b <- if (length(args) > 1) as.integer(args[[2]]) else 3000L
   burnin4b <- 300L
   truth4b <- c(r4$truth, rate = 0.3)
   set.seed(42)
@@ -41,8 +41,9 @@ if (part %in% c("4b", "both")) {
   edgeLen <- len[phylo4b$edge[, 2]]
   character <- as.vector(SimulateCharacters(phylo4b, 1, 2, edgeLen))
   priors4b <- c(priors, rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
-  # Four chains of each kind (memory limits on the development machine)
-  jobs4b <- expand.grid(i = seq_len(4), kind = c("DA", "marginal"),
+  # Eight chains of each kind; DA chains use joint parameter-path moves,
+  # without which theta mixes too slowly for this comparison (#20)
+  jobs4b <- expand.grid(i = seq_len(8), kind = c("DA", "marginal"),
                         stringsAsFactors = FALSE)
   cl <- makeCluster(nrow(jobs4b))
   invisible(clusterCall(cl, function() {
@@ -55,7 +56,7 @@ if (part %in% c("4b", "both")) {
     set.seed(2000 + j)
     if (jobs4b$kind[j] == "DA") {
       TempoMCMC(tt, model4b, truth4b, priors4b, nIter = nIter4b, burnin = burnin4b,
-                nSlice = 20, moves = c(tree = 1, node = 2, tip = 2, branch = 2),
+                nSlice = 20, moves = c(tree = 1, node = 2, tip = 2, branch = 2, joint = 1),
                 characters = matrix(character))[c("samples", "acceptance")]
     } else {
       list(samples = MarginalMCMC(tt, model4b, truth4b, priors4b, nIter = nIter4b,
@@ -71,7 +72,13 @@ if (part %in% c("4b", "both")) {
 
 # 5 ----------------------------------------------------------------------------
 if (part %in% c("5", "both")) {
-  model5 <- DCETModel(nBin = 16, zRange = c(-3, 3), rho = 0.5)
+  # EVOTEMPO_GRID=default: package default grid, "-K26" result files (#17)
+  suffix <- if (identical(Sys.getenv("EVOTEMPO_GRID"), "default")) "-K26" else ""
+  model5 <- if (nzchar(suffix)) {
+    DCETModel(rho = 0.5)
+  } else {
+    DCETModel(nBin = 16, zRange = c(-3, 3), rho = 0.5)
+  }
   crown <- 4
   nExtant <- 3
   nFossil <- 2
@@ -146,7 +153,7 @@ if (part %in% c("5", "both")) {
   }))
   clusterExport(cl, c("model5", "crown", "nExtant", "nFossil", "PriorDraw",
                       "Join", "Simulate", "meanlog5", "sdlog5"))
-  simFile <- file.path(outDir, "rung5-simulations.rds")
+  simFile <- file.path(outDir, paste0("rung5-simulations", suffix, ".rds"))
   if (file.exists(simFile)) {
     cached <- readRDS(simFile)
     sims <- cached$sims
@@ -181,7 +188,7 @@ if (part %in% c("5", "both")) {
   start5 <- as.list(exp(meanlog5))
   clusterExport(cl, c("tt5", "start5", "priors5", "nIter", "burnin"))
   # Chains are cached separately from the simulations (delete to rerun)
-  chainFile <- file.path(outDir, "rung5-chains.rds")
+  chainFile <- file.path(outDir, paste0("rung5-chains", suffix, ".rds"))
   if (file.exists(chainFile)) {
     cachedChains <- readRDS(chainFile)
     chains5 <- cachedChains$chains
@@ -205,5 +212,5 @@ if (part %in% c("5", "both")) {
                simExploded = sum(vapply(sims, `[[`, 0, "exploded")),
                simTime = simTime, startTree = startTree, chains = chains5,
                nIter = nIter, burnin = burnin, runtime = chainTime),
-          file.path(outDir, "rung5.rds"))
+          file.path(outDir, paste0("rung5", suffix, ".rds")))
 }

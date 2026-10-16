@@ -144,6 +144,13 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' frozen densities, times the character likelihood ratio, so the chain
 #' targets the exact model.
 #'
+#' `joint` proposes each free parameter in turn together with a fresh FFBS
+#' draw of every path under the proposed value; its acceptance ratio uses the
+#' frozen likelihood and the exact-to-frozen weight, so it mixes like MCMC on
+#' the marginal likelihood (at the cost of one FFBS draw per parameter).
+#' Without it, parameters such as `theta` that the paths determine closely
+#' mix slowly, especially with characters.
+#'
 #' Tree moves (root age fixed): `nodeAge` redraws the age of a bifurcation
 #' uniformly between its children and parent; `fossilAge` redraws a fossil's
 #' age within its stratigraphic range (see [TempoTree()]); `slide` prunes a
@@ -208,7 +215,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   if (model[["start"]] != "root") {
     stop("TempoMCMC() supports `start = \"root\"` only")
   }
-  moveNames <- c("tree", "node", "tip", "branch", "nodeAge", "fossilAge",
+  moveNames <- c("tree", "node", "tip", "branch", "joint", "nodeAge", "fossilAge",
                  "slide", "saJump")
   if (!all(names(moves) %in% moveNames)) {
     stop("Unknown move: ", paste(setdiff(names(moves), moveNames), collapse = ", "))
@@ -237,6 +244,8 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   }
   step <- setNames(rep(1, length(priors)), names(priors))
   hits <- numeric(length(priors))
+  jointStep <- step
+  jointHits <- hits
   pathNodes <- .PathNodes(tree)
   nKeep <- nIter %/% thin
   statNames <- names(.TreeStats(tree))
@@ -251,6 +260,15 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   for (i in seq_len(burnin + nIter)) {
     for (move in moveNames[moves > 0]) {
       for (rep in seq_len(moves[[move]])) {
+        if (move == "joint") {
+          if (!updateParameters || !length(priors)) next
+          res <- .JointSweep(st, priors, jointStep, model, nSlice, CharLL)
+          jointHits <- jointHits + res[["accepted"]]
+          moveTry[[move]] <- moveTry[[move]] + length(priors)
+          moveAcc[[move]] <- moveAcc[[move]] + sum(res[["accepted"]])
+          st <- res[["state"]]
+          next
+        }
         res <- if (move %in% treeMoves) {
           .TreeMove(move, st, CharLL)
         } else {
@@ -278,6 +296,10 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       if (i <= burnin && i %% 20 == 0) {
         step <- .Adapt(step, hits / 20)
         hits <- 0 * hits
+        if (moves[["joint"]] > 0) {
+          jointStep <- .Adapt(jointStep, jointHits / (20 * moves[["joint"]]))
+          jointHits <- 0 * jointHits
+        }
       }
     }
     j <- i - burnin
@@ -301,6 +323,51 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   list(samples = as.data.frame(samples), occupancy = occupancy,
        branchX = branchX, acceptance = moveAcc / pmax(moveTry, 1),
        state = st)
+}
+
+# Joint parameter-path moves: for each free parameter, propose a new value and
+# redraw every path by FFBS under it.  Because exact / proposal = frozen
+# likelihood x exact-to-frozen weight, the acceptance ratio needs no proposal
+# density for the paths; the move mixes like MCMC on the marginal likelihood.
+.JointSweep <- function(st, priors, step, model, nSlice, CharLL,
+                        Draw = .SampleTree) {
+  tree <- st[["tree"]]
+  nodes <- .PathNodes(tree)
+  accepted <- setNames(logical(length(priors)), names(priors))
+  Value <- function(set, msg, paths, charLL) {
+    .FrozenLikelihood(tree, set, msg, set[["joint"]]) +
+      .LogWeight(tree, set, msg, paths, nodes) + charLL
+  }
+  current <- Value(st[["set"]], st[["msg"]], st[["paths"]], st[["charLL"]])
+  for (p in names(priors)) {
+    proposal <- st[["par"]]
+    factor <- exp(step[[p]] * (stats::runif(1) - 0.5))
+    proposal[[p]] <- proposal[[p]] * factor
+    lp <- priors[[p]](proposal[[p]])
+    if (!is.finite(lp)) {
+      next
+    }
+    set <- .AddSlices(tree, .Precompute(tree, proposal, model), nSlice)
+    msg <- .Messages(tree, set)
+    draw <- tryCatch(Draw(tree, set, msg), infeasibleProposal = function(e) NULL)
+    if (is.null(draw)) {
+      next
+    }
+    charLL <- CharLL(tree, draw[["paths"]], proposal, set)
+    candidate <- Value(set, msg, draw[["paths"]], charLL)
+    logRatio <- candidate + lp - current - priors[[p]](st[["par"]][[p]]) + log(factor)
+    if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+      st[["par"]] <- proposal
+      st[["set"]] <- set
+      st[["msg"]] <- msg
+      st[["paths"]] <- draw[["paths"]]
+      st[["bin"]] <- draw[["bin"]]
+      st[["charLL"]] <- charLL
+      current <- candidate
+      accepted[[p]] <- TRUE
+    }
+  }
+  list(state = st, accepted = accepted)
 }
 
 # One tree move, accepted on the exact target

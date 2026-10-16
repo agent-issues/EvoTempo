@@ -9,7 +9,7 @@ Reference inference in R for the discrete Covariant Evolutionary Tempo (dCET) mo
 - constant psi;
 - central generator.
 
-Grids are smaller than the default K = 26, z in [-5, 5] (#17).
+Grids are smaller than the default K = 26, z in [-5, 5]; rungs 3-5 at the default grid are reported in [`../validation-report-default-grid/README.md`](../validation-report-default-grid/README.md) (#17).
 
 ## Deviations from the plan
 1. **RevBayes.** No RevBayes build was available, so the `dnCDBDP` cross-check of rung 3 was not run (#15). Three secondary checks were run instead: the beta = 0 closed form, castor MuSSE, and Monte Carlo.
@@ -18,7 +18,7 @@ Grids are smaller than the default K = 26, z in [-5, 5] (#17).
    - K = 16, z in [-3, 3] for rungs 4, 5 and 6;
    - K = 11, z in [-2, 2] for rung 4b.
 4. **Root age.** `TempoMCMC()` holds the root age fixed and supports only the root start (#18).
-5. **Rung 4b.** Memory limited it to 4 + 4 chains. Its posterior comparison is not yet resolved (#20).
+5. **Rung 4b.** Resolved in #20 by joint parameter-path moves; the final comparison uses 8 + 8 chains x 9000.
 6. **Rung 5.** It uses narrower priors than the defaults, to keep simulated clades small. Clades exceeding 5000 branches were treated as failing the tip and fossil counts.
 7. **Rung 6 SBC.** It uses 25 replicates per (beta, gamma) cell and short chains (50 retained draws) on the true time tree. It detects only gross miscalibration (#21).
 
@@ -58,9 +58,15 @@ Grids are smaller than the default K = 26, z in [-5, 5] (#17).
 **Setup.** The rung-4 tree with one binary character, rate prior LN(log 0.3, 0.5); K = 11, z in [-2, 2]. The oracle is `TreeLikelihood(character = )`, the exact likelihood on the product space of tempo bins and character states.
 
 - **Fixed parameters.** Importance-sampled likelihoods from 2500 FFBS maps match the exact value at all 6 points of psi in {0.06, 0.10, 0.16} x lambda in {0.3, 0.5}: |z| <= 1.28, precision about 0.007 log units (figure 4b, panel a). The augmented target is therefore correct.
-- **Posteriors.** 4 augmented + 4 marginal chains, 3000 iterations after 300 burn-in. Some tail quantiles disagree: lambda q75 z = -3.7, psi q95 z = -3.6, theta q95 z = -2.5, and KS p = 0.005 for psi (panel b).
-  - With 4 chains per method the standard errors are unreliable, and augmented theta ESS is 121.
-  - This is attributed provisionally to MCMC error and left open (#20).
+- **Posteriors (resolved, #20).** The first run (4 + 4 chains x 3000) disagreed in the tails: lambda q75 z = -3.7, psi q95 z = -3.6. Localisation:
+  - **One free parameter, against the exact 1-D posterior** (grid of `TreeLikelihood(character = )`; `data-raw/rung4b-one-parameter.R`). lambda and psi agree (|z| <= 1.1). For theta, the augmented chains were shifted up by about 5% at every quantile, but only with the character. Without it, 7 x 12000 iterations gave |z| <= 1.33.
+  - **Importance-sampling identity across theta** in {0.1, ..., 0.7}, with and without the character (`data-raw/rung4b-theta-identity.R`). |z| <= 1.95 at a precision of 0.007 log units, with no trend in theta, so the target is correct at every theta.
+  - **Cause.** theta mixed very slowly: ESS 35-96 per 12000-iteration chain with the character, and batch-means MCSE underestimated the error.
+  - **Fix.** `TempoMCMC()` now has `joint` moves, which propose a parameter together with a fresh FFBS draw of every path. With them, 14 x 8000 theta-only chains match the exact posterior (|z| <= 1.31; median 0.1529 vs 0.1528, MCSE 0.0008).
+- **Full rerun with joint moves.** 8 augmented + 8 marginal chains, 9000 iterations after 300 burn-in.
+  - All 30 quantile z-scores have |z| <= 1.82.
+  - KS p >= 0.126 except rate (0.036).
+  - Augmented theta ESS is 16156, against 121 before (panel b).
 
 ![Rung 4b](fig-rung4b.png)
 
@@ -103,7 +109,7 @@ Grids are smaller than the default K = 26, z in [-5, 5] (#17).
 |---|---|---|
 | 3 | beta = 0 closed form; castor MuSSE; Monte Carlo configuration probabilities | Pass (RevBayes not run, #15) |
 | 4a-4d | augmented vs marginal posterior; local moves vs FFBS; bridges; Proposition 3.3 | Pass; theta mixing slow (#19) |
-| 4b | one character: likelihood oracle; posterior | Likelihood pass; posterior tails open (#20) |
+| 4b | one character: likelihood oracle; posterior | Pass (after joint moves, #20) |
 | 5 | prior-only MCMC with tree moves vs forward simulation | Pass after two fixes |
 | 6 | SBC, 25 replicates per cell | No detectable miscalibration; low power (#21) |
 

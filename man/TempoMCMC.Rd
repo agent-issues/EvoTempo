@@ -85,6 +85,13 @@ Every path move is accepted by Metropolis-Hastings on the ratio of exact to
 frozen densities, times the character likelihood ratio, so the chain
 targets the exact model.
 
+\code{joint} proposes each free parameter in turn together with a fresh FFBS
+draw of every path under the proposed value; its acceptance ratio uses the
+frozen likelihood and the exact-to-frozen weight, so it mixes like MCMC on
+the marginal likelihood (at the cost of one FFBS draw per parameter).
+Without it, parameters such as \code{theta} that the paths determine closely
+mix slowly, especially with characters.
+
 Tree moves (root age fixed): \code{nodeAge} redraws the age of a bifurcation
 uniformly between its children and parent; \code{fossilAge} redraws a fossil's
 age within its stratigraphic range (see \code{\link[=TempoTree]{TempoTree()}}); \code{slide} prunes a

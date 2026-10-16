@@ -23,6 +23,7 @@
 #' @param rho Numeric giving the probability of sampling an extant lineage.
 #' @param rtol,atol Numerics giving the relative and absolute tolerances of
 #' the stiff solver.
+#' @inheritParams TempoEngine
 #' @returns `ExtinctionProbability()` returns a matrix with one row per
 #' element of `times` and one column per tempo bin.
 #' @examples
@@ -34,9 +35,16 @@
 #' @family dCET numerics
 #' @export
 ExtinctionProbability <- function(times, Q, lambda, mu, psi = 0, rho = 1,
-                                  rtol = 1e-10, atol = 1e-14) {
+                                  rtol = 1e-10, atol = 1e-14,
+                                  engine = getOption("EvoTempo.engine", "cpp")) {
   if (length(rho) != 1L || !isTRUE(rho >= 0 && rho <= 1)) {
     stop("`rho` must lie in [0, 1]")
+  }
+  if (TempoEngine(engine) == "cpp") {
+    if (any(times < 0) || is.unsorted(times)) {
+      stop("`times` must be non-negative and sorted")
+    }
+    return(.ExtinctionCpp(as.double(times), Q, lambda, mu, psi, rho, rtol, atol))
   }
   nBin <- nrow(Q)
   lambda <- rep_len(lambda, nBin)

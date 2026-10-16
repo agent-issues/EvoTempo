@@ -12,7 +12,8 @@ ExtinctionProbability(
   psi = 0,
   rho = 1,
   rtol = 1e-10,
-  atol = 1e-14
+  atol = 1e-14,
+  engine = getOption("EvoTempo.engine", "cpp")
 )
 }
 \arguments{
@@ -31,6 +32,13 @@ rates, e.g. from \code{\link[=BinRates]{BinRates()}}; recycled to \code{nrow(Q)}
 
 \item{rtol, atol}{Numerics giving the relative and absolute tolerances of
 the stiff solver.}
+
+\item{engine}{Character string selecting the engine:
+\itemize{
+\item \code{cpp}: compiled C++, with a stiff Radau IIA solver for the backward
+equations and MkPrime kernels for characters;
+\item \code{R}: the pure-R reference, with \code{deSolve::lsode()}.
+}}
 }
 \value{
 \code{ExtinctionProbability()} returns a matrix with one row per

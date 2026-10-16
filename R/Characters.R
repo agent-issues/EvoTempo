@@ -3,7 +3,7 @@
 #' Log-likelihood of discrete characters under the Mk (Jukes-Cantor) model
 #' with `nState` states and a uniform root, by pruning on given branch lengths
 #' in expected changes per character.
-#' A pure-R stand-in for the MkPrime kernels, used by [TempoMCMC()].
+#' The C++ engine uses the MkPrime pruning kernels; used by [TempoMCMC()].
 #'
 #' Sampled ancestors are tips on zero-length branches, so their states are
 #' observed at the node that bears them.
@@ -15,6 +15,7 @@
 #' @param lengths Numeric vector giving the length of the branch above each
 #' node (tips, then internal nodes), in expected changes; ignored at the root.
 #' @param nState Integer giving the number of states.
+#' @inheritParams TempoEngine
 #' @returns `MkLikelihood()` returns the natural logarithm of the likelihood.
 #' @examples
 #' tree <- structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
@@ -24,12 +25,17 @@
 #' MkLikelihood(tree, chars, c(0.2, 0.2, 0.3, 0, 0.1))
 #' @family dCET inference
 #' @export
-MkLikelihood <- function(tree, characters, lengths, nState = 2L) {
+MkLikelihood <- function(tree, characters, lengths, nState = 2L,
+                         engine = getOption("EvoTempo.engine", "cpp")) {
   tree <- TempoTree(tree)
   nTip <- tree[["nTip"]]
   characters <- as.matrix(characters)
   if (nrow(characters) != nTip) {
     stop("`characters` needs one row per tip")
+  }
+  if (TempoEngine(engine) == "cpp") {
+    states <- matrix(as.integer(characters), nTip)
+    return(.MkLikelihoodCpp(tree, states, as.double(lengths), as.integer(nState)))
   }
   nChar <- ncol(characters)
   partial <- vector("list", nTip + tree[["nNode"]])
@@ -60,6 +66,9 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L) {
 
 # Tempo-weighted branch lengths c * sum_k exp(gamma x_k) dwell_k, per node
 .CharacterLengths <- function(tree, x, paths, rate, gamma) {
+  if (.UseCpp()) {
+    return(.CharacterLengthsCpp(tree, x, paths, rate, gamma))
+  }
   age <- tree[["age"]]
   out <- numeric(tree[["nTip"]] + tree[["nNode"]])
   for (v in .PathNodes(tree)) {

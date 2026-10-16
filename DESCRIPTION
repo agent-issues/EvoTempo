@@ -23,7 +23,11 @@ Depends:
 Imports:
     deSolve,
     parallel,
+    Rcpp,
     stats
+LinkingTo:
+    MkPrime,
+    Rcpp
 Suggests:
     ReacTran,
     testthat (>= 3.1.7),
@@ -34,4 +38,6 @@ Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 URL: https://github.com/ms609/EvoTempo
 BugReports: https://github.com/ms609/EvoTempo/issues
+Remotes:
+    agent-issues/MkPrime
 Config/roxygen2/version: 8.1.0

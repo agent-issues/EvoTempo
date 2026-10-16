@@ -29,6 +29,13 @@
   sampled ancestor <-> tip; `TreeLikelihood(character = )` gives the exact
   product-space likelihood of one character, and `MarginalMCMC()` accepts it
   ([#5](https://github.com/agent-issues/EvoTempo/issues/5)).
+- C++ engine (`engine = "cpp"`, the default; `TempoEngine()`): the marginal
+  tree likelihood, extinction probabilities and the E grid by a stiff Radau
+  IIA solver; frozen messages, FFBS path draws, bridges, the augmented
+  density and exact/frozen weights; and `MkLikelihood()` by the MkPrime
+  header kernels (`LinkingTo: MkPrime`).  `engine = "R"` keeps the pure-R
+  reference; seeded samplers draw identical paths in either engine
+  ([#16](https://github.com/agent-issues/EvoTempo/issues/16)).
 - `TempoMCMC()` gains `joint` moves, which propose a parameter together with a
   fresh FFBS draw of every path; without them `theta` mixes too slowly for
   reliable posterior tails, especially with characters

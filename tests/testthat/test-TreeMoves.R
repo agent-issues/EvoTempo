@@ -128,7 +128,7 @@ test_that("TempoMCMC() runs every move with characters", {
   run <- TempoMCMC(moveTree, moveModel, movePar,
                    TempoPriors()[c("lambda", "theta")], nIter = 6, nSlice = 4,
                    moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 1,
-                             fossilAge = 1, slide = 1, saJump = 1),
+                             fossilAge = 1, slide = 1, saJump = 1, joint = 1),
                    characters = chars)
   expect_true(all(run$acceptance > 0))
   expect_true(all(is.finite(run$samples$logPost)))
@@ -167,4 +167,34 @@ test_that("Tree moves with infeasible bridges are rejected", {
              paths = list(), bin = bin, charLL = 0)
   res <- .TreeMove("nodeAge", st, function(...) 0)
   expect_false(res$accepted)
+})
+
+test_that("Joint parameter-path moves run and adapt", {
+  set.seed(4)
+  chars <- matrix(sample(0:1, 5 * 3, TRUE), 5)
+  priors <- c(TempoPriors()["theta"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  run <- TempoMCMC(moveTree, moveModel, c(movePar, rate = 0.3), priors,
+                   nIter = 4, burnin = 20, nSlice = 4,
+                   moves = c(tree = 1, joint = 1), characters = chars)
+  expect_equal(nrow(run$samples), 4)
+  expect_gt(run$acceptance[["joint"]], 0)
+  # Proposals outside the prior support are skipped
+  bounded <- list(theta = function(x) if (x > 1e6) 0 else -Inf)
+  fixed <- TempoMCMC(moveTree, moveModel, movePar, bounded, nIter = 2,
+                     nSlice = 4, moves = c(joint = 1))
+  expect_equal(fixed$acceptance[["joint"]], 0)
+  # No joint moves when parameters are held fixed
+  held <- TempoMCMC(moveTree, moveModel, movePar, TempoPriors()["theta"], nIter = 2,
+                    nSlice = 4, moves = c(joint = 1), updateParameters = FALSE)
+  expect_equal(held$acceptance[["joint"]], 0)
+  # Infeasible FFBS draws are rejected
+  set <- .AddSlices(moveTree, .Precompute(moveTree, movePar, moveModel), 4)
+  msg <- .Messages(moveTree, set)
+  d <- .SampleTree(moveTree, set, msg)
+  st <- list(tree = moveTree, par = movePar, set = set, msg = msg, paths = d$paths,
+             bin = d$bin, charLL = 0)
+  res <- .JointSweep(st, TempoPriors()["theta"], c(theta = 1), moveModel, 4,
+                     function(...) 0, Draw = function(...) .Infeasible())
+  expect_false(res$accepted[["theta"]])
 })

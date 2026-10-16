@@ -29,3 +29,7 @@
   sampled ancestor <-> tip; `TreeLikelihood(character = )` gives the exact
   product-space likelihood of one character, and `MarginalMCMC()` accepts it
   ([#5](https://github.com/agent-issues/EvoTempo/issues/5)).
+- `TempoMCMC()` gains `joint` moves, which propose a parameter together with a
+  fresh FFBS draw of every path; without them `theta` mixes too slowly for
+  reliable posterior tails, especially with characters
+  ([#20](https://github.com/agent-issues/EvoTempo/issues/20)).

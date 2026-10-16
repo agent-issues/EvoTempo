@@ -29,7 +29,7 @@ is removed.}
 \item{condition}{Character string specifying the survival conditioning:
 \itemize{
 \item \code{extant}: each root daughter (or the stem) has a sampled extant
-descendant;
+descendant (trees without one have likelihood zero);
 \item \code{survival}: each has any sampled descendant;
 \item \code{none}: no conditioning.
 }}

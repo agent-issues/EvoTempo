@@ -20,7 +20,7 @@ WithEngine <- function(engine, expr) {
 test_that("TempoEngine() validates its choice", {
   expect_equal(TempoEngine("R"), "R")
   expect_equal(WithEngine("R", TempoEngine()), "R")
-  expect_equal(TempoEngine(), "cpp")
+  expect_equal(WithEngine(NULL, TempoEngine()), "cpp")
   expect_error(TempoEngine("fortran"))
 })
 

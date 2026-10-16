@@ -237,3 +237,14 @@ double PruneTreeCpp(List tree, NumericMatrix Q, NumericVector lambda,
   for (int k = 0; k < K; ++k) terms[k] = prior[k] * survive[k];
   return std::log(num) + logScale - std::log(LongSum(terms));
 }
+
+// Solver counters since the last call, then reset (profiling)
+// [[Rcpp::export(name = ".SolverCountsCpp")]]
+IntegerVector SolverCountsCpp() {
+  EvoTempo::SolverCounter& n = EvoTempo::Counter();
+  IntegerVector out = IntegerVector::create(
+    _["steps"] = n.steps, _["rejects"] = n.rejects, _["newton"] = n.newton,
+    _["rhs"] = n.rhs);
+  n = EvoTempo::SolverCounter();
+  return out;
+}

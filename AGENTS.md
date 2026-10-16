@@ -74,13 +74,19 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `R/TreeLikelihood.R` | `TempoTree()` (ages, tip types), `DCETModel()`, marginal likelihood by joint E/D integration, closed-form FBD |
 | `R/Paths.R` | Tempo paths: exact augmented density (E and its integral on a Hermite grid), frozen-E slices, FFBS messages, direct-sampling bridges, importance weights |
 | `R/MCMC.R` | `TempoMCMC()` (data augmentation), `MarginalMCMC()`, `SampleTempoPaths()`, priors and parameter moves |
-| `R/Characters.R` | `MkLikelihood()` (Mk pruning on tempo-weighted lengths; stand-in for MkPrime kernels) |
+| `R/Characters.R` | `MkLikelihood()` (Mk pruning on tempo-weighted lengths; C++ engine uses MkPrime kernels) |
+| `R/Engine.R` | `TempoEngine()`: `engine = "cpp"` / `"R"` switch (option `EvoTempo.engine`); R is the reference oracle |
+| `src/radau5.h`, `src/band.h`, `src/dcet_ode.h` | Radau IIA (order 5) stiff integrator, banded LU, dCET backward equations (E; E,D; E,G) |
+| `src/tree_likelihood.cpp` | C++ `.PruneTree()`, `ExtinctionProbability()`, `.EGrid()` |
+| `src/paths.cpp`, `src/frozen.h`, `src/tree.h` | C++ frozen messages, FFBS, bridges, augmented density, weights; views of `set` and `TempoTree` |
+| `src/characters.cpp` | `MkLikelihood()` via `MkPrime::Pruner<JCModel>` |
 | `R/TreeMoves.R` | Node-age, fossil-age, subtree-slide and sampled-ancestor moves with frozen-model bin and path proposals |
 | `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
 | `data-raw/rung2-validation.R`, `data-raw/validation-report.R` | Monte Carlo validation and the rung 1-2 report |
 | `data-raw/rung3-validation.R` | Rung 3: beta = 0 collapse, castor MuSSE comparison, Monte Carlo on tiny trees |
 | `data-raw/rung4-validation.R` | Rung 4: augmented vs marginal posterior, FFBS summaries, bridge Laplace transform, sum over paths |
 | `data-raw/rung5-validation.R` | Rung 4b (one character, product-space oracle) and rung 5 (prior-only MCMC vs simulator) |
+| `data-raw/cpp-engine-agreement.R` | C++ vs R agreement and run times on the rung 3/4 fixtures (K = 16, 26) |
 | `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |
 | `data-raw/rung5-fixed-parameters.R` | Rung 5 at fixed parameters (tree moves only) vs rejection simulation; regression check for tree-move Hastings ratios |
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |

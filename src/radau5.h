@@ -26,6 +26,15 @@
 
 namespace EvoTempo {
 
+// Steps and rejections over all Radau5 integrations, for profiling
+struct SolverCounter {
+  long steps = 0, rejects = 0, newton = 0, rhs = 0;
+};
+inline SolverCounter& Counter() {
+  static SolverCounter counter;
+  return counter;
+}
+
 namespace radau {
 // Collocation constants of Radau IIA, s = 3, computed to 40 digits
 const double kGamma = 3.6378342527444957322;  // real eigenvalue of A^-1
@@ -103,6 +112,8 @@ class Radau5 {
         bool converged = false;
         int it = 0;
         for (; it < nitMax; ++it) {
+          ++Counter().newton;
+          Counter().rhs += 3;
           for (int i = 0; i < n; ++i) tmp_[i] = y[i] + z1_[i];
           prob.Rhs(tmp_.data(), f1_.data());
           for (int i = 0; i < n; ++i) tmp_[i] = y[i] + z2_[i];
@@ -187,6 +198,7 @@ class Radau5 {
         double hNew = h / quot;
         if (err < 1.0) {
           ++nStep_;
+          ++Counter().steps;
           t += h;
           for (int i = 0; i < n; ++i) y[i] = ynew_[i];
           first = false;
@@ -200,6 +212,7 @@ class Radau5 {
           break;
         }
         ++nReject_;
+        ++Counter().rejects;
         reject = true;
         last = false;
         h = first ? 0.1 * h : hNew;

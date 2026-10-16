@@ -28,7 +28,6 @@ Suggests:
     TreeTools,
     quarto,
     knitr
-VignetteBuilder: quarto
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 URL: https://github.com/ms609/EvoTempo

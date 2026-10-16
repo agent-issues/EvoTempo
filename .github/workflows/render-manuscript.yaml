@@ -2,7 +2,7 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'vignettes/**'
+      - 'manuscript/**'
       - 'R/**'
       - 'data/**'
       - 'data-raw/**'
@@ -43,10 +43,10 @@ jobs:
 
       - name: Render manuscript
         run: |
-          quarto render vignettes/manuscript.qmd
+          quarto render manuscript/manuscript.qmd
 
       - name: Upload PDF
         uses: actions/upload-artifact@v4
         with:
           name: manuscript-pdf
-          path: vignettes/manuscript.pdf
+          path: manuscript/manuscript.pdf

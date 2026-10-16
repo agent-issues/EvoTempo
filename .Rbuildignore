@@ -5,12 +5,7 @@
 ^\.github$
 ^data-raw$
 ^\.quarto$
-^vignettes/manuscript\.pdf$
-^vignettes/manuscript\.html$
-^vignettes/manuscript\.tex$
-^vignettes/manuscript_files$
-^vignettes/manuscript_cache$
-^vignettes/_freeze$
+^manuscript$
 ^\.gitignore$
 ^\.gitattributes$
 ^cran-comments\.md$

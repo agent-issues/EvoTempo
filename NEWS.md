@@ -46,6 +46,6 @@
   eigendecompositions use LAPACK's tridiagonal solver; `rate` proposals reuse
   the frozen model; bridges skip two redundant root-finder evaluations
   ([#26](https://github.com/agent-issues/EvoTempo/issues/26)).
-- `TempoMCMC()` tree moves (`nodeAge`, `slide`, `saJump`) run in C++, two to
-  two-and-a-half times faster
+- `TempoMCMC()` tree moves run in C++: `nodeAge`, `slide` and `saJump` are
+  two to two-and-a-half times faster
   ([#26](https://github.com/agent-issues/EvoTempo/issues/26)).

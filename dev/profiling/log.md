@@ -111,4 +111,79 @@ moves (focus area 7) are the next targets.
 - *Survival solve* (focus area 8): a second E solve with psi = 0 when
   `condition = "extant"`; cannot reuse the E grid.
 
-last_focus: 1
+
+## Round 2 — 2026-10-16 — tree moves (focus area 7)
+
+**Target.** The `nodeAge`, `slide` and `saJump` moves of `TempoMCMC()`
+(#26 item 4): ~17 % of an `all` iteration on Linux after round 1, and the
+full-size SBC (#21) proposes each once per iteration. Drivers unchanged
+(`tempo-components.R`, rows `move_*`; `tempo-mcmc.R`, move set `all`);
+`tempo-components.R` now takes `EVOTEMPO_MINTIME` (seconds per timing batch),
+because at the default 0.05 s Windows' 15.6 ms timer quantises every row.
+`move_fossilAge` stays at ~0.02 ms: the fixture's fossil ages have no ranges,
+so the move has no candidates.
+
+**Where the time went (before).** Rprof of 400 calls per move (Windows): ~40 %
+in `.Call` marshalling, as each C++ kernel rebuilds the frozen model from the R
+list (`.PiecesCpp` alone 23 % self time); a `slide` proposal made ~26 such
+calls (`.Pieces()`, `.SampleBranch()`, `.PathWeight()` per branch, in the
+`Redraw` / `OldQ` loops and in `.NodeLogWeights()`). Pure R took most of the
+rest: `.LogTransferRow()` 13-15 %, `.LogPathExact()` 9-12 %, `.Rebuild()`
+10-12 % (0.62 ms per call), `.TipValues()` 11 % of `saJump` (0.26 ms per call,
+for one row of the matrix it builds).
+
+**Fixed this round** (branch `tree-moves-cpp`, stacked on round 1's
+`profile-tempo-mcmc`; no issues filed): `src/tree_moves.cpp` ports
+`.LogTransferRow()`, `.LogTransferCol()`, `.LogPathExact()`,
+`.TipLogWeights()`, `.NodeLogWeights()`, `.DrawTip()`, `.LogTipQ()` and
+`.Rebuild()`, and two composite kernels, `.DrawBridges()` and `.LogBridges()`,
+replace the per-branch loops of `.ProposeTreeMove()`, so that each reads the
+frozen model once per call rather than once per branch and kernel. The R
+versions remain the `engine = "R"` reference. Arithmetic follows the R code
+term by term (long-double sums where R's `sum()` uses them, the reference-BLAS
+order for `%*%`): on the test fixture every kernel matches R to the last bit
+(Windows), and seeded `.DrawBridges()` / `.DrawTip()` draws consume the same
+random numbers. Seeded `all` chains do not change between the round-1 and
+round-2 builds: identical samples over 60 iterations (Windows), identical final
+`logPost` to 12 digits over 40 iterations (Linux, x3).
+
+Interleaved A/B x3, medians:
+
+| Platform | `nodeAge` ms | `slide` ms | `saJump` ms | `all` ms/iter |
+|----------|-------------:|-----------:|------------:|--------------:|
+| Windows (MinGW) | 6.25 -> 3.05 | 8.59 -> 4.22 | 5.86 -> 2.38 | 134 -> 116 (-13 %) |
+| Linux (Hamilton `shared`, gcc 14.2) | 2.81 -> 1.30 | 4.19 -> 1.66 | 2.78 -> 1.09 | 58.0 -> 51.7 (-11 %) |
+
+No OS trade-off. On Linux the three moves now take 8 % of an `all` iteration
+(17 % before). Changed lines at 100 % coverage (`src/tree_moves.cpp`,
+`R/TreeMoves.R`); `src/paths.cpp` changed only its namespace.
+`data-raw/rung5-fixed-parameters.R`: the chain half (seeds 9-16, 4000
+iterations, both grids) rerun on Hamilton with both builds gives identical
+chains; against the stored rejection simulations all eight summaries have
+|z| <= 1.57 (stored chains: |z| <= 1.30), so the result files stand and were not
+regenerated. The stored chains came from the R engine on Windows, which a local
+rerun of seed 9 reproduces to 1.5e-8; on Linux the C++ chains drift from them
+through round-off. The eight chains took 127 -> 53 s (K = 16) and
+191 -> 92 s (K = 26).
+
+**Where the time goes now** (Rprof, Windows, per move): `.DrawBridgesCpp`
+25-35 % (bridge draws: Brent root-finding, focus area 2),
+`.NodeLogWeightsCpp` 11-18 %, `.LogAugmentedCpp` 11-15 % (current and proposed
+state), `.MessagesCpp` 8-27 % (on acceptance), characters ~5 %; R glue
+(`.ProposeTreeMove()`, `.Crossing()`, `.SlideNodes()`, `setdiff()`) < 10 %.
+
+**Measured but not changed.**
+- *Frozen-model construction per `.Call`* (focus area 6): ~35 us for
+  `TreeView` + `FrozenSet` without slices, ~67 us with slices (Windows,
+  `.SliceExpCpp()` with trivial work; `.Call` itself is 2 us). VTune puts it in
+  Rcpp object churn, not data copies: `Rcpp_precious_preserve` / release
+  (`Rf_cons`, `SETCDR`), `malloc`, and name lookups (`string::compare`,
+  `strcmp`) for the four Rcpp temporaries of each of 16 slices. Viewing the
+  E grid instead of copying it made no difference (51 vs 61 us, noise). A tree
+  move still makes ~6 such calls. Fix with #26 item 1 (state held in C++), or
+  sooner with a loader that reads the slices through raw `SEXP` access.
+- *`.LogAugmented()` of the current state* is recomputed on every tree move
+  (0.1 ms, Linux); caching it in the chain state would need every move to keep
+  it current.
+
+last_focus: 7

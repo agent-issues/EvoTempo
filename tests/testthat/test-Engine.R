@@ -320,9 +320,12 @@ test_that("Tree-move kernels agree between engines", {
   pc <- .Pieces(tree, set, 7)
   Agree(function() .LogTransferRow(pc, 3))
   Agree(function() .LogTransferCol(pc, 5))
+  # R's max() is NaN if any element is: a finite maximum would differ here
   bad <- pc
-  bad$M[[1]][1, 1] <- NaN
+  bad$M[[1]][1, 2] <- NaN
   Agree(function() .LogTransferRow(bad, 1))
+  Agree(function() .LogTransferCol(bad, 2))
+  expect_error(WithEngine("cpp", .LogTransferRow(pc, 12L)), "out of range")
   Agree(function() .LogPathExact(tree, set, 7, d$paths[[7]]))
   Agree(function() .TipLogWeights(tree, set, 1, 4L))
   Agree(function() .LogTipQ(tree, set, 4, d$paths[[4]]))
@@ -333,10 +336,12 @@ test_that("Tree-move kernels agree between engines", {
   })
   Agree(function() .NodeLogWeights(tree, set, 8, set$psi, d$bin[[7]], 2, d$bin[[2]]))
 
-  # Draws: same bins and paths, and the same random numbers consumed
+  # Draws: same bins and paths, and the same random numbers consumed, also
+  # when a draw is infeasible
   Draw <- function(engine, f) {
     set.seed(9)
-    out <- WithEngine(engine, f())
+    out <- tryCatch(WithEngine(engine, f()),
+                    infeasibleProposal = function(e) "infeasible")
     list(out = out, after = stats::runif(1))
   }
   Both <- function(f) {
@@ -351,26 +356,33 @@ test_that("Tree-move kernels agree between engines", {
   tip <- Both(function() .DrawTip(tree, set, 1, 4L))
   expect_equal(tip$path$k[[length(tip$path$k)]], tip$bin)
 
-  # Infeasible draws: bins that cannot be joined, and a tip that cannot be sampled
+  # Infeasible: branch 1 draws, then branch 7 crosses a slice whose transfer
+  # matrix is zero; a fossil tip with no sampling weight
+  poisoned <- set
+  poisoned$slices[[6]]$values[] <- -Inf
+  expect_identical(
+    Both(function() .DrawBridges(tree, poisoned, c(1, 7), d$bin, d$paths)),
+    "infeasible"
+  )
   noTip <- set
   noTip$psi <- 0 * set$psi
-  far <- replace(d$bin, c(6, 7), c(1L, 11L))
-  short <- tree
-  short$age[7] <- short$age[6] - 1e-9
-  for (engine in c("cpp", "R")) {
-    expect_error(WithEngine(engine, .DrawBridges(short, set, 7, far, d$paths)),
-                 class = "infeasibleProposal")
-    expect_error(WithEngine(engine, .DrawTip(tree, noTip, 1, 4L)),
-                 class = "infeasibleProposal")
-  }
+  expect_identical(Both(function() .DrawTip(tree, noTip, 1, 4L)), "infeasible")
 
-  # Rebuild after two tips swap clades
+  # Rebuild after tips swap clades, a fossil becomes a sampled ancestor, and a
+  # regraft that changes the postorder
   swap <- tree
   swap$parent[c(1, 4)] <- c(9, 7)
   swap$age[7] <- 3.5
-  for (tr in list(tree, swap)) {
+  ancestor <- tree
+  ancestor$tipType[4] <- "ancestor"
+  ancestor$age[9] <- ancestor$age[4]
+  regraft <- tree
+  regraft$parent[c(4, 8)] <- c(7, 9)
+  for (tr in list(tree, swap, ancestor, regraft)) {
     expect_identical(WithEngine("cpp", .Rebuild(tr)), WithEngine("R", .Rebuild(tr)))
   }
+  expect_true(.Rebuild(ancestor)$sampled[[4]])
+  expect_equal(.Rebuild(regraft)$postorder, c(8, 9, 7, 6))
 })
 
 test_that("Chains with every tree move match between engines", {

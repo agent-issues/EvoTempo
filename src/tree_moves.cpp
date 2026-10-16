@@ -36,6 +36,7 @@ double LogSumExp(const std::vector<double>& x) {
 
 // .LogTransferRow(pc, k) (row = true) or .LogTransferCol(pc, k); k one-based
 std::vector<double> LogTransfer(const Pieces& pc, int k, bool row, int K) {
+  if (k < 1 || k > K) Rcpp::stop("Bin %d out of range", k);
   std::vector<double> r(K, 0.0), x(K);
   r[k - 1] = 1.0;
   double logScale = 0.0;

@@ -21,6 +21,7 @@ export(SimulateCharacters)
 export(SimulateDCET)
 export(SurvivorDiversity)
 export(TempoDistribution)
+export(TempoEngine)
 export(TempoEquilibrium)
 export(TempoGenerator)
 export(TempoGrid)
@@ -28,6 +29,7 @@ export(TempoMCMC)
 export(TempoPriors)
 export(TempoTree)
 export(TreeLikelihood)
+importFrom(Rcpp,evalCpp)
 importFrom(deSolve,
   lsode,
   zvode
@@ -45,5 +47,7 @@ importFrom(stats,
   rexp,
   rnorm,
   rpois,
-  runif
+  runif,
+  setNames
 )
+useDynLib(EvoTempo, .registration = TRUE)

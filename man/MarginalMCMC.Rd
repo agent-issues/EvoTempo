@@ -13,7 +13,8 @@ MarginalMCMC(
   burnin = 0,
   thin = 1,
   character = NULL,
-  nState = 2L
+  nState = 2L,
+  engine = getOption("EvoTempo.engine", "cpp")
 )
 }
 \arguments{
@@ -45,6 +46,13 @@ Several characters cannot be scored this way, because they share the tempo
 path.}
 
 \item{nState}{Integer giving the number of character states.}
+
+\item{engine}{Character string selecting the engine:
+\itemize{
+\item \code{cpp}: compiled C++, with a stiff Radau IIA solver for the backward
+equations and MkPrime kernels for characters;
+\item \code{R}: the pure-R reference, with \code{deSolve::lsode()}.
+}}
 }
 \value{
 \code{MarginalMCMC()} returns a data frame of samples: one column per
@@ -70,6 +78,7 @@ Other dCET inference:
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoEngine]{TempoEngine()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},

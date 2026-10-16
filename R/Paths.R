@@ -12,6 +12,9 @@
   nBin <- nrow(Q)
   ages <- sort(unique(c(seq(0, maxAge, length.out = 401),
                         maxAge * 10^seq(-6, 0, length.out = 61), extra)))
+  if (.UseCpp()) {
+    return(c(list(ages = ages), .EGridCpp(ages, Q, lambda, mu, psi, rho, rtol, atol)))
+  }
   sigma <- lambda + mu + psi
   Rhs <- function(e) mu - sigma * e + lambda * e * e + as.vector(Q %*% e)
   eIdx <- seq_len(nBin)
@@ -113,6 +116,9 @@
 
 # Frozen transfer matrix of slice `s` over `span`
 .SliceExp <- function(set, s, span) {
+  if (.UseCpp()) {
+    return(.SliceExpCpp(set, s, span))
+  }
   sl <- set[["slices"]][[s]]
   hp <- set[["halfPi"]]
   v <- sl[["vectors"]]
@@ -147,6 +153,9 @@
 
 # Pieces of the branch above v: boundaries (old to young) and slice indices
 .Pieces <- function(tree, set, v) {
+  if (.UseCpp()) {
+    return(.PiecesCpp(tree, set, v))
+  }
   top <- tree[["age"]][[tree[["parent"]][[v]]]]
   bottom <- tree[["age"]][[v]]
   b <- set[["bounds"]]
@@ -163,6 +172,9 @@
 # Postorder frozen messages: D at each node, and per branch the backward
 # message at each piece boundary; log of the frozen likelihood
 .Messages <- function(tree, set) {
+  if (.UseCpp()) {
+    return(.MessagesCpp(tree, set))
+  }
   nTip <- tree[["nTip"]]
   nAll <- nTip + tree[["nNode"]]
   nBin <- nrow(set[["Q"]])
@@ -234,6 +246,9 @@
 # the symmetrized eigendecomposition.  Jump times are measured forward from
 # the old end.
 .Bridge <- function(set, s, span, i, j) {
+  if (.UseCpp()) {
+    return(.CheckInfeasible(.BridgeCpp(set, s, span, i, j)))
+  }
   sl <- set[["slices"]][[s]]
   lam <- sl[["values"]]
   V <- sl[["vectors"]]
@@ -285,6 +300,9 @@
 # Sample the path on branch v given the bin at its top; the bottom bin is
 # drawn from the backward messages (`end = NULL`) or fixed.
 .SampleBranch <- function(set, pc, beta, kTop, end = NULL) {
+  if (.UseCpp()) {
+    return(.CheckInfeasible(.SampleBranchCpp(set, pc, beta, kTop, end)))
+  }
   m <- length(pc[["M"]])
   if (!is.null(end)) {
     # Backward messages from a fixed end bin
@@ -315,6 +333,9 @@
 
 # Sample bins and paths in the clade below the top of branch v
 .SampleClade <- function(tree, set, msg, paths, bin, v, kTop) {
+  if (.UseCpp()) {
+    return(.CheckInfeasible(.SampleCladeCpp(tree, set, msg, paths, bin, v, kTop)))
+  }
   nTip <- tree[["nTip"]]
   path <- .SampleBranch(set, msg[["pieces"]][[v]], msg[["beta"]][[v]], kTop)
   paths[[v]] <- path
@@ -335,6 +356,9 @@
 
 # Draw every bin and path from the frozen tree-conditional law
 .SampleTree <- function(tree, set, msg) {
+  if (.UseCpp()) {
+    return(.CheckInfeasible(.SampleTreeCpp(tree, set, msg)))
+  }
   nAll <- tree[["nTip"]] + tree[["nNode"]]
   root <- tree[["root"]]
   paths <- vector("list", nAll)
@@ -359,6 +383,9 @@
 
 # log(exact / frozen) weight of one path, given the pieces of its branch
 .PathWeight <- function(set, pc, path) {
+  if (.UseCpp()) {
+    return(.PathWeightCpp(set, pc, path))
+  }
   b <- set[["bounds"]]
   edges <- pc[["edges"]]
   cuts <- sort(unique(c(edges, path[["t"]])), decreasing = TRUE)
@@ -374,11 +401,17 @@
 
 # log(exact / frozen) weight of the paths on branches `nodes`
 .LogWeight <- function(tree, set, msg, paths, nodes) {
+  if (.UseCpp()) {
+    return(.LogWeightCpp(tree, set, msg, paths, nodes))
+  }
   sum(vapply(nodes, function(v) .PathWeight(set, msg[["pieces"]][[v]], paths[[v]]), 0))
 }
 
 # Exact log augmented density (spec equation 3.4), start at the root
 .LogAugmented <- function(tree, set, paths, bin) {
+  if (.UseCpp()) {
+    return(.LogAugmentedCpp(tree, set, paths, bin))
+  }
   if (!.Compatible(tree, set[["condition"]])) {
     return(-Inf)
   }

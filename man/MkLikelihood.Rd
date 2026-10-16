@@ -4,7 +4,13 @@
 \alias{MkLikelihood}
 \title{Mk likelihood of discrete characters}
 \usage{
-MkLikelihood(tree, characters, lengths, nState = 2L)
+MkLikelihood(
+  tree,
+  characters,
+  lengths,
+  nState = 2L,
+  engine = getOption("EvoTempo.engine", "cpp")
+)
 }
 \arguments{
 \item{tree}{A \code{\link{TempoTree}}, or a tree that it accepts.}
@@ -17,6 +23,13 @@ tree's tips) and one column per character, giving states \code{0} to
 node (tips, then internal nodes), in expected changes; ignored at the root.}
 
 \item{nState}{Integer giving the number of states.}
+
+\item{engine}{Character string selecting the engine:
+\itemize{
+\item \code{cpp}: compiled C++, with a stiff Radau IIA solver for the backward
+equations and MkPrime kernels for characters;
+\item \code{R}: the pure-R reference, with \code{deSolve::lsode()}.
+}}
 }
 \value{
 \code{MkLikelihood()} returns the natural logarithm of the likelihood.
@@ -25,7 +38,7 @@ node (tips, then internal nodes), in expected changes; ignored at the root.}
 Log-likelihood of discrete characters under the Mk (Jukes-Cantor) model
 with \code{nState} states and a uniform root, by pruning on given branch lengths
 in expected changes per character.
-A pure-R stand-in for the MkPrime kernels, used by \code{\link[=TempoMCMC]{TempoMCMC()}}.
+The C++ engine uses the MkPrime pruning kernels; used by \code{\link[=TempoMCMC]{TempoMCMC()}}.
 }
 \details{
 Sampled ancestors are tips on zero-length branches, so their states are
@@ -44,6 +57,7 @@ Other dCET inference:
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoEngine]{TempoEngine()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},

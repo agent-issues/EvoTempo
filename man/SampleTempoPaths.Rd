@@ -4,7 +4,14 @@
 \alias{SampleTempoPaths}
 \title{Stochastic mapping of tempo paths}
 \usage{
-SampleTempoPaths(tree, par, model, n, nSlice = 20)
+SampleTempoPaths(
+  tree,
+  par,
+  model,
+  n,
+  nSlice = 20,
+  engine = getOption("EvoTempo.engine", "cpp")
+)
 }
 \arguments{
 \item{tree}{A \code{\link{TempoTree}}, or a tree that it accepts.}
@@ -16,6 +23,13 @@ SampleTempoPaths(tree, par, model, n, nSlice = 20)
 \item{n}{Integer giving the number of draws.}
 
 \item{nSlice}{Integer giving the number of time slices of the proposal.}
+
+\item{engine}{Character string selecting the engine:
+\itemize{
+\item \code{cpp}: compiled C++, with a stiff Radau IIA solver for the backward
+equations and MkPrime kernels for characters;
+\item \code{R}: the pure-R reference, with \code{deSolve::lsode()}.
+}}
 }
 \value{
 \code{SampleTempoPaths()} returns a list with elements \code{occupancy},
@@ -44,6 +58,7 @@ Other dCET inference:
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
 \code{\link[=MkLikelihood]{MkLikelihood()}},
+\code{\link[=TempoEngine]{TempoEngine()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},

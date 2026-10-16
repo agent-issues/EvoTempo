@@ -2,7 +2,7 @@
 % Please edit documentation in R/MCMC.R
 \name{TempoMCMC}
 \alias{TempoMCMC}
-\title{Data-augmented dCET MCMC on a fixed time tree}
+\title{Data-augmented dCET MCMC}
 \usage{
 TempoMCMC(
   tree,
@@ -14,6 +14,8 @@ TempoMCMC(
   thin = 1,
   nSlice = 20,
   moves = c(tree = 1),
+  characters = NULL,
+  nState = 2L,
   updateParameters = TRUE
 )
 }
@@ -37,8 +39,13 @@ step sizes adapt.}
 
 \item{nSlice}{Integer giving the number of time slices of the proposal.}
 
-\item{moves}{Named numeric vector giving the number of each path move per
+\item{moves}{Named numeric vector giving the number of each move per
 iteration (see Details); unnamed moves are not used.}
+
+\item{characters}{Optional matrix of character states, as for
+\code{\link[=MkLikelihood]{MkLikelihood()}}.}
+
+\item{nState}{Integer giving the number of character states.}
 
 \item{updateParameters}{Logical; if \code{FALSE}, hold parameters fixed.}
 }
@@ -46,18 +53,24 @@ iteration (see Details); unnamed moves are not used.}
 \code{TempoMCMC()} returns a list with elements
 \itemize{
 \item \code{samples}: data frame with one column per free parameter, \code{logPost}
-(augmented log density plus log prior), \code{rootBin}, \code{meanX}
-(lineage-time-averaged log-tempo over the tree) and \code{clock}
-(\eqn{\sum_e \int_e e^x dt});
+(log augmented density, plus character log-likelihood and log prior),
+\code{rootBin}, \code{meanX} (lineage-time-averaged log-tempo over the tree) and
+tree statistics: \code{nAncestor}, \code{treeLength}, \code{meanNodeAge} (of non-root
+bifurcations), \code{cherries}, \code{oldestFossil}, \code{youngestFossil}, \code{clock}
+(\eqn{\sum_e \int_e e^x dt}) and \code{inverseClock}
+(\eqn{\sum_e \int_e e^{-x} dt});
 \item \code{occupancy}: matrix of time spent in each bin (columns), per sample;
-\item \code{branchX}: matrix of the time-averaged log-tempo on each branch;
+\item \code{branchX}: matrix of the time-averaged log-tempo on each branch (for
+chains without tree moves);
 \item \code{acceptance}: acceptance rate of each move;
 \item \code{state}: the final state.
 }
 }
 \description{
-Samples parameters jointly with the tempo path on every branch of a fixed
-time tree, under the exact augmented density (spec section 3.4).
+Samples parameters jointly with the tempo path on every branch of a time
+tree, under the exact augmented density (spec section 3.4), optionally with
+discrete characters scored on tempo-weighted branch lengths and with moves
+on node ages, fossil ages and topology.
 }
 \details{
 Path moves propose from a frozen-extinction model, in which
@@ -69,10 +82,24 @@ and \code{branch}, which redraws one path between fixed end bins.
 Within each slice, paths are drawn exactly from the endpoint-conditioned
 frozen law (Hobolth & Stone 2009, direct sampling).
 Every path move is accepted by Metropolis-Hastings on the ratio of exact to
-frozen densities, so the chain targets the exact model; without characters
-acceptance is close to one.
-Parameters are updated by multiplicative random walks with the paths held
-fixed as bin indices.
+frozen densities, times the character likelihood ratio, so the chain
+targets the exact model.
+
+Tree moves (root age fixed): \code{nodeAge} redraws the age of a bifurcation
+uniformly between its children and parent; \code{fossilAge} redraws a fossil's
+age within its stratigraphic range (see \code{\link[=TempoTree]{TempoTree()}}); \code{slide} prunes a
+subtree and regrafts it at a uniform height onto a uniformly chosen branch
+crossing that height; \code{saJump} converts a fossil tip to a sampled ancestor
+or back (Gavryushkina et al. 2014).
+Each redraws affected node bins and paths from the frozen model, with
+proposal densities in the Hastings ratio.
+The target is the density of the unoriented labelled tree, i.e. the
+oriented density of \code{\link[=TreeLikelihood]{TreeLikelihood()}} times \eqn{2^{|V|}}, \eqn{|V|} the
+number of bifurcations.
+
+Characters follow the Mk model on branch lengths
+\eqn{\ell_e = c \int_e e^{\gamma x} dt}, with \eqn{c} the parameter \code{rate}
+and \eqn{\gamma} from \code{model}; see \code{\link[=MkLikelihood]{MkLikelihood()}}.
 }
 \examples{
 tree <- structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
@@ -85,6 +112,10 @@ run <- TempoMCMC(tree, DCETModel(nBin = 11, zRange = c(-2, 2)),
 run$samples
 }
 \references{
+Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference
+of sampled ancestor trees for epidemiology and fossil calibration. PLoS
+Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}
+
 Hobolth A, Stone EA (2009). Simulation from endpoint-conditioned,
 continuous-time Markov chains on a finite state space, with applications to
 molecular evolution. Annals of Applied Statistics 3:1204--1231.
@@ -95,6 +126,7 @@ Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},

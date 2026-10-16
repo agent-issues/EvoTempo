@@ -21,6 +21,9 @@
 #' `"extant"` for tips of age zero, and `"fossil"` otherwise.
 #' @param present Numeric giving the time of the present on the scale of
 #' attribute `nodeTime`.
+#' @param ranges Optional numeric matrix with one row per tip, giving the
+#' youngest and oldest admissible age of each fossil (its stratigraphic
+#' range), for MCMC moves on fossil ages; defaults to the fixed `ages`.
 #' @param tol Numeric giving the tolerance for treating an age or a branch
 #' length as zero.
 #' @returns `TempoTree()` returns an object of class `TempoTree`: a list with
@@ -28,7 +31,8 @@
 #' `kids` (matrix of the two children of each internal node), `age`,
 #' `tipType`, `sampled` (whether each internal node bears a sampled ancestor),
 #' `root` (index of the root node), `postorder` (internal nodes, children
-#' before parents) and `stem` (length of the root edge, or zero).
+#' before parents), `stem` (length of the root edge, or zero) and `range`
+#' (age range of each tip).
 #' @examples
 #' tree <- structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
 #'                        edge.length = c(1, 2, 2, 3), tip.label = c("a", "b", "c"),
@@ -37,7 +41,7 @@
 #' @family dCET inference
 #' @export
 TempoTree <- function(tree, ages = NULL, tipType = NULL, present = NULL,
-                      tol = 1e-8) {
+                      ranges = NULL, tol = 1e-8) {
   if (inherits(tree, "TempoTree")) {
     return(tree)
   }
@@ -103,12 +107,21 @@ TempoTree <- function(tree, ages = NULL, tipType = NULL, present = NULL,
   # Sampled-ancestor tips sit at their node's age
   saTip <- which(isAncestor)
   ages[saTip] <- ages[parent[saTip]]
+  tipAges <- ages[seq_len(nTip)]
+  if (is.null(ranges)) {
+    ranges <- cbind(tipAges, tipAges)
+  }
+  ranges <- matrix(ranges, nTip, 2)
+  ranges[tipType == "extant", ] <- 0
+  if (any(ranges[, 1] > tipAges + tol | ranges[, 2] < tipAges - tol)) {
+    stop("Each fossil's age must lie within its range")
+  }
   structure(
     list(nTip = nTip, nNode = nNode, parent = parent, kids = kids, age = ages,
          tipType = tipType, sampled = sampled, root = root,
          postorder = rev(order[order > nTip]),
          stem = if (is.null(tree[["root.edge"]])) 0 else tree[["root.edge"]],
-         tipLabel = tree[["tip.label"]]),
+         tipLabel = tree[["tip.label"]], range = ranges),
     class = "TempoTree"
   )
 }
@@ -229,6 +242,16 @@ DCETModel <- function(nBin = 26, zRange = c(-5, 5),
 #' @param par Named list or numeric vector of parameters: `lambda`, `mu`,
 #' `theta`, `s`, and optionally `psi` (default 0).
 #' @param model A [`DCETModel`][DCETModel()].
+#' @param character Optional vector giving the state (`0` to `nState - 1`, or
+#' `NA` if unknown) of one discrete character at each tip.
+#' The likelihood is then the exact joint likelihood of tree and character,
+#' by pruning on the product space of tempo bins and character states, whose
+#' generator is \eqn{Q \otimes I + \mathrm{diag}(c e^{\gamma x}) \otimes
+#' Q_{Mk}} (spec section 10, rung 4b), with parameter `rate` (\eqn{c}) taken
+#' from `par` and a uniform root state.
+#' Several characters cannot be scored this way, because they share the tempo
+#' path.
+#' @param nState Integer giving the number of character states.
 #' @param rtol,atol Numerics giving the tolerances of the stiff solver.
 #' @returns `TreeLikelihood()` returns the natural logarithm of the
 #' likelihood.
@@ -240,15 +263,35 @@ DCETModel <- function(nBin = 26, zRange = c(-5, 5),
 #'                DCETModel(nBin = 11, zRange = c(-2, 2)))
 #' @family dCET inference
 #' @export
-TreeLikelihood <- function(tree, par, model = DCETModel(), rtol = 1e-10,
-                           atol = 1e-14) {
+TreeLikelihood <- function(tree, par, model = DCETModel(), character = NULL,
+                           nState = 2L, rtol = 1e-10, atol = 1e-14) {
   tree <- TempoTree(tree)
   par <- as.list(par)
   set <- .Setup(par, model)
-  .PruneTree(tree, set[["Q"]], set[["lambda"]], set[["mu"]], set[["psi"]],
-             model[["rho"]], model[["removal"]], set[["prior"]],
-             model[["condition"]], model[["joint"]], model[["start"]],
-             rtol, atol)
+  if (is.null(character)) {
+    return(.PruneTree(tree, set[["Q"]], set[["lambda"]], set[["mu"]],
+                      set[["psi"]], model[["rho"]], model[["removal"]],
+                      set[["prior"]], model[["condition"]], model[["joint"]],
+                      model[["start"]], rtol, atol))
+  }
+  if (length(character) != tree[["nTip"]]) {
+    stop("`character` needs one state per tip")
+  }
+  nBin <- nrow(set[["Q"]])
+  mk <- matrix(1 / (nState - 1), nState, nState)
+  diag(mk) <- -1
+  clock <- par[["rate"]] * exp(model[["gamma"]] * set[["grid"]][["x"]])
+  joint <- kronecker(set[["Q"]], diag(nState)) + kronecker(diag(clock), mk)
+  Expand <- function(v) rep(v, each = nState)
+  mask <- matrix(1, tree[["nTip"]], nState)
+  known <- !is.na(character)
+  mask[known, ] <- 0
+  mask[cbind(which(known), character[known] + 1L)] <- 1
+  .PruneTree(tree, joint, Expand(set[["lambda"]]), Expand(set[["mu"]]),
+             Expand(set[["psi"]]), model[["rho"]], model[["removal"]],
+             Expand(set[["prior"]]) / nState, model[["condition"]],
+             model[["joint"]], model[["start"]], rtol, atol,
+             tipMask = mask[, rep(seq_len(nState), nBin), drop = FALSE])
 }
 
 # Whether the tree is possible under the conditioning: with extant (crown)
@@ -275,7 +318,8 @@ TreeLikelihood <- function(tree, par, model = DCETModel(), rtol = 1e-10,
 
 # Exact pruning for arbitrary generator `Q` and per-bin rates
 .PruneTree <- function(tree, Q, lambda, mu, psi, rho, removal, prior,
-                       condition, joint, start, rtol = 1e-10, atol = 1e-14) {
+                       condition, joint, start, rtol = 1e-10, atol = 1e-14,
+                       tipMask = NULL) {
   nBin <- nrow(Q)
   lambda <- rep_len(lambda, nBin)
   mu <- rep_len(mu, nBin)
@@ -306,6 +350,9 @@ TreeLikelihood <- function(tree, par, model = DCETModel(), rtol = 1e-10,
   for (f in which(tipType == "fossil")) {
     D[f, ] <- psi * (removal + (1 - removal) * E(age[[f]]))
   }
+  if (!is.null(tipMask)) {
+    D[seq_len(nTip), ] <- D[seq_len(nTip), ] * tipMask
+  }
   sigma <- lambda + mu + psi
   Branch <- function(v, toAge) {
     .BranchODE(D[v, ], E(age[[v]]), toAge - age[[v]], Q, lambda, mu, sigma,
@@ -315,7 +362,8 @@ TreeLikelihood <- function(tree, par, model = DCETModel(), rtol = 1e-10,
     kids <- tree[["kids"]][v - nTip, ]
     value <- if (tree[["sampled"]][v - nTip]) {
       isSA <- kids <= nTip & tipType[pmin(kids, nTip)] == "ancestor"
-      psi * (1 - removal) * Branch(kids[!isSA], age[[v]])
+      psi * (1 - removal) * Branch(kids[!isSA], age[[v]]) *
+        (if (is.null(tipMask)) 1 else tipMask[kids[isSA], ])
     } else {
       Branch(kids[[1]], age[[v]]) * Branch(kids[[2]], age[[v]]) *
         (if (v == tree[["root"]] && !origin) 1 else lambda)

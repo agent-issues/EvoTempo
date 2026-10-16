@@ -14,3 +14,4 @@ vignettes/_freeze/
 .quarto/
 data-raw/rung2-results/*
 !data-raw/rung2-results/rung2.rds
+data-raw/rung5-results/rung5-chains.rds

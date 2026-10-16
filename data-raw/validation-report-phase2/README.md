@@ -9,7 +9,7 @@ Reference inference in R for the discrete Covariant Evolutionary Tempo (dCET) mo
 - constant psi;
 - central generator.
 
-Grids are smaller than the default K = 26, z in [-5, 5] (#17).
+Grids are smaller than the default K = 26, z in [-5, 5]; rungs 3-5 at the default grid are reported in [`../validation-report-default-grid/README.md`](../validation-report-default-grid/README.md) (#17).
 
 ## Deviations from the plan
 1. **RevBayes.** No RevBayes build was available, so the `dnCDBDP` cross-check of rung 3 was not run (#15). Three secondary checks were run instead: the beta = 0 closed form, castor MuSSE, and Monte Carlo.

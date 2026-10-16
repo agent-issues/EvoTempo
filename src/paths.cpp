@@ -9,9 +9,7 @@
 #include "frozen.h"
 #include "tree.h"
 #include <algorithm>
-#include <cfloat>
 #include <cmath>
-#include <functional>
 #include <limits>
 #include <vector>
 
@@ -41,62 +39,6 @@ int Sample1(const std::vector<double>& w) {
   return FindInterval(Unif() * tot, cw) + 1;
 }
 
-// Brent's root finder as R_zeroin2() (src/library/stats/src/zeroin.c),
-// which uniroot() calls
-double Zeroin(double ax, double bx, double fa, double fb,
-              const std::function<double(double)>& f, double tol, int maxit) {
-  double a = ax, b = bx, c = a, fc = fa;
-  maxit += 1;
-  if (fa == 0.0) return a;  // # nocov
-  if (fb == 0.0) return b;  // # nocov
-  while (maxit--) {
-    const double prevStep = b - a;
-    if (std::fabs(fc) < std::fabs(fb)) {
-      a = b; b = c; c = a;
-      fa = fb; fb = fc; fc = fa;
-    }
-    const double tolAct = 2 * DBL_EPSILON * std::fabs(b) + tol / 2;
-    double newStep = (c - b) / 2;
-    if (std::fabs(newStep) <= tolAct || fb == 0.0) return b;
-    if (std::fabs(prevStep) >= tolAct && std::fabs(fa) > std::fabs(fb)) {
-      double p, q;
-      const double cb = c - b;
-      if (a == c) {
-        const double t1 = fb / fa;
-        p = cb * t1;
-        q = 1.0 - t1;
-      } else {
-        q = fa / fc;
-        const double t1 = fb / fc, t2 = fb / fa;
-        p = t2 * (cb * q * (q - t1) - (b - a) * (t1 - 1.0));
-        q = (q - 1.0) * (t1 - 1.0) * (t2 - 1.0);
-      }
-      if (p > 0) q = -q; else p = -p;
-      if (p < (0.75 * cb * q - std::fabs(tolAct * q) / 2) &&
-          p < std::fabs(prevStep * q / 2)) {
-        newStep = p / q;
-      }
-    }
-    if (std::fabs(newStep) < tolAct) newStep = newStep > 0 ? tolAct : -tolAct;
-    a = b;
-    fa = fb;
-    b += newStep;
-    fb = f(b);
-    if ((fb > 0 && fc > 0) || (fb < 0 && fc < 0)) {
-      c = a;
-      fc = fa;
-    }
-  }
-  return b;  // # nocov
-}
-
-// Values as R's zeroin2 wrapper passes them to the root finder
-double Clamp(double x) {
-  if (x == -std::numeric_limits<double>::infinity()) return -DBL_MAX;  // # nocov
-  if (x == std::numeric_limits<double>::infinity()) return DBL_MAX;  // # nocov
-  return x;
-}
-
 double LongSum(const std::vector<double>& x) {
   long double s = 0.0;
   for (double v : x) s += v;
@@ -123,6 +65,82 @@ Path PathFromR(SEXP x) {
   return p;
 }
 
+// Jump time of a bridge: the root of F(tau) = sum_k cf_k J_k(tau) - target on
+// (0, remain), where J_k(tau) integrates exp(gaa u + lam_k (remain - u)) over
+// [0, tau], rd_k = gaa - lam_k, eLam_k = exp(lam_k remain), and
+// F(0) = -target < 0 < F(remain) = total - target.  F' is the jump-time density,
+// sum_k cf_k exp(gaa tau + lam_k (remain - tau)), and F'' and F''' multiply its
+// terms by rd_k and rd_k^2, so the derivatives come with F from the same
+// transcendentals.  exp(lam_k remain) is not factored out of the rd_k > 0 terms:
+// it underflows where expm1(rd_k tau) overflows.
+//
+// The iteration takes Halley steps where their correction to the Newton step is
+// modest, Newton steps elsewhere, and bisects when a step leaves the bracket or
+// fails to halve the last move.  It stops when the predicted error of the new
+// iterate is below tol / 2: |step| for a Newton step, the cubic term of Halley's
+// error for a Halley step within 1e-4 * span of the last iterate.  R's .Bridge()
+// uses uniroot() at the same tolerance, so the engines agree to ~tol, not bit for
+// bit.  Draws no random numbers.
+double JumpTime(const std::vector<double>& cf, const std::vector<double>& lam,
+                const std::vector<double>& rateDiff,
+                const std::vector<double>& eLam, double gaa, double eGaa,
+                double remain, double target, double total, double span) {
+  const int K = cf.size();
+  const double tol = 1e-12 * span;
+  // Start with a Newton step from the nearer end, using F'(0) = sum cf eLam and
+  // F'(remain) = eGaa sum cf, eGaa = exp(gaa remain); regula falsi if it leaves
+  // (0, remain)
+  const double u = target / total;
+  double slope0 = 0.0, sumCf = 0.0;
+  for (int k = 0; k < K; ++k) {
+    slope0 += cf[k] * eLam[k];
+    sumCf += cf[k];
+  }
+  double x = u < 0.5 ? target / slope0 :
+    remain - (total - target) / (eGaa * sumCf);
+  if (!(x > 0 && x < remain)) x = remain * u;
+  double lo = 0.0, hi = remain, prev = remain;
+  for (int it = 0; it < 100; ++it) {
+    long double sumJ = 0.0;
+    double d1 = 0.0, d2 = 0.0, d3 = 0.0;
+    for (int k = 0; k < K; ++k) {
+      const double rd = rateDiff[k];
+      double e, jk;
+      if (rd > 0) {
+        e = std::exp(gaa * x + lam[k] * (remain - x));
+        jk = e * -std::expm1(-rd * x) / rd;
+      } else {
+        const double m = std::expm1(rd * x);
+        jk = rd < 0 ? eLam[k] * -m / -rd : x * eLam[k];
+        e = eLam[k] * (1 + m);
+      }
+      sumJ += cf[k] * jk;
+      const double ce = cf[k] * e;
+      d1 += ce;
+      d2 += ce * rd;
+      d3 += ce * rd * rd;
+    }
+    const double f = static_cast<double>(sumJ) - target;
+    if (f < 0) lo = x; else hi = x;
+    double step = f / d1;
+    const double corr = step * d2 / (2 * d1);
+    const bool halley = corr > -1 && corr < 0.5;
+    if (halley) step /= 1 - corr;
+    double next = x - step;
+    const bool ok = d1 > 0 && next >= lo && next <= hi &&
+      std::fabs(step) < 0.5 * prev;
+    if (!ok) next = (lo + hi) / 2;
+    prev = std::fabs(next - x);
+    const double c3 = (d2 / (2 * d1)) * (d2 / (2 * d1)) - d3 / (6 * d1);
+    const double err = !ok ? R_PosInf :
+      halley && std::fabs(step) < 1e-4 * span ?
+        std::fabs(c3) * std::fabs(step) * step * step : std::fabs(step);
+    if (hi - lo < tol || err < tol / 2) return next;
+    x = next;
+  }
+  return (lo + hi) / 2;  // # nocov
+}
+
 // .Bridge(): endpoint-conditioned path in slice s (zero-based) from bin i to
 // bin j (one-based) over `span`; jump times measured from the old end
 Path Bridge(const FrozenSet& set, int s, double span, int i, int j) {
@@ -135,7 +153,7 @@ Path Bridge(const FrozenSet& set, int s, double span, int i, int j) {
   out.k.push_back(i);
   int a = i;
   double now = 0.0;
-  std::vector<double> rateDiff(K), jAll(K), w;
+  std::vector<double> rateDiff(K), jAll(K), eLam(K), w;
   std::vector<int> nbr;
   std::vector<std::vector<double> > coef;
   while (true) {
@@ -143,20 +161,22 @@ Path Bridge(const FrozenSet& set, int s, double span, int i, int j) {
     const int a0 = a - 1;
     const double gaa = set.q(a0, a0) +
       (2 * set.lambda[a0] * sl.eBar[a0] - set.sigma[a0]);
-    for (int k = 0; k < K; ++k) rateDiff[k] = gaa - lam[k];
-    auto J = [&](double tau, std::vector<double>& out_) {
-      for (int k = 0; k < K; ++k) {
-        const double rd = rateDiff[k];
-        if (rd > 0) {
-          out_[k] = std::exp(gaa * tau + lam[k] * (remain - tau)) *
-            -std::expm1(-rd * tau) / rd;
-        } else if (rd < 0) {
-          out_[k] = std::exp(lam[k] * remain) * -std::expm1(rd * tau) / -rd;
-        } else {
-          out_[k] = tau * std::exp(lam[k] * remain);
-        }
+    // J_k(remain); for rd > 0 its exponential is exp(gaa remain), and
+    // exp(lam_k remain) = exp(gaa remain) (1 + expm1(-rd remain)) is kept for
+    // the root finder's start only
+    const double eGaa = std::exp(gaa * remain);
+    for (int k = 0; k < K; ++k) {
+      const double rd = rateDiff[k] = gaa - lam[k];
+      if (rd > 0) {
+        const double m = std::expm1(-rd * remain);
+        jAll[k] = eGaa * -m / rd;
+        eLam[k] = eGaa * (1 + m);
+      } else {
+        eLam[k] = std::exp(lam[k] * remain);
+        jAll[k] = rd < 0 ? eLam[k] * -std::expm1(rd * remain) / -rd :
+          remain * eLam[k];
       }
-    };
+    }
     nbr.clear();
     coef.clear();
     for (int c = 0; c < K; ++c) {
@@ -170,8 +190,7 @@ Path Bridge(const FrozenSet& set, int s, double span, int i, int j) {
         coef.push_back(cf);
       }
     }
-    J(remain, jAll);
-    w.assign(1, a == j ? std::exp(gaa * remain) : 0.0);
+    w.assign(1, a == j ? eGaa : 0.0);
     std::vector<double> prod(K);
     for (const std::vector<double>& cf : coef) {
       for (int k = 0; k < K; ++k) prod[k] = cf[k] * jAll[k];
@@ -184,22 +203,9 @@ Path Bridge(const FrozenSet& set, int s, double span, int i, int j) {
     }
     const int pick = Sample1(w);
     if (pick == 1) break;
-    const std::vector<double>& cf = coef[pick - 2];
     const double target = Unif() * w[pick - 1];
-    std::vector<double> jx(K);
-    auto F = [&](double x) {
-      J(x, jx);
-      for (int k = 0; k < K; ++k) prod[k] = cf[k] * jx[k];
-      return Clamp(LongSum(prod) - target);
-    };
-    // F at the ends without re-evaluating J: J(0) = 0, and J(remain) = jAll
-    // gave w[pick - 1] (the same values, bit for bit)
-    const double fLo = Clamp(-target), fHi = Clamp(w[pick - 1] - target);
-    if (fLo * fHi > 0) {
-      Rcpp::stop("f() values at end points not of opposite sign");  // # nocov
-    }
-    const double tau = Zeroin(0.0, remain, fLo, fHi, F, 1e-12 * span, 1000);
-    now += tau;
+    now += JumpTime(coef[pick - 2], lam, rateDiff, eLam, gaa, eGaa, remain,
+                    target, w[pick - 1], span);
     a = nbr[pick - 2];
     out.t.push_back(now);
     out.k.push_back(a);

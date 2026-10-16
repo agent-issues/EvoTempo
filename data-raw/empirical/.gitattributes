@@ -1,0 +1,2 @@
+# Raw downloads are byte-exact copies; checksums in MANIFEST.csv must match.
+**/raw/** -text

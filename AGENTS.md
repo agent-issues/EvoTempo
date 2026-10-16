@@ -1,7 +1,63 @@
 # EvoTempo: agent development notes
 
-You MUST read the `r-conventions` skill before writing any code, and `coverage-gate` before committing.
-Read `BRIEF.md` for scope and `dev/plans/MASTERPLAN.md` for the phase plan.
+This file orients any agent arriving at the codebase. Read it in full before touching code.
+
+## Start here
+
+1. `BRIEF.md`: scope. `dev/plans/MASTERPLAN.md`: the phase plan (plan, not status).
+2. `dev/spec/dCET-spec.md`: the mathematics; every symbol and equation number used in code comments
+   refers to it. `dev/spec/bm-numerics-notes.md`: how Budd & Mann's own code discretises the model,
+   and the bugs and typos found in it.
+3. The validation reports: `data-raw/validation-report/` (rungs 1-2), `data-raw/validation-report-phase2/`
+   (rungs 3-6), `data-raw/validation-report-default-grid/` (all rungs at the default grid) and
+   `data-raw/cpp-engine-results/` (C++ vs R agreement and run times).
+4. Open GitHub issues on `agent-issues/EvoTempo`: the work queue. Read the issue you are picking up
+   *and* any issue it links before starting.
+5. If your environment provides the `r-conventions` and `coverage-gate` skills, read them before
+   writing code and before committing. If it does not, the essentials are under **Naming** and
+   **Build and test** below.
+
+## The model in brief
+
+EvoTempo implements the covariant evolutionary tempo (CET) model of Budd & Mann (2025,
+Syst. Biol. 74:917-934): every lineage carries a heritable log-tempo x that follows an
+Ornstein-Uhlenbeck process (reversion theta, stationary sd s), and tempo e^x scales speciation
+(lambda e^(beta x)), extinction (mu e^(beta x)), fossil sampling (psi) and character change
+(rate e^(gamma x)). beta and gamma in {0, 1} give the 2x2 nested model family that the empirical
+work compares. The package works with a **discretised** model (dCET): x lives on K bins of a grid in
+z = x / s (default K = 26, z in [-5, 5], central-difference generator), which turns the model into a
+K-state birth-death-sampling process with an OU-like rate matrix `Q`.
+
+Inference has two layers:
+
+- **Marginal likelihood** (`TreeLikelihood()`): tempo integrated out exactly by solving the
+  backward E/D equations along each branch of a dated tree with fossil tips and sampled ancestors,
+  conditioned on crown survival. `MarginalMCMC()` samples parameters on this likelihood. It is the
+  oracle that every augmented result is tested against.
+- **Data augmentation** (`TempoMCMC()`): the chain carries an explicit tempo path on every branch
+  (bins and jump times), so that characters can be scored on tempo-weighted branch lengths and tree
+  moves can be made. Paths are drawn by forward filtering-backward sampling (FFBS) on "frozen"
+  time slices of the extinction probability E, with endpoint-conditioned bridges
+  (Hobolth & Stone 2009); importance weights correct from the frozen to the exact model.
+  Moves (argument `moves`): `tree`, `node`, `tip`, `branch` (path redraws); `joint` (a parameter
+  together with a fresh draw of every path; needed for theta to mix once characters are present);
+  `nodeAge`, `fossilAge`, `slide`, `saJump` (tree moves); plus a scale sweep over parameters.
+
+## Code path of one `TempoMCMC()` run
+
+`TempoTree()` (ages, tip types: extant / fossil / ancestor) and `DCETModel()` (grid, scheme, beta,
+gamma, conditioning) build the inputs. `.Precompute()` builds per-bin rates and the E grid
+(`.EGrid()`, Hermite-interpolated by `.Hermite()`); `.AddSlices()` adds the frozen-E slices and their
+eigendecompositions; `.Messages()` runs the backward FFBS pass; `.SampleTree()` / `.SampleClade()` /
+`.SampleBranch()` / `.Bridge()` draw paths; `.LogAugmented()` is the exact log augmented density;
+`.FrozenLikelihood()` and `.LogWeight()` give the frozen likelihood and importance weights.
+`.PathMove()`, `.TreeMove()` (proposals in `R/TreeMoves.R`), `.JointSweep()` and `.ParameterSweep()`
+are the moves. `MkLikelihood()` scores characters on lengths from `.CharacterLengths()`.
+
+Infeasible proposals (a bridge or a weight that underflows) signal a condition of class
+`infeasibleProposal` via `.Infeasible()`; every move catches it and rejects. Never let one escape
+as an error, and never treat it as acceptance.
+
 
 ## GitHub: the `agent-issues` mirror
 
@@ -33,6 +89,21 @@ Never print, log or commit the token. No force-pushes; no branch deletions.
 
 **Never commit to `main`.** Every change, documentation included, goes on a branch and reaches `main`
 through a PR with `ms609` as reviewer. Agents do not merge.
+The only exception is a direct push that the maintainer explicitly asks for, for that change only.
+
+### Stacked PRs
+
+When PRs depend on each other, base each on its predecessor's branch; only the bottom of the stack
+targets `main`. Merging a PR whose base is not `main` merges it into that base branch, **not** into
+`main`, and agents never delete branches, so GitHub does not retarget the next PR automatically.
+This has twice left finished work stranded on a feature branch. So:
+
+- after the bottom PR merges, retarget the next PR to `main` (`gh pr edit <n> --base main`) before
+  it is merged, and say so in the PR thread;
+- when told that work is merged, confirm it is on `main` (`git log origin/main`, or the compare API)
+  before reporting it as such, and before stacking new work on it;
+- when a branch already merged into `main` has received further merges, bring them over with a
+  fresh PR from that branch to `main`.
 
 ## Where things live
 
@@ -74,11 +145,13 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `R/TreeLikelihood.R` | `TempoTree()` (ages, tip types), `DCETModel()`, marginal likelihood by joint E/D integration, closed-form FBD |
 | `R/Paths.R` | Tempo paths: exact augmented density (E and its integral on a Hermite grid), frozen-E slices, FFBS messages, direct-sampling bridges, importance weights |
 | `R/MCMC.R` | `TempoMCMC()` (data augmentation), `MarginalMCMC()`, `SampleTempoPaths()`, priors and parameter moves |
-| `R/Characters.R` | `MkLikelihood()` (Mk pruning on tempo-weighted lengths; C++ engine uses MkPrime kernels) |
-| `R/Engine.R` | `TempoEngine()`: `engine = "cpp"` / `"R"` switch (option `EvoTempo.engine`); R is the reference oracle |
+| `R/Characters.R` | `MkLikelihood()` (Mk pruning on tempo-weighted lengths; the C++ engine uses MkPrime kernels) |
+| `R/Engine.R` | `TempoEngine()`: `engine = "cpp"` (default) / `"R"` switch, option `EvoTempo.engine`; R is the reference oracle |
+| `R/Integrate.R` | Thin wrappers over `deSolve` (`lsode`) for the R engine |
+| `R/RcppExports.R`, `src/RcppExports.cpp` | Generated by `Rcpp::compileAttributes()`; never edit by hand |
 | `src/radau5.h`, `src/band.h`, `src/dcet_ode.h` | Radau IIA (order 5) stiff integrator, banded LU, dCET backward equations (E; E,D; E,G) |
-| `src/tree_likelihood.cpp` | C++ `.PruneTree()`, `ExtinctionProbability()`, `.EGrid()` |
-| `src/paths.cpp`, `src/frozen.h`, `src/tree.h` | C++ frozen messages, FFBS, bridges, augmented density, weights; views of `set` and `TempoTree` |
+| `src/tree_likelihood.cpp` | C++ tree pruning, `ExtinctionProbability()`, E grid |
+| `src/paths.cpp`, `src/frozen.h`, `src/tree.h` | C++ frozen messages, FFBS, bridges, augmented density, weights; read-only views of `set` and `TempoTree` |
 | `src/characters.cpp` | `MkLikelihood()` via `MkPrime::Pruner<JCModel>` |
 | `R/TreeMoves.R` | Node-age, fossil-age, subtree-slide and sampled-ancestor moves with frozen-model bin and path proposals |
 | `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
@@ -86,7 +159,10 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung3-validation.R` | Rung 3: beta = 0 collapse, castor MuSSE comparison, Monte Carlo on tiny trees |
 | `data-raw/rung4-validation.R` | Rung 4: augmented vs marginal posterior, FFBS summaries, bridge Laplace transform, sum over paths |
 | `data-raw/rung5-validation.R` | Rung 4b (one character, product-space oracle) and rung 5 (prior-only MCMC vs simulator) |
-| `data-raw/cpp-engine-agreement.R` | C++ vs R agreement and run times on the rung 3/4 fixtures (K = 16, 26) |
+| `data-raw/cpp-engine-agreement.R` | C++ vs R agreement and run times on the rung 3/4 fixtures (K = 16, 26); results in `data-raw/cpp-engine-results/` |
+| `data-raw/empirical/` | Curated tip-dated datasets (penguins, Hymenoptera, trilobites): raw downloads with checksums, NEXUS matrices, tip-age tables, constraints, per-dataset README; `build.R` regenerates everything from `raw/` |
+| `manuscript/` | Quarto manuscript (build-ignored; rendered by `render-manuscript.yaml`). Not in `vignettes/`: R CMD check treats a `.qmd` there as a vignette without an engine |
+| `tests/testthat/test-Engine.R` | C++ vs R agreement for every ported function, and identical seeded chains in both engines |
 | `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |
 | `data-raw/rung5-fixed-parameters.R` | Rung 5 at fixed parameters (tree moves only) vs rejection simulation; regression check for tree-move Hastings ratios |
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
@@ -122,3 +198,63 @@ Rejection on other data features (tip counts, tree size) may redraw parameters.
 See `r-conventions`: functions BigCamelCase, variables camelCase, private functions `.DotPrefix`.
 Mathematical symbols keep their spec names in documentation (lambda, mu, psi, rho, theta, s, alpha, beta,
 gamma, delta).
+
+## C++ engine
+
+`engine = "cpp"` is the default; `"R"` runs the original R code, which stays as the reference
+implementation. Rules for any change to either side:
+
+- Both engines must give the same log-likelihoods to <= 1e-8 relative on the rung 3/4 fixtures
+  (`data-raw/cpp-engine-agreement.R`) and **identical** samples from seeded `TempoMCMC()` chains
+  (`test-Engine.R`). A change that alters random-number consumption on one side breaks the second
+  check: change both sides together.
+- New C++ is exported through `// [[Rcpp::export]]`; regenerate the glue with
+  `Rcpp::compileAttributes()` and the docs with `roxygen2::roxygenise()`.
+- `LinkingTo: MkPrime` uses the header-only API in MkPrime's `inst/include/MkPrime/`
+  (`Pruner<Model>`, edge-aware transitions). MkPrime is installed from `agent-issues/MkPrime`
+  (`Remotes:`). Engine-agnostic MkPrime improvements belong in MkPrime, not here.
+- Profile before optimising. As first measured, the C++ kernels ran 8-70x faster than R while a full
+  `TempoMCMC()` iteration gained only 6-8x, because the loop, the tree moves and the slice
+  eigendecompositions still run in R (issue #26).
+
+## CI
+
+`.github/workflows/`: `R-CMD-check.yaml` (ubuntu, macOS, windows), `test-coverage.yaml` (covr,
+uploads to Codecov) and `render-manuscript.yaml` (on changes under `manuscript/`). A failure
+that appears only in `test-coverage` usually means a test depends on the random-number state or on
+round-off: covr runs the tests in a different order and state from R CMD check.
+
+## Compute
+
+- **Local Windows sandbox** (Claude Science): no usable C++ compiler, so the package cannot be
+  installed from source there. Pure-R work runs with `pkgload::load_all()`. `covr::package_coverage()`
+  needs `sh` and fails; use `covr::file_coverage()` on the R and test files. `R CMD build/check` need
+  `TMPDIR` set to a writable folder. Run heavy validation jobs one at a time, with at most four cores:
+  two 15-worker clusters at once have killed every worker on the development machine.
+- **Hamilton HPC** (Durham; SSH over the university VPN; Slurm): compiling and longer runs. Use
+  partition `shared` (`test` for jobs under 15 min), `module load r/4.5.1 gcc/14.2`,
+  `OMP_NUM_THREADS=1`, work directories under `/nobackup/pjjg18/`, and the project library
+  `.libPaths(c('/nobackup/pjjg18/evotempo-dev/lib', .libPaths()))`. Ask before installing new packages.
+  `Permission denied (publickey)` means the VPN has lapsed; do not touch keys.
+- **RevBayes** for cross-checks: on the maintainer's machine,
+  `C:\Users\pjjg18\GitHub\revbayes-ms\build\rb.exe` (branch `development`; no `dnMkPrime`, which
+  lives on `feature/dnmkprime-pr1-native-integration`). Its source lists are generated: after pulling,
+  rerun `projects/cmake/regenerate.sh` before building.
+
+## Validation ladder
+
+Issues #1-#7 are the validation rungs: (1) reproduce Budd & Mann; (2) simulators vs analytic moments;
+(3) `TreeLikelihood()` vs closed forms, castor MuSSE, Monte Carlo and RevBayes `dnCDBDP`;
+(4) augmented vs marginal posteriors and path-sampler identities; (5) prior-only MCMC vs the
+simulator, and tree moves at fixed parameters; (6) simulation-based calibration per (beta, gamma)
+cell; (7) power study. Any change to the likelihood, the sampler or a move must keep the relevant
+rung scripts passing; rerun them (in `data-raw/`, not `tests/`) and update their result files.
+
+## Testing pitfalls
+
+- Tests use small, seeded runs. A test that needs a rare branch of the code (an infeasible bridge,
+  an underflow) must force it, for instance with `testthat::local_mocked_bindings()`, rather than
+  hope that a random draw or round-off produces it.
+- Conditioning on survival affects references: see **Validation simulators** above.
+- The exact one-parameter posterior on a likelihood grid (`data-raw/rung4b-one-parameter.R`) is the
+  sharpest check that an MCMC discrepancy is mixing error rather than a wrong target.

@@ -61,3 +61,7 @@
     .Call(`_EvoTempo_PruneTreeCpp`, tree, Q, lambda, mu, psi, rho, removal, prior, condition, joint, origin, rtol, atol, tipMask)
 }
 
+.SolverCountsCpp <- function() {
+    .Call(`_EvoTempo_SolverCountsCpp`)
+}
+

@@ -239,6 +239,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// SolverCountsCpp
+IntegerVector SolverCountsCpp();
+RcppExport SEXP _EvoTempo_SolverCountsCpp() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(SolverCountsCpp());
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_MkLikelihoodCpp", (DL_FUNC) &_EvoTempo_MkLikelihoodCpp, 4},
@@ -256,6 +266,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_ExtinctionCpp", (DL_FUNC) &_EvoTempo_ExtinctionCpp, 8},
     {"_EvoTempo_EGridCpp", (DL_FUNC) &_EvoTempo_EGridCpp, 8},
     {"_EvoTempo_PruneTreeCpp", (DL_FUNC) &_EvoTempo_PruneTreeCpp, 14},
+    {"_EvoTempo_SolverCountsCpp", (DL_FUNC) &_EvoTempo_SolverCountsCpp, 0},
     {NULL, NULL, 0}
 };
 

@@ -12,7 +12,8 @@
 library("EvoTempo")
 library("parallel")
 args <- commandArgs(trailingOnly = TRUE)
-nCore <- if (length(args)) as.integer(args[[1]]) else 4L
+# One core by default, so that run times are not inflated by contention
+nCore <- if (length(args)) as.integer(args[[1]]) else 1L
 outDir <- "data-raw/cpp-engine-results"
 dir.create(outDir, showWarnings = FALSE)
 ns <- asNamespace("EvoTempo")
@@ -126,18 +127,20 @@ Job <- function(j) {
         t1 <- proc.time()[["elapsed"]]
         draws <- lapply(1:10, function(i) .SampleTree(tree, set, msg))
         tDraw <- (proc.time()[["elapsed"]] - t1) / 10
-        t2 <- proc.time()[["elapsed"]]
         aug <- vapply(draws, function(d) .LogAugmented(tree, set, d$paths, d$bin), 0)
-        tAug <- (proc.time()[["elapsed"]] - t2) / 10
+        # Repeat the fast calls for a resolvable run time
+        tAug <- system.time(for (r in 1:20) {
+          vapply(draws, function(d) .LogAugmented(tree, set, d$paths, d$bin), 0)
+        })[["elapsed"]] / 200
         lw <- vapply(draws, function(d) {
           .LogWeight(tree, set, msg, d$paths, .PathNodes(tree))
         }, 0)
-        t3 <- proc.time()[["elapsed"]]
-        mk <- vapply(draws, function(d) {
+        CharLL <- function(d) {
           MkLikelihood(tree, matrix(r4b$character),
                        .CharacterLengths(tree, set$grid$x, d$paths, 0.3, 1))
-        }, 0)
-        tMk <- (proc.time()[["elapsed"]] - t3) / 10
+        }
+        mk <- vapply(draws, CharLL, 0)
+        tMk <- system.time(for (r in 1:20) vapply(draws, CharLL, 0))[["elapsed"]] / 200
         list(frozen = .FrozenLikelihood(tree, set, msg), aug = aug, lw = lw, mk = mk,
              bins = lapply(draws, `[[`, "bin"), tPre = tPre, tDraw = tDraw,
              tAug = tAug, tMk = tMk)

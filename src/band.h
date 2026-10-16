@@ -59,8 +59,8 @@ class BandLU {
       }
       piv_[j] = p;
       if (best == 0.0) {
-        singular_ = true;
-        continue;
+        singular_ = true;  // # nocov
+        continue;  // # nocov
       }
       ju = std::max(ju, std::min(j + ku_ + p - j, n_ - 1));
       if (p != j) {

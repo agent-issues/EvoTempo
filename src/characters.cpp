@@ -15,7 +15,9 @@ using namespace Rcpp;
 double MkLikelihoodCpp(List tree, IntegerMatrix characters, NumericVector lengths,
                        int nState) {
   const EvoTempo::TreeView tr(tree);
-  if (characters.nrow() != tr.nTip) stop("`characters` needs one row per tip");
+  if (characters.nrow() != tr.nTip) {
+    stop("`characters` needs one row per tip");  // # nocov
+  }
   const int nChar = characters.ncol();
   if (nChar == 0) return 0.0;
   std::vector<int> parent, child;

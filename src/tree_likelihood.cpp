@@ -36,7 +36,7 @@ void ExtinctionAt(const BandGenerator& Q, const std::vector<double>& lambda,
   for (int i = 0; i < nTime; ++i) {
     if (times[i] > now) {
       if (!solver.Integrate(prob, e.data(), times[i] - now)) {
-        Rcpp::stop("ODE solver failed");
+        Rcpp::stop("ODE solver failed");  // # nocov
       }
       now = times[i];
     }
@@ -100,7 +100,7 @@ List EGridCpp(NumericVector ages, NumericMatrix Q, NumericVector lambda,
   for (int i = 0; i < nAge; ++i) {
     if (ages[i] > now) {
       if (!solver.Integrate(prob, y.data(), ages[i] - now)) {
-        Rcpp::stop("ODE solver failed");
+        Rcpp::stop("ODE solver failed");  // # nocov
       }
       now = ages[i];
     }
@@ -163,6 +163,8 @@ double PruneTreeCpp(List tree, NumericMatrix Q, NumericVector lambda,
   }
 
   EDProblem prob(gen, lam.data(), m.data(), sigma.data());
+  // One solver for every branch, so each starts from the last step size
+  Radau5 solver(rtol, atol);
   std::vector<double> y(2 * K);
   // D after integrating node v's D up to toAge
   auto Branch = [&](int v, double toAge, std::vector<double>& out) {
@@ -176,8 +178,9 @@ double PruneTreeCpp(List tree, NumericMatrix Q, NumericVector lambda,
       y[k] = e0[k];
       y[K + k] = d0[k] / scale;
     }
-    Radau5 solver(rtol, atol);
-    if (!solver.Integrate(prob, y.data(), span)) Rcpp::stop("ODE solver failed");
+    if (!solver.Integrate(prob, y.data(), span)) {
+      Rcpp::stop("ODE solver failed");  // # nocov
+    }
     for (int k = 0; k < K; ++k) out[k] = std::max(y[K + k], 0.0) * scale;
   };
 

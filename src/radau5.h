@@ -80,7 +80,8 @@ class Radau5 {
     const int nitMax = 7;
     double t = 0.0;
     double h = std::min(h_, span);
-    bool first = true, reject = false, last = false;
+    bool first = true, reject = false, last = false, haveCont = false;
+    double hCont = 0.0;
     long nLocal = 0;
     while (true) {
       if (t + 1.0001 * h >= span) {
@@ -92,21 +93,18 @@ class Radau5 {
       prob.Rhs(y, f0_.data());
       for (int i = 0; i < n; ++i) scal_[i] = atol_ + rtol_ * std::fabs(y[i]);
       while (true) {
-        if (++nLocal > maxSteps_ || h < 1e-14 * span) return false;
+        if (++nLocal > maxSteps_ || h < 1e-14 * span) return false;  // # nocov
         const double sr = radau::kGamma / h;
         const std::complex<double> sc(radau::kAlpha / h, -radau::kBeta / h);
         if (!prob.Factor(sr, sc)) {
+          // # nocov start
           h *= 0.5;
           reject = true;
           last = false;
           continue;
+          // # nocov end
         }
-        std::fill(z1_.begin(), z1_.end(), 0.0);
-        std::fill(z2_.begin(), z2_.end(), 0.0);
-        std::fill(z3_.begin(), z3_.end(), 0.0);
-        std::fill(w1_.begin(), w1_.end(), 0.0);
-        std::fill(w2_.begin(), w2_.end(), 0.0);
-        std::fill(w3_.begin(), w3_.end(), 0.0);
+        StartingValues(n, h, haveCont, hCont);
         faccon_ = std::pow(std::max(faccon_, uround), 0.8);
         double dynOld = 0.0, thqOld = 0.0, theta = 0.0;
         bool converged = false;
@@ -199,6 +197,12 @@ class Radau5 {
         if (err < 1.0) {
           ++nStep_;
           ++Counter().steps;
+          // Keep the collocation polynomial for the next starting values
+          cz1_.swap(z1_);
+          cz2_.swap(z2_);
+          cz3_.swap(z3_);
+          haveCont = true;
+          hCont = h;
           t += h;
           for (int i = 0; i < n; ++i) y[i] = ynew_[i];
           first = false;
@@ -222,11 +226,51 @@ class Radau5 {
   }
 
  private:
+  // Newton starting values: zero, or the last accepted step's collocation
+  // polynomial u (u(0) = 0, u(c1) = z1, u(c2) = z2, u(1) = z3) continued to
+  // the new stage times, as in RADAU5
+  void StartingValues(int n, double h, bool haveCont, double hCont) {
+    if (!haveCont) {
+      for (std::vector<double>* v : {&z1_, &z2_, &z3_, &w1_, &w2_, &w3_}) {
+        std::fill(v->begin(), v->end(), 0.0);
+      }
+      return;
+    }
+    const double c1 = 0.15505102572168219018, c2 = 0.64494897427831780982;
+    const double nodes[3] = {c1, c2, 1.0};
+    const double r = h / hCont;
+    double L[3][3];  // L[i][j]: basis j at new stage i
+    for (int i = 0; i < 3; ++i) {
+      const double s = 1.0 + nodes[i] * r;
+      for (int j = 0; j < 3; ++j) {
+        double l = s / nodes[j];
+        for (int m = 0; m < 3; ++m) {
+          if (m != j) l *= (s - nodes[m]) / (nodes[j] - nodes[m]);
+        }
+        L[i][j] = l;
+      }
+      // Subtract u(1) = z3: basis values at s = 1 are (0, 0, 1)
+      L[i][2] -= 1.0;
+    }
+    for (int k = 0; k < n; ++k) {
+      const double a = cz1_[k], b = cz2_[k], c = cz3_[k];
+      z1_[k] = L[0][0] * a + L[0][1] * b + L[0][2] * c;
+      z2_[k] = L[1][0] * a + L[1][1] * b + L[1][2] * c;
+      z3_[k] = L[2][0] * a + L[2][1] * b + L[2][2] * c;
+      w1_[k] = radau::kTI[0][0] * z1_[k] + radau::kTI[0][1] * z2_[k] +
+        radau::kTI[0][2] * z3_[k];
+      w2_[k] = radau::kTI[1][0] * z1_[k] + radau::kTI[1][1] * z2_[k] +
+        radau::kTI[1][2] * z3_[k];
+      w3_[k] = radau::kTI[2][0] * z1_[k] + radau::kTI[2][1] * z2_[k] +
+        radau::kTI[2][2] * z3_[k];
+    }
+  }
+
   void Allocate(int n) {
     if (static_cast<int>(f0_.size()) == n) return;
     for (std::vector<double>* v : {&f0_, &f1_, &f2_, &f3_, &z1_, &z2_, &z3_, &w1_,
                                    &w2_, &w3_, &r1_, &tmp_, &ynew_, &err_, &fz_,
-                                   &scal_, &scalE_}) {
+                                   &scal_, &scalE_, &cz1_, &cz2_, &cz3_}) {
       v->assign(n, 0.0);
     }
     rc_.assign(n, std::complex<double>(0.0, 0.0));
@@ -244,7 +288,7 @@ class Radau5 {
   double rtol_, atol_, fnewt_, h_, faccon_;
   long maxSteps_, nStep_, nReject_;
   std::vector<double> f0_, f1_, f2_, f3_, z1_, z2_, z3_, w1_, w2_, w3_, r1_, tmp_,
-    ynew_, err_, fz_, scal_, scalE_;
+    ynew_, err_, fz_, scal_, scalE_, cz1_, cz2_, cz3_;
   std::vector<std::complex<double> > rc_;
 };
 

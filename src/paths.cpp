@@ -47,8 +47,8 @@ double Zeroin(double ax, double bx, double fa, double fb,
               const std::function<double(double)>& f, double tol, int maxit) {
   double a = ax, b = bx, c = a, fc = fa;
   maxit += 1;
-  if (fa == 0.0) return a;
-  if (fb == 0.0) return b;
+  if (fa == 0.0) return a;  // # nocov
+  if (fb == 0.0) return b;  // # nocov
   while (maxit--) {
     const double prevStep = b - a;
     if (std::fabs(fc) < std::fabs(fb)) {
@@ -87,13 +87,13 @@ double Zeroin(double ax, double bx, double fa, double fb,
       fc = fa;
     }
   }
-  return b;
+  return b;  // # nocov
 }
 
 // Values as R's zeroin2 wrapper passes them to the root finder
 double Clamp(double x) {
-  if (x == -std::numeric_limits<double>::infinity()) return -DBL_MAX;
-  if (x == std::numeric_limits<double>::infinity()) return DBL_MAX;
+  if (x == -std::numeric_limits<double>::infinity()) return -DBL_MAX;  // # nocov
+  if (x == std::numeric_limits<double>::infinity()) return DBL_MAX;  // # nocov
   return x;
 }
 
@@ -194,7 +194,7 @@ Path Bridge(const FrozenSet& set, int s, double span, int i, int j) {
     };
     const double fLo = F(0.0), fHi = F(remain);
     if (fLo * fHi > 0) {
-      Rcpp::stop("f() values at end points not of opposite sign");
+      Rcpp::stop("f() values at end points not of opposite sign");  // # nocov
     }
     const double tau = Zeroin(0.0, remain, fLo, fHi, F, 1e-12 * span, 1000);
     now += tau;

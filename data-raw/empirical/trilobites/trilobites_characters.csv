@@ -1,0 +1,108 @@
+"char","label","n_states_observed","ordered_in_beast"
+1,"Dorsal ecdysial cephalic sutures",2,FALSE
+2,"Dorsal ecdysial suture pattern",3,FALSE
+3,"Opisthoparian suture pattern",16,FALSE
+4,"Development of axial furrows on cephalon",2,FALSE
+5,"Preoccipital glabellar shape in holaspides",6,FALSE
+6,"SO",4,FALSE
+7,"S1",5,FALSE
+8,"Shape of transglabellar S1",2,FALSE
+9,"S1 bifurcates adaxially",2,FALSE
+10,"S2",4,FALSE
+11,"Shape of laterally confined S2",3,FALSE
+12,"Orientation of laterally confined S2",2,FALSE
+13,"Shape of transglabellar S2",2,FALSE
+14,"S3",4,FALSE
+15,"Shape of laterally confined S3",3,FALSE
+16,"Orientation of laterally confined S3",3,FALSE
+17,"Shape of transglabellar S3",1,FALSE
+18,"Strong sagittal glabellar furrow confluent with S1, S2 and S3",2,FALSE
+19,"Extent of frontal lobe of glabella relative to adjacent position of anteroproximal part of eye (or palpebro-ocular) ridges ",2,FALSE
+20,"Medial sulcus in anterior margin of frontal lobe of glabella",2,FALSE
+21,"Single preoccipital glabellar tubercle",2,FALSE
+22,"Series of glabellar axial nodes anterior to LO",2,FALSE
+23,"LO with anterior median tubercle and posterior occipital spine",2,FALSE
+24,"Cranidial spine",2,FALSE
+25,"Extended, snout-like frontal margin of cephalon",2,FALSE
+26,"Cephalic border",2,FALSE
+27,"Radial scrobicules on cephalic border",2,FALSE
+28,"Single row of large, evenly spaced tubercles on anterior and lateral cephalic border",2,FALSE
+29,"Cephalic border furrow with pits ",2,FALSE
+30,"Preglabellar field",2,FALSE
+31,"Plectrum on dorsal surface",2,FALSE
+32,"Shape of plectrum",3,FALSE
+33,"Medial swelling in preglabellar field (= preglabellar boss)",2,FALSE
+34,"Shape of preglabellar boss",2,FALSE
+35,"Narrow (slit-like) sagittal furrow on preglabellar field ",2,FALSE
+36,"Anteriorly divergent furrows on preglabellar field emanating from axial furrows",2,FALSE
+37,"Extent of anteriorly divergent furrows on preglabellar field",2,FALSE
+38,"Transversely elongate triangular lobes situated at anterolateral corners of glabella",2,FALSE
+39,"Dorsal eyes",2,FALSE
+40,"Eye type",2,FALSE
+41,"Curvature of palpebral lobe",2,FALSE
+42,"Palpebral lobe and eye/ocular ridge",4,FALSE
+43,"Confluence of palpebro-ocular ridges (or palpebral lobe) and glabella ",2,FALSE
+44,"Parafrontal band",2,FALSE
+45,"Position of posterior tips of palpebral lobe or palpebro-ocular ridge",5,TRUE
+46,"Fossulae",2,FALSE
+47,"Width (tr.) of interocular area adjacent to posterior tip of palpebro-ocular ridge or palpebral lobe in holaspides",4,TRUE
+48,"Bacculae in holaspides",2,FALSE
+49,"Size of bacculae",2,FALSE
+50,"Intergenal ridge",2,FALSE
+51,"Intergenal spine",2,FALSE
+52,"Depressed fixigenal field, with depression in posterior field widening abaxially ",2,FALSE
+53,"Librigenal field or extraocular area adjacent to the farthest abaxial point of palpebral lobe or palpebro-ocular ridge",2,FALSE
+54,"Genal spine",2,FALSE
+55,"Shape of genal spine",2,FALSE
+56,"Cephalon with strong, coarsely reticulated (honeycomb-like) ornament",2,FALSE
+57,"Radiating grooves on frontal area ",2,FALSE
+58,"Cuticular sculpture of irregular star-shaped tubercles ",2,FALSE
+59,"Prominent fingerprint-like ridges on glabella, fixigenae and librigenae ",2,FALSE
+60,"Ventral median cephalic suture in late holaspides",4,FALSE
+61,"Mode of development of ventral median cephalic suture",3,FALSE
+62,"Hypostomal attachment",2,FALSE
+63,"Hypostome fused to cephalic doublure in holaspides",2,FALSE
+64,"Width (tr.) of hypostomal lateral border",2,FALSE
+65,"Maculae",2,FALSE
+66,"Form and position of maculae",3,FALSE
+67,"Isolated U-shaped middle furrow on middle body of hypostome",2,FALSE
+68,"Posterior lobe of middle body of hypostome with posteriorly-directed protuberance",2,FALSE
+69,"Tagmosis of thorax",2,FALSE
+70,"Prothoracic/opisthothoracic boundary marked by macropleural segment",2,FALSE
+71,"Macropleural thoracic spine(s)",2,FALSE
+72,"Position of macropleural thoracic spine(s) developed on",7,FALSE
+73,"Inner portion of pleura on segment bearing macropleural thoracic spine(s)",3,FALSE
+74,"Two batches of thoracic segments defined by differences in pleural tips separated by macropleural spines ",2,FALSE
+75,"Thoracic segments 5 and 6 fused",2,FALSE
+76,"Hypertrophied thoracic axial spine(s), relative to other spines",8,FALSE
+77,"Fulcrum on thoracic pleurae",2,FALSE
+78,"Thoracic pleural tips",3,FALSE
+79,"Length of pleural spines along thorax (excluding macropleural spines)",2,FALSE
+80,"Differentiation of pygidial pleurae in late holaspides",3,FALSE
+81,"Pygidial pleural furrows",3,FALSE
+82,"Bilobate pygidial terminal piece",2,FALSE
+83,"Postaxial ridge on pygidium",2,FALSE
+84,"Extent of postaxial ridge on pygidium",2,FALSE
+85,"Vertical, wall-like distal pygidial pleural area",2,FALSE
+86,"Posteromedial margin of pygidium immediately behind axis (in dorsal view)",5,FALSE
+87,"Paired marginal pygidial spines in late holaspides",2,FALSE
+88,"Marginal pygidial spine morphology in late holaspides",9,FALSE
+89,"Macropleural pygidial spine",2,FALSE
+90,"Position of macropleural pygidial spine in late holaspides",2,FALSE
+91,"Calcified protaspid stage",2,FALSE
+92,"Anterior cranidial/cephalic border in protaspides and/or early meraspides",2,FALSE
+93,"Procranidial spines in early meraspides",2,FALSE
+94,"Form of frontal lobe of glabella in protaspides and/or early meraspides",3,FALSE
+95,"Longitudinal medial glabellar furrow in protaspides",2,FALSE
+96,"Protaspides with prominent protoaxial node/ring",2,FALSE
+97,"Transverse furrows on interocular cheeks in protaspides and/or early meraspides",2,FALSE
+98,"Protaspides with protobacculae ",2,FALSE
+99,"Intergenal/fixigenal spines in protaspides and/or early meraspides",2,FALSE
+100,"Protogenal lobes in protaspides",2,FALSE
+101,"Protaspides with pair of prominent lobes on posterior margin",2,FALSE
+102,"Hypostome and rostral plate fused in early meraspides",2,FALSE
+103,"Immature hypostome with inflated anterior lobe of middle body and spinose ""frill"" with six spine pairs on posterior margin ",2,FALSE
+104,"Thoracic macropleurality in meraspides",2,FALSE
+105,"Development of thoracic macropleurality from meraspides to holaspides",2,FALSE
+106,"Large pair of anterolateral transitory pygidial or pygidial spines in late meraspides and early holaspides, respectively, but lost in late holaspides",2,FALSE
+107,"Trunk segmentation schedule",3,FALSE

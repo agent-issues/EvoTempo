@@ -1,0 +1,851 @@
+#NEXUS
+
+[ File saved by NDE version 0.5.0, Mon Nov 12 13:43:53 2018 ]
+
+BEGIN TAXA;
+	DIMENSIONS NTAX=107;
+	TAXLABELS
+		'Calodiscus lobatus'
+		'Hebediscina longispinus'
+		'Neocobboldia chilinica'
+		'Pagetia ocellata'
+		'Serrodiscus speciosus'
+		'Tsunyidiscus longquanensis'
+		'Agraulos ceticephalus'
+		'Anabaraspis splendens'
+		'Balcoracania dailyi'
+		'Bigotina bivallata'
+		'Bristolia anteros'
+		'Choubertella spinosa'
+		'Daguinaspis ambroggii'
+		'Dolerolenus zoppii'
+		'Eccaparadoxides pusillus'
+		'Ellipsocephalus gripi'
+		'Elliptocephala asaphoides'
+		'Emuella polymera'
+		'Eoredlichia intermediata'
+		'Estaingia bilobata'
+		'Fallotaspis bondoni'
+		'Hamatolenus vincenti'
+		'Holmia kjerulfi'
+		'Ichangia ichangensis'
+		'Judomia tera'
+		'Lemdadella antarcticae'
+		'Megapharanaspis nedini'
+		'Metadoxides armatus'
+		'Montezumaspis parallela'
+		'Nephrolenellus geniculatus'
+		'Nevadia weeksi'
+		'Olenellus gilberti'
+		'Parabadiella huoi'
+		'Peachella iddingsi'
+		'Protolenus densigranulatus'
+		'Redlichia takooensis'
+		'Strenuaeva inflata'
+		'Tayanaspis bulbosus'
+		'Wanneria walcottana'
+		'Xystridura templetonensis'
+		'Yinites wanshougongensis'
+		'Yunnanocephalus yunnanensis'
+		'Zhangshania typica'
+		'Corynexochus plumula'
+		'Dinesus ida'
+		'Fuchouia fecunda'
+		'Guangxiaspis guangxiensis'
+		'Jakutus primigenius'
+		'Lonchopygella megaspina'
+		'Olenoides serratus'
+		'Oligometopus breviceps'
+		'Oryctocephalus indicus'
+		'Shergoldia laevigata'
+		'Tsinania canens'
+		'Wanshania wanshanensis'
+		'Zacanthopsis palmeri'
+		'Coosella kieri'
+		'Elrathia kingii'
+		'Modocia kohli'
+		'Sao hirsuta'
+		'Tricrepicephalus texanus'
+		'Ajrikina hunanensis'
+		'Golasaphus momedahensis'
+		'Liostracina tangwangzhaiensis'
+		'Proceratopyge truncata'
+		'Asaphiscus wheeleri'
+		'Burnetiella leechi'
+		'Cedaria minor'
+		'Haniwa quadrata'
+		'Iveria iverensis'
+		'Labiostria westropi'
+		'Loganellus logani'
+		'Olenus wahlenbergi'
+		'Orygmaspis billingsi'
+		'Pterocephalia norfordi'
+		'Notchpeakia taylori'
+		'Akoldinioidia shanjiangensis'
+		'Asioptychaspis subglobosa'
+		'Bathynotus kueichouensis'
+		'Bolaspidella housensis'
+		'Brachyaspidion microps'
+		'Catillicephala shawi'
+		'Cheilocephalus brevilobus'
+		'Conocoryphe sulzeri'
+		'Dikelocephalus minnesotensis'
+		'Elvinia roemeri'
+		'Eurekia rintintini'
+		'Fenghuangella coniforma'
+		'Hungaia puelchana'
+		'Jiulongshania longispina'
+		'Kuetsingocephalus qiannanensis'
+		'Lisania paibiensis'
+		'Mapania striata'
+		'Monkaspis quadrata'
+		'Myopsolenites altus'
+		'Neodrepanura premesnili'
+		'Norwoodia boninoi'
+		'Onaraspis rubra'
+		'Palaeadotes hunanensis'
+		'Papyriaspis lanceola'
+		'Parakoldinioidia akerfeldti'
+		'Penarosa netenta'
+		'Plethopeltis armatus'
+		'Prodamesella punctata'
+		'Ptychoparia striata'
+		'Tasmacephalus platypus'
+		'Xingrenaspis xingrenensis'
+		;
+ENDBLOCK;
+
+BEGIN CHARACTERS;
+	DIMENSIONS NCHAR=107;
+	FORMAT DATATYPE=STANDARD MISSING=? GAP=- SYMBOLS="0123456789ABCDEFGH";
+	CHARLABELS
+		[1] 'Dorsal ecdysial cephalic sutures'
+		[2] 'Dorsal ecdysial suture pattern'
+		[3] 'Opisthoparian suture pattern'
+		[4] 'Development of axial furrows on cephalon'
+		[5] 'Preoccipital glabellar shape in holaspides'
+		[6] SO
+		[7] S1
+		[8] 'Shape of transglabellar S1'
+		[9] 'S1 bifurcates adaxially'
+		[10] S2
+		[11] 'Shape of laterally confined S2'
+		[12] 'Orientation of laterally confined S2'
+		[13] 'Shape of transglabellar S2'
+		[14] S3
+		[15] 'Shape of laterally confined S3'
+		[16] 'Orientation of laterally confined S3'
+		[17] 'Shape of transglabellar S3'
+		[18] 'Strong sagittal glabellar furrow confluent with S1, S2 and S3'
+		[19] 'Extent of frontal lobe of glabella relative to adjacent position of anteroproximal part of eye (or palpebro-ocular) ridges '
+		[20] 'Medial sulcus in anterior margin of frontal lobe of glabella'
+		[21] 'Single preoccipital glabellar tubercle'
+		[22] 'Series of glabellar axial nodes anterior to LO'
+		[23] 'LO with anterior median tubercle and posterior occipital spine'
+		[24] 'Cranidial spine'
+		[25] 'Extended, snout-like frontal margin of cephalon'
+		[26] 'Cephalic border'
+		[27] 'Radial scrobicules on cephalic border'
+		[28] 'Single row of large, evenly spaced tubercles on anterior and lateral cephalic border'
+		[29] 'Cephalic border furrow with pits '
+		[30] 'Preglabellar field'
+		[31] 'Plectrum on dorsal surface'
+		[32] 'Shape of plectrum'
+		[33] 'Medial swelling in preglabellar field (= preglabellar boss)'
+		[34] 'Shape of preglabellar boss'
+		[35] 'Narrow (slit-like) sagittal furrow on preglabellar field '
+		[36] 'Anteriorly divergent furrows on preglabellar field emanating from axial furrows'
+		[37] 'Extent of anteriorly divergent furrows on preglabellar field'
+		[38] 'Transversely elongate triangular lobes situated at anterolateral corners of glabella'
+		[39] 'Dorsal eyes'
+		[40] 'Eye type'
+		[41] 'Curvature of palpebral lobe'
+		[42] 'Palpebral lobe and eye/ocular ridge'
+		[43] 'Confluence of palpebro-ocular ridges (or palpebral lobe) and glabella '
+		[44] 'Parafrontal band'
+		[45] 'Position of posterior tips of palpebral lobe or palpebro-ocular ridge'
+		[46] Fossulae
+		[47] 'Width (tr.) of interocular area adjacent to posterior tip of palpebro-ocular ridge or palpebral lobe in holaspides'
+		[48] 'Bacculae in holaspides'
+		[49] 'Size of bacculae'
+		[50] 'Intergenal ridge'
+		[51] 'Intergenal spine'
+		[52] 'Depressed fixigenal field, with depression in posterior field widening abaxially '
+		[53] 'Librigenal field or extraocular area adjacent to the farthest abaxial point of palpebral lobe or palpebro-ocular ridge'
+		[54] 'Genal spine'
+		[55] 'Shape of genal spine'
+		[56] 'Cephalon with strong, coarsely reticulated (honeycomb-like) ornament'
+		[57] 'Radiating grooves on frontal area '
+		[58] 'Cuticular sculpture of irregular star-shaped tubercles '
+		[59] 'Prominent fingerprint-like ridges on glabella, fixigenae and librigenae '
+		[60] 'Ventral median cephalic suture in late holaspides'
+		[61] 'Mode of development of ventral median cephalic suture'
+		[62] 'Hypostomal attachment'
+		[63] 'Hypostome fused to cephalic doublure in holaspides'
+		[64] 'Width (tr.) of hypostomal lateral border'
+		[65] Maculae
+		[66] 'Form and position of maculae'
+		[67] 'Isolated U-shaped middle furrow on middle body of hypostome'
+		[68] 'Posterior lobe of middle body of hypostome with posteriorly-directed protuberance'
+		[69] 'Tagmosis of thorax'
+		[70] 'Prothoracic/opisthothoracic boundary marked by macropleural segment'
+		[71] 'Macropleural thoracic spine(s)'
+		[72] 'Position of macropleural thoracic spine(s) developed on'
+		[73] 'Inner portion of pleura on segment bearing macropleural thoracic spine(s)'
+		[74] 'Two batches of thoracic segments defined by differences in pleural tips separated by macropleural spines '
+		[75] 'Thoracic segments 5 and 6 fused'
+		[76] 'Hypertrophied thoracic axial spine(s), relative to other spines'
+		[77] 'Fulcrum on thoracic pleurae'
+		[78] 'Thoracic pleural tips'
+		[79] 'Length of pleural spines along thorax (excluding macropleural spines)'
+		[80] 'Differentiation of pygidial pleurae in late holaspides'
+		[81] 'Pygidial pleural furrows'
+		[82] 'Bilobate pygidial terminal piece'
+		[83] 'Postaxial ridge on pygidium'
+		[84] 'Extent of postaxial ridge on pygidium'
+		[85] 'Vertical, wall-like distal pygidial pleural area'
+		[86] 'Posteromedial margin of pygidium immediately behind axis (in dorsal view)'
+		[87] 'Paired marginal pygidial spines in late holaspides'
+		[88] 'Marginal pygidial spine morphology in late holaspides'
+		[89] 'Macropleural pygidial spine'
+		[90] 'Position of macropleural pygidial spine in late holaspides'
+		[91] 'Calcified protaspid stage'
+		[92] 'Anterior cranidial/cephalic border in protaspides and/or early meraspides'
+		[93] 'Procranidial spines in early meraspides'
+		[94] 'Form of frontal lobe of glabella in protaspides and/or early meraspides'
+		[95] 'Longitudinal medial glabellar furrow in protaspides'
+		[96] 'Protaspides with prominent protoaxial node/ring'
+		[97] 'Transverse furrows on interocular cheeks in protaspides and/or early meraspides'
+		[98] 'Protaspides with protobacculae '
+		[99] 'Intergenal/fixigenal spines in protaspides and/or early meraspides'
+		[100] 'Protogenal lobes in protaspides'
+		[101] 'Protaspides with pair of prominent lobes on posterior margin'
+		[102] 'Hypostome and rostral plate fused in early meraspides'
+		[103] 'Immature hypostome with inflated anterior lobe of middle body and spinose "frill" with six spine pairs on posterior margin '
+		[104] 'Thoracic macropleurality in meraspides'
+		[105] 'Development of thoracic macropleurality from meraspides to holaspides'
+		[106] 'Large pair of anterolateral transitory pygidial or pygidial spines in late meraspides and early holaspides, respectively, but lost in late holaspides'
+		[107] 'Trunk segmentation schedule'
+		;
+	STATELABELS
+		1
+			absent
+			present,
+		2
+			opisthoparian
+			proparian
+			gonatoparian,
+		3
+			'gamma to alpha points long, straight or slightly curved, and divergent anteriorly; epsilon to omega points long and strongly divergent (defining narrow (exsag.) posterolateral projections)'
+			'gamma to alpha points very short, straight, and subparallel or slightly convergent; epsilon to omega points very short'
+			'gamma to beta points divergent anteriorly or subparallel, but with slight adaxial bend at beta points, with very short section between converging beta and alpha points; epsilon to omega points very short'
+			'gamma to beta points long and divergent anteriorly or subparallel, but with distinct adaxial bend at beta points, with longer section between converging beta and alpha points; epsilon to omega points long and strongly divergent (terminating at pointed post'
+			'gamma to beta points divergent anteriorly, but with strong adaxial bend at beta points, with short section between converging beta and alpha points; epsilon to omega points long and strongly divergent (terminating at pointed posterolateral projections)'
+			'gamma to beta points divergent anteriorly, but with strong adaxial bend at beta points, with short section between converging beta and alpha points; epsilon to omega points long and divergent at about 180 degs. before curving posteriorly (terminating at ro'
+			'gamma to alpha points straight, and subparallel or convergent anteriorly; epsilon to omega points very long and moderately to strongly divergent'
+			'gamma to alpha points curved and convergent anteriorly; epsilon to omega points moderately long and moderately divergent'
+			'gamma to alpha points broadly curved and convergent anteriorly; epsilon to omega points long and widely divergent before curving posteriorly (terminating at broadly rounded posterolateral projections)'
+			'alpha to omega submarginal and gently sinuous'
+			'gamma to beta points divergent anteriorly with adaxial bend at beta points, with very short section between converging beta and alpha points; epsilon to omega points long and strongly divergent (forming wedge-shaped posterolateral projections)'
+			'gamma to alpha points very short, straight and subparallel; epsilon to omega points very long, straight and slightly divergent (forming large triangular posterolateral projections)'
+			'gamma to beta points long and parallel, but with broad adaxial curve from beta to alpha points; epsilon to omega short, curved and moderately divergent'
+			'gamma to beta points short and subparallel, but with strong adaxial bend at beta points, with short section between converging beta and alpha points; epsilon to omega points very short'
+			'alpha to omega mostly marginal, but curves over genal angle'
+			'gamma to alpha points long and sinuous (extending onto frontal ''snout''), epsilon to omega points moderately divergent',
+		4
+			'clearly impressed'
+			'nearly effaced',
+		5
+			'tapers anteriorly with narrow frontal lobe'
+			'subparallel/subquadrate, with gently rounded or truncated frontal lobe'
+			'subparallel, with strongly rounded frontal lobe'
+			'constricted at L1, L2 or L3 with enlarged frontal lobe'
+			'moderately to strongly expands anteriorly'
+			'flask-shaped, with inflated L1',
+		6
+			'deepened laterally and shallow medially'
+			'subequal depth across glabella'
+			'deep medially, shallowing near axial furrows'
+			'effaced on testaceous dorsal surface',
+		7
+			'absent or highly effaced in testaceous and exfoliated material'
+			'confined laterally and connected to axial furrow'
+			transglabellar
+			'isolated pits connected by medial furrow'
+			'isolated, abaxially curved furrows',
+		8
+			'straight or weakly convex'
+			'strongly convex posteriorly',
+		9
+			absent
+			present,
+		10
+			'absent or highly effaced in testaceous and exfoliated material'
+			'confined laterally'
+			'transglabellar '
+			'isolated pits connected by medial furrow',
+		11
+			'straight or weakly convex'
+			'strongly convex anteriorly'
+			'isolated slots (abaxial portions of L2 and L3 connected)'
+			'isolated pits connected by medial furrow',
+		12
+			'directed forwards abaxially'
+			transverse,
+		13
+			'straight or weakly convex'
+			'strongly convex posteriorly',
+		14
+			'absent or highly effaced in testaceous and exfoliated material'
+			'confined laterally'
+			transglabellar
+			'isolated pits connected by medial furrow',
+		15
+			'straight or weakly convex'
+			'strongly convex anteriorly'
+			'isolated slots ',
+		16
+			'directed forwards abaxially'
+			'directed backwards abaxially'
+			transverse,
+		17
+			'straight or weakly convex'
+			'strongly convex posteriorly',
+		18
+			absent
+			present,
+		19
+			'frontal lobe does not extend anteriorly beyond eye ridges'
+			'frontal lobe extends anteriorly beyond eye ridges',
+		20
+			absent
+			present,
+		21
+			'absent '
+			'present ',
+		22
+			absent
+			present,
+		23
+			absent
+			present,
+		24
+			absent
+			present,
+		25
+			'absent '
+			'present ',
+		26
+			'sagittal length considerably shorter than remainder of cephalon'
+			'sagittal length equal to or greater than remainder of cephalon',
+		27
+			absent
+			present,
+		28
+			absent
+			present,
+		29
+			'absent '
+			'present ',
+		30
+			absent
+			present,
+		31
+			absent
+			present,
+		32
+			'very narrow (tr.), subparallel-sided ridge'
+			'broad (width >50% that of frontal glabellar lobe), subparallel-sided ridge'
+			'posteriorly tapered extension of the anterior cephalic border',
+		33
+			absent
+			present,
+		34
+			'narrow (tr.), long (sag.) swelling'
+			'broad (tr.) swelling that merges with anterior border',
+		35
+			absent
+			present,
+		36
+			absent
+			present,
+		37
+			'extending to, and connecting with anterior border furrow'
+			'not extending to anterior border furrow',
+		38
+			absent
+			present,
+		39
+			'present '
+			absent,
+		40
+			'holochroal '
+			'abathochroal ',
+		41
+			'gently to moderately curved'
+			'strongly curved, such that arch from gamma to epsilon is semi-circular',
+		42
+			'continuous, undifferentiated'
+			'distinctly differentiated, based on relative width and/or relief'
+			'isolated palpebral lobe, eye/ocular ridge absent or highly effaced on testaceous dorsal surface'
+			'anterior tip of palpebral lobe abuts axial furrow or glabella',
+		43
+			'interrupted by axial furrow'
+			'strongly confluent',
+		44
+			absent
+			present,
+		45
+			'opposite LO or SO'
+			'opposite L1 or S1'
+			'opposite L2 or S2'
+			'anterior of S2 and posterior of anterior margin of glabella'
+			'anterior of glabella',
+		46
+			absent
+			'present as small, discrete pits',
+		47
+			'less than one-third the width (tr.) of the occipital ring'
+			'one-third to half the width (tr.) of the occipital ring'
+			'more than half to the entire width (tr.) of the occipital ring'
+			'more than the entire width (tr.) of the occipital ring',
+		48
+			absent
+			present,
+		49
+			'small, adjacent to SO and/or L1'
+			'elongate, occupying most of the palpebral area and posterior field of the fixigenae',
+		50
+			absent
+			present,
+		51
+			absent
+			present,
+		52
+			absent
+			present,
+		53
+			'visible in dorsal view'
+			'not visible in dorsal view due to lobe/ridge overhanging genal field',
+		54
+			absent
+			present,
+		55
+			tapering
+			bulbous,
+		56
+			absent
+			present,
+		57
+			absent
+			present,
+		58
+			absent
+			'present ',
+		59
+			absent
+			present,
+		60
+			'absent (librigenae wholly separated by rostral plate)'
+			'complete ventral median suture'
+			'large rostellum anteriorly, ventral median suture posteriorly'
+			'librigenae fused ventrally (yoked)',
+		61
+			'developing from triangular rostellum-like sclerite posteriorly'
+			'developing from triangular rostellum anteriorly '
+			'developing late in ontogeny from yoked librigenae',
+		62
+			natant
+			conterminant,
+		63
+			'absent (= functional hypostomal suture)'
+			'present (= hypostome fused to rostral plate)',
+		64
+			'narrower than middle body'
+			'wider than middle body',
+		65
+			'absent (or poorly developed)'
+			present,
+		66
+			'elevated, narrow ridges immediately posterior to deep, lateral middle furrows'
+			'elevated, subovate platforms immediately posterior to lateral middle furrows or pits'
+			'elevated, subovate platforms anterior of middle furrow',
+		67
+			absent
+			present,
+		68
+			absent
+			present,
+		69
+			'pro- and opisthothorax undifferentiated'
+			'pro- and opisthothorax differentiated',
+		70
+			'absent (or decoupled when macropleural segment present)'
+			present,
+		71
+			absent
+			present,
+		72
+			'second segment'
+			'third segment'
+			'fourth segment'
+			'fifth segment'
+			'sixth segment'
+			'seventh segment'
+			'eleventh segment',
+		73
+			'does not strongly expand abaxially (= amplipleural sensu Palmer 1998)'
+			'strongly expands abaxially, distorting adjacent posterior segment(s) (= macropleural sensu Palmer 1998)'
+			'strongly expands abaxially, distorting adjacent anterior and posterior segments (= hyperpleural sensu Palmer 1998)',
+		74
+			absent
+			'present (anterior batch with falcate pleural spines, posterior batch with spatulate tips)',
+		75
+			free
+			fused,
+		76
+			'absent '
+			'present on T4 '
+			'present on T6'
+			'present on T8'
+			'present on T9'
+			'present on T11'
+			'present on T13'
+			'present on T15'
+			'present on T16 to T18',
+		77
+			absent
+			present,
+		78
+			'falcate/sentate spines (pleural margins continuous onto spines)'
+			'"thorn-like" spines (base of spine much narrower (exsag.) than pleural region)'
+			'spatulate (non-spinose)',
+		79
+			'of equal length or slightly increasing or decreasing posteriorly'
+			'strongly increasing posteriorly',
+		80
+			'anteriormost pleural segment resembles unreleased thoracic segment in similar orientation and expression of pleural and interpleural furrows and distal tips, such that the thoracic-pygidial boundary is indistinct'
+			'anteriormost pleura (or pleural region) differs from thoracic pleural morphology in the orientation and/or expression of pleural and interpleural furrows and distal tips'
+			'anteriormost pleural segment is macropleural, differing significantly from thoracic segments and more posterior pygidial segments ',
+		81
+			'well impressed from axial furrow to pygidial margin'
+			'well impressed near axial furrow, but become shallower or effaced near pygidial margin, including termination at border furrow'
+			'weakly developed or effaced',
+		82
+			absent
+			present,
+		83
+			absent
+			present,
+		84
+			'extends to margin'
+			'merges with border or terminal area (before margin)',
+		85
+			absent
+			present,
+		86
+			'smooth (non-spinose), continuously rounded'
+			'smooth (non-spinose) with shallow, rounded concavity'
+			'with deep, acutely v-shaped notch'
+			'concave and bounded by pair of posterolateral marginal spines'
+			'extends into single, large axial spine',
+		87
+			absent
+			present,
+		88
+			'single pair of short, anterolateral spines'
+			'single pair of short, posterolateral spines'
+			'two or more pairs of similar spines only'
+			'single pair of long spines extending from first macropleural segment, and remainder of pygidial margin smooth '
+			'single pair of long spines extending from first macropleural segment, and remainder of pygidial margin with short spines'
+			'single pair of long spines extending from posterior portion of pleural field'
+			'two short anterolateral spines, plus a single pair of long spines that are decoupled from pleural segmentation and extend from posterolateral margin of pygidium'
+			'single pair of short, posterolateral spines that are decoupled from pleural segmentation'
+			'single pair of long spines that are decoupled from pleural segmentation, with outer edge of spine extending from anterolateral margin of pygidium',
+		89
+			absent
+			present,
+		90
+			'anteriormost segment'
+			'posterior portion of pleural field',
+		91
+			absent
+			present,
+		92
+			absent
+			present,
+		93
+			absent
+			present,
+		94
+			'bulbous and distinctly wider (tr.) than posterior portion of glabella'
+			'lateral margins contiguous with remainder of glabella, typically with slight taper or expansion anteriorly'
+			'strongly expanding anteriorly, as defined by diverging axial furrows',
+		95
+			absent
+			present,
+		96
+			absent
+			present,
+		97
+			absent
+			present,
+		98
+			absent
+			present,
+		99
+			absent
+			present,
+		100
+			absent
+			present,
+		101
+			absent
+			present,
+		102
+			absent
+			present,
+		103
+			absent
+			present,
+		104
+			absent
+			present,
+		105
+			'macropleural segment/s retained in late holaspides'
+			'macropleural segment/s lost in late holaspides',
+		106
+			absent
+			present,
+		107
+			'protarthrous (holaspid phase precedes epimorphic phase)'
+			'synarthromeric (synchronous holaspid and epimorphic phases)'
+			'protomeric (epimorphic phase precedes holaspid phase)',
+	;
+	MATRIX
+		'Calodiscus lobatus'                0--0010--0 ---0---0-0 0000000001 0-0-00-01- -----0-100 00-0-0000- -0-00-000- 0--0-012-1 100-000--- 1101010101 1-00-02
+		'Hebediscina longispinus'           11-00-0--0 ---0---010 00-1000001 0-0-00-001 0100102100 001100000- -???????0- 0--0-01101 100-00120- 1101010111 1-?0-02
+		'Neocobboldia chilinica'            11-0010--0 ---0---010 0000000001 0-0-00-001 0100{12}0{23}0-0 0010-0000- -0-00-000- 0--0-012-1 100-000--- 1101010101 1-00-0{12}
+		'Pagetia ocellata'                  11-00-0--0 ---0---010 00-1001001 0-0-00-001 0100{12}03100 001100000- -0-00-000- 0--0-012-1 200-000--- 1101010111 1-00-0?
+		'Serrodiscus speciosus'             0--0030--0 ---0---0-0 0000000101 0-0-00-01- -----0-0-0 00-0-0000- -???????0- 0--0-01101 200-000--- ?????????? ?-?????
+		'Tsunyidiscus longquanensis'        11-00-0--0 ---0---010 00-1000001 0-0-00-001 0100{12}030-0 0010-0000- -?000-000- 0--0-012-1 100-000--- 1101010111 1-00-00
+		'Agraulos ceticephalus'             1070011-01 00-102-000 0000000001 0-0-00-00? 01002010-0 0001000000 -0-00-000- 0--00012-1 200-000--- ?????????? ???????
+		'Anabaraspis splendens'             10203{01}{12}101 01-112-010 0000000001 0-0-00-00? 00000020-0 0001000000 -10010000- 0--0000001 200-03110- ?????????? ???????
+		'Balcoracania dailyi'               10203120-2 --02--0010 0000000001 110--0-00? 00111120-0 0001000000 -100??0011 141010110? 200-000--- 1002001000 000100?
+		'Bigotina bivallata'                1020001-?1 00-101-000 0000000001 110--0-00? 00111020-0 000100000? ?????????? ??????11?? 10??0????? ?101??0?0? ???????
+		'Bristolia anteros'                 0--0301-01 01-121-010 0000000000 -------00? 00101000-1 000100000- -????????? ?????????? ?????????? 0110--1-1- -??????
+		'Choubertella spinosa'              0--0001-01 00-100-000 0000000001 0-0-00-00? 00010030-1 001100000- -?0?????0- 0--0000{01}01 200-000--- ?101??1?1? ???????
+		'Daguinaspis ambroggii'             0--0001-01 00-100-000 0000000001 0-0-00-00? 00010010-1 0010-0000- -?0?????0- 0--0000{01}01 200-000--- ?101??1?1? ???????
+		'Dolerolenus zoppii'                1000011-01 ??-1??-010 0000000001 100--0-00? 00001000-0 0001000000 -?000-000- 0--0000001 210-00110- 11011010?0 0????0?
+		'Eccaparadoxides pusillus'          10203{01}21-2 --0102-010 0000000000 -------00? 00000020-0 0001000000 -10010000- 0--0000001 200-03110- 1101100010 0??11??
+		'Ellipsocephalus gripi'             1020211-01 0{01}-102-010 0000000001 0-0-00-00? 01001020-0 000100000? ??000-000- 0--0001101 200-00100- 1102000010 0??????
+		'Elliptocephala asaphoides'         0--0301-01 11-112-010 0000000001 0-0-00-00? 00100000-1 000101000- -?00????0- 0--00(78)0{01}0? 200-00100- 0101--1-1- -??11??
+		'Emuella polymera'                  10203120-2 --02--0010 0000000000 -------00? 00111120-0 0001000000 -100??0011 141010110? 200-000--- 1002001000 0??100?
+		'Eoredlichia intermediata'          10000{01}{12}101 00-102-010 0000000001 100--0-00? 00001000-0 0001000000 -1000-000- 0--0040100 010-00100- 1101001010 00?1100
+		'Estaingia bilobata'                1020211-01 00-102-010 0000000001 100--0-00? 00000020-0 0001000000 -0-00-000- 0--0001000 010-03120- ?10???0??? ???110?
+		'Fallotaspis bondoni'               0--0001-01 00-102-000 0000000001 0-0-00-00? 00010000-1 000101000- -?0?????0- 1100000{01}01 20??000--- ?1?1??1??? ?0?????
+		'Hamatolenus vincenti'              1020211-01 00-100-010 0000000001 0-0-00-00? 01011020-0 0001000000 -?0?????0- 1000001{01}01 200-000--- ?????????? ???100?
+		'Holmia kjerulfi'                   0--0301-01 11-112-010 0000000000 -------000 00100000-1 100100-00- -10010000- 0--00?0{01}01 200-000--- ?????????? ???????
+		'Ichangia ichangensis'              1020211-01 00-102-010 0000000001 100--0-00? 01001020-0 0001000000 -?000-00?? ?????????0 000-03120- 1102000010 000????
+		'Judomia tera'                      0--0301-01 11-112-010 0000000000 -------00? 00100000-0 000100000- -???????0- 0--0000011 200-020--- ?????????? ???????
+		'Lemdadella antarcticae'            10000{01}21-1 00-102-000 0000000001 110--0-00? 00011010-0 0001000000 -????????? ?????????1 100-000--- 110{02}001000 0??????
+		'Megapharanaspis nedini'            10200120-2 --02--0010 0000000001 110--0-00? 00100010-0 0001000000 -???????11 1110001101 200-000--- ?????????? ???????
+		'Metadoxides armatus'               1060001-01 00-102-000 0000000000 -------00? 00001020-0 000100000? ????????0- 0--00002-0 000-000--- ?????????? ???????
+		'Montezumaspis parallela'           0--0301-01 11-112-010 0000000001 100--0-00? 00100000-0 100101000- -0-0??000- 0--0060{01}01 200-000--- ?101?-?-1- -??????
+		'Nephrolenellus geniculatus'        0--0301-01 01-121-010 0100000000 -------00? 001010{12}0-1 000100000- -100??0010 112000000? ?????????? 0100--1-1- -0110??
+		'Nevadia weeksi'                    0--0001-01 00-100-010 0000000001 100--0-00? 00100000-1 000100000- -???????10 0--0000011 200-000--- ?????????? ???????
+		'Olenellus gilberti'                0--0301-01 21-120-010 0000000001 100--0-00? 00100000-1 100100000- -100100010 1110070011 200-000--- 0101--0-1- -01100?
+		'Parabadiella huoi'                 1020001-01 00-102-000 0000000001 110--0-00? 00011020-0 0001000000 -?0?????0- 0--00?1{01}01 0?0-00100- ?????????? ???????
+		'Peachella iddingsi'                0--0301-01 21-120-010 0000000000 -------00? 00101000-1 000110000- -?0?????10 1120000{02}0? ?????????? ?????-?-1- -??????
+		'Protolenus densigranulatus'        1020011-01 00-100-010 0000000001 0-0-00-00? 0{01}01{01}01110 00???00000 -?0?????0- 0--0001101 200-000--- ?????????? ???????
+		'Redlichia takooensis'              1000001-01 00-102-010 0000000001 100--0-00? 00000000-0 0001000000 -1000-000- 0--0050100 010-00100- 1101001010 0????00
+		'Strenuaeva inflata'                1020011-01 01-102-010 0000000001 0-1100-00? 01001020-0 0001000000 -0-00-000- 0--0001101 200-00100- ?????????? ???????
+		'Tayanaspis bulbosus'               10200{03}1-01 00-101-000 0000000001 110--0-00? 0001002110 000100000? ?????????? ????0?11?1 20100{01}0--- ?101??0??? ???????
+		'Wanneria walcottana'               0--0301-01 11-112-010 0000000000 -------00? 00101000-0 000101-00- -100????0- 0--0070001 200-020--- ?????????? ???????
+		'Xystridura templetonensis'         10203{01}{12}101 01-112-010 0000000000 -------00? 00000020-0 0001000000 -10010000- 0--0000000 100-03120- 1101000010 0??11??
+		'Yinites wanshougongensis'          10000121-1 00-0---010 0000000000 -------00? 00001000-0 0001000000 -?000-000- 0--0000100 010-00160- 11010010?0 0??11??
+		'Yunnanocephalus yunnanensis'       12-0011-01 00-10?-000 0000000001 0-0-00-00? 000?1020-0 0001000000 -0-0????0- 0--0001{01}01 ?10-00??0- ????????1? ???????
+		'Zhangshania typica'                10000121-2 --02--0000 0000000000 -------00? 00011000-0 0001000000 -?000-000- 0--0000001 110-0{01}180- 1101001000 0??0-00
+		'Corynexochus plumula'              1070411-00 ---0---010 000000--00 -------00? 0?002010-0 00???0-000 -1100-00?? ?????????? 100-000--- ?????????? ???????
+		'Dinesus ida'                       1070111-00 ---0---010 0000000001 0-0-01010? 0100{12}?10-0 0001000000 -1?0????0- 0--0001??1 {12}00-000--- ?????????? ???????
+		'Fuchouia fecunda'                  1000411-01 01-101-010 0000000001 120--0-00? 00001020-0 1001000000 -??0??000- 0--0001?01 100-000--- 1102000010 0??0-01
+		'Guangxiaspis guangxiensis'         1030110--0 ---0---010 0000000001 0-0-00-00? 1100102100 0001000001 01000-000- 0--00012-2 200-001310 ?101??0??? ???0-02
+		'Jakutus primigenius'               1000111-01 01-101-010 0000000000 -------00? 000?1000-0 000100000? ????????0- 0--0000000 000-0?120- ?????????? ???????
+		'Lonchopygella megaspina'           1031130--0 ---0---010 0000000000 -------00? 02-01020-0 00???0000? ?????????? ?????????? 20--040--- ?101??0??? ?????12
+		'Olenoides serratus'                1070111-01 00-0---010 0000000000 -------00? 01001010-0 0001000000 -1100-000- 0--0000000 000-03120- ?????????? ?????0?
+		'Oligometopus breviceps'            1070011-01 01-101-000 0000000000 -------00? 0100{12}010-0 00???0000? ?????????? ?????????? 000-000--- ?????????? ???????
+		'Oryctocephalus indicus'            1070123--3 ---3---010 0000000000 -------00? 01001020-0 0001000000 -1100-000- 0--0000000 000-03120- ?101??0??? ???0-0?
+		'Shergoldia laevigata'              10301{13}0--0 ---0---010 0000000001 0-0-00-00? 1100101100 0001000001 01000-000- 0--00012-1 200-000--- ?????????? ?????10
+		'Tsinania canens'                   1031130--0 ---0---010 0000000001 0-0-00-00? 02-0{12}0{12}0-0 0000-00001 0?0??????? ??????12-1 200-000--- 1101000000 0????1?
+		'Wanshania wanshanensis'            1070120--0 ---0---010 0010000001 120--0-00? 01001020-0 000100000? ????????0- 0--0001101 1011000--- ?????????? ???????
+		'Zacanthopsis palmeri'              1020111-01 01-101-010 0000000001 0-0-00-00? 01000020-0 0001000000 -1001200?? ??????12-? 000-03120- 1102000010 010????
+		'Coosella kieri'                    1040001-?1 01-{01}???010 0000000001 0-0-00-00? 01001000-0 0000-0000? ?0-0????0- 0--00012-1 100-010--- ?????????? ???????
+		'Elrathia kingii'                   104000???? ???????010 0000000001 0-0-00-00? 01001000-0 0001000000 -0-0????0- 0--00012-1 100-010--- ?????????? ???????
+		'Modocia kohli'                     1040001-?1 0?-{01}??-010 0000000001 0-0-00-00? 01001010-0 000100000? ?0-0????0- 0--00012-1 100-000--- ?????????? ???????
+		'Sao hirsuta'                       1070011-01 01-102-1?0 0000000001 0-0-00-00? 01002010-0 0001000000 -0-00-000- 0--00012-1 100-000--- 1002000000 0000-02
+		'Tricrepicephalus texanus'          104001???? ???????010 0000000011 0-0-00-00? 01001000-0 000100000? ????????0- 0--0001001 100-001511 ?????????? ???????
+		'Ajrikina hunanensis'               1??0001-01 01-10?-000 0000000001 0-0-00-00? 0100403100 01???0000? ?????????? ?????????? 100-000--- ?????????? ???????
+		'Golasaphus momedahensis'           1050130--0 ---0---010 1000000001 0-0-00-00? 1300{12}000-0 000100000? ??001101?? ???????2-? 2011000--- ?????????? ???????
+		'Liostracina tangwangzhaiensis'     10C0011-01 00-102-010 0000000001 --0-10-00? 02-0{12}020-0 00???0000? ?????????? ?????????? 100-000--- 100{12}000000 0??????
+		'Proceratopyge truncata'            10{46}0014--1 00-102-010 1000000001 120--0-000 10001000-0 000100000? ????????0- 0--0001002 1011001310 ?????????? ???????
+		'Asaphiscus wheeleri'               10400{13}???? ???????010 0000000001 0-0-00-00? 01001000-0 0000-0000? ?0-0????0- 0--00012-1 {12}00-000--- ?????????? ???????
+		'Burnetiella leechi'                1040011-01 00-0---010 0000000001 0-0-00-00? 01001000-0 0001000000 -0-0????0- 1(23)01001(02)01 100-000--- ?????????? ???????
+		'Cedaria minor'                     1050010--0 ---0---010 0000000001 0-0-00-?0? 0100{12}000-0 00010?0000 -0-00-000- 0--00012-1 100-000--- ?????????? ???????
+		'Haniwa quadrata'                   1050110--0 ---0---010 0000000001 0-0-00-00? 1300{01}000-0 0001000003 -?0??????? ??????12-1 200-000--- 1001000010 00?1?02
+		'Iveria iverensis'                  1040011-01 00-0---010 0000000011 0-0-00-00? 01001?10-0 000100000? ?????????? ????0?1??1 100-000--- ?????????? ???????
+		'Labiostria westropi'               10A00{01}1-01 00-100-010 0000000001 0-0-00-00? 01001000-0 0001000001 ?0-00-000- 0--0000001 1011000--- ?????????? ?????01
+		'Loganellus logani'                 10A0101-01 00-102-010 0000000001 0-0-00-00? 01001000-0 000100000? ????????0- 0--0001001 1011000--- ?????????? ???????
+		'Olenus wahlenbergi'                1070{01}01-01 00-102-010 0000000001 0-0-00-000 01001?20-0 0001000000 -?000-000- 0--0001101 100-000--- 1001000010 000??0?
+		'Orygmaspis billingsi'              10A0101-01 00-102-010 0000000001 0-0-00-00? 01002010-0 000100000? ???00-000- 0--0001101 1011000--- ?????????? ???????
+		'Pterocephalia norfordi'            1030001-01 00-102-010 0000010001 0-0-00-00? 11001010-0 0001000001 10-00-000- 0--00012-1 100-000--- ?????????? ?????0?
+		'Notchpeakia taylori'               10C0{12}11-01 ??-0---010 0000000011 0-0-00-00? 01001020-0 0001000003 -?0??????? ??????0{01}?? 100-100--- ?????????? ???????
+		'Akoldinioidia shanjiangensis'      1090010--0 ---0---0-0 0000000001 0-0-00-01- ---0-0-0-0 00-1000003 -0-00-000- 1200-01001 100-010--- ??010?0?0? ?0?1000
+		'Asioptychaspis subglobosa'         10B01121-2 --10---010 0000000000 -------00? 010020{01}0-0 000100-011 2?0??????? ??????11?? 200-000--- 1001000000 000??02
+		'Bathynotus kueichouensis'          10100{12}21-2 --1???-000 0000000000 -------00? 00000000-0 000100-000 -1100-1011 1610001011 {12}0100{01}0--- ?????????? ???????
+		'Bolaspidella housensis'            1080011-01 01-0---010 0000000001 0-0-00-000 01001020-0 0001000000 -?000-000- 0--00312-1 100-010--- 1001000000 0000-0?
+		'Brachyaspidion microps'            1070001-0{01} ??-0---0?0 0000000001 0-0-00-00? 01003010-0 000100000? ????????0- 0--00012-1 100-000--- ?????????? ???????
+		'Catillicephala shawi'              1070100--0 ---0---0?0 0000000000 -------000 02-0{12}000-0 0010-0-000 -????????? ?????????? 200-000--- ?????????? ???????
+		'Cheilocephalus brevilobus'         107002{01}-?? ???????010 0000000000 -------00? 00002000-0 00???0000? ?????????? ????0?1??1 100-000--- ?????????? ???????
+		'Conocoryphe sulzeri'               10E0011-01 00-100-0-0 0000000001 0-0-01001- ---0-0-0-0 00-1000000 -0-00-000- 0--00012-1 100-000--- ?????????? ???????
+		'Dikelocephalus minnesotensis'      10301121-1 01-{01}??-010 0000000001 0-0-00-00? 01000000-0 0001000001 210011000- 0--0001{02}01 100-00170- ?????????? ???????
+		'Elvinia roemeri'                   10600121-0 ---0---010 0000000001 0-0-00-00? 01001010-0 0001000000 -0-0??000- 0--0001001 100-000--- ?????????? ??????2
+		'Eurekia rintintini'                1060{01}11-01 00-0---010 0000000001 0-0-00-00? 02-01000-0 0001000101 ??000-000- 0--0001100 000-03120- ?????????? ?????0?
+		'Fenghuangella coniforma'           10700{01}1-01 0?-???-010 0000000001 0-0-01100? 0100?020-0 00???0000? ?????????? ?????????? 000-000--- ?????????? ?????0?
+		'Hungaia puelchana'                 1030111-01 01-0---010 0000000001 0-0-00-00? 0100{01}?010? ?0???0100? ??001101?? ?????????? 100-03120- ?????????? ???????
+		'Jiulongshania longispina'          10700{01}1-01 0?-1??-010 0000000001 0-0-01100? 01002010-0 0001000003 -?0??????? ?????????? 100-000--- ?????????? ???????
+		'Kuetsingocephalus qiannanensis'    1040011-?1 ??-0---010 0000000001 0-0-00-00? 01001000-0 0001000000 -0-0????0- 0--00012-1 100-000--- ?????????? ???????
+		'Lisania paibiensis'                10D0101-?1 00-102-010 0010000000 -------00? 010010{12}0-0 000100000? ??00110??? ?????????? 100-000--- ?????????? ???????
+		'Mapania striata'                   1060004--1 00-102-010 0000000001 120--0-00? 00001000-0 0001000000 -?000-00?? ?????????? 10110{01}0--- ?????????? ???????
+		'Monkaspis quadrata'                1030111-?1 00-0---010 0000000001 0-0-00-00? 0100100100 ?0???0000? ?????????? ?????????? {01}00-03120- ?????????? ?????0?
+		'Myopsolenites altus'               10100021-2 --1102-000 0000000000 -------00? 00000010-0 000100000? ????????11 1610001001 {12}010000--- ?????????? ???????
+		'Neodrepanura premesnili'           1060501-11 01-{01}??-0?0 0000000000 -------00? 1?002000-0 0000-0-00? ?1010-000- 0--0001002 1011031410 ?????????? ???????
+		'Norwoodia boninoi'                 10500-???? ???????010 00-1000001 0-0-00-00? 0100{12}010-0 0001000002 ?0-0????0- 0--001?2-1 100-000--- ?????????? ???????
+		'Onaraspis rubra'                   10100021-2 --1102-000 0000000000 -------00? 00000020-0 0001000000 -1100-1011 1610001001 {12}010000--- ?????????? ???????
+		'Palaeadotes hunanensis'            1060501-11 01-{01}??-010 0000000000 -------00? 11011000-0 000100-00? ??010-000- 1(15)00001002 {01}011031410 ?????????? ???????
+		'Papyriaspis lanceola'              1060004-01 00-102-000 0000000001 0-0-00-00? 01001?20-0 000100000? ????????0- 0--00012-1 100-000--- ?????????? ???????
+		'Parakoldinioidia akerfeldti'       1070{12}11-01 01-101-011 0000000000 -------000 0100{12}020-0 0001000003 -????????? ?????????0 001100120- ?????????? ???????
+		'Penarosa netenta'                  1080001-01 00-101-000 0000000001 0-1000-00? 0100102100 0001000000 -???????0- 0--00012-1 100-000--- ?????????? ???????
+		'Plethopeltis armatus'              10311{13}0--0 ---0---010 0000000001 0-0-00-00? 0{12}-0?000-0 0001000001 ?0-?????0- 0--00012-1 200-000--- ?????????? ???????
+		'Prodamesella punctata'             1070101-01 00-102-011 0000000001 120-00-00? 01003020-0 0000-0000? ?????????? ??????1??0 100-000--- ?????????? ???????
+		'Ptychoparia striata'               1040001-01 00-101-010 0000000001 0-0-00-00? 01001020-0 0001000000 -0-00-000- 0--0001101 100-000--- ?????????? ???????
+		'Tasmacephalus platypus'            10F0111-01 00-102-010 0000100001 0-0-00-00? 01001010-0 0001000000 -0-00-000- 0--00012-1 {12}00-000--- ?????????? ???????
+		'Xingrenaspis xingrenensis'         10400{01}1-01 00-101-010 0000000001 0-0-00-00? 01001020-0 0001000000 -0-00-000- 0--0001{02}01 100-000--- ?????????? ???????
+	;
+ENDBLOCK;
+
+BEGIN ASSUMPTIONS;
+	OPTIONS DEFTYPE=UNORD POLYTCOUNT=MINSTEPS;
+ENDBLOCK;
+
+BEGIN NOTES;
+	[Taxon comments]
+	TEXT TAXON=14 TEXT='Additional codings from Pillola 1991';
+	TEXT TAXON=16 TEXT='Thoracic articulation is fulcrate.';
+	TEXT TAXON=19 TEXT='Thoracic articulation is nonfulcrate, see Jell (in Bengtson et al. 1990, fig. 185F) for E. shensiensis.';
+	TEXT TAXON=27 TEXT='Coded from Paterson & Jago (2006, fig. 5)';
+	TEXT TAXON=33 TEXT='Thoracic articulation is fulcrate, see Jell (in Bengtson et al. 1990, fig. 183F).';
+	TEXT TAXON=36 TEXT='Thoracic articulation is nonfulcrate, see Jell (in Bengtson et al. 1990, fig. 181), and Kruse (1998, fig. 11O-P) for R. amadeana.';
+
+	[Character comments]
+	TEXT CHARACTER=1 TEXT='See Paterson & Edgecombe''s (2006) character 1 for discussion.';
+	TEXT CHARACTER=2 TEXT='Taxa coded as state 0 for character 1 are coded as inapplicable for this character. State 2 represents an autapomorphy of Yunnanocephalus yunnanensis.';
+	TEXT CHARACTER=3 TEXT='Taxa coded as states 1 or 2 (or inapplicable) for character 2 are coded as inapplicable for this character. The following states represent autapomorphies: 9 (Akoldinioidia shanjiangensis); 11 (Asioptychaspis subglobosa); 13 (Lisania paibiensis); 14 (Conocoryphe sulzeri); 15 (Tasmacephalus platypus).';
+	TEXT CHARACTER=5 TEXT='This character is modified from Paterson & Edgecombe''s (2006) character 2.';
+	TEXT CHARACTER=6 TEXT='Taxa coded as inapplicable possess a cranidial spine: character 24, state 1. This character is modified from Paterson & Edgecombe''s (2006) character 5.';
+	TEXT CHARACTER=7 TEXT='This character is modified from Paterson & Edgecombe''s (2006) character 6.';
+	TEXT CHARACTER=8 TEXT='Taxa coded as states 0, 1, 3 or 4 for character 7 are coded as inapplicable for this character. This character is modified from Paterson & Edgecombe''s (2006) character 7.';
+	TEXT CHARACTER=9 TEXT='Taxa coded as states 0, 2, 3 or 4 for character 7 are coded as inapplicable for this character.';
+	TEXT CHARACTER=10 TEXT='This character is modified from Paterson & Edgecombe''s (2006) character 8.';
+	TEXT CHARACTER=11 TEXT='Taxa coded as states 0, 2 or 3 for character 10 are coded as inapplicable for this character. This character is modified from Paterson & Edgecombe''s (2006) character 9.';
+	TEXT CHARACTER=12 TEXT='Taxa coded as states 0, 2 or 3 for character 10 are coded as inapplicable for this character. This character is modified from Paterson & Edgecombe''s (2006) character 10.';
+	TEXT CHARACTER=13 TEXT='Taxa coded as states 0, 1 or 3 for character 10 are coded as inapplicable for this character.';
+	TEXT CHARACTER=14 TEXT='This character is modified from Paterson & Edgecombe''s (2006) character 12.';
+	TEXT CHARACTER=15 TEXT='Taxa coded as states 0, 2 or 3 for character 14 are coded as inapplicable for this character. This character is modified from Paterson & Edgecombe''s (2006) character 13.';
+	TEXT CHARACTER=16 TEXT='Taxa coded as states 0, 2 or 3 for character 14 are coded as inapplicable for this character. This character is modified from Paterson & Edgecombe''s (2006) character 14.';
+	TEXT CHARACTER=17 TEXT='Taxa coded as states 0, 1 or 3 for character 14 are coded as inapplicable for this character.';
+	TEXT CHARACTER=18 TEXT='State 1 represents an autapomorphy of Sao hirsuta.';
+	TEXT CHARACTER=22 TEXT='State 1 represents an autapomorphy of Nephrolenellus geniculatus.';
+	TEXT CHARACTER=24 TEXT='Definition of the cranidial spine follows Jell (1975, p. 4). This character equates to Cotton and Fortey''s (2005) character 65.';
+	TEXT CHARACTER=25 TEXT='State 1 represents an autapomorphy of Tasmacephalus platypus.';
+	TEXT CHARACTER=26 TEXT='State 1 represents an autapomorphy of Pterocephalia norfordi.';
+	TEXT CHARACTER=27 TEXT='State 1 represents an autapomorphy of Pagetia ocellata.';
+	TEXT CHARACTER=28 TEXT='State 1 represents an autapomorphy of Serrodiscus speciosus.';
+	TEXT CHARACTER=29 TEXT='This character relates to the structure described by Adrain (2011; footnote 33, p. 107) and illustrated by Whittington (1997, fig. 30.2a, b).';
+	TEXT CHARACTER=30 TEXT='This equates to Paterson & Edgecombe''s (2006) character 3.';
+	TEXT CHARACTER=31 TEXT='Taxa coded as state 0 for character 30 or state 1 for characters 33 or 35 are coded as inapplicable for this character. Presence of a plectrum (state 1) may also incorporate what is termed a ''median preglabellar ridge'' (Whittington & Kelly 1997). See Paterson & Edgecombe''s (2006) character 4 for additional discussion.';
+	TEXT CHARACTER=32 TEXT='Taxa coded as state 0 for characters 30 or 31 (or inapplicable for the latter) are coded as inapplicable for this character.';
+	TEXT CHARACTER=33 TEXT='Taxa coded as state 0 for character 30 or state 1 for characters 31 or 35 are coded as inapplicable for this character.';
+	TEXT CHARACTER=34 TEXT='Taxa coded as state 0 for characters 30 or 33 (or inapplicable for the latter) are coded as inapplicable for this character. State 0 represents an autapomorphy of Penarosa netenta and state 1 represents an autapomorphy of Strenuaeva inflata.';
+	TEXT CHARACTER=35 TEXT='Taxa coded as state 0 for character 30 or state 1 for characters 31 or 33 are coded as inapplicable for this character. State 1 represents an autapomorphy of Liostracina tangwangzhaiensis.';
+	TEXT CHARACTER=36 TEXT='Taxa coded as state 0 for character 30 are coded as inapplicable for this character.';
+	TEXT CHARACTER=37 TEXT='Taxa coded as state 0 for characters 30 or 36 (or inapplicable for the latter) are coded as inapplicable for this character.';
+	TEXT CHARACTER=38 TEXT='State 1 represents an autapomorphy of Dinesus ida.';
+	TEXT CHARACTER=40 TEXT='Taxa coded as state 1 for character 39 are coded as inapplicable for this character.';
+	TEXT CHARACTER=41 TEXT='Taxa coded as state 1 for character 39 are coded as inapplicable for this character.';
+	TEXT CHARACTER=42 TEXT='Taxa coded as state 1 for character 39 are coded as inapplicable for this character. This character is modified from Paterson & Edgecombe''s (2006) character 17.';
+	TEXT CHARACTER=43 TEXT='Taxa coded as state 1 for character 39 or state 2 for character 42 are coded as inapplicable for this character. This character is a modified version of Cotton''s (2001) character 47.';
+	TEXT CHARACTER=44 TEXT='Taxa coded as state 1 for character 39 are coded as inapplicable for this character. See Paterson & Edgecombe''s (2006) character 15 for discussion.';
+	TEXT CHARACTER=45 TEXT='Taxa coded as state 1 for character 39 are coded as inapplicable for this character. State 4 represents an autapomorphy of Ajrikina hunanensis. This character is modified from Paterson & Edgecombe''s (2006) character 18.';
+	TEXT CHARACTER=46 TEXT='See Paterson & Edgecombe''s (2006) character 16 for discussion.';
+	TEXT CHARACTER=47 TEXT='Taxa coded as state 1 for character 39 are coded as inapplicable for this character. This character is modified from Paterson & Edgecombe''s (2006) character 19.';
+	TEXT CHARACTER=49 TEXT='Taxa coded as state 0 for character 48 are coded as inapplicable for this character.';
+	TEXT CHARACTER=50 TEXT='This equates to Paterson & Edgecombe''s (2006) character 23.';
+	TEXT CHARACTER=51 TEXT='This equates to Paterson & Edgecombe''s (2006) character 21.';
+	TEXT CHARACTER=52 TEXT='State 1 represents an autapomorphy of Ajrikina hunanensis.';
+	TEXT CHARACTER=53 TEXT='Taxa coded as state 1 for character 39 are coded as inapplicable for this character.';
+	TEXT CHARACTER=55 TEXT='Taxa coded as state 0 for character 54 are coded as inapplicable for this character.';
+	TEXT CHARACTER=57 TEXT='Taxa without a frontal area or coded as state 1 for character 56 are coded as inapplicable for this character. State 1 represents an autapomorphy of Hungaia puelchana.';
+	TEXT CHARACTER=58 TEXT='State 1 represents an autapomorphy of Eurekia rintintini.';
+	TEXT CHARACTER=59 TEXT='State 1 represents an autapomorphy of Asioptychaspis subglobosa.';
+	TEXT CHARACTER=60 TEXT='Taxa that lack librigenae or a rostral plate are coded as inapplicable. State 2 represents an autapomorphy of Norwoodia boninoi.';
+	TEXT CHARACTER=61 TEXT='Taxa coded as states 0 or 3 or inapplicable for character 60 are coded as inapplicable for this character. This character is based on the modes of development of the ventral median suture proposed by Park & Choi (2010, fig. 9). State 1 represents an autapomorphy of Pterocephalia norfordi.';
+	TEXT CHARACTER=62 TEXT='See Paterson & Edgecombe''s (2006) character 24 for discussion.';
+	TEXT CHARACTER=63 TEXT='Taxa coded as state 0 for character 62 are coded as inapplicable for this character.';
+	TEXT CHARACTER=66 TEXT='Taxa coded as state 0 for character 65 are coded as inapplicable for this character. State 2 represents an autapomorphy of Zacanthopsis palmeri.';
+	TEXT CHARACTER=69 TEXT='This character is modified from Paterson & Edgecombe''s (2006) character 25.';
+	TEXT CHARACTER=70 TEXT='Taxa coded as state 0 for character 69 are coded as inapplicable for this character.';
+	TEXT CHARACTER=72 TEXT='Taxa coded as state 0 for character 71 are coded as inapplicable for this character. The following states represent autapomorphies: 0 (Hamatolenus vincenti); 3 (Burnetiella leechi); 5 (Palaeadotes hunanensis). This character is modified from Paterson & Edgecombe''s (2006) character 32.';
+	TEXT CHARACTER=73 TEXT='Taxa coded as state 0 for character 71 are coded as inapplicable for this character.';
+	TEXT CHARACTER=74 TEXT='State 1 represents an autapomorphy of Burnetiella leechi.';
+	TEXT CHARACTER=75 TEXT='Taxa with less than six thoracic segments (i.e., eodiscoids and Akoldinioidia shanjiangensis) are coded as inapplicable. See Paterson & Edgecombe''s (2006) character 26 for discussion.';
+	TEXT CHARACTER=76 TEXT='The following states represent autapomorphies: 1 (Norwoodia boninoi); 2+5 (Redlichia takooensis); 3 (Bolaspidella housensis); 4 (Eoredlichia intermediata); 6 (Montezumaspis parallela); 8 (Elliptocephala asaphoides).';
+	TEXT CHARACTER=77 TEXT='Taxa with unknown thoracic morphology are coded as being fulcrate (state 1) if there is an articulating facet on the pygidium. See Paterson & Edgecombe''s (2006) character 27 for discussion.';
+	TEXT CHARACTER=78 TEXT='See Paterson & Edgecombe''s (2006) character 29 for discussion.';
+	TEXT CHARACTER=79 TEXT='Taxa coded as state 2 for character 78 are coded as inapplicable for this character. See Paterson & Edgecombe''s (2006) character 30 for discussion.';
+	TEXT CHARACTER=80 TEXT='State 1 includes taxa that have a distinct pygidial border.';
+	TEXT CHARACTER=82 TEXT='See Paterson & Edgecombe''s (2006) character 35 for discussion.';
+	TEXT CHARACTER=84 TEXT='Taxa coded as state 0 for character 83 are coded as inapplicable for this character.';
+	TEXT CHARACTER=85 TEXT='State 1 represents an autapomorphy of Notchpeakia taylori.';
+	TEXT CHARACTER=86 TEXT='State 4 represents an autapomorphy of Lonchopygella megaspina. See Paterson & Edgecombe''s (2006) character 36 for discussion.';
+	TEXT CHARACTER=87 TEXT='This equates to Paterson & Edgecombe''s (2006) character 37.';
+	TEXT CHARACTER=88 TEXT='Taxa coded as state 0 for character 87 are coded as inapplicable for this character. The following states represent autapomorphies: 5 (Tricrepicephalus texanus); 6 (Yinites wanshougongensis); 7 (Dikelocephalus minnesotensis); 8 (Zhangshania typica). This character is modified from Paterson & Edgecombe''s (2006) character 38.';
+	TEXT CHARACTER=89 TEXT='Taxa coded as state 0 for character 87 are coded as inapplicable for this character.';
+	TEXT CHARACTER=90 TEXT='Taxa coded as state 0 for characters 87 or 89 are coded as inapplicable for this character. State 1 represents an autapomorphy of Tricrepicephalus texanus.';
+	TEXT CHARACTER=91 TEXT='See Paterson & Edgecombe''s (2006) character 39 for discussion.';
+	TEXT CHARACTER=92 TEXT='See Paterson & Edgecombe''s (2006) character 41 for discussion.';
+	TEXT CHARACTER=93 TEXT='State 1 represents an autapomorphy of Bristolia anteros. See Paterson & Edgecombe''s (2006) character 42 for discussion.';
+	TEXT CHARACTER=94 TEXT='This character is modified from Paterson & Edgecombe''s (2006) character 43.';
+	TEXT CHARACTER=95 TEXT='Taxa coded as state 0 for character 91 are coded as inapplicable for this character.';
+	TEXT CHARACTER=96 TEXT='Taxa coded as state 0 for character 91 are coded as inapplicable for this character. Definition of the protoaxial node follows Cederström et al. (2009).';
+	TEXT CHARACTER=97 TEXT='See Paterson & Edgecombe''s (2006) character 40 for discussion.';
+	TEXT CHARACTER=98 TEXT='Taxa coded as state 0 for character 91 are coded as inapplicable for this character. Definition of protobacculae follows Cederström et al. (2009).';
+	TEXT CHARACTER=99 TEXT='This equates to Paterson & Edgecombe''s (2006) character 44.';
+	TEXT CHARACTER=100 TEXT='Taxa coded as state 0 for character 91 are coded as inapplicable for this character. Definition of protogenal lobes follows Cederström et al. (2009).';
+	TEXT CHARACTER=101 TEXT='Taxa coded as state 0 for character 91 are coded as inapplicable for this character.';
+	TEXT CHARACTER=102 TEXT='Eodiscoids are coded as inapplicable, as they lack a rostral plate. State 1 represents an autapomorphy of Zacanthopsis palmeri.';
+	TEXT CHARACTER=105 TEXT='Taxa coded as state 0 for character 104 are coded as inapplicable for this character. This character is modified from Paterson & Edgecombe''s (2006) character 45.';
+	TEXT CHARACTER=107 TEXT='Neocobboldia chinlinica has a partial uncertainty coding (state 1 or 2), following Hughes et al. (2006).';
+
+	[Character state comments]
+
+	[Attribute comments]
+
+	[Taxon pictures]
+
+	[Character pictures]
+
+	[Character state pictures]
+
+	[Attribute pictures]
+ENDBLOCK;
+

@@ -22,3 +22,6 @@
 ^codecov\.yml$
 ^\.agent.*$
 ^\.lintr$
+^data/\.gitkeep$
+^inst/extdata/\.gitkeep$
+^tests/testthat/\.gitkeep$

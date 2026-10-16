@@ -22,10 +22,16 @@
 # Run from the package root: Rscript data-raw/rung3-revbayes.R [nTimeSlices...]
 # Environment: REVBAYES (executable), REVBAYES_POINTS (e.g. "1,5,9"),
 # REVBAYES_CONDITIONS ("time,survival"), REVBAYES_GRIDS ("K16,K26,K16b0"),
-# REVBAYES_TAG (suffix of the result file).
+# REVBAYES_TAG (suffix of the result file), EVOTEMPO_NO_COMPILE (load without
+# compiling and use the R engine).  The stored results were computed with the
+# R engine; data-raw/rung3-revbayes-engines.R re-evaluates the EvoTempo side
+# with each available engine.
 # Grid K16b0 has beta = 0 (state-independent rates), where the sampled-ancestor
 # treatment of dnCDBDP can be checked against the closed-form FBD E(t).
-suppressMessages(pkgload::load_all(".", quiet = TRUE))
+noCompile <- nzchar(Sys.getenv("EVOTEMPO_NO_COMPILE"))
+suppressWarnings(suppressMessages(
+  pkgload::load_all(".", quiet = TRUE, compile = if (noCompile) FALSE else NA)))
+if (noCompile) options(EvoTempo.engine = "R")
 library(ape)
 args <- commandArgs(trailingOnly = TRUE)
 slices <- if (length(args)) as.numeric(args) else c(500, 5000, 50000)

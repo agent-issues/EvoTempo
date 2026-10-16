@@ -1,0 +1,8 @@
+file,bytes,md5,sha256,committed,source,url,licence
+Appendix-1_MorphoCharacterDescriptions.pdf,701554,4185c2c23080f72d70948c3e800f9fc0,71616541c7563655138ef9dd3ab18d84b316ca1aa21aa22483fa22e016c33fac,TRUE,doi:10.5061/dryad.j2r64,https://datadryad.org/api/v2/files/95058/download,CC0-1.0
+MrBayes_Commands.nex,659786,f4fb160d2cc16d07a5173dff77199577,f289112f8ae099a2d5b50dc672a2c4011955486ddabbcdeefb4341e5b7dce464,TRUE,doi:10.5061/dryad.j2r64,https://datadryad.org/api/v2/files/95059/download,CC0-1.0
+R-Scripts_PriorFitting-RelaxedClockModels.r,16979,b941a11f4d068de130eb44b6678c25f6,9b7c480ecc392defa095d72889ae08bb6f20cc11a8d198391a35c920b298846e,TRUE,doi:10.5061/dryad.j2r64,https://datadryad.org/api/v2/files/95060/download,CC0-1.0
+Supplementary-Figure-1_Morphological-versus-molecular-BranchLengths.eps,2451664,6e1ec597667f032e184a0faa1b3de6fe,7cac74c27e864cd681d4be027492b690b0dea3a13dc552ae4125a08550f95c94,FALSE,doi:10.5061/dryad.j2r64,https://datadryad.org/api/v2/files/95061/download,CC0-1.0
+Supplementary-Figure-2_DatedTree-ErrorBars.eps,1378818,ca0ded4f24d0360f50fe7b4ecc24e566,3ee175ca3a95720358581db5577220b33dbd7ecc804312fb0b9359ebc05bb4d8,FALSE,doi:10.5061/dryad.j2r64,https://datadryad.org/api/v2/files/95062/download,CC0-1.0
+FBD_Suppl.pdf,836057,0a2bc505285ac77dcdd21d4ef96a85d6,1abbc996c5453f5cb6c5883dadb10715d333c1fe737297ec9cdf98d14aaee603,TRUE,doi:10.5061/dryad.26820,https://datadryad.org/api/v2/files/19930/download,CC0-1.0
+hymfossil.nex,665462,340f0980426d00a535631cb53225efbc,817e252b0f04b9040a7818908818747bdc3399c0141c823daac7b4db89e1995c,TRUE,NBISweden/MrBayes@77da419ecb2a335fb185a79c0d7d42d413562f19,https://raw.githubusercontent.com/NBISweden/MrBayes/77da419ecb2a335fb185a79c0d7d42d413562f19/examples/hymfossil.nex,GPL-3.0 (MrBayes)

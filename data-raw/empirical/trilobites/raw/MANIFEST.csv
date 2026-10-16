@@ -1,0 +1,6 @@
+file,bytes,md5,sha256,committed,source,url,licence
+"Dataset_1_Taxa,Dates,CodingRefs.xlsx",53164,b998c63b45be99a2bb3ee00c9cc7808f,ec9b5d8f197600da6a77d75019972901ff66d7a42a1b936935de69eb73ea4cef,TRUE,doi:10.5061/dryad.v7q827k,https://datadryad.org/api/v2/files/80338/download,CC0-1.0
+Dataset_2_Discrete_characters.nex,53090,ede9a9e048a229204b6bf759bc83bebd,9aa2a0a7b1eb9896db7729d731fee1e786973201606e00f052323c1fcef28c29,TRUE,doi:10.5061/dryad.v7q827k,https://datadryad.org/api/v2/files/80339/download,CC0-1.0
+Dataset_3_Meristic_Continuous_characters.xlsx,29236,2f0937ff3af54797dd2ebde87b53f809,f8454d65a1b7dd25a541579b8fb0b3331989a727de1c56e93df5c488ee4d14e4,TRUE,doi:10.5061/dryad.v7q827k,https://datadryad.org/api/v2/files/80340/download,CC0-1.0
+Dataset_4_BEAST_and_BEAST2.zip,723251,ee18ce8194f89cd6e4fe80617e00fc90,de8fb0122238c5b60274b54a6052f6eec1f1139286b3e573bb16b2d1d69185e5,TRUE,doi:10.5061/dryad.v7q827k,https://datadryad.org/api/v2/files/80341/download,CC0-1.0
+Dataset_5_TNT.zip,86469,499830a858b29d2f49f5b6f382e68d4b,b85839b8564fa89bd85ef5792c1c8464f2cf1a3cfc46245981ede19c3f3db204,TRUE,doi:10.5061/dryad.v7q827k,https://datadryad.org/api/v2/files/80342/download,CC0-1.0

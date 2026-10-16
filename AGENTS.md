@@ -83,6 +83,8 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung5-validation.R` | Rung 4b (one character, product-space oracle) and rung 5 (prior-only MCMC vs simulator) |
 | `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |
 | `data-raw/rung5-fixed-parameters.R` | Rung 5 at fixed parameters (tree moves only) vs rejection simulation; regression check for tree-move Hastings ratios |
+| `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
+| `data-raw/validation-report-phase2.R` | Summary CSVs for the rungs 3-6 report (`data-raw/validation-report-phase2/README.md`) |
 
 ## Tree-move proposals
 
@@ -91,6 +93,13 @@ redraws, including branches whose endpoints are unchanged but whose parent chang
 (the regraft target of `slide`). Omitting one is invisible when paths rarely jump
 (coarse grid, small theta) and shows up as old node ages on finer grids;
 `data-raw/rung5-fixed-parameters.R` detects it.
+
+## Validation simulators
+
+The likelihood is conditioned on survival, so a simulator used as a reference must
+resimulate at fixed parameters until the crown survives; redrawing parameters on
+failure weights them by P(survival) (seen in rung 5 as biased lambda and mu).
+Rejection on other data features (tip counts, tree size) may redraw parameters.
 
 ## Naming
 

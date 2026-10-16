@@ -15,3 +15,5 @@ vignettes/_freeze/
 data-raw/rung2-results/*
 !data-raw/rung2-results/rung2.rds
 data-raw/rung5-results/rung5-chains.rds
+data-raw/rung6-results/replicates/
+data-raw/validation-report-phase2/*-draws.csv

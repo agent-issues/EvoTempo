@@ -71,8 +71,10 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `R/CladeSize.R` | Clade-size distribution by inversion of the probability generating function |
 | `R/Simulate.R` | Forward simulators (dCET Gillespie; continuous CET exact in tempo-time); fossils, rho; `BranchClock()` |
 | `R/Reconstruct.R` | Sampled and complete trees from a history (sampled ancestors as zero-length tips); characters |
+| `R/TreeLikelihood.R` | `TempoTree()` (ages, tip types), `DCETModel()`, marginal likelihood by joint E/D integration, closed-form FBD |
 | `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
 | `data-raw/rung2-validation.R`, `data-raw/validation-report.R` | Monte Carlo validation and the rung 1-2 report |
+| `data-raw/rung3-validation.R` | Rung 3: beta = 0 collapse, castor MuSSE comparison, Monte Carlo on tiny trees |
 
 ## Naming
 

@@ -16,14 +16,14 @@ using namespace Rcpp;
 using EvoTempo::EDProblem;
 using EvoTempo::EGProblem;
 using EvoTempo::EProblem;
-using EvoTempo::Generator;
+using EvoTempo::BandGenerator;
 using EvoTempo::Radau5;
 
 namespace {
 
 // E at each of `times` (non-negative, non-decreasing), from E(0) = 1 - rho;
 // out is row-major, times.size() x K
-void ExtinctionAt(const Generator& Q, const std::vector<double>& lambda,
+void ExtinctionAt(const BandGenerator& Q, const std::vector<double>& lambda,
                   const std::vector<double>& mu, const std::vector<double>& sigma,
                   double rho, const double* times, int nTime, double rtol,
                   double atol, std::vector<double>& out) {
@@ -64,7 +64,7 @@ NumericMatrix ExtinctionCpp(NumericVector times, NumericMatrix Q,
                             NumericVector psi, double rho, double rtol,
                             double atol) {
   const int K = Q.nrow();
-  const Generator gen(Q.begin(), K);
+  const BandGenerator gen(Q.begin(), K);
   const std::vector<double> lam = AsVector(lambda, K), m = AsVector(mu, K),
     ps = AsVector(psi, K);
   std::vector<double> sigma(K);
@@ -85,7 +85,7 @@ List EGridCpp(NumericVector ages, NumericMatrix Q, NumericVector lambda,
               NumericVector mu, NumericVector psi, double rho, double rtol,
               double atol) {
   const int K = Q.nrow();
-  const Generator gen(Q.begin(), K);
+  const BandGenerator gen(Q.begin(), K);
   const std::vector<double> lam = AsVector(lambda, K), m = AsVector(mu, K),
     ps = AsVector(psi, K);
   std::vector<double> sigma(K);
@@ -123,7 +123,7 @@ double PruneTreeCpp(List tree, NumericMatrix Q, NumericVector lambda,
                     Nullable<NumericMatrix> tipMask) {
   const EvoTempo::TreeView tr(tree);
   const int K = Q.nrow();
-  const Generator gen(Q.begin(), K);
+  const BandGenerator gen(Q.begin(), K);
   const std::vector<double> lam = AsVector(lambda, K), m = AsVector(mu, K),
     ps = AsVector(psi, K);
   std::vector<double> sigma(K);

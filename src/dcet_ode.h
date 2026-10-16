@@ -15,15 +15,15 @@
 
 namespace EvoTempo {
 
-// Generator with lower and upper bandwidths
-struct Generator {
+// BandGenerator with lower and upper bandwidths
+struct BandGenerator {
   int n;
   int kl;
   int ku;
   std::vector<double> q;  // column-major n x n
 
-  Generator() : n(0), kl(0), ku(0) {}
-  Generator(const double* qq, int nn) : n(nn), kl(0), ku(0), q(qq, qq + nn * nn) {
+  BandGenerator() : n(0), kl(0), ku(0) {}
+  BandGenerator(const double* qq, int nn) : n(nn), kl(0), ku(0), q(qq, qq + nn * nn) {
     for (int j = 0; j < n; ++j) {
       for (int i = 0; i < n; ++i) {
         if (i != j && q[i + j * n] != 0.0) {
@@ -50,7 +50,7 @@ struct Generator {
 // Shared part: A = Q + diag(g), g = 2 lambda E - sigma; LUs of s I - A
 class ExtinctionCore {
  public:
-  ExtinctionCore(const Generator& Q, const double* lambda, const double* mu,
+  ExtinctionCore(const BandGenerator& Q, const double* lambda, const double* mu,
                  const double* sigma)
     : Q_(Q), lambda_(lambda), mu_(mu), sigma_(sigma), g_(Q.n), qe_(Q.n) {
     real_.Resize(Q.n, Q.kl, Q.ku);
@@ -95,7 +95,7 @@ class ExtinctionCore {
   std::complex<double> sc() const { return sc_; }
 
  protected:
-  const Generator& Q_;
+  const BandGenerator& Q_;
   const double* lambda_;
   const double* mu_;
   const double* sigma_;
@@ -120,7 +120,7 @@ class EProblem : public ExtinctionCore {
 // (E, D): dD/dt = (2 lambda E - sigma) D + Q D
 class EDProblem : public ExtinctionCore {
  public:
-  EDProblem(const Generator& Q, const double* lambda, const double* mu,
+  EDProblem(const BandGenerator& Q, const double* lambda, const double* mu,
             const double* sigma)
     : ExtinctionCore(Q, lambda, mu, sigma), c_(Q.n), qd_(Q.n),
       tmpC_(Q.n) {}

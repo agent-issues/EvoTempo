@@ -16,3 +16,9 @@
   sampling, removal, root or origin start, crown/survival conditioning), and the
   closed-form `FBDTreeLikelihood()`
   ([#3](https://github.com/agent-issues/EvoTempo/issues/3)).
+- Data-augmented inference on fixed time trees: `TempoMCMC()` (FFBS on a
+  frozen-extinction proposal, endpoint-conditioned bridges by direct sampling,
+  node, tip and branch path moves, exact Metropolis-Hastings correction,
+  parameter random walks), `MarginalMCMC()` on the exact marginal likelihood,
+  `SampleTempoPaths()` (importance-weighted stochastic mapping) and
+  `TempoPriors()` ([#4](https://github.com/agent-issues/EvoTempo/issues/4)).

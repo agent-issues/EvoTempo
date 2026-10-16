@@ -38,6 +38,10 @@ TreeLikelihood(tree, list(lambda = 0.5, mu = 0.2, theta = 0.1, s = 1),
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoMCMC]{TempoMCMC()}},
+\code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}}
 }
 \concept{dCET inference}

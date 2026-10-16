@@ -66,6 +66,10 @@ Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}
 \seealso{
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
+\code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoMCMC]{TempoMCMC()}},
+\code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},
 \code{\link[=TreeLikelihood]{TreeLikelihood()}}
 }

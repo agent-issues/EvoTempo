@@ -253,6 +253,7 @@ DCETModel <- function(nBin = 26, zRange = c(-5, 5),
 #' path.
 #' @param nState Integer giving the number of character states.
 #' @param rtol,atol Numerics giving the tolerances of the stiff solver.
+#' @inheritParams TempoEngine
 #' @returns `TreeLikelihood()` returns the natural logarithm of the
 #' likelihood.
 #' @examples
@@ -264,7 +265,10 @@ DCETModel <- function(nBin = 26, zRange = c(-5, 5),
 #' @family dCET inference
 #' @export
 TreeLikelihood <- function(tree, par, model = DCETModel(), character = NULL,
-                           nState = 2L, rtol = 1e-10, atol = 1e-14) {
+                           nState = 2L, rtol = 1e-10, atol = 1e-14,
+                           engine = getOption("EvoTempo.engine", "cpp")) {
+  old <- options(EvoTempo.engine = TempoEngine(engine))
+  on.exit(options(old))
   tree <- TempoTree(tree)
   par <- as.list(par)
   set <- .Setup(par, model)
@@ -338,6 +342,10 @@ TreeLikelihood <- function(tree, par, model = DCETModel(), character = NULL,
   }
   if (!.Compatible(tree, condition, origin)) {
     return(-Inf)
+  }
+  if (.UseCpp()) {
+    return(.PruneTreeCpp(tree, Q, lambda, mu, psi, rho, removal, prior, condition,
+                         joint, origin, rtol, atol, tipMask))
   }
   topAge <- age[tree[["root"]]] + if (origin) tree[["stem"]] else 0
   sorted <- sort(unique(c(age, topAge)))

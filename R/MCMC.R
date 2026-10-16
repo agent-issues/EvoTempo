@@ -79,6 +79,7 @@ TempoPriors <- function(meanlog = c(lambda = log(0.5), mu = log(0.2),
 #' step sizes adapt.
 #' @param thin Integer giving the interval between stored samples.
 #' @inheritParams TreeLikelihood
+#' @inheritParams TempoEngine
 #' @returns `MarginalMCMC()` returns a data frame of samples: one column per
 #' free parameter, and `logLik`.
 #' @examples
@@ -92,7 +93,10 @@ TempoPriors <- function(meanlog = c(lambda = log(0.5), mu = log(0.2),
 #' @family dCET inference
 #' @export
 MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
-                         thin = 1, character = NULL, nState = 2L) {
+                         thin = 1, character = NULL, nState = 2L,
+                         engine = getOption("EvoTempo.engine", "cpp")) {
+  old <- options(EvoTempo.engine = TempoEngine(engine))
+  on.exit(options(old))
   tree <- TempoTree(tree)
   Target <- function(par) {
     list(value = TreeLikelihood(tree, par, model, character, nState))
@@ -207,10 +211,14 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #'                  TempoPriors()[c("lambda", "theta")], nIter = 5, nSlice = 4)
 #' run$samples
 #' @family dCET inference
+#' @importFrom stats setNames
 #' @export
 TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                       nSlice = 20, moves = c(tree = 1), characters = NULL,
-                      nState = 2L, updateParameters = TRUE) {
+                      nState = 2L, updateParameters = TRUE,
+                      engine = getOption("EvoTempo.engine", "cpp")) {
+  old <- options(EvoTempo.engine = TempoEngine(engine))
+  on.exit(options(old))
   tree <- TempoTree(tree)
   if (model[["start"]] != "root") {
     stop("TempoMCMC() supports `start = \"root\"` only")
@@ -544,7 +552,10 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 #' maps$logLik
 #' @family dCET inference
 #' @export
-SampleTempoPaths <- function(tree, par, model, n, nSlice = 20) {
+SampleTempoPaths <- function(tree, par, model, n, nSlice = 20,
+                             engine = getOption("EvoTempo.engine", "cpp")) {
+  old <- options(EvoTempo.engine = TempoEngine(engine))
+  on.exit(options(old))
   tree <- TempoTree(tree)
   set <- .AddSlices(tree, .Precompute(tree, as.list(par), model), nSlice)
   msg <- .Messages(tree, set)

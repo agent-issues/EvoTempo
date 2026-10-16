@@ -110,6 +110,51 @@ test_that("E grids and frozen messages agree between engines", {
                WithEngine("R", .Pieces(engineTree, setR, 7)), tolerance = 1e-10)
   expect_equal(WithEngine("cpp", .SliceExp(setR, 3, 0.4)),
                WithEngine("R", .SliceExp(setR, 3, 0.4)), tolerance = 1e-10)
+  # Slice eigendecompositions from the same E grid; eigenvectors are unique up
+  # to sign, so compare the matrices they rebuild
+  slicesC <- WithEngine("cpp", .AddSlices(engineTree, setR, 6))
+  expect_equal(slicesC[c("halfPi", "bounds")], setR[c("halfPi", "bounds")])
+  Rebuild <- function(sl) sl$vectors %*% (sl$values * t(sl$vectors))
+  for (s in seq_along(setR$slices)) {
+    expect_equal(slicesC$slices[[s]][c("eBar", "values")],
+                 setR$slices[[s]][c("eBar", "values")], tolerance = 1e-12)
+    expect_equal(Rebuild(slicesC$slices[[s]]), Rebuild(setR$slices[[s]]),
+                 tolerance = 1e-12)
+    expect_equal(abs(slicesC$slices[[s]]$vectors), abs(setR$slices[[s]]$vectors),
+                 tolerance = 1e-10)
+  }
+  # A grid at age zero needs no integration
+  Q <- setR$Q
+  zero <- .EGridCpp(c(0, 0), Q, setR$lambda, setR$mu, setR$psi, 0.3, 1e-10, 1e-14)
+  expect_equal(zero$E, matrix(0.7, 2, nrow(Q)))
+  expect_equal(zero$G, matrix(0, 2, nrow(Q)))
+})
+
+test_that("Parameter moves reuse the frozen model when only `rate` changes", {
+  set.seed(4)
+  chars <- matrix(sample(0:1, 5 * 3, replace = TRUE), 5)
+  priors <- c(TempoPriors()["theta"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  Run <- function() {
+    set.seed(8)
+    TempoMCMC(engineTree, engineModel, enginePar, priors, nIter = 8, nSlice = 4,
+              characters = chars, moves = c(tree = 1, joint = 1, nodeAge = 1))
+  }
+  nCall <- 0
+  Precompute <- .Precompute
+  local_mocked_bindings(.Precompute = function(...) {
+    nCall <<- nCall + 1
+    Precompute(...)
+  })
+  reuse <- Run()
+  nReuse <- nCall
+  # Recomputing every set from scratch leaves the chain unchanged
+  nCall <- 0
+  local_mocked_bindings(.SameSet = function(...) FALSE)
+  fresh <- Run()
+  expect_lt(nReuse, nCall)
+  expect_identical(reuse$samples, fresh$samples)
+  expect_identical(reuse$acceptance, fresh$acceptance)
 })
 
 test_that("Path samplers draw the same paths in both engines", {

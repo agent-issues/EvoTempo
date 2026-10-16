@@ -73,6 +73,13 @@ class Radau5 {
   // Advance y over [0, span]; returns false on failure.
   template <class P>
   bool Integrate(P& prob, double* y, double span) {
+    return Integrate(prob, y, span, [](double, double, const double*) {});
+  }
+
+  // As above, calling onStep(t, h, y) after each accepted step, which ends at
+  // t with value y; Dense() then interpolates within the step.
+  template <class P, class F>
+  bool Integrate(P& prob, double* y, double span, F&& onStep) {
     if (!(span > 0)) return true;
     const int n = prob.Size();
     Allocate(n);
@@ -208,6 +215,7 @@ class Radau5 {
           first = false;
           if (reject) hNew = std::min(hNew, h);
           reject = false;
+          onStep(t, h, static_cast<const double*>(y));
           if (last) {
             h_ = std::max(hNew, h_ * 1e-3);
             return true;
@@ -223,6 +231,24 @@ class Radau5 {
       }
     }
     return true;
+  }
+
+  // Continuous output within the last accepted step [t - h, t] (RADAU5's
+  // CONTR5): y(t - h + theta h) from the collocation polynomial through the
+  // step's stages, given yEnd = y(t); theta in [0, 1]
+  void Dense(int n, double theta, const double* yEnd, double* out) const {
+    const double nodes[3] = {0.15505102572168219018, 0.64494897427831780982, 1.0};
+    double l[3];
+    for (int j = 0; j < 3; ++j) {
+      double v = theta / nodes[j];
+      for (int m = 0; m < 3; ++m) {
+        if (m != j) v *= (theta - nodes[m]) / (nodes[j] - nodes[m]);
+      }
+      l[j] = v;
+    }
+    for (int k = 0; k < n; ++k) {
+      out[k] = yEnd[k] - cz3_[k] + l[0] * cz1_[k] + l[1] * cz2_[k] + l[2] * cz3_[k];
+    }
   }
 
  private:

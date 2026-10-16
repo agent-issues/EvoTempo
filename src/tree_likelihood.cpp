@@ -79,7 +79,13 @@ NumericMatrix ExtinctionCpp(NumericVector times, NumericMatrix Q,
   return ret;
 }
 
-// E, G = integral of E, and dE/dt at sorted ages starting at 0 (.EGrid)
+// E, G = integral of E, and dE/dt at sorted ages starting at 0 (.EGrid).
+// The solver steps freely over [0, max age] and interpolates at the ages with
+// its continuous output (the collocation polynomial), rather than stopping at
+// each of the ~500 ages: about a third of the cost.  The continuous output is
+// of lower order than the step ends (stage order 3, not 5), so the solver runs
+// at a tolerance 100 times tighter than rtol, atol; the grid's error is then
+// that of stopping at every age with rtol, atol (dev/profiling/log.md, round 1).
 // [[Rcpp::export(name = ".EGridCpp")]]
 List EGridCpp(NumericVector ages, NumericMatrix Q, NumericVector lambda,
               NumericVector mu, NumericVector psi, double rho, double rtol,
@@ -91,26 +97,33 @@ List EGridCpp(NumericVector ages, NumericMatrix Q, NumericVector lambda,
   std::vector<double> sigma(K);
   for (int k = 0; k < K; ++k) sigma[k] = lam[k] + m[k] + ps[k];
   EGProblem prob(gen, lam.data(), m.data(), sigma.data());
-  Radau5 solver(rtol, atol);
-  std::vector<double> y(2 * K, 0.0), f(2 * K);
+  Radau5 solver(rtol / 100, atol / 100);
+  std::vector<double> y(2 * K, 0.0), f(2 * K), yi(2 * K);
   for (int k = 0; k < K; ++k) y[k] = 1.0 - rho;
   const int nAge = ages.size();
   NumericMatrix E(nAge, K), G(nAge, K), dE(nAge, K);
-  double now = 0.0;
-  for (int i = 0; i < nAge; ++i) {
-    if (ages[i] > now) {
-      if (!solver.Integrate(prob, y.data(), ages[i] - now)) {
-        Rcpp::stop("ODE solver failed");  // # nocov
-      }
-      now = ages[i];
-    }
-    prob.RhsE(y.data(), f.data());
+  auto Record = [&](int i, const double* v) {
+    prob.RhsE(v, f.data());
     for (int k = 0; k < K; ++k) {
-      E(i, k) = y[k];
-      G(i, k) = y[K + k];
+      E(i, k) = v[k];
+      G(i, k) = v[K + k];
       dE(i, k) = f[k];
     }
-  }
+  };
+  int i = 0;
+  for (; i < nAge && !(ages[i] > 0); ++i) Record(i, y.data());
+  if (i == nAge) return List::create(_["E"] = E, _["G"] = G, _["dE"] = dE);
+  // Ages inside each accepted step [t - h, t]; the last age is the end point
+  const bool ok = solver.Integrate(prob, y.data(), ages[nAge - 1],
+                                   [&](double t, double h, const double* yEnd) {
+    for (; i < nAge - 1 && ages[i] <= t; ++i) {
+      const double theta = std::min(1.0, std::max(0.0, (ages[i] - (t - h)) / h));
+      solver.Dense(2 * K, theta, yEnd, yi.data());
+      Record(i, yi.data());
+    }
+  });
+  if (!ok) Rcpp::stop("ODE solver failed");  // # nocov
+  for (; i < nAge; ++i) Record(i, y.data());
   return List::create(_["E"] = E, _["G"] = G, _["dE"] = dE);
 }
 

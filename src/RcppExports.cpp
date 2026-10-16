@@ -179,6 +179,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// SlicesCpp
+List SlicesCpp(List set, NumericVector mids, NumericVector off);
+RcppExport SEXP _EvoTempo_SlicesCpp(SEXP setSEXP, SEXP midsSEXP, SEXP offSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type set(setSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mids(midsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type off(offSEXP);
+    rcpp_result_gen = Rcpp::wrap(SlicesCpp(set, mids, off));
+    return rcpp_result_gen;
+END_RCPP
+}
 // ExtinctionCpp
 NumericMatrix ExtinctionCpp(NumericVector times, NumericMatrix Q, NumericVector lambda, NumericVector mu, NumericVector psi, double rho, double rtol, double atol);
 RcppExport SEXP _EvoTempo_ExtinctionCpp(SEXP timesSEXP, SEXP QSEXP, SEXP lambdaSEXP, SEXP muSEXP, SEXP psiSEXP, SEXP rhoSEXP, SEXP rtolSEXP, SEXP atolSEXP) {
@@ -263,6 +276,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_LogWeightCpp", (DL_FUNC) &_EvoTempo_LogWeightCpp, 5},
     {"_EvoTempo_LogAugmentedCpp", (DL_FUNC) &_EvoTempo_LogAugmentedCpp, 4},
     {"_EvoTempo_CharacterLengthsCpp", (DL_FUNC) &_EvoTempo_CharacterLengthsCpp, 5},
+    {"_EvoTempo_SlicesCpp", (DL_FUNC) &_EvoTempo_SlicesCpp, 3},
     {"_EvoTempo_ExtinctionCpp", (DL_FUNC) &_EvoTempo_ExtinctionCpp, 8},
     {"_EvoTempo_EGridCpp", (DL_FUNC) &_EvoTempo_EGridCpp, 8},
     {"_EvoTempo_PruneTreeCpp", (DL_FUNC) &_EvoTempo_PruneTreeCpp, 14},

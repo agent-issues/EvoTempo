@@ -192,7 +192,9 @@ Path Bridge(const FrozenSet& set, int s, double span, int i, int j) {
       for (int k = 0; k < K; ++k) prod[k] = cf[k] * jx[k];
       return Clamp(LongSum(prod) - target);
     };
-    const double fLo = F(0.0), fHi = F(remain);
+    // F at the ends without re-evaluating J: J(0) = 0, and J(remain) = jAll
+    // gave w[pick - 1] (the same values, bit for bit)
+    const double fLo = Clamp(-target), fHi = Clamp(w[pick - 1] - target);
     if (fLo * fHi > 0) {
       Rcpp::stop("f() values at end points not of opposite sign");  // # nocov
     }

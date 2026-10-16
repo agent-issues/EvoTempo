@@ -6,19 +6,29 @@
 #   4c     bridge Laplace transform (Lepage et al. 2006 identity);
 #   4d     sum over paths (Proposition 3.3) by prior-path Monte Carlo.
 # 4b (one character, product-space oracle) is in data-raw/rung5-validation.R.
-# Run from the package root: Rscript data-raw/rung4-validation.R [nIter]
+# Run from the package root: Rscript data-raw/rung4-validation.R [nIter] [joint]
 suppressMessages(pkgload::load_all(".", quiet = TRUE))
 library(parallel)
 args <- commandArgs(trailingOnly = TRUE)
 nIter <- if (length(args)) as.integer(args[[1]]) else 5000L
+# Second argument "joint": DA chains add joint parameter-path moves (#20)
+useJoint <- length(args) > 1 && args[[2]] == "joint"
 burnin <- 500L
 nChain <- 8L
 outDir <- "data-raw/rung4-results"
 dir.create(outDir, showWarnings = FALSE)
+# EVOTEMPO_GRID=default runs at the package default grid (K = 26, z in [-5, 5])
+# and writes "-K26" result files (issue #17)
+defaultGrid <- identical(Sys.getenv("EVOTEMPO_GRID"), "default")
+suffix <- if (defaultGrid) "-K26" else ""
 
-# K = 16 on z in [-3, 3] (not the K = 26, +-5 default) to keep the marginal
-# chains affordable; both samplers use the same discretized model.
-model <- DCETModel(nBin = 16, zRange = c(-3, 3), rho = 0.5)
+# K = 16 on z in [-3, 3] by default to keep the marginal chains affordable;
+# both samplers use the same discretized model.
+model <- if (defaultGrid) {
+  DCETModel(rho = 0.5)
+} else {
+  DCETModel(nBin = 16, zRange = c(-3, 3), rho = 0.5)
+}
 truth <- list(lambda = 0.5, mu = 0.2, psi = 0.1, theta = 0.1, s = 0.8)
 
 # Data tree: crown clade, two daughters of the root bin simulated forwards
@@ -41,7 +51,9 @@ Join <- function(h1, h2, x0) {
 crown <- 6
 set.seed(41)
 setTrue <- .Setup(truth, model)
-repeat {
+# At the default grid, reuse the K = 16 data tree
+if (defaultGrid) tree <- readRDS(file.path(outDir, "rung4.rds"))$tree
+while (!defaultGrid) {
   k <- .Sample1(setTrue$prior)
   h <- lapply(1:2, function(i) {
     SimulateDCET(crown, setTrue$grid$x, setTrue$Q, setTrue$lambda, setTrue$mu,
@@ -64,7 +76,8 @@ Chain <- function(i, kind, nIter, burnin) {
   set.seed(1000 * i + (kind == "DA"))
   if (kind == "DA") {
     TempoMCMC(tt, model, truth, priors, nIter = nIter, burnin = burnin,
-              nSlice = 20, moves = c(tree = 1, node = 1, tip = 1, branch = 1))[
+              nSlice = 20, moves = c(tree = 1, node = 1, tip = 1, branch = 1,
+                                     joint = as.numeric(useJoint)))[
                 c("samples", "acceptance")]
   } else {
     list(samples = MarginalMCMC(tt, model, truth, priors, nIter = nIter,
@@ -77,17 +90,18 @@ cl <- makeCluster(nrow(jobs))
 invisible(clusterCall(cl, function() {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 }))
-clusterExport(cl, c("tt", "model", "truth", "priors", "Chain", "nIter", "burnin", "jobs"))
+clusterExport(cl, c("tt", "model", "truth", "priors", "Chain", "nIter", "burnin", "jobs",
+                    "suffix", "useJoint"))
 t0 <- Sys.time()
 chains <- parLapply(cl, seq_len(nrow(jobs)), function(j) {
   out <- Chain(jobs$i[j], jobs$kind[j], nIter, burnin)
-  cat(format(Sys.time()), "chain", j, "done\n", file = "rung4-progress.txt",
+  cat(format(Sys.time()), "chain", j, "done\n", file = paste0("rung4-progress", suffix, ".txt"),
       append = TRUE)
   out
 })
 runtime <- difftime(Sys.time(), t0, units = "mins")
 saveRDS(list(jobs = jobs, chains = chains, runtime = runtime),
-        file.path(outDir, "rung4-chains.rds"))
+        file.path(outDir, paste0("rung4-chains", suffix, ".rds")))
 
 # 4a(ii): local path moves at fixed parameters vs FFBS maps ----------------
 mapJob <- parLapply(cl, 1:2, function(j) {
@@ -114,7 +128,9 @@ sl <- set$slices[[s]]
 G <- .AddDiag(set$Q, 2 * set$lambda * sl$eBar - set$sigma)
 clock <- exp(set$grid$x)
 set.seed(5)
-laplace <- do.call(rbind, lapply(list(c(8, 8), c(7, 10), c(12, 10)), function(ends) {
+# Bridge end bins of the K = 16 design, mapped to the same z on other grids
+BinAt <- function(k) round(1 + (k - 1) * (model$nBin - 1) / 15)
+laplace <- do.call(rbind, lapply(list(BinAt(c(8, 8)), BinAt(c(7, 10)), BinAt(c(12, 10))), function(ends) {
   ell <- replicate(20000, {
     br <- .Bridge(set, s, span, ends[1], ends[2])
     sum(clock[br$k] * diff(c(0, br$t, span)))
@@ -167,10 +183,10 @@ mcSE <- sqrt(sumSq / nPath - mcM^2) / sqrt(nPath)
 exactM <- ExpM((Qr + diag(g)) * delta)
 
 saveRDS(list(tree = tree, tt = tt, truth = truth, model = model, priors = priors,
-             jobs = jobs, chains = chains, runtime = runtime, nIter = nIter,
+             jobs = jobs, chains = chains, runtime = runtime, nIter = nIter, joint = useJoint,
              burnin = burnin, mapChain = mapJob[[1]], maps = mapJob[[2]],
              laplace = laplace, prop33 = list(mc = mcM, se = mcSE, exact = exactM)),
-        file.path(outDir, "rung4.rds"))
+        file.path(outDir, paste0("rung4", suffix, ".rds")))
 cat("runtime", format(runtime), "\n")
 print(laplace)
 print(round((mcM - exactM) / mcSE, 2))

@@ -3,7 +3,7 @@
 # Run from the package root.
 suppressMessages(pkgload::load_all(".", quiet = TRUE)); library(parallel)
 args <- "5"; lines <- readLines("data-raw/rung5-validation.R")
-eval(parse(text = lines[grep("^  model5 <- DCETModel", lines):(grep("^  Simulate <- function", lines) - 1)]))
+eval(parse(text = lines[grep("^  suffix <- ", lines):(grep("^  Simulate <- function", lines) - 1)]))
 fixed <- as.list(exp(meanlog5))
 SimFixed <- function(seed, n) {
   set.seed(seed); out <- list(); set <- .Setup(fixed, model5)
@@ -18,7 +18,7 @@ SimFixed <- function(seed, n) {
   }
   do.call(rbind, out)
 }
-r5 <- readRDS("data-raw/rung5-results/rung5.rds")
+r5 <- readRDS(paste0("data-raw/rung5-results/rung5", suffix, ".rds"))
 tt5 <- TempoTree(r5$startTree, present = crown)
 tt5 <- TempoTree(r5$startTree, present = crown, ranges = cbind(0, ifelse(tt5$tipType == "extant", 0, crown)))
 cl <- makeCluster(16); invisible(clusterCall(cl, function() suppressMessages(pkgload::load_all(".", quiet = TRUE))))
@@ -30,7 +30,7 @@ res <- parLapply(cl, 1:16, function(i) {
             moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 2, fossilAge = 2, slide = 2, saJump = 2))$samples
 })
 stopCluster(cl)
-saveRDS(res, "data-raw/rung5-results/rung5-fixed-parameters.rds")
+saveRDS(res, paste0("data-raw/rung5-results/rung5-fixed-parameters", suffix, ".rds"))
 sim <- as.data.frame(do.call(rbind, res[1:8])); ch <- res[9:16]
 for (q in c("treeLength", "meanNodeAge", "oldestFossil", "youngestFossil", "clock", "inverseClock", "nAncestor", "cherries")) {
   per <- sapply(ch, function(s) mean(s[[q]], na.rm = TRUE))

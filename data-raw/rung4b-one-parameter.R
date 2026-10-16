@@ -12,17 +12,22 @@ free <- if (length(args) > 1) strsplit(args[[2]], ",")[[1]] else c("lambda", "ps
 nDA <- if (length(args) > 2) as.integer(args[[3]]) else 4L
 useCharacter <- !(length(args) > 3 && args[[4]] == "no")
 useJoint <- length(args) > 4 && args[[5]] == "joint"
+# Sixth argument "rung4-K26": the rung-4 tree and model at the default grid
+# (no character; #17)
+source4 <- length(args) > 5 && args[[6]] == "rung4-K26"
 tag <- if (length(args)) paste0("-", paste(free, collapse = "-"), "-", nIter,
                                 if (useCharacter) "" else "-nochar",
-                                if (useJoint) "-joint" else "") else ""
+                                if (useJoint) "-joint" else "",
+                                if (source4) "-rung4-K26" else "") else ""
 burnin <- 200L
-r4b <- readRDS("data-raw/rung5-results/rung4b.rds")
+r4b <- readRDS(if (source4) "data-raw/rung4-results/rung4-K26.rds" else "data-raw/rung5-results/rung4b.rds")
+if (source4) useCharacter <- FALSE
 tt <- r4b$tt; model <- r4b$model; truth <- r4b$truth
 character <- if (useCharacter) r4b$character else NULL
 priors <- c(TempoPriors(), rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
 gridFor <- function(p) {
-  m <- c(lambda = log(0.5), psi = log(0.1), theta = log(0.1))[[p]]
-  s <- c(lambda = 0.5, psi = 0.5, theta = 0.75)[[p]]
+  m <- c(lambda = log(0.5), mu = log(0.2), psi = log(0.1), theta = log(0.1))[[p]]
+  s <- c(lambda = 0.5, mu = 0.5, psi = 0.5, theta = 0.75)[[p]]
   exp(seq(m - 3.5 * s, m + 3.5 * s, length.out = 161))
 }
 jobs <- rbind(

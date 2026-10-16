@@ -5,6 +5,9 @@
 # Run from the package root after data-raw/rung5-validation.R 4b.
 suppressMessages(pkgload::load_all(".", quiet = TRUE)); library(parallel)
 r <- readRDS("data-raw/rung5-results/rung4b.rds")
+# EVOTEMPO_GRID=default: same tree and character at the default grid (#17)
+suffix <- if (identical(Sys.getenv("EVOTEMPO_GRID"), "default")) "-K26" else ""
+if (nzchar(suffix)) r$model <- DCETModel(rho = 0.5)
 grid <- expand.grid(psi = c(0.06, 0.1, 0.16), lambda = c(0.3, 0.5))
 cl <- makeCluster(6); invisible(clusterCall(cl, function() suppressMessages(pkgload::load_all(".", quiet = TRUE))))
 clusterExport(cl, c("r", "grid"))
@@ -24,4 +27,4 @@ out <- parLapply(cl, seq_len(nrow(grid)), function(i) {
 })
 stopCluster(cl)
 res <- do.call(rbind, lapply(out, as.data.frame)); res$z <- (res$is - res$exact) / res$se; print(res, digits = 7)
-saveRDS(res, "data-raw/rung5-results/rung4b-likelihood-check.rds")
+saveRDS(res, paste0("data-raw/rung5-results/rung4b-likelihood-check", suffix, ".rds"))

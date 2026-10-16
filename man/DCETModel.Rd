@@ -56,7 +56,7 @@ of contemporaneous species at equilibrium (spec section 5.4, option 1);
 \item{condition}{Character string specifying the survival conditioning:
 \itemize{
 \item \code{extant}: each root daughter (or the stem) has a sampled extant
-descendant;
+descendant (trees without one have likelihood zero);
 \item \code{survival}: each has any sampled descendant;
 \item \code{none}: no conditioning.
 }}
@@ -92,6 +92,11 @@ DCETModel(beta = 0)
 \seealso{
 Other dCET inference:
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkLikelihood]{MkLikelihood()}},
+\code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoMCMC]{TempoMCMC()}},
+\code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},
 \code{\link[=TreeLikelihood]{TreeLikelihood()}}
 }

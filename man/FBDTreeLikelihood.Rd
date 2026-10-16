@@ -29,7 +29,7 @@ is removed.}
 \item{condition}{Character string specifying the survival conditioning:
 \itemize{
 \item \code{extant}: each root daughter (or the stem) has a sampled extant
-descendant;
+descendant (trees without one have likelihood zero);
 \item \code{survival}: each has any sampled descendant;
 \item \code{none}: no conditioning.
 }}
@@ -66,6 +66,11 @@ Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}
 \seealso{
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
+\code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkLikelihood]{MkLikelihood()}},
+\code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoMCMC]{TempoMCMC()}},
+\code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},
 \code{\link[=TreeLikelihood]{TreeLikelihood()}}
 }

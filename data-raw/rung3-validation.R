@@ -17,6 +17,10 @@ library(ape)
 library(parallel)
 outDir <- "data-raw/rung3-results"
 dir.create(outDir, showWarnings = FALSE)
+# EVOTEMPO_GRID=default runs at the package default grid (K = 26, z in [-5, 5])
+# and writes "-K26" result files (issue #17)
+defaultGrid <- identical(Sys.getenv("EVOTEMPO_GRID"), "default")
+suffix <- if (defaultGrid) "-K26" else ""
 
 # (a) beta = 0 collapse ------------------------------------------------------
 tr <- read.tree(text = "((a:2,(b:1.5,f:0):1.5):1,(c:1.2,d:3.3):0.7);")
@@ -74,10 +78,21 @@ fossils <- which(ttNonUltra$tipType == "fossil")
 set.seed(5)
 points <- data.frame(lambda = runif(20, 0.3, 1), mu = runif(20, 0, 0.3),
                      theta = runif(20, 0.05, 1), s = runif(20, 0.5, 1.5))
-nBin <- 5
-castorCmp <- do.call(rbind, lapply(seq_len(nrow(points)), function(i) {
+nBin <- if (defaultGrid) 26 else 5
+zCastor <- if (defaultGrid) c(-5, 5) else c(-1.5, 1.5)
+# Parameter points in parallel.  At the default grid castor is not usable
+# (one 12-tip likelihood takes > 15 min at K = 26, z in [-3, 3], and castor
+# 1.8.7 exits without a message at z in [-5, 5]), so (b) is skipped there.
+if (!defaultGrid) {
+clCastor <- makeCluster(min(nrow(points), 14))
+invisible(clusterCall(clCastor, function() {
+  suppressMessages(pkgload::load_all(".", quiet = TRUE))
+}))
+clusterExport(clCastor, c("CastorLL", "ultra", "nonUltra", "ttNonUltra", "fossils",
+                          "points", "nBin", "zCastor"))
+castorCmp <- do.call(rbind, parLapply(clCastor, seq_len(nrow(points)), function(i) {
   p <- points[i, ]
-  grid <- TempoGrid(nBin, c(-1.5, 1.5), p$s)
+  grid <- TempoGrid(nBin, zCastor, p$s)
   Q <- TempoGenerator(grid, p$theta)
   r <- BinRates(grid, p$lambda, p$mu, psi = 0.15)
   prior <- TempoEquilibrium(Q, r$lambda, r$mu)$p
@@ -97,19 +112,27 @@ castorCmp <- do.call(rbind, lapply(seq_len(nrow(points)), function(i) {
                   "none", FALSE, "root") + log(sum(w)))
   )
 }))
+stopCluster(clCastor)
+} else {
+  castorCmp <- NULL
+}
 
 if ("castor" %in% commandArgs(trailingOnly = TRUE)) {
   # Refresh the castor comparison only
-  saved <- readRDS(file.path(outDir, "rung3.rds"))
+  saved <- readRDS(file.path(outDir, paste0("rung3", suffix, ".rds")))
   saved$castor <- castorCmp
-  saveRDS(saved, file.path(outDir, "rung3.rds"))
+  saveRDS(saved, file.path(outDir, paste0("rung3", suffix, ".rds")))
   print(sapply(castorCmp[, -1], function(x) c(spread = diff(range(x)), mean = mean(x))))
   quit(save = "no")
 }
 
 # (c) Monte Carlo on tiny trees -----------------------------------------------
 mcPar <- list(lambda = 0.6, mu = 0.3, psi = 0.25, theta = 0.5, s = 1)
-mcModel <- DCETModel(nBin = 9, zRange = c(-2, 2), rho = 0.7, condition = "none")
+mcModel <- if (defaultGrid) {
+  DCETModel(rho = 0.7, condition = "none")
+} else {
+  DCETModel(nBin = 9, zRange = c(-2, 2), rho = 0.7, condition = "none")
+}
 crown <- 3
 set <- .Setup(mcPar, mcModel)
 breaks <- seq(0, crown, length.out = 7)
@@ -150,8 +173,12 @@ Batch <- function(seed, n) {
   kinds <- character(n)
   for (i in seq_len(n)) {
     d <- lapply(1:2, function(j) {
-      Daughter(SimulateDCET(crown, set$grid$x, set$Q, set$lambda, set$mu,
-                            set$psi, start = starts[i], rho = 0.7))
+      # Clades over 20000 branches (reachable from the top bins of the default
+      # grid) cannot be one of the tiny configurations counted: class "other"
+      h <- tryCatch(SimulateDCET(crown, set$grid$x, set$Q, set$lambda, set$mu,
+                                 set$psi, start = starts[i], rho = 0.7,
+                                 maxEdges = 20000), error = function(e) NULL)
+      if (is.null(h)) list(kind = "other") else Daughter(h)
     })
     k <- vapply(d, `[[`, "", "kind")
     if (all(k == "tip")) {
@@ -227,9 +254,11 @@ mcSummary <- list(nSim = nSim, chi2 = chi2, df = nrow(expected),
 
 saveRDS(list(collapse = collapse, castor = castorCmp, mc = expected,
              mcSummary = mcSummary, mcPar = mcPar, mcModel = mcModel),
-        file.path(outDir, "rung3.rds"))
+        file.path(outDir, paste0("rung3", suffix, ".rds")))
 print(collapse, digits = 10)
-print(sapply(castorCmp[, -1], function(x) c(spread = diff(range(x)),
-                                            mean = mean(x))))
+if (!is.null(castorCmp)) {
+  print(sapply(castorCmp[, -1], function(x) c(spread = diff(range(x)),
+                                              mean = mean(x))))
+}
 print(expected, digits = 6)
 print(mcSummary)

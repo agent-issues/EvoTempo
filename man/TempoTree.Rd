@@ -4,7 +4,14 @@
 \alias{TempoTree}
 \title{Time tree for dCET inference}
 \usage{
-TempoTree(tree, ages = NULL, tipType = NULL, present = NULL, tol = 1e-08)
+TempoTree(
+  tree,
+  ages = NULL,
+  tipType = NULL,
+  present = NULL,
+  ranges = NULL,
+  tol = 1e-08
+)
 }
 \arguments{
 \item{tree}{A rooted binary tree of class \code{phylo}, with branch lengths.}
@@ -21,6 +28,10 @@ Defaults to attribute \code{tipType} of \code{tree} (with \code{"extinct"} read 
 \item{present}{Numeric giving the time of the present on the scale of
 attribute \code{nodeTime}.}
 
+\item{ranges}{Optional numeric matrix with one row per tip, giving the
+youngest and oldest admissible age of each fossil (its stratigraphic
+range), for MCMC moves on fossil ages; defaults to the fixed \code{ages}.}
+
 \item{tol}{Numeric giving the tolerance for treating an age or a branch
 length as zero.}
 }
@@ -30,7 +41,8 @@ elements \code{nTip}, \code{nNode}, \code{parent} (parent of each node; \code{NA
 \code{kids} (matrix of the two children of each internal node), \code{age},
 \code{tipType}, \code{sampled} (whether each internal node bears a sampled ancestor),
 \code{root} (index of the root node), \code{postorder} (internal nodes, children
-before parents) and \code{stem} (length of the root edge, or zero).
+before parents), \code{stem} (length of the root edge, or zero) and \code{range}
+(age range of each tip).
 }
 \description{
 Converts a rooted, binary time tree into the representation used by the
@@ -55,6 +67,11 @@ TempoTree(tree)$age
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkLikelihood]{MkLikelihood()}},
+\code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoMCMC]{TempoMCMC()}},
+\code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TreeLikelihood]{TreeLikelihood()}}
 }
 \concept{dCET inference}

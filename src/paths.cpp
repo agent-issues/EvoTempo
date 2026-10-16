@@ -7,6 +7,7 @@
 
 #include <Rcpp.h>
 #include "frozen.h"
+#include "paths.h"
 #include "tree.h"
 #include <algorithm>
 #include <cfloat>
@@ -22,7 +23,7 @@ using EvoTempo::InfeasibleProposal;
 using EvoTempo::Pieces;
 using EvoTempo::TreeView;
 
-namespace {
+namespace EvoTempo {
 
 double Unif() { return R::runif(0.0, 1.0); }
 
@@ -102,11 +103,6 @@ double LongSum(const std::vector<double>& x) {
   for (double v : x) s += v;
   return static_cast<double>(s);
 }
-
-struct Path {
-  std::vector<double> t;
-  std::vector<int> k;  // one-based bins
-};
 
 List PathToR(const Path& p) {
   return List::create(_["t"] = NumericVector(p.t.begin(), p.t.end()),
@@ -255,8 +251,6 @@ Pieces PiecesFromR(SEXP x) {
   }
   return pc;
 }
-
-typedef std::vector<std::vector<double> > Beta;
 
 Beta BetaFromR(SEXP x) {
   List l(x);
@@ -408,7 +402,9 @@ double PathWeight(const FrozenSet& set, const Pieces& pc, const Path& path) {
   return LongSum(terms);
 }
 
-}  // namespace
+}  // namespace EvoTempo
+
+using namespace EvoTempo;
 
 // [[Rcpp::export(name = ".PiecesCpp")]]
 List PiecesCpp(List tree, List set, int v) {

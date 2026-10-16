@@ -1,11 +1,17 @@
 # The C++ engine against the R reference.  Fixtures as test-Paths.R:
 # ((a:2,(b:1.5,f:0):1.5):1,(c:1.2,d:3.3):0.7); a, c fossils; f sampled ancestor
-engineTree <- TempoTree(structure(
+enginePhylo <- structure(
   list(edge = rbind(c(6, 7), c(7, 1), c(7, 8), c(8, 2), c(8, 3), c(6, 9),
                     c(9, 4), c(9, 5)),
        edge.length = c(1, 2, 1.5, 1.5, 0, 0.7, 1.2, 3.3),
        tip.label = c("a", "b", "f", "c", "d"), Nnode = 4, root.edge = 0.6),
-  class = "phylo"))
+  class = "phylo")
+engineTree <- TempoTree(enginePhylo)
+# Fossil ages uncertain, so that every tree move has candidates
+engineRanged <- TempoTree(
+  enginePhylo,
+  ranges = cbind(c(0.2, 0, 0.5, 0.5, 0), c(2.5, 0, 3, 3.5, 0))
+)
 enginePar <- list(lambda = 0.5, mu = 0.2, psi = 0.1, theta = 0.3, s = 1,
                   rate = 0.4)
 engineModel <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7)
@@ -301,4 +307,87 @@ test_that("Chains match between engines", {
   # Weights near zero: compare on the absolute scale
   expect_lt(max(abs(pC$logWeight - pR$logWeight)), 1e-8)
   expect_equal(pC$logLik, pR$logLik, tolerance = 1e-9)
+})
+
+test_that("Tree-move kernels agree between engines", {
+  tree <- engineRanged
+  set <- .AddSlices(tree, .Precompute(tree, enginePar, engineModel), 6)
+  set.seed(2)
+  d <- .SampleTree(tree, set, .Messages(tree, set))
+  Agree <- function(f) {
+    expect_equal(WithEngine("cpp", f()), WithEngine("R", f()), tolerance = 1e-10)
+  }
+  pc <- .Pieces(tree, set, 7)
+  Agree(function() .LogTransferRow(pc, 3))
+  Agree(function() .LogTransferCol(pc, 5))
+  bad <- pc
+  bad$M[[1]][1, 1] <- NaN
+  Agree(function() .LogTransferRow(bad, 1))
+  Agree(function() .LogPathExact(tree, set, 7, d$paths[[7]]))
+  Agree(function() .TipLogWeights(tree, set, 1, 4L))
+  Agree(function() .LogTipQ(tree, set, 4, d$paths[[4]]))
+  Agree(function() .LogBridges(tree, set, .PathNodes(tree), d$paths))
+  # Bin of node 7 with its fossil tip marginalized, or with both ends fixed
+  Agree(function() {
+    .NodeLogWeights(tree, set, 7, set$lambda, d$bin[[6]], c(1, 8), c(NA, d$bin[[8]]))
+  })
+  Agree(function() .NodeLogWeights(tree, set, 8, set$psi, d$bin[[7]], 2, d$bin[[2]]))
+
+  # Draws: same bins and paths, and the same random numbers consumed
+  Draw <- function(engine, f) {
+    set.seed(9)
+    out <- WithEngine(engine, f())
+    list(out = out, after = stats::runif(1))
+  }
+  Both <- function(f) {
+    cpp <- Draw("cpp", f)
+    ref <- Draw("R", f)
+    expect_equal(cpp, ref, tolerance = 1e-9)
+    cpp$out
+  }
+  drawn <- Both(function() .DrawBridges(tree, set, c(7, 1, 8), d$bin, d$paths))
+  expect_equal(drawn$paths[-c(1, 7, 8)], d$paths[-c(1, 7, 8)])
+  expect_length(Both(function() .DrawBridges(tree, set, c(7, 1), d$bin, list()))$paths, 7)
+  tip <- Both(function() .DrawTip(tree, set, 1, 4L))
+  expect_equal(tip$path$k[[length(tip$path$k)]], tip$bin)
+
+  # Infeasible draws: bins that cannot be joined, and a tip that cannot be sampled
+  noTip <- set
+  noTip$psi <- 0 * set$psi
+  far <- replace(d$bin, c(6, 7), c(1L, 11L))
+  short <- tree
+  short$age[7] <- short$age[6] - 1e-9
+  for (engine in c("cpp", "R")) {
+    expect_error(WithEngine(engine, .DrawBridges(short, set, 7, far, d$paths)),
+                 class = "infeasibleProposal")
+    expect_error(WithEngine(engine, .DrawTip(tree, noTip, 1, 4L)),
+                 class = "infeasibleProposal")
+  }
+
+  # Rebuild after two tips swap clades
+  swap <- tree
+  swap$parent[c(1, 4)] <- c(9, 7)
+  swap$age[7] <- 3.5
+  for (tr in list(tree, swap)) {
+    expect_identical(WithEngine("cpp", .Rebuild(tr)), WithEngine("R", .Rebuild(tr)))
+  }
+})
+
+test_that("Chains with every tree move match between engines", {
+  set.seed(8)
+  chars <- matrix(sample(0:1, 5 * 3, replace = TRUE), 5)
+  priors <- c(TempoPriors()["lambda"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  Run <- function(engine) {
+    set.seed(10)
+    TempoMCMC(engineRanged, engineModel, enginePar, priors,
+              nIter = 12, burnin = 0, nSlice = 4, characters = chars,
+              moves = c(tree = 1, nodeAge = 2, fossilAge = 2, slide = 2, saJump = 2),
+              engine = engine)
+  }
+  cpp <- Run("cpp")
+  ref <- Run("R")
+  expect_equal(cpp$samples, ref$samples, tolerance = 1e-7)
+  expect_equal(cpp$acceptance, ref$acceptance)
+  expect_true(all(cpp$acceptance[c("nodeAge", "fossilAge", "slide", "saJump")] > 0))
 })

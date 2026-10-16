@@ -28,8 +28,9 @@ st <- list(tree = tt, par = par, set = set, msg = msg, paths = draw$paths,
            bin = draw$bin)
 st$charLL <- CharLL(tt, st$paths, par, set)
 # Median over 5 batches of the time per call, in microseconds (no bench dependency,
-# so that the same script runs on Hamilton)
-Time <- function(f, minTime = 0.05) {
+# so that the same script runs on Hamilton).  Windows timers tick every 15.6 ms:
+# set EVOTEMPO_MINTIME (seconds per batch) to 0.5 or more there.
+Time <- function(f, minTime = as.numeric(Sys.getenv("EVOTEMPO_MINTIME", "0.05"))) {
   f()
   n <- 1L
   repeat {

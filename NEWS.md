@@ -40,3 +40,9 @@
   fresh FFBS draw of every path; without them `theta` mixes too slowly for
   reliable posterior tails, especially with characters
   ([#20](https://github.com/agent-issues/EvoTempo/issues/20)).
+- Faster `TempoMCMC()` with the C++ engine, about a third less time per
+  iteration on the rung-6 SBC workload: the E grid is interpolated from the
+  stiff solver's continuous output instead of stopping at every grid age; slice
+  eigendecompositions use LAPACK's tridiagonal solver; `rate` proposals reuse
+  the frozen model; bridges skip two redundant root-finder evaluations
+  ([#26](https://github.com/agent-issues/EvoTempo/issues/26)).

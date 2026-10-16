@@ -90,7 +90,11 @@ test_that("Pruning with a dense generator agrees between engines", {
 test_that("E grids and frozen messages agree between engines", {
   setR <- WithEngine("R", .AddSlices(engineTree, .Precompute(engineTree, enginePar, engineModel), 6))
   setC <- WithEngine("cpp", .AddSlices(engineTree, .Precompute(engineTree, enginePar, engineModel), 6))
-  expect_equal(setC$eg, setR$eg, tolerance = 1e-9)
+  # lsode's error at these tolerances exceeds that of the C++ solver; dE
+  # amplifies it by the generator's rates
+  expect_equal(setC$eg[c("ages", "E", "G")], setR$eg[c("ages", "E", "G")],
+               tolerance = 1e-8)
+  expect_equal(setC$eg$dE, setR$eg$dE, tolerance = 1e-6)
   expect_equal(setC$survive, setR$survive, tolerance = 1e-9)
   msgR <- WithEngine("R", .Messages(engineTree, setR))
   msgC <- WithEngine("cpp", .Messages(engineTree, setR))
@@ -240,5 +244,9 @@ test_that("Chains match between engines", {
   pC <- SampleTempoPaths(engineTree, enginePar, model, n = 4, nSlice = 4, engine = "cpp")
   set.seed(7)
   pR <- SampleTempoPaths(engineTree, enginePar, model, n = 4, nSlice = 4, engine = "R")
-  expect_equal(pC, pR, tolerance = 1e-8)
+  expect_equal(pC[c("occupancy", "branchX", "meanX")], pR[c("occupancy", "branchX", "meanX")],
+               tolerance = 1e-8)
+  # Weights near zero: compare on the absolute scale
+  expect_lt(max(abs(pC$logWeight - pR$logWeight)), 1e-8)
+  expect_equal(pC$logLik, pR$logLik, tolerance = 1e-9)
 })

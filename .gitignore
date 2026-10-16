@@ -21,3 +21,4 @@ data-raw/rung5-results/rung5-chains-K26.rds
 data-raw/rung4-results/rung4-chains*.rds
 rung4-progress*.txt
 data-raw/validation-report-default-grid/*-draws.csv
+src/*.so

@@ -16,7 +16,8 @@ TempoMCMC(
   moves = c(tree = 1),
   characters = NULL,
   nState = 2L,
-  updateParameters = TRUE
+  updateParameters = TRUE,
+  engine = getOption("EvoTempo.engine", "cpp")
 )
 }
 \arguments{
@@ -48,6 +49,13 @@ iteration (see Details); unnamed moves are not used.}
 \item{nState}{Integer giving the number of character states.}
 
 \item{updateParameters}{Logical; if \code{FALSE}, hold parameters fixed.}
+
+\item{engine}{Character string selecting the engine:
+\itemize{
+\item \code{cpp}: compiled C++, with a stiff Radau IIA solver for the backward
+equations and MkPrime kernels for characters;
+\item \code{R}: the pure-R reference, with \code{deSolve::lsode()}.
+}}
 }
 \value{
 \code{TempoMCMC()} returns a list with elements
@@ -135,6 +143,7 @@ Other dCET inference:
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoEngine]{TempoEngine()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},
 \code{\link[=TreeLikelihood]{TreeLikelihood()}}

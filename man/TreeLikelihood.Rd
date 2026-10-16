@@ -11,7 +11,8 @@ TreeLikelihood(
   character = NULL,
   nState = 2L,
   rtol = 1e-10,
-  atol = 1e-14
+  atol = 1e-14,
+  engine = getOption("EvoTempo.engine", "cpp")
 )
 }
 \arguments{
@@ -35,6 +36,13 @@ path.}
 \item{nState}{Integer giving the number of character states.}
 
 \item{rtol, atol}{Numerics giving the tolerances of the stiff solver.}
+
+\item{engine}{Character string selecting the engine:
+\itemize{
+\item \code{cpp}: compiled C++, with a stiff Radau IIA solver for the backward
+equations and MkPrime kernels for characters;
+\item \code{R}: the pure-R reference, with \code{deSolve::lsode()}.
+}}
 }
 \value{
 \code{TreeLikelihood()} returns the natural logarithm of the
@@ -61,6 +69,7 @@ Other dCET inference:
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
+\code{\link[=TempoEngine]{TempoEngine()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}}

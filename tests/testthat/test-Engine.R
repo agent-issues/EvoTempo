@@ -207,6 +207,23 @@ test_that("Path samplers draw the same paths in both engines", {
     bC <- Draw("cpp", 11, function() .Bridge(set, 2, 0.8, ends[1], ends[2]))
     expect_equal(bC, bR, tolerance = 1e-9)
   }
+  # A diagonal slice: eigenvalues equal to the diagonal rates (rate difference
+  # exactly 0), and a bridge from bin 5 to bin 6 that jumps once, at the
+  # inverse of the truncated exponential
+  diagSet <- set
+  diagG <- diag(set$Q) + 2 * set$lambda * set$slices[[2]]$eBar - set$sigma
+  diagSet$slices[[2]]$values <- diagG
+  diagSet$slices[[2]]$vectors <- diag(length(diagG))
+  rd <- diagG[[5]] - diagG[[6]]
+  for (seed in 1:3) {
+    bR <- Draw("R", seed, function() .Bridge(diagSet, 2, 0.8, 5, 6))
+    bC <- Draw("cpp", seed, function() .Bridge(diagSet, 2, 0.8, 5, 6))
+    expect_equal(bC, bR, tolerance = 1e-9)
+    expect_equal(bC$k, c(5, 6))
+    set.seed(seed)
+    u <- stats::runif(2)[[2]]  # after the draw of the jump target
+    expect_equal(bC$t, log1p(u * expm1(rd * 0.8)) / rd, tolerance = 1e-10)
+  }
 })
 
 test_that("Joint conditioning and infeasible proposals are handled in C++", {

@@ -46,3 +46,7 @@
   eigendecompositions use LAPACK's tridiagonal solver; `rate` proposals reuse
   the frozen model; bridges skip two redundant root-finder evaluations
   ([#26](https://github.com/agent-issues/EvoTempo/issues/26)).
+- Faster tempo-path draws with the C++ engine: bridge jump times come from a
+  safeguarded Newton-Halley iteration instead of Brent's method (about 2.5
+  instead of 7.9 evaluations per jump), so the FFBS tree draw takes ~40 % less
+  time ([#26](https://github.com/agent-issues/EvoTempo/issues/26)).

@@ -201,3 +201,15 @@ test_that("The augmented density is zero for trees outside the conditioning", {
   d <- .SampleTree(fossilSide, set, .Messages(fossilSide, set))
   expect_equal(.LogAugmented(fossilSide, set, d$paths, d$bin), -Inf)
 })
+
+test_that(".SetKey() identifies sets by E parameters and node ages", {
+  noPsi <- pathPar[setdiff(names(pathPar), "psi")]
+  expect_identical(.SetKey(pathTree, noPsi), .SetKey(pathTree, c(noPsi, psi = 0)))
+  set <- .Precompute(pathTree, pathPar, pathModel)
+  expect_true(.SameSet(set, pathTree, c(pathPar, rate = 2)))
+  expect_false(.SameSet(set, pathTree, modifyList(pathPar, list(theta = 1))))
+  moved <- pathTree
+  v <- pathTree$postorder[[1]]
+  moved$age[v] <- moved$age[v] * 0.99
+  expect_false(.SameSet(set, moved, pathPar))
+})

@@ -49,6 +49,10 @@
     .Call(`_EvoTempo_CharacterLengthsCpp`, tree, x, paths, rate, gamma)
 }
 
+.SlicesCpp <- function(set, mids, off) {
+    .Call(`_EvoTempo_SlicesCpp`, set, mids, off)
+}
+
 .ExtinctionCpp <- function(times, Q, lambda, mu, psi, rho, rtol, atol) {
     .Call(`_EvoTempo_ExtinctionCpp`, times, Q, lambda, mu, psi, rho, rtol, atol)
 }

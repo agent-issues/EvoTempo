@@ -47,7 +47,7 @@ TempoPriors <- function(meanlog = c(lambda = log(0.5), mu = log(0.2),
     if (!is.finite(lp)) {
       next
     }
-    candidate <- Target(proposal)
+    candidate <- Target(proposal, current)
     logRatio <- candidate[["value"]] + lp - current[["value"]] -
       priors[[p]](par[[p]]) + log(factor)
     if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
@@ -98,7 +98,7 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
   tree <- TempoTree(tree)
-  Target <- function(par) {
+  Target <- function(par, current) {
     list(value = TreeLikelihood(tree, par, model, character, nState))
   }
   .RunParameterChain(start, priors, nIter, burnin, thin, Target)
@@ -245,8 +245,13 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   st <- list(tree = tree, par = par, set = set, msg = msg,
              paths = draw[["paths"]], bin = draw[["bin"]])
   st[["charLL"]] <- CharLL(tree, st[["paths"]], par, set)
-  Target <- function(p) {
-    s <- .Precompute(st[["tree"]], p, model)
+  # Reuses the current set when only parameters outside E change (`rate`)
+  Target <- function(p, current) {
+    s <- if (.SameSet(current[["set"]], st[["tree"]], p)) {
+      current[["set"]]
+    } else {
+      .Precompute(st[["tree"]], p, model)
+    }
     list(value = .LogAugmented(st[["tree"]], s, st[["paths"]], st[["bin"]]) +
            CharLL(st[["tree"]], st[["paths"]], p, s), set = s)
   }
@@ -297,8 +302,10 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       hits <- hits + sweep[["accepted"]]
       if (any(sweep[["accepted"]])) {
         st[["par"]] <- sweep[["par"]]
-        st[["set"]] <- .AddSlices(st[["tree"]], sweep[["current"]][["set"]], nSlice)
-        st[["msg"]] <- .Messages(st[["tree"]], st[["set"]])
+        if (!.SameSet(st[["set"]], st[["tree"]], st[["par"]])) {
+          st[["set"]] <- .AddSlices(st[["tree"]], sweep[["current"]][["set"]], nSlice)
+          st[["msg"]] <- .Messages(st[["tree"]], st[["set"]])
+        }
         st[["charLL"]] <- CharLL(st[["tree"]], st[["paths"]], st[["par"]], st[["set"]])
       }
       if (i <= burnin && i %% 20 == 0) {
@@ -355,8 +362,14 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
     if (!is.finite(lp)) {
       next
     }
-    set <- .AddSlices(tree, .Precompute(tree, proposal, model), nSlice)
-    msg <- .Messages(tree, set)
+    if (.SameSet(st[["set"]], tree, proposal)) {
+      # `rate` does not enter the frozen model: only the paths are redrawn
+      set <- st[["set"]]
+      msg <- st[["msg"]]
+    } else {
+      set <- .AddSlices(tree, .Precompute(tree, proposal, model), nSlice)
+      msg <- .Messages(tree, set)
+    }
     draw <- tryCatch(Draw(tree, set, msg), infeasibleProposal = function(e) NULL)
     if (is.null(draw)) {
       next

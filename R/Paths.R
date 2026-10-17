@@ -88,7 +88,22 @@
     },
     survival = (1 - .EVector(eg, rootAge))^2
   )
+  set[["key"]] <- .SetKey(tree, par)
   set
+}
+
+# What a set from .Precompute() depends on besides the model: the parameters
+# that enter E and the generator (not `rate`), and the node ages, which are
+# points of the E grid.  Equal keys mean identical sets.
+.SetKey <- function(tree, par) {
+  list(par = vapply(c("lambda", "mu", "psi", "theta", "s"), function(p) {
+    if (is.null(par[[p]])) 0 else as.numeric(par[[p]])
+  }, 0), age = tree[["age"]])
+}
+
+# Whether `set` is the set of `tree` at parameters `par`
+.SameSet <- function(set, tree, par) {
+  identical(set[["key"]], .SetKey(tree, par))
 }
 
 # Frozen-E slices: symmetrized generator Q + diag(g) per slice
@@ -102,6 +117,12 @@
   set[["halfPi"]] <- exp((logPi - max(logPi)) / 2)
   off <- sqrt(up * down)
   bounds <- seq(0, tree[["age"]][[tree[["root"]]]], length.out = nSlice + 1L)
+  set[["bounds"]] <- bounds
+  if (.UseCpp()) {
+    set[["slices"]] <- .SlicesCpp(set, (bounds[-1] + bounds[-length(bounds)]) / 2,
+                                  off)
+    return(set)
+  }
   set[["slices"]] <- lapply(seq_len(nSlice), function(s) {
     eBar <- .EVector(set[["eg"]], (bounds[s] + bounds[s + 1L]) / 2)
     sym <- diag(diag(Q) + 2 * set[["lambda"]] * eBar - set[["sigma"]])
@@ -110,7 +131,6 @@
     eig <- eigen(sym, symmetric = TRUE)
     list(eBar = eBar, values = eig[["values"]], vectors = eig[["vectors"]])
   })
-  set[["bounds"]] <- bounds
   set
 }
 

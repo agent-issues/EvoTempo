@@ -22,3 +22,11 @@ data-raw/rung4-results/rung4-chains*.rds
 rung4-progress*.txt
 data-raw/validation-report-default-grid/*-draws.csv
 src/*.so
+dev/profiling/result_*/
+dev/profiling/.vtune-lib-*/
+dev/profiling/.deps-lib/
+dev/profiling/.build-symboled*
+dev/profiling/.install-symboled*
+dev/profiling/.Makevars.symboled
+dev/profiling/drivers/*-profvis.html
+dev/profiling/drivers/*-profvis_files/

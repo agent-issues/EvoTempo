@@ -111,8 +111,112 @@ moves (focus area 7) are the next targets.
 - *Survival solve* (focus area 8): a second E solve with psi = 0 when
   `condition = "extant"`; cannot reuse the E grid.
 
+## Round 2 — 2026-10-16 — bridge jump times (focus area 2)
 
-## Round 2 — 2026-10-16 — tree moves (focus area 7)
+**Target.** `.SampleTree()`, the FFBS tree draw: after round 1 the largest
+single kernel (1.9 ms per call on Linux, ~25 % of an `all` iteration with the
+`joint` redraws; ~5-6 ms on Windows, where about half was MinGW's x87 `exp`).
+Each jump time in `Bridge()` solved F(tau) = sum_k cf_k J_k(tau) - target with
+Brent's method, at K `exp` + K `expm1` per evaluation.
+
+**Measured first.** Replaying the root problems met in 20 seeded `.SampleTree()`
+draws on the fixture (6.5k jumps at K = 16; 6.8k at the default grid, K = 26,
+z in [-5, 5]): Brent takes **7.9 evaluations per jump**, not the 5-6 estimated
+in round 1. Prototypes in R on the same problems (errors against a 1e-15 * span
+reference):
+
+| Root finder | Evaluations per jump (K = 16 / 26) | Max | Max error / span |
+|-------------|-----------------------------------|-----|------------------|
+| Brent (before) | 7.93 / 7.91 | 17 | -- |
+| Newton, regula-falsi start, step stop | 5.30 / 5.28 | 11 | 3e-13 |
+| Newton-Halley, predicted-error stop | 2.85 / 2.85 | 7 | 5e-13 |
+| + Newton start from the nearer end (adopted) | 2.47 / 2.46 | 7 | 5e-13 |
+
+Halley without a progress guard took up to 21 evaluations on exponential-shaped
+jump densities (start in the flat tail, steps shrinking); bisecting when a step
+fails to halve the last move fixes that.
+
+**Fixed this round.** `JumpTime()` (`src/paths.cpp`) replaces Brent (`Zeroin()`,
+`Clamp()` removed). F' is the jump-time density
+sum_k cf_k exp(gaa tau + lambda_k (remain - tau)); F'' and F''' multiply its
+terms by rd_k and rd_k^2, so all three come with F from the same
+transcendentals. The start is a Newton step from the nearer end, using
+F'(0) = sum cf_k exp(lambda_k remain) and F'(remain) = exp(gaa remain) sum cf_k.
+Both are by-products of the J(remain) pass: for rd_k > 0,
+exp(lambda_k remain) = exp(gaa remain) (1 + expm1(-rd_k remain)) is computed as
+a plain value, never as a factor against expm1(rd_k tau). If the start leaves
+(0, remain), regula falsi.
+
+Steps are Halley where its denominator 1 - step F''/(2F') lies in (0.5, 2), and
+Newton otherwise. A step that leaves the bracket or fails to halve the last move
+is replaced by bisection. The iteration stops when the predicted error of the
+new iterate is below tol / 2 (tol = 1e-12 * span, as before): |step| for Newton,
+Halley's cubic error term for a Halley step within 1e-4 * span (a cap that costs
+0.02 evaluations per jump). In the prototype every exit was by predicted error;
+none hit the width test or the 100-iteration cap.
+
+Evaluations also got cheaper: the rd_k <= 0 terms reuse exp(lambda_k remain)
+across evaluations, and the J(remain) pass computes exp(gaa remain) once instead
+of once per rd_k > 0 term. Both are bit-identical. The rd_k > 0 terms keep the
+combined exponential: hoisting exp(lambda_k remain) out of them gives 0 x inf at
+the default grid. The R engine keeps `uniroot()`.
+
+**Correctness.**
+- **RNG:** pick weights are bit-identical, and the root finder draws nothing, so
+  random-number consumption is unchanged.
+- **C++ vs R:** jump times agree with R's `uniroot()` to <= 4.7e-13 of the
+  branch length over 26.7k jumps (40 seeded tree draws per grid), with no bin or
+  path mismatches. The old build was bit-identical to R.
+- **Same-seed 60-iteration `all` chain vs the round-1 build:** identical
+  acceptance; samples within 3.1e-12 relative.
+- **New test (`test-Engine.R`):** a diagonal slice gives eigenvalue ties
+  (rd = 0 exactly, the one uncovered arm of the J(remain) pass) and a one-jump
+  bridge with a closed-form time, checked in both engines at 1e-10.
+- **Coverage:** changed lines 102/102 (covr on `test-Engine.R` and
+  `test-Paths.R`).
+- **Rung 4b:** `data-raw/rung4b-likelihood-check.R` rerun on both grids
+  (Hamilton). Importance-sampled likelihoods move <= 2.1e-14 and z-scores
+  <= 2.2e-12, the same size as the platform round-off in the unchanged exact
+  likelihood (7e-15). Result files updated.
+
+**Timings.** Interleaved A/B (A = round-1 build), medians:
+
+| | Windows (MinGW), 5 repeats | Linux (Hamilton `test`), 5 repeats |
+|---|---|---|
+| `.SampleTree()` us | 6500 -> 3600 (-45 %) | 1906 -> 1109 (-42 %) |
+| `tree` move us | 6094 -> 3086 (-49 %, 3 repeats) | 2594 -> 1813 (-30 %, 3 repeats) |
+| `all` ms/iter | 134.8 -> 111.2 (-17 %) | 54.2 -> 50.1 (-7.6 %) |
+| `rung6` ms/iter | 44.4 -> 39.1 (-12 %) | 18.8 -> 18.1 (-3.7 %) |
+
+B was faster in every paired repeat on Linux, and in every `.SampleTree()` and
+`all` repeat on Windows (`rung6` tied in two of five). No OS trade-off.
+
+The Windows machine was loaded throughout (other sessions' R jobs): absolute
+times are ~50 % above round 1's, and a second Windows `.SampleTree()` A/B in
+the component driver gave 5703 -> 2148 us. Linux numbers are the reference.
+`tempo-components.R` now times batches of at least 0.5 s on Windows: its 50 ms
+batches were quantised to a factor of two by the ~16 ms clock.
+
+One regression in unchanged code: `.Messages` went 828 -> 859-875 us on Linux
+(3 of 3 repeats). It lives in the same translation unit, so this is likely
+layout or inlining; it costs ~0.2 ms per `all` iteration against ~4 ms gained.
+Windows showed no consistent change.
+
+**Where the time goes now (Linux).** The tree draw is 1.1 ms. `joint` per
+parameter: E grid 0.77, slices 0.47, messages 0.86, tree draw 1.1 ms. Tree moves
+(`nodeAge` 2.7, `slide` 3.7, `saJump` 2.5 ms, pure R; focus area 7, #26 item 4)
+are now the largest block outside `joint`; the E grid and messages are the next
+C++ targets.
+
+**Measured but not changed.**
+- *The rest of `Bridge()`:* per-position neighbour coefficient vectors are
+  allocated afresh (`std::vector` per neighbour per jump). Not profiled; small
+  next to the transcendentals.
+- *R `.Bridge()`:* keeps `uniroot()`. The engines now agree to ~tol rather than
+  bit for bit, which `test-Engine.R` already allows (paths at 1e-9).
+
+
+## Round 3 — 2026-10-16 — tree moves (focus area 7)
 
 **Target.** The `nodeAge`, `slide` and `saJump` moves of `TempoMCMC()`
 (#26 item 4): ~17 % of an `all` iteration on Linux after round 1, and the
@@ -132,8 +236,12 @@ rest: `.LogTransferRow()` 13-15 %, `.LogPathExact()` 9-12 %, `.Rebuild()`
 10-12 % (0.62 ms per call), `.TipValues()` 11 % of `saJump` (0.26 ms per call,
 for one row of the matrix it builds).
 
-**Fixed this round** (branch `tree-moves-cpp`, stacked on round 1's
-`profile-tempo-mcmc`; no issues filed): `src/tree_moves.cpp` ports
+**Merge note (2026-10-17).** Developed in parallel with round 2 and merged
+after it. The timings and checks below compare against the round-1 build,
+without round 2's root finder; since the merge, `.DrawBridges()` uses round 2's
+`JumpTime()`, so bridge draws inside tree moves are faster than measured here.
+
+**Fixed this round** (branch `tree-moves-cpp`; no issues filed): `src/tree_moves.cpp` ports
 `.LogTransferRow()`, `.LogTransferCol()`, `.LogPathExact()`,
 `.TipLogWeights()`, `.NodeLogWeights()`, `.DrawTip()`, `.LogTipQ()` and
 `.Rebuild()`, and two composite kernels, `.DrawBridges()` and `.LogBridges()`,
@@ -143,8 +251,8 @@ versions remain the `engine = "R"` reference. Arithmetic follows the R code
 term by term (long-double sums where R's `sum()` uses them, the reference-BLAS
 order for `%*%`): on the test fixture every kernel matches R to the last bit
 (Windows), and seeded `.DrawBridges()` / `.DrawTip()` draws consume the same
-random numbers. Seeded `all` chains do not change between the round-1 and
-round-2 builds: identical samples over 60 iterations (Windows), identical final
+random numbers. Seeded `all` chains do not change between the round-1 build and
+this one: identical samples over 60 iterations (Windows), identical final
 `logPost` to 12 digits over 40 iterations (Linux, x3).
 
 Interleaved A/B x3, medians:
@@ -167,7 +275,7 @@ through round-off. The eight chains took 127 -> 53 s (K = 16) and
 191 -> 92 s (K = 26).
 
 **Where the time goes now** (Rprof, Windows, per move): `.DrawBridgesCpp`
-25-35 % (bridge draws: Brent root-finding, focus area 2),
+25-35 % (bridge draws; Brent root-finding then, Newton-Halley since round 2),
 `.NodeLogWeightsCpp` 11-18 %, `.LogAugmentedCpp` 11-15 % (current and proposed
 state), `.MessagesCpp` 8-27 % (on acceptance), characters ~5 %; R glue
 (`.ProposeTreeMove()`, `.Crossing()`, `.SlideNodes()`, `setdiff()`) < 10 %.

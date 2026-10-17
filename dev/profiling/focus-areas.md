@@ -8,7 +8,7 @@ Round records are in `log.md`; current timings in `baselines.md`.
 | # | Area | Files | Why hot | Baseline cost | Last profiled | Status |
 |---|------|-------|---------|---------------|---------------|--------|
 | 1 | E grid | `src/tree_likelihood.cpp` (`EGridCpp`), `src/radau5.h` | One stiff solve per `.Precompute()`, i.e. per parameter proposal (10 per iteration with `joint`) | 2.13 -> 0.77 ms (Linux, K = 16) | 2026-10-16 | OPTIMISED |
-| 2 | Path draws (FFBS bridges) | `src/paths.cpp` (`Bridge`, `SampleBranch`) | Every path move and every `joint` proposal; Brent root-finding per jump, 2K transcendentals per evaluation | 2.19 -> 1.91 ms per tree draw (Linux); Brent end points fixed | 2026-10-16 | PROFILED |
+| 2 | Path draws (FFBS bridges) | `src/paths.cpp` (`Bridge`, `JumpTime`, `SampleBranch`) | Every path move and every `joint` proposal; one root-finding per jump, up to 2K transcendentals per evaluation | 2.19 -> 1.91 (round 1) -> 1.11 ms (round 2) per tree draw (Linux); Newton-Halley, ~2.5 evaluations per jump | 2026-10-16 | OPTIMISED |
 | 3 | Slice eigendecompositions | `R/Paths.R` (`.AddSlices`), `src/slices.cpp` | Per new parameter set: `eigen()` on nSlice symmetric tridiagonal K x K matrices | 1.47 -> 0.48 ms (Linux) | 2026-10-16 | OPTIMISED |
 | 4 | Parameter-move recomputation | `R/MCMC.R` (`Target`, `.JointSweep`) | `rate` proposals rebuilt the frozen model although `rate` does not enter it | 2 x (E grid + slices + messages) per iteration | 2026-10-16 | OPTIMISED |
 | 5 | Frozen messages | `src/paths.cpp` (`MessagesCpp`) | Per new parameter set and per accepted tree move; ~7 % of an iteration | 1.8 ms (Win), 0.8 ms (Linux) | 2026-10-16 | PROFILED |

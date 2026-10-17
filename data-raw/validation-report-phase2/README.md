@@ -12,7 +12,7 @@ Reference inference in R for the discrete Covariant Evolutionary Tempo (dCET) mo
 Grids are smaller than the default K = 26, z in [-5, 5]; rungs 3-5 at the default grid are reported in [`../validation-report-default-grid/README.md`](../validation-report-default-grid/README.md) (#17).
 
 ## Deviations from the plan
-1. **RevBayes.** No RevBayes build was available, so the `dnCDBDP` cross-check of rung 3 was not run (#15). Three secondary checks were run instead: the beta = 0 closed form, castor MuSSE, and Monte Carlo.
+1. **RevBayes.** The `dnCDBDP` cross-check was run later (#15; `data-raw/rung3-results/revbayes/README.md`). Trees without sampled ancestors agree to 7.7e-7 at K = 16 and K = 26. Sampled-ancestor trees differ by dnCDBDP's extra E(t) factor at each sampled ancestor, confirmed exactly at beta = 0.
 2. **Characters.** MkPrime could not be compiled (no toolchain). Characters use the pure-R `MkLikelihood()` (#16).
 3. **Grids.**
    - K = 16, z in [-3, 3] for rungs 4, 5 and 6;
@@ -107,7 +107,7 @@ Grids are smaller than the default K = 26, z in [-5, 5]; rungs 3-5 at the defaul
 ## Summary
 | Rung | Test | Outcome |
 |---|---|---|
-| 3 | beta = 0 closed form; castor MuSSE; Monte Carlo configuration probabilities | Pass (RevBayes not run, #15) |
+| 3 | beta = 0 closed form; castor MuSSE; Monte Carlo configuration probabilities; RevBayes dnCDBDP | Pass (dnCDBDP sampled-ancestor convention differs, #15) |
 | 4a-4d | augmented vs marginal posterior; local moves vs FFBS; bridges; Proposition 3.3 | Pass; theta mixing slow (#19) |
 | 4b | one character: likelihood oracle; posterior | Pass (after joint moves, #20) |
 | 5 | prior-only MCMC with tree moves vs forward simulation | Pass after two fixes |

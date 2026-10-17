@@ -158,6 +158,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
 | `data-raw/rung2-validation.R`, `data-raw/validation-report.R` | Monte Carlo validation and the rung 1-2 report |
 | `data-raw/rung3-validation.R` | Rung 3: beta = 0 collapse, castor MuSSE comparison, Monte Carlo on tiny trees |
+| `data-raw/rung3-revbayes.R`, `-summary.R`, `-engines.R` | Rung 3 vs RevBayes `dnCDBDP` (`REVBAYES` = path to `rb`); conventions and results in `data-raw/rung3-results/revbayes/README.md` |
 | `data-raw/rung4-validation.R` | Rung 4: augmented vs marginal posterior, FFBS summaries, bridge Laplace transform, sum over paths |
 | `data-raw/rung5-validation.R` | Rung 4b (one character, product-space oracle) and rung 5 (prior-only MCMC vs simulator) |
 | `data-raw/cpp-engine-agreement.R` | C++ vs R agreement and run times on the rung 3/4 fixtures (K = 16, 26); results in `data-raw/cpp-engine-results/` |
@@ -193,6 +194,13 @@ The likelihood is conditioned on survival, so a simulator used as a reference mu
 resimulate at fixed parameters until the crown survives; redrawing parameters on
 failure weights them by P(survival) (seen in rung 5 as biased lambda and mu).
 Rejection on other data features (tip counts, tree size) may redraw parameters.
+
+## RevBayes comparisons
+
+`dnCDBDP` scores a sampled ancestor as psi * E(t) rather than psi, and its tree-shape term uses a
+Stirling approximation to log(n!) that is off by 5e-4 at n = 1.  Rev rounds Reals to 6 significant
+digits in string concatenation; print values on their own line.  Its fixed-step integrator needs
+`nTimeSlices` of 16000-64000 at the default grid.
 
 ## Naming
 

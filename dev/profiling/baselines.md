@@ -14,6 +14,8 @@ nSlice = 16, beta = gamma = 1, six free parameters, `thin = 1`).
 | 2026-10-16 | Windows, MinGW (Rtools45), R-devel | after round 1 | 89 | 29 | see log.md round 1 |
 | 2026-10-16 | Linux, gcc 14.2, R 4.5.1 (Hamilton `test`) | before round 1 | 83.8 | 29.0 | `.EGridCpp` ~30 %, `.SampleTreeCpp` ~18 %, `.AddSlices` ~12 % (component timings) |
 | 2026-10-16 | Linux, gcc 14.2, R 4.5.1 (Hamilton `test`) | after round 1 | 54.3 | 18.8 | `joint` ~44 %, tree moves ~17 %; tree draw 1.9 ms per call |
+| 2026-10-16 | Windows, MinGW (Rtools45), R-devel | after round 2 | 111 | 39 | loaded machine: round-1 build 135 / 44 in the same session |
+| 2026-10-16 | Linux, gcc 14.2, R 4.5.1 (Hamilton `test`) | after round 2 | 50.1 | 18.1 | tree draw 1.1 ms per call; see log.md round 2 |
 
 `all` = moves `tree = 1, node = 3, tip = 3, branch = 3, joint = 1, nodeAge = 1,
 fossilAge = 1, slide = 1, saJump = 1` (the full-size SBC design of #21);
@@ -23,20 +25,25 @@ fossilAge = 1, slide = 1, saJump = 1` (the full-size SBC design of #21);
 ## Components (`drivers/tempo-components.R`, microseconds per call)
 
 Windows "before" was measured under heavier machine load than the A/B runs;
-compare Linux columns for ratios.
+compare Linux columns for ratios.  The r1 and r2 columns come from different
+sessions (node and load differ by a few per cent); same-session A/B ratios are
+in log.md.  Against the round-1 build in the same session, round 2 left
+`.Messages` (unchanged code in the same translation unit as `Bridge()`)
+828 -> 859-875 us on Linux, likely a code-layout effect; Windows showed no
+consistent change.
 
-| Component | Win before | Linux before | Linux after |
-|-----------|-----------:|-------------:|------------:|
-| `.Precompute` | 4541 | 2563 | 1234 |
-| `.EGrid` | 3627 | 2125 | 773 |
-| `.AddSlices` | 2767 | 1469 | 477 |
-| `.Messages` | 1760 | 828 | 727 |
-| `.SampleTree` | 7117 | 2188 | 1906 |
-| `.LogWeight` | 551 | 262 | 262 |
-| `.LogAugmented` | 191 | 95 | 98 |
-| `MkLikelihood` | 86 | 44 | 44 |
-| `tree` move | 9495 | 2844 | 2563 |
-| `node` move | 1768 | 680 | 656 |
-| `nodeAge` move | 5611 | 2688 | 2563 |
-| `slide` move | 8042 | 4000 | 3813 |
-| `saJump` move | 7145 | 2688 | 2594 |
+| Component | Win before | Linux before | Linux after r1 | Linux after r2 |
+|-----------|-----------:|-------------:|------------:|------------:|
+| `.Precompute` | 4541 | 2563 | 1234 | 1219 |
+| `.EGrid` | 3627 | 2125 | 773 | 766 |
+| `.AddSlices` | 2767 | 1469 | 477 | 469 |
+| `.Messages` | 1760 | 828 | 727 | 875 |
+| `.SampleTree` | 7117 | 2188 | 1906 | 1094 |
+| `.LogWeight` | 551 | 262 | 262 | 262 |
+| `.LogAugmented` | 191 | 95 | 98 | 96 |
+| `MkLikelihood` | 86 | 44 | 44 | 44 |
+| `tree` move | 9495 | 2844 | 2563 | 1813 |
+| `node` move | 1768 | 680 | 656 | 594 |
+| `nodeAge` move | 5611 | 2688 | 2563 | 2656 |
+| `slide` move | 8042 | 4000 | 3813 | 3688 |
+| `saJump` move | 7145 | 2688 | 2594 | 2531 |

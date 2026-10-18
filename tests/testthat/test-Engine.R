@@ -1,11 +1,17 @@
 # The C++ engine against the R reference.  Fixtures as test-Paths.R:
 # ((a:2,(b:1.5,f:0):1.5):1,(c:1.2,d:3.3):0.7); a, c fossils; f sampled ancestor
-engineTree <- TempoTree(structure(
+enginePhylo <- structure(
   list(edge = rbind(c(6, 7), c(7, 1), c(7, 8), c(8, 2), c(8, 3), c(6, 9),
                     c(9, 4), c(9, 5)),
        edge.length = c(1, 2, 1.5, 1.5, 0, 0.7, 1.2, 3.3),
        tip.label = c("a", "b", "f", "c", "d"), Nnode = 4, root.edge = 0.6),
-  class = "phylo"))
+  class = "phylo")
+engineTree <- TempoTree(enginePhylo)
+# Fossil ages uncertain, so that every tree move has candidates
+engineRanged <- TempoTree(
+  enginePhylo,
+  ranges = cbind(c(0.2, 0, 0.5, 0.5, 0), c(2.5, 0, 3, 3.5, 0))
+)
 enginePar <- list(lambda = 0.5, mu = 0.2, psi = 0.1, theta = 0.3, s = 1,
                   rate = 0.4)
 engineModel <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7)
@@ -207,6 +213,23 @@ test_that("Path samplers draw the same paths in both engines", {
     bC <- Draw("cpp", 11, function() .Bridge(set, 2, 0.8, ends[1], ends[2]))
     expect_equal(bC, bR, tolerance = 1e-9)
   }
+  # A diagonal slice: eigenvalues equal to the diagonal rates (rate difference
+  # exactly 0), and a bridge from bin 5 to bin 6 that jumps once, at the
+  # inverse of the truncated exponential
+  diagSet <- set
+  diagG <- diag(set$Q) + 2 * set$lambda * set$slices[[2]]$eBar - set$sigma
+  diagSet$slices[[2]]$values <- diagG
+  diagSet$slices[[2]]$vectors <- diag(length(diagG))
+  rd <- diagG[[5]] - diagG[[6]]
+  for (seed in 1:3) {
+    bR <- Draw("R", seed, function() .Bridge(diagSet, 2, 0.8, 5, 6))
+    bC <- Draw("cpp", seed, function() .Bridge(diagSet, 2, 0.8, 5, 6))
+    expect_equal(bC, bR, tolerance = 1e-9)
+    expect_equal(bC$k, c(5, 6))
+    set.seed(seed)
+    u <- stats::runif(2)[[2]]  # after the draw of the jump target
+    expect_equal(bC$t, log1p(u * expm1(rd * 0.8)) / rd, tolerance = 1e-10)
+  }
 })
 
 test_that("Joint conditioning and infeasible proposals are handled in C++", {
@@ -301,4 +324,99 @@ test_that("Chains match between engines", {
   # Weights near zero: compare on the absolute scale
   expect_lt(max(abs(pC$logWeight - pR$logWeight)), 1e-8)
   expect_equal(pC$logLik, pR$logLik, tolerance = 1e-9)
+})
+
+test_that("Tree-move kernels agree between engines", {
+  tree <- engineRanged
+  set <- .AddSlices(tree, .Precompute(tree, enginePar, engineModel), 6)
+  set.seed(2)
+  d <- .SampleTree(tree, set, .Messages(tree, set))
+  Agree <- function(f) {
+    expect_equal(WithEngine("cpp", f()), WithEngine("R", f()), tolerance = 1e-10)
+  }
+  pc <- .Pieces(tree, set, 7)
+  Agree(function() .LogTransferRow(pc, 3))
+  Agree(function() .LogTransferCol(pc, 5))
+  # R's max() is NaN if any element is: a finite maximum would differ here
+  bad <- pc
+  bad$M[[1]][1, 2] <- NaN
+  Agree(function() .LogTransferRow(bad, 1))
+  Agree(function() .LogTransferCol(bad, 2))
+  expect_error(WithEngine("cpp", .LogTransferRow(pc, 12L)), "out of range")
+  Agree(function() .LogPathExact(tree, set, 7, d$paths[[7]]))
+  Agree(function() .TipLogWeights(tree, set, 1, 4L))
+  Agree(function() .LogTipQ(tree, set, 4, d$paths[[4]]))
+  Agree(function() .LogBridges(tree, set, .PathNodes(tree), d$paths))
+  # Bin of node 7 with its fossil tip marginalized, or with both ends fixed
+  Agree(function() {
+    .NodeLogWeights(tree, set, 7, set$lambda, d$bin[[6]], c(1, 8), c(NA, d$bin[[8]]))
+  })
+  Agree(function() .NodeLogWeights(tree, set, 8, set$psi, d$bin[[7]], 2, d$bin[[2]]))
+
+  # Draws: same bins and paths, and the same random numbers consumed, also
+  # when a draw is infeasible
+  Draw <- function(engine, f) {
+    set.seed(9)
+    out <- tryCatch(WithEngine(engine, f()),
+                    infeasibleProposal = function(e) "infeasible")
+    list(out = out, after = stats::runif(1))
+  }
+  Both <- function(f) {
+    cpp <- Draw("cpp", f)
+    ref <- Draw("R", f)
+    expect_equal(cpp, ref, tolerance = 1e-9)
+    cpp$out
+  }
+  drawn <- Both(function() .DrawBridges(tree, set, c(7, 1, 8), d$bin, d$paths))
+  expect_equal(drawn$paths[-c(1, 7, 8)], d$paths[-c(1, 7, 8)])
+  expect_length(Both(function() .DrawBridges(tree, set, c(7, 1), d$bin, list()))$paths, 7)
+  tip <- Both(function() .DrawTip(tree, set, 1, 4L))
+  expect_equal(tip$path$k[[length(tip$path$k)]], tip$bin)
+
+  # Infeasible: branch 1 draws, then branch 7 crosses a slice whose transfer
+  # matrix is zero; a fossil tip with no sampling weight
+  poisoned <- set
+  poisoned$slices[[6]]$values[] <- -Inf
+  expect_identical(
+    Both(function() .DrawBridges(tree, poisoned, c(1, 7), d$bin, d$paths)),
+    "infeasible"
+  )
+  noTip <- set
+  noTip$psi <- 0 * set$psi
+  expect_identical(Both(function() .DrawTip(tree, noTip, 1, 4L)), "infeasible")
+
+  # Rebuild after tips swap clades, a fossil becomes a sampled ancestor, and a
+  # regraft that changes the postorder
+  swap <- tree
+  swap$parent[c(1, 4)] <- c(9, 7)
+  swap$age[7] <- 3.5
+  ancestor <- tree
+  ancestor$tipType[4] <- "ancestor"
+  ancestor$age[9] <- ancestor$age[4]
+  regraft <- tree
+  regraft$parent[c(4, 8)] <- c(7, 9)
+  for (tr in list(tree, swap, ancestor, regraft)) {
+    expect_identical(WithEngine("cpp", .Rebuild(tr)), WithEngine("R", .Rebuild(tr)))
+  }
+  expect_true(.Rebuild(ancestor)$sampled[[4]])
+  expect_equal(.Rebuild(regraft)$postorder, c(8, 9, 7, 6))
+})
+
+test_that("Chains with every tree move match between engines", {
+  set.seed(8)
+  chars <- matrix(sample(0:1, 5 * 3, replace = TRUE), 5)
+  priors <- c(TempoPriors()["lambda"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  Run <- function(engine) {
+    set.seed(10)
+    TempoMCMC(engineRanged, engineModel, enginePar, priors,
+              nIter = 12, burnin = 0, nSlice = 4, characters = chars,
+              moves = c(tree = 1, nodeAge = 2, fossilAge = 2, slide = 2, saJump = 2),
+              engine = engine)
+  }
+  cpp <- Run("cpp")
+  ref <- Run("R")
+  expect_equal(cpp$samples, ref$samples, tolerance = 1e-7)
+  expect_equal(cpp$acceptance, ref$acceptance)
+  expect_true(all(cpp$acceptance[c("nodeAge", "fossilAge", "slide", "saJump")] > 0))
 })

@@ -69,3 +69,43 @@
     .Call(`_EvoTempo_SolverCountsCpp`)
 }
 
+.LogTransferRowCpp <- function(pc, k) {
+    .Call(`_EvoTempo_LogTransferRowCpp`, pc, k)
+}
+
+.LogTransferColCpp <- function(pc, j) {
+    .Call(`_EvoTempo_LogTransferColCpp`, pc, j)
+}
+
+.LogPathExactCpp <- function(tree, set, v, path) {
+    .Call(`_EvoTempo_LogPathExactCpp`, tree, set, v, path)
+}
+
+.TipLogWeightsCpp <- function(tree, set, v, kTop, pc) {
+    .Call(`_EvoTempo_TipLogWeightsCpp`, tree, set, v, kTop, pc)
+}
+
+.NodeLogWeightsCpp <- function(tree, set, v, factor, kTop, kids, ends) {
+    .Call(`_EvoTempo_NodeLogWeightsCpp`, tree, set, v, factor, kTop, kids, ends)
+}
+
+.DrawBridgesCpp <- function(tree, set, nodes, bin, paths) {
+    .Call(`_EvoTempo_DrawBridgesCpp`, tree, set, nodes, bin, paths)
+}
+
+.LogBridgesCpp <- function(tree, set, nodes, paths) {
+    .Call(`_EvoTempo_LogBridgesCpp`, tree, set, nodes, paths)
+}
+
+.DrawTipCpp <- function(tree, set, v, kTop) {
+    .Call(`_EvoTempo_DrawTipCpp`, tree, set, v, kTop)
+}
+
+.LogTipQCpp <- function(tree, set, v, path) {
+    .Call(`_EvoTempo_LogTipQCpp`, tree, set, v, path)
+}
+
+.RebuildCpp <- function(tree) {
+    .Call(`_EvoTempo_RebuildCpp`, tree)
+}
+

@@ -5,6 +5,9 @@
 
 # Recompute derived fields after a change to `parent`, `age` or `tipType`
 .Rebuild <- function(tree) {
+  if (.UseCpp()) {
+    return(.RebuildCpp(tree))
+  }
   nTip <- tree[["nTip"]]
   nAll <- nTip + tree[["nNode"]]
   parent <- tree[["parent"]]
@@ -24,6 +27,9 @@
 
 # Log of the frozen transfer row from bin k (vector over end bins)
 .LogTransferRow <- function(pc, k) {
+  if (.UseCpp()) {
+    return(.LogTransferRowCpp(pc, k))
+  }
   r <- replace(numeric(nrow(pc[["M"]][[1]])), k, 1)
   logScale <- 0
   for (M in pc[["M"]]) {
@@ -36,6 +42,9 @@
 }
 
 .LogTransferCol <- function(pc, j) {
+  if (.UseCpp()) {
+    return(.LogTransferColCpp(pc, j))
+  }
   r <- replace(numeric(nrow(pc[["M"]][[1]])), j, 1)
   logScale <- 0
   for (M in rev(pc[["M"]])) {
@@ -49,6 +58,9 @@
 
 # Exact log density of one branch's path (CTMC part and exp(int g))
 .LogPathExact <- function(tree, set, v, path) {
+  if (.UseCpp()) {
+    return(.LogPathExactCpp(tree, set, v, path))
+  }
   int <- .Intervals(path, tree[["age"]][[tree[["parent"]][[v]]]], tree[["age"]][[v]])
   k <- int[["bin"]]
   Q <- set[["Q"]]
@@ -73,12 +85,41 @@
   list(path = path, logQ = .LogBridge(tree, set, v, path, pc))
 }
 
+# Redraw the paths on branches `nodes` between the fixed bins `bin`; returns
+# the updated paths and their log proposal density
+.DrawBridges <- function(tree, set, nodes, bin, paths) {
+  if (.UseCpp()) {
+    return(.CheckInfeasible(.DrawBridgesCpp(tree, set, nodes, bin, paths)))
+  }
+  logQ <- 0
+  for (u in nodes) {
+    d <- .DrawBridge(tree, set, u, bin[[tree[["parent"]][[u]]]], bin[[u]])
+    paths[[u]] <- d[["path"]]
+    logQ <- logQ + d[["logQ"]]
+  }
+  list(paths = paths, logQ = logQ)
+}
+
+# Log bridge density of the paths on branches `nodes`
+.LogBridges <- function(tree, set, nodes, paths) {
+  if (.UseCpp()) {
+    return(.LogBridgesCpp(tree, set, nodes, paths))
+  }
+  sum(vapply(nodes, function(u) .LogBridge(tree, set, u, paths[[u]]), 0))
+}
+
 # Fossil tip: log weight of each tip bin given the top bin, and draws
 .TipLogWeights <- function(tree, set, v, kTop, pc = .Pieces(tree, set, v)) {
+  if (.UseCpp()) {
+    return(.TipLogWeightsCpp(tree, set, v, kTop, pc))
+  }
   .LogTransferRow(pc, kTop) + log(.TipValues(tree, set)[v, ])
 }
 
 .DrawTip <- function(tree, set, v, kTop) {
+  if (.UseCpp()) {
+    return(.CheckInfeasible(.DrawTipCpp(tree, set, v, kTop)))
+  }
   pc <- .Pieces(tree, set, v)
   lw <- .TipLogWeights(tree, set, v, kTop, pc)
   kTip <- .Sample1(exp(lw - max(lw)))
@@ -88,6 +129,9 @@
 }
 
 .LogTipQ <- function(tree, set, v, path) {
+  if (.UseCpp()) {
+    return(.LogTipQCpp(tree, set, v, path))
+  }
   pc <- .Pieces(tree, set, v)
   k <- path[["k"]]
   lw <- .TipLogWeights(tree, set, v, k[[1]], pc)
@@ -103,6 +147,9 @@
 # branch above (from bin kTop), and branches below to fixed bins `ends`
 # (NA: a fossil tip whose bin is marginalized)
 .NodeLogWeights <- function(tree, set, v, factor, kTop, kids, ends) {
+  if (.UseCpp()) {
+    return(.NodeLogWeightsCpp(tree, set, v, factor, kTop, kids, ends))
+  }
   lw <- log(factor)
   lw <- lw + .LogTransferRow(.Pieces(tree, set, v), kTop)
   for (i in seq_along(kids)) {
@@ -164,17 +211,10 @@
   age <- tree[["age"]]
   nTip <- tree[["nTip"]]
   Redraw <- function(newTree, nodes, newBin) {
-    logQ <- 0
-    newPaths <- paths
-    for (u in nodes) {
-      d <- .DrawBridge(newTree, set, u, newBin[[newTree[["parent"]][[u]]]], newBin[[u]])
-      newPaths[[u]] <- d[["path"]]
-      logQ <- logQ + d[["logQ"]]
-    }
-    list(paths = newPaths, logQ = logQ)
+    .DrawBridges(newTree, set, nodes, newBin, paths)
   }
   OldQ <- function(nodes) {
-    sum(vapply(nodes, function(u) .LogBridge(tree, set, u, paths[[u]]), 0))
+    .LogBridges(tree, set, nodes, paths)
   }
   switch(
     move,

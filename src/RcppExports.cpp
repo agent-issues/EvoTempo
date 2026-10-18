@@ -262,6 +262,144 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// LogTransferRowCpp
+NumericVector LogTransferRowCpp(List pc, int k);
+RcppExport SEXP _EvoTempo_LogTransferRowCpp(SEXP pcSEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type pc(pcSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    rcpp_result_gen = Rcpp::wrap(LogTransferRowCpp(pc, k));
+    return rcpp_result_gen;
+END_RCPP
+}
+// LogTransferColCpp
+NumericVector LogTransferColCpp(List pc, int j);
+RcppExport SEXP _EvoTempo_LogTransferColCpp(SEXP pcSEXP, SEXP jSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type pc(pcSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    rcpp_result_gen = Rcpp::wrap(LogTransferColCpp(pc, j));
+    return rcpp_result_gen;
+END_RCPP
+}
+// LogPathExactCpp
+double LogPathExactCpp(List tree, List set, int v, List path);
+RcppExport SEXP _EvoTempo_LogPathExactCpp(SEXP treeSEXP, SEXP setSEXP, SEXP vSEXP, SEXP pathSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type set(setSEXP);
+    Rcpp::traits::input_parameter< int >::type v(vSEXP);
+    Rcpp::traits::input_parameter< List >::type path(pathSEXP);
+    rcpp_result_gen = Rcpp::wrap(LogPathExactCpp(tree, set, v, path));
+    return rcpp_result_gen;
+END_RCPP
+}
+// TipLogWeightsCpp
+NumericVector TipLogWeightsCpp(List tree, List set, int v, int kTop, List pc);
+RcppExport SEXP _EvoTempo_TipLogWeightsCpp(SEXP treeSEXP, SEXP setSEXP, SEXP vSEXP, SEXP kTopSEXP, SEXP pcSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type set(setSEXP);
+    Rcpp::traits::input_parameter< int >::type v(vSEXP);
+    Rcpp::traits::input_parameter< int >::type kTop(kTopSEXP);
+    Rcpp::traits::input_parameter< List >::type pc(pcSEXP);
+    rcpp_result_gen = Rcpp::wrap(TipLogWeightsCpp(tree, set, v, kTop, pc));
+    return rcpp_result_gen;
+END_RCPP
+}
+// NodeLogWeightsCpp
+NumericVector NodeLogWeightsCpp(List tree, List set, int v, NumericVector factor, int kTop, IntegerVector kids, NumericVector ends);
+RcppExport SEXP _EvoTempo_NodeLogWeightsCpp(SEXP treeSEXP, SEXP setSEXP, SEXP vSEXP, SEXP factorSEXP, SEXP kTopSEXP, SEXP kidsSEXP, SEXP endsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type set(setSEXP);
+    Rcpp::traits::input_parameter< int >::type v(vSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type factor(factorSEXP);
+    Rcpp::traits::input_parameter< int >::type kTop(kTopSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type kids(kidsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type ends(endsSEXP);
+    rcpp_result_gen = Rcpp::wrap(NodeLogWeightsCpp(tree, set, v, factor, kTop, kids, ends));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DrawBridgesCpp
+List DrawBridgesCpp(List tree, List set, IntegerVector nodes, IntegerVector bin, List paths);
+RcppExport SEXP _EvoTempo_DrawBridgesCpp(SEXP treeSEXP, SEXP setSEXP, SEXP nodesSEXP, SEXP binSEXP, SEXP pathsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type set(setSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nodes(nodesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type bin(binSEXP);
+    Rcpp::traits::input_parameter< List >::type paths(pathsSEXP);
+    rcpp_result_gen = Rcpp::wrap(DrawBridgesCpp(tree, set, nodes, bin, paths));
+    return rcpp_result_gen;
+END_RCPP
+}
+// LogBridgesCpp
+double LogBridgesCpp(List tree, List set, IntegerVector nodes, List paths);
+RcppExport SEXP _EvoTempo_LogBridgesCpp(SEXP treeSEXP, SEXP setSEXP, SEXP nodesSEXP, SEXP pathsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type set(setSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nodes(nodesSEXP);
+    Rcpp::traits::input_parameter< List >::type paths(pathsSEXP);
+    rcpp_result_gen = Rcpp::wrap(LogBridgesCpp(tree, set, nodes, paths));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DrawTipCpp
+List DrawTipCpp(List tree, List set, int v, int kTop);
+RcppExport SEXP _EvoTempo_DrawTipCpp(SEXP treeSEXP, SEXP setSEXP, SEXP vSEXP, SEXP kTopSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type set(setSEXP);
+    Rcpp::traits::input_parameter< int >::type v(vSEXP);
+    Rcpp::traits::input_parameter< int >::type kTop(kTopSEXP);
+    rcpp_result_gen = Rcpp::wrap(DrawTipCpp(tree, set, v, kTop));
+    return rcpp_result_gen;
+END_RCPP
+}
+// LogTipQCpp
+double LogTipQCpp(List tree, List set, int v, List path);
+RcppExport SEXP _EvoTempo_LogTipQCpp(SEXP treeSEXP, SEXP setSEXP, SEXP vSEXP, SEXP pathSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type set(setSEXP);
+    Rcpp::traits::input_parameter< int >::type v(vSEXP);
+    Rcpp::traits::input_parameter< List >::type path(pathSEXP);
+    rcpp_result_gen = Rcpp::wrap(LogTipQCpp(tree, set, v, path));
+    return rcpp_result_gen;
+END_RCPP
+}
+// RebuildCpp
+List RebuildCpp(List tree);
+RcppExport SEXP _EvoTempo_RebuildCpp(SEXP treeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    rcpp_result_gen = Rcpp::wrap(RebuildCpp(tree));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_MkLikelihoodCpp", (DL_FUNC) &_EvoTempo_MkLikelihoodCpp, 4},
@@ -281,6 +419,16 @@ static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_EGridCpp", (DL_FUNC) &_EvoTempo_EGridCpp, 8},
     {"_EvoTempo_PruneTreeCpp", (DL_FUNC) &_EvoTempo_PruneTreeCpp, 14},
     {"_EvoTempo_SolverCountsCpp", (DL_FUNC) &_EvoTempo_SolverCountsCpp, 0},
+    {"_EvoTempo_LogTransferRowCpp", (DL_FUNC) &_EvoTempo_LogTransferRowCpp, 2},
+    {"_EvoTempo_LogTransferColCpp", (DL_FUNC) &_EvoTempo_LogTransferColCpp, 2},
+    {"_EvoTempo_LogPathExactCpp", (DL_FUNC) &_EvoTempo_LogPathExactCpp, 4},
+    {"_EvoTempo_TipLogWeightsCpp", (DL_FUNC) &_EvoTempo_TipLogWeightsCpp, 5},
+    {"_EvoTempo_NodeLogWeightsCpp", (DL_FUNC) &_EvoTempo_NodeLogWeightsCpp, 7},
+    {"_EvoTempo_DrawBridgesCpp", (DL_FUNC) &_EvoTempo_DrawBridgesCpp, 5},
+    {"_EvoTempo_LogBridgesCpp", (DL_FUNC) &_EvoTempo_LogBridgesCpp, 4},
+    {"_EvoTempo_DrawTipCpp", (DL_FUNC) &_EvoTempo_DrawTipCpp, 4},
+    {"_EvoTempo_LogTipQCpp", (DL_FUNC) &_EvoTempo_LogTipQCpp, 4},
+    {"_EvoTempo_RebuildCpp", (DL_FUNC) &_EvoTempo_RebuildCpp, 1},
     {NULL, NULL, 0}
 };
 

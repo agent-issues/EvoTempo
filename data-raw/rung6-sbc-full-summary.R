@@ -34,6 +34,7 @@ runs <- do.call(rbind, lapply(res, function(r) {
   data.frame(g = r$g, cell = r$cell, beta = r$beta, gamma = r$gamma, seed = r$seed,
              nTip = r$nTip, nFossil = r$nFossil, nAncestor = r$nAncestor,
              tries = r$tries, nIter = r$nIter, nExtend = r$nExtend,
+             chainRetries = length(r$chainErrors),
              minEss = min(r$ess, na.rm = TRUE),
              minEssQuantity = names(which.min(r$ess)), runtimeMin = r$runtime,
              t(setNames(acc, paste0("acc.", names(acc)))), sha = r$sha)

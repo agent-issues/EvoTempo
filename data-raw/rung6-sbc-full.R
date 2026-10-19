@@ -202,28 +202,45 @@ Replicate <- function(g) {
   noFossil <- c("saJump", "fossilAge")
   moves <- if (any(fossil)) mainMoves else mainMoves[setdiff(names(mainMoves), noFossil)]
   pMoves <- if (any(fossil)) preMoves else preMoves[setdiff(names(preMoves), noFossil)]
-  start <- PriorDraw()
-  pre <- TempoMCMC(tt, model, start, priors, nIter = nPre, nSlice = nSlice,
-                   moves = pMoves, updateParameters = FALSE)
-  startTree <- pre$state$tree
+  # A chain that stops with an engine error (issue #37: ODE failure in a
+  # proposal) is restarted from a fresh chain seed; the data are unchanged
   nIter <- nIterCell[[cellId]]
-  Chain <- function(tr, par, burn) {
-    TempoMCMC(tr, model, par, priors, nIter = nIter, burnin = burn,
-              thin = nIter %/% nStore, nSlice = nSlice, moves = moves,
-              characters = chars)
-  }
-  run <- Chain(startTree, start, burnin)
-  samples <- run$samples
-  acceptance <- list(run$acceptance)
-  ess <- vapply(samples[quantities], Ess, 0)
-  nExtend <- 0
-  while (any(ess < essTarget, na.rm = TRUE) && nExtend < maxExtend) {
-    nExtend <- nExtend + 1
-    run <- Chain(run$state$tree, run$state$par, reburn)
-    samples <- rbind(samples, run$samples)
-    acceptance[[length(acceptance) + 1L]] <- run$acceptance
+  RunChain <- function() {
+    start <- PriorDraw()
+    pre <- TempoMCMC(tt, model, start, priors, nIter = nPre, nSlice = nSlice,
+                     moves = pMoves, updateParameters = FALSE)
+    startTree <- pre$state$tree
+    Chain <- function(tr, par, burn) {
+      TempoMCMC(tr, model, par, priors, nIter = nIter, burnin = burn,
+                thin = nIter %/% nStore, nSlice = nSlice, moves = moves,
+                characters = chars)
+    }
+    run <- Chain(startTree, start, burnin)
+    samples <- run$samples
+    acceptance <- list(run$acceptance)
     ess <- vapply(samples[quantities], Ess, 0)
+    nExtend <- 0
+    while (any(ess < essTarget, na.rm = TRUE) && nExtend < maxExtend) {
+      nExtend <- nExtend + 1
+      run <- Chain(run$state$tree, run$state$par, reburn)
+      samples <- rbind(samples, run$samples)
+      acceptance[[length(acceptance) + 1L]] <- run$acceptance
+      ess <- vapply(samples[quantities], Ess, 0)
+    }
+    list(samples = samples, acceptance = acceptance, ess = ess, nExtend = nExtend)
   }
+  chainErrors <- character()
+  repeat {
+    fit <- tryCatch(RunChain(), error = function(e) e)
+    if (!inherits(fit, "error")) break
+    chainErrors <- c(chainErrors, conditionMessage(fit))
+    if (length(chainErrors) > 2) stop(fit)
+    set.seed(21000L + g + 1000000L * length(chainErrors))
+  }
+  samples <- fit$samples
+  acceptance <- fit$acceptance
+  ess <- fit$ess
+  nExtend <- fit$nExtend
   keep <- unique(round(seq(nrow(samples) / nRank, nrow(samples), length.out = nRank)))
   ranked <- samples[keep, quantities]
   ranks <- vapply(quantities, function(q) RankOf(ranked[[q]], truth[[q]]), 0L)
@@ -236,7 +253,7 @@ Replicate <- function(g) {
               acceptance = do.call(rbind, acceptance),
               posteriorMean = colMeans(samples[quantities], na.rm = TRUE),
               posteriorSd = vapply(samples[quantities], stats::sd, 0, na.rm = TRUE),
-              grid = model0, moves = moves, nStore = nStore,
+              chainErrors = chainErrors, grid = model0, moves = moves, nStore = nStore,
               runtime = as.numeric(difftime(Sys.time(), t0, units = "mins")),
               packageVersion = as.character(utils::packageVersion("EvoTempo")),
               sha = Sys.getenv("EVOTEMPO_SHA"))

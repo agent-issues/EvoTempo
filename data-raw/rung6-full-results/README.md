@@ -116,8 +116,10 @@ remedy, which is engine work (#26).
   one-core watcher, smoke-test and debug jobs.
 - Timing pilot (`rung6-full-pilot.csv`): 3 replicates per cell at 8000 iterations each for
   move mixes A and B at K = 16, plus 1 replicate per cell at K = 26. Mix B (the one used) gave
-  about 1.6× the tree-statistic ESS per iteration for about 1.1× the time. K = 26 costs about 2× per
-  iteration, which would have put the full run near 1100 core-hours.
+  about 1.6× the tree-statistic ESS per iteration for about 1.1× the time. K = 26 costs 1.8–3.7× per
+  iteration on the 4 matched replicates (mean 3.0×), so at equal chain lengths the full run
+  would have taken about 1650 core-hours. Its ESS per iteration was somewhat higher in the
+  pilot, which would offset part of that.
 
 ## Files
 

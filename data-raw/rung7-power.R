@@ -513,11 +513,46 @@ Pilot <- function(id) {
   invisible(out)
 }
 
-if (length(args) && args[[1]] == "pilot") {
+# Every component at toy chain lengths (minutes)
+Smoke <- function() {
+  meanlog <- Meanlog("high")
+  set.seed(79999L)
+  sim <- Simulate(4L, meanlog, sizeLevels$small)
+  tt <- sim$tt
+  start0 <- as.list(exp(meanlog))
+  chars <- sim$chars[, 1:30]
+  cat("extant", sim$nExtant, "fossil", sim$nFossil, "SA", sim$nAncestor,
+      "tries", sim$tries, "\n")
+  cat("FBD - TreeLikelihood(beta = 0):",
+      FBDTreeLikelihood(tt, 0.5, 0.2, 0.05, rho = rho) -
+        TreeLikelihood(tt, list(lambda = 0.5, mu = 0.2, psi = 0.05, theta = 0.2,
+                                s = 0.6), Model(0, 0)), "\n")
+  cat("logZT0 GH 12 / 20:", LogZTree0(tt, meanlog, 12), LogZTree0(tt, meanlog, 20), "\n")
+  z <- LogZMarginal(tt, Model(1, 1), meanlog, treePar, start0, nIter = 60, burnin = 20)
+  cat("logZT1 (toy):", z$logZ, "se", z$se, "\n")
+  cat("logRStrict:", LogRStrict(tt, chars, meanlog), "\n")
+  priors <- TempoPriors(meanlog, sdlog)
+  for (g in 0:1) for (p in c(0, 0.5, 1)) {
+    ch <- TemperedChain(tt, Model(1, g), chars, start0, priors, p, nIter = 20,
+                        burnin = 10, thin = 2, seed = 1L)
+    cat(sprintf("gamma %d power %.1f: %.2f s/iter, mean logL %.2f, check %.2g\n",
+                g, p, ch$secs / ch$iterations, mean(ch$logL), ch$check))
+  }
+  o <- LogZMarginal(tt, Model(1, 1), meanlog, c(treePar, "rate"), start0, nIter = 40,
+                    burnin = 10, character = sim$chars[, 1])
+  cat("oracle (toy):", o$logZ, "\n")
+  l <- LogRLadder(tt, Model(1, 1), chars, meanlog, start0, K = 2, nIter = 20,
+                  burnin = 10, thin = 2, seed = 5L)
+  cat("ladder (toy): SS", l$logR, "TI", l$logRTI, "\n")
+}
+
+if (length(args) && args[[1]] == "smoke") {
+  Smoke()
+} else if (length(args) && args[[1]] == "pilot") {
   res <- Pilot(as.integer(args[[2]]))
   cat("pilot", res$id, "done; extant", res$nExtant, "fossil", res$nFossil, "\n")
 } else if (length(args) && args[[1]] == "task") {
   stop("Production mode is added once the design is approved (issue #7)")
 } else if (!interactive()) {
-  stop("Usage: rung7-power.R pilot <id> | task <id> <nPerTask>")
+  stop("Usage: rung7-power.R smoke | pilot <id> | task <id> <nPerTask>")
 }

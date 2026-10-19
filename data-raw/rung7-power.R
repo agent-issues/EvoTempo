@@ -271,28 +271,76 @@ BridgeSample <- function(draws, logPostDraws, LogPost, nProp = NULL) {
 
 # Evidence of a fixed-tree target sampled by MarginalMCMC():
 # free parameters `free`; `character` optional (product-space oracle).
+# The sampler is MarginalMCMC()'s algorithm (single-parameter multiplicative
+# random walk, step sizes adapted every 20 burn-in iterations to 30%
+# acceptance), written here on the log scale so that a solver failure at an
+# extreme proposal counts as a rejection: MarginalMCMC() stops with an error
+# there (as TempoMCMC() does, #37), and restarting would condition on not
+# meeting one.
+ParameterChain <- function(LogLik, u0, LogPrior, nIter, burnin) {
+  d <- length(u0)
+  u <- u0
+  ll <- LogLik(u)
+  lp <- LogPrior(u)
+  step <- rep(1, d)
+  hits <- numeric(d)
+  out <- matrix(NA_real_, nIter, d, dimnames = list(NULL, names(u0)))
+  outLL <- numeric(nIter)
+  nFail <- 0
+  for (i in seq_len(burnin + nIter)) {
+    for (j in seq_len(d)) {
+      v <- u
+      v[j] <- u[j] + step[j] * (stats::runif(1) - 0.5)
+      llv <- LogLik(v)
+      if (!is.finite(llv)) {
+        nFail <- nFail + 1
+        next
+      }
+      lpv <- LogPrior(v)
+      if (log(stats::runif(1)) < llv + lpv - ll - lp) {
+        u <- v
+        ll <- llv
+        lp <- lpv
+        hits[j] <- hits[j] + 1
+      }
+    }
+    if (i <= burnin && i %% 20 == 0) {
+      step <- step * exp(hits / 20 - 0.3)
+      hits <- 0 * hits
+    }
+    if (i > burnin) {
+      out[i - burnin, ] <- u
+      outLL[i - burnin] <- ll
+    }
+  }
+  list(u = out, logLik = outLL, nFail = nFail)
+}
+
 LogZMarginal <- function(tt, model, meanlog, free, start, nIter, burnin,
                          character = NULL) {
-  priors <- TempoPriors(meanlog[free], sdlog[free])
-  run <- MarginalMCMC(tt, model, start, priors, nIter = nIter, burnin = burnin,
-                      character = character)
-  u <- log(as.matrix(run[free]))
-  LogPrior <- function(u) sum(stats::dnorm(u, meanlog[free], sdlog[free], log = TRUE))
   # Log-normal prior density on the original scale times the Jacobian exp(u)
   # equals the normal density of u
-  logPostDraws <- run$logLik + apply(u, 1, LogPrior)
-  LogPost <- function(v) {
+  LogPrior <- function(u) sum(stats::dnorm(u, meanlog[free], sdlog[free], log = TRUE))
+  LogLik <- function(v) {
     par <- start
     par[free] <- as.list(exp(v))
     ll <- suppressWarnings(tryCatch(TreeLikelihood(tt, par, model, character),
                                     error = function(e) -Inf))
-    # NaN (survival probability underflow at extreme proposals): zero density;
-    # counted in nFailed
-    if (!is.finite(ll)) -Inf else ll + LogPrior(v)
+    # NaN (survival probability underflow, solver failure): zero density
+    if (is.finite(ll)) ll else -Inf
+  }
+  u0 <- setNames(log(unlist(start[free])), free)
+  run <- ParameterChain(LogLik, u0, LogPrior, nIter, burnin)
+  u <- run$u
+  logPostDraws <- run$logLik + apply(u, 1, LogPrior)
+  LogPost <- function(v) {
+    ll <- LogLik(v)
+    if (is.finite(ll)) ll + LogPrior(v) else -Inf
   }
   bs <- BridgeSample(u, logPostDraws, LogPost)
-  c(bs, list(posteriorMean = colMeans(run[free]), ess = vapply(run[free], Ess, 0),
-             last = as.list(run[nrow(run), free])))
+  x <- exp(u)
+  c(bs, list(posteriorMean = colMeans(x), ess = apply(u, 2, Ess),
+             last = as.list(x[nrow(x), ]), chainFailures = run$nFail))
 }
 
 # ---- Strict-clock character evidence: 1-D quadrature over log c ------------

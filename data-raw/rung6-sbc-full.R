@@ -33,7 +33,7 @@
 #   EVOTEMPO_SBC_OUT   output folder (default data-raw/rung6-full-results)
 #   EVOTEMPO_GRID      "default" for K = 26, z in [-5, 5]; else K = 16, z in [-3, 3]
 #   EVOTEMPO_SBC_ITER  base post-burn-in iterations, one value or one per cell
-#   EVOTEMPO_SBC_MAXEXT  maximum number of chain extensions (default 2)
+#   EVOTEMPO_SBC_MAXEXT  maximum number of chain extensions (default 3)
 #   EVOTEMPO_SBC_MOVES   overrides of the move counts, e.g. "nodeAge=12,slide=8"
 #   EVOTEMPO_LOAD_ALL  if set, pkgload::load_all(".") instead of library()
 if (nzchar(Sys.getenv("EVOTEMPO_LOAD_ALL"))) {
@@ -63,7 +63,7 @@ cells <- data.frame(beta = c(0, 0, 1, 1), gamma = c(0, 1, 0, 1))
 # slowly once characters depend on tempo (gamma = 1)
 nIterCell <- rep_len(EnvNum("EVOTEMPO_SBC_ITER", c(10000, 20000, 10000, 20000)),
                      nrow(cells))
-maxExtend <- EnvNum("EVOTEMPO_SBC_MAXEXT", 2)
+maxExtend <- EnvNum("EVOTEMPO_SBC_MAXEXT", 3)
 burnin <- 1000L        # first segment: adaptation and burn-in
 reburn <- 200L         # each extension re-adapts proposal scales first
 nStore <- 1000L        # stored draws per segment

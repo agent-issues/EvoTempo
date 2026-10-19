@@ -107,6 +107,41 @@ Meanlog <- function(psiLevel) {
     theta = log(0.2), s = log(0.6), rate = log(0.1))
 }
 sdlog <- c(lambda = 0.3, mu = 0.3, psi = 0.3, theta = 0.5, s = 0.5, rate = 0.4)
+# Log-normal priors truncated at +/- zTrunc sdlog and renormalised (outside mass
+# 6.3e-5 per parameter).  TempoMCMC() skips a proposal with -Inf prior before
+# evaluating the likelihood, so the truncation keeps its burn-in adaptation from
+# proposing values (e.g. s > 10) at which the E equations fail (#37).  The same
+# truncated prior is used to simulate and in every evidence calculation.
+zTrunc <- 4
+logMass <- log(stats::pnorm(zTrunc) - stats::pnorm(-zTrunc))
+TruncPriors <- function(meanlog, sdlog) {
+  out <- lapply(names(meanlog), function(p) {
+    m <- meanlog[[p]]
+    s <- sdlog[[p]]
+    force(m)
+    force(s)
+    function(x) {
+      if (!(x > 0) || abs(log(x) - m) > zTrunc * s) {
+        return(-Inf)
+      }
+      stats::dlnorm(x, m, s, log = TRUE) - logMass
+    }
+  })
+  names(out) <- names(meanlog)
+  out
+}
+# Density of u = log(x) (log-normal density times the Jacobian x)
+LogPriorU <- function(u, m, s) {
+  if (any(abs(u - m) > zTrunc * s)) -Inf else
+    sum(stats::dnorm(u, m, s, log = TRUE)) - length(u) * logMass
+}
+PriorDraw <- function(meanlog) {
+  z <- stats::rnorm(length(meanlog))
+  while (any(out <- abs(z) > zTrunc)) {
+    z[out] <- stats::rnorm(sum(out))
+  }
+  as.list(setNames(exp(meanlog + sdlog[names(meanlog)] * z), names(meanlog)))
+}
 Model <- function(beta, gamma) {
   DCETModel(nBin = grid0$nBin, zRange = grid0$zRange, rho = rho,
             beta = beta, gamma = gamma)
@@ -178,7 +213,7 @@ Simulate <- function(cell, meanlog, size) {
   tries <- 0
   repeat {
     tries <- tries + 1
-    truth <- as.list(setNames(stats::rlnorm(6, meanlog, sdlog), names(meanlog)))
+    truth <- PriorDraw(meanlog)
     set <- .Setup(truth, model)
     repeat {
       k <- .Sample1(set$prior)
@@ -218,7 +253,8 @@ GaussHermite <- function(n) {
 
 # log int exp(f(u)) du over R^d, f in log space, by Laplace-centred GH
 LogIntegrateGH <- function(f, u0, nNode = 20) {
-  opt <- stats::optim(u0, function(u) -f(u), method = "BFGS", hessian = TRUE,
+  opt <- stats::optim(u0, function(u) min(-f(u), 1e300), method = "BFGS",
+                      hessian = TRUE,
                       control = list(reltol = 1e-12, maxit = 500))
   H <- opt$hessian
   S <- solve(H)
@@ -239,8 +275,8 @@ LogZTree0 <- function(tt, meanlog, nNode = 20) {
   p <- c("lambda", "mu", "psi")
   f <- function(u) {
     v <- exp(u)
-    FBDTreeLikelihood(tt, v[1], v[2], v[3], rho = rho) +
-      sum(stats::dnorm(u, meanlog[p], sdlog[p], log = TRUE))
+    lp <- LogPriorU(u, meanlog[p], sdlog[p])
+    if (!is.finite(lp)) -Inf else FBDTreeLikelihood(tt, v[1], v[2], v[3], rho = rho) + lp
   }
   LogIntegrateGH(f, unname(meanlog[p]), nNode)
 }
@@ -310,12 +346,13 @@ ParameterChain <- function(LogLik, u0, LogPrior, nIter, burnin) {
     for (j in seq_len(d)) {
       v <- u
       v[j] <- u[j] + step[j] * (stats::runif(1) - 0.5)
+      lpv <- LogPrior(v)
+      if (!is.finite(lpv)) next
       llv <- LogLik(v)
       if (!is.finite(llv)) {
         nFail <- nFail + 1
         next
       }
-      lpv <- LogPrior(v)
       if (log(stats::runif(1)) < llv + lpv - ll - lp) {
         u <- v
         ll <- llv
@@ -339,7 +376,7 @@ LogZMarginal <- function(tt, model, meanlog, free, start, nIter, burnin,
                          character = NULL) {
   # Log-normal prior density on the original scale times the Jacobian exp(u)
   # equals the normal density of u
-  LogPrior <- function(u) sum(stats::dnorm(u, meanlog[free], sdlog[free], log = TRUE))
+  LogPrior <- function(u) LogPriorU(u, meanlog[free], sdlog[free])
   LogLik <- function(v) {
     par <- start
     par[free] <- as.list(exp(v))
@@ -353,8 +390,10 @@ LogZMarginal <- function(tt, model, meanlog, free, start, nIter, burnin,
   u <- run$u
   logPostDraws <- run$logLik + apply(u, 1, LogPrior)
   LogPost <- function(v) {
+    lp <- LogPrior(v)
+    if (!is.finite(lp)) return(-Inf)
     ll <- LogLik(v)
-    if (is.finite(ll)) ll + LogPrior(v) else -Inf
+    if (is.finite(ll)) ll + lp else -Inf
   }
   bs <- BridgeSample(u, logPostDraws, LogPost)
   x <- exp(u)
@@ -369,14 +408,15 @@ LogRStrict <- function(tt, chars, meanlog) {
   s <- sdlog[["rate"]]
   f <- function(u) {
     vapply(u, function(ui) .mkOriginal(tt, chars, exp(ui) * d, 2L), 0) +
-      stats::dnorm(u, m, s, log = TRUE)
+      stats::dnorm(u, m, s, log = TRUE) - logMass
   }
-  coarse <- seq(m - 8 * s, m + 8 * s, length.out = 801)
+  lo <- m - zTrunc * s
+  hi <- m + zTrunc * s
+  coarse <- seq(lo, hi, length.out = 801)
   fc <- f(coarse)
   keep <- range(coarse[fc > max(fc) - 50])
   h <- diff(coarse[1:2])
-  fine <- seq(max(keep[1] - h, m - 8 * s), min(keep[2] + h, m + 8 * s),
-              length.out = 4001)
+  fine <- seq(max(keep[1] - h, lo), min(keep[2] + h, hi), length.out = 4001)
   ff <- f(fine)
   w <- rep(1, length(fine))
   w[c(1, length(fine))] <- 0.5
@@ -473,8 +513,9 @@ BetaBridge <- function(tt, chain0, chain1, gamma, meanlog) {
     a0 <- vapply(chain$states, function(st) LogTreeDensity(tt, m0, st), 0)
     a1 <- vapply(chain$states, function(st) LogTreeDensity(tt, m1, st), 0)
     # Own-model density must equal logPost - log prior - character logL
+    priors <- TruncPriors(meanlog, sdlog)
     lp <- vapply(chain$states, function(st) {
-      sum(stats::dlnorm(unlist(st$par[names(meanlog)]), meanlog, sdlog, log = TRUE))
+      sum(vapply(names(priors), function(q) priors[[q]](st$par[[q]]), 0))
     }, 0)
     resid <- (if (own == 0) a0 else a1) - (chain$samples$logPost - lp - chain$logL)
     list(l = a1 - a0, check = max(abs(resid)))
@@ -510,7 +551,7 @@ SteppingStone <- function(ladder, logL) {
 # thinTop) and record its states for BetaBridge()
 LogRLadder <- function(tt, model, chars, meanlog, start, K, nIter, burnin, thin,
                        seed, nIterTop = nIter, thinTop = thin, recordTop = FALSE) {
-  priors <- TempoPriors(meanlog, sdlog)
+  priors <- TruncPriors(meanlog, sdlog)
   ladder <- Ladder(K)
   par <- start
   chains <- vector("list", K + 1L)
@@ -581,7 +622,7 @@ Pilot <- function(id) {
     out$logRStrict <- vapply(c(30L, nCharMax), function(n) {
       LogRStrict(tt, sim$chars[, seq_len(n), drop = FALSE], meanlog)
     }, 0)
-    priors <- TempoPriors(meanlog, sdlog)
+    priors <- TruncPriors(meanlog, sdlog)
     grid <- expand.grid(power = c(0, 0.01, 0.2, 1), nChar = c(30L, nCharMax))
     out$chains <- lapply(seq_len(nrow(grid)), function(i) {
       ch <- TemperedChain(tt, m1, sim$chars[, seq_len(grid$nChar[i]), drop = FALSE],
@@ -667,7 +708,7 @@ Pilot <- function(id) {
                              burnin = 500))
     out$zT1 <- zt1$value
     out$logRStrict <- LogRStrict(tt, chars, meanlog)
-    priors <- TempoPriors(meanlog, sdlog)
+    priors <- TruncPriors(meanlog, sdlog)
     st1 <- start0
     st1[treePar] <- zt1$value$last
     ladders <- lapply(c(0, 1), function(b) {
@@ -756,7 +797,7 @@ Task <- function(id) {
                          recordTop = TRUE))
   # beta contrast at gamma = 1: posterior under (0,1), bridge to (1,1)
   top0 <- Secs(TemperedChain(tt, Model(0, 1), chars, lad$value$top$state$par,
-                             TempoPriors(meanlog, sdlog), 1, nIter = topIter,
+                             TruncPriors(meanlog, sdlog), 1, nIter = topIter,
                              burnin = topBurn, thin = topThin,
                              seed = seedBase + 500000L, recordState = TRUE))
   br <- BetaBridge(tt, top0$value, lad$value$top, 1, meanlog)
@@ -817,7 +858,7 @@ Smoke <- function() {
   z <- LogZMarginal(tt, Model(1, 1), meanlog, treePar, start0, nIter = 60, burnin = 20)
   cat("logZT1 (toy):", z$logZ, "se", z$se, "\n")
   cat("logRStrict:", LogRStrict(tt, chars, meanlog), "\n")
-  priors <- TempoPriors(meanlog, sdlog)
+  priors <- TruncPriors(meanlog, sdlog)
   for (g in 0:1) for (p in c(0, 0.5, 1)) {
     ch <- TemperedChain(tt, Model(1, g), chars, start0, priors, p, nIter = 20,
                         burnin = 10, thin = 2, seed = 1L)

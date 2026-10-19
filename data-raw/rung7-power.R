@@ -245,6 +245,7 @@ BridgeSample <- function(draws, logPostDraws, LogPost, nProp = NULL) {
   }
   prop <- sweep(matrix(stats::rnorm(nProp * d), nProp) %*% R, 2, mu, `+`)
   l2q <- apply(prop, 1, LogPost)
+  l2q[is.na(l2q)] <- -Inf
   l1 <- l1q - LogG(post)
   l2 <- l2q - LogG(prop)
   n1 <- nrow(post)
@@ -283,8 +284,11 @@ LogZMarginal <- function(tt, model, meanlog, free, start, nIter, burnin,
   LogPost <- function(v) {
     par <- start
     par[free] <- as.list(exp(v))
-    ll <- tryCatch(TreeLikelihood(tt, par, model, character), error = function(e) -Inf)
-    ll + LogPrior(v)
+    ll <- suppressWarnings(tryCatch(TreeLikelihood(tt, par, model, character),
+                                    error = function(e) -Inf))
+    # NaN (survival probability underflow at extreme proposals): zero density;
+    # counted in nFailed
+    if (!is.finite(ll)) -Inf else ll + LogPrior(v)
   }
   bs <- BridgeSample(u, logPostDraws, LogPost)
   c(bs, list(posteriorMean = colMeans(run[free]), ess = vapply(run[free], Ess, 0),

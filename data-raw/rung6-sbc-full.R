@@ -197,14 +197,19 @@ Replicate <- function(g) {
 
   # Independent start: prior draw of parameters; tree randomised by prior-only
   # tree moves (no characters, parameters fixed) from the true tree
+  # Without fossils, saJump and fossilAge have nothing to act on; saJump then
+  # errors in the engine (issue #36), so both are dropped (identity moves)
+  noFossil <- c("saJump", "fossilAge")
+  moves <- if (any(fossil)) mainMoves else mainMoves[setdiff(names(mainMoves), noFossil)]
+  pMoves <- if (any(fossil)) preMoves else preMoves[setdiff(names(preMoves), noFossil)]
   start <- PriorDraw()
   pre <- TempoMCMC(tt, model, start, priors, nIter = nPre, nSlice = nSlice,
-                   moves = preMoves, updateParameters = FALSE)
+                   moves = pMoves, updateParameters = FALSE)
   startTree <- pre$state$tree
   nIter <- nIterCell[[cellId]]
   Chain <- function(tr, par, burn) {
     TempoMCMC(tr, model, par, priors, nIter = nIter, burnin = burn,
-              thin = nIter %/% nStore, nSlice = nSlice, moves = mainMoves,
+              thin = nIter %/% nStore, nSlice = nSlice, moves = moves,
               characters = chars)
   }
   run <- Chain(startTree, start, burnin)
@@ -231,7 +236,7 @@ Replicate <- function(g) {
               acceptance = do.call(rbind, acceptance),
               posteriorMean = colMeans(samples[quantities], na.rm = TRUE),
               posteriorSd = vapply(samples[quantities], stats::sd, 0, na.rm = TRUE),
-              grid = model0, moves = mainMoves, nStore = nStore,
+              grid = model0, moves = moves, nStore = nStore,
               runtime = as.numeric(difftime(Sys.time(), t0, units = "mins")),
               packageVersion = as.character(utils::packageVersion("EvoTempo")),
               sha = Sys.getenv("EVOTEMPO_SHA"))

@@ -847,6 +847,20 @@ options(error = function() {
 })
 if (length(args) && args[[1]] == "smoke") {
   Smoke()
+} else if (length(args) && args[[1]] == "dumptree") {
+  # The simulated tree and characters of pilot <id>, for reproductions
+  id <- as.integer(args[[2]])
+  spec <- list(list(size = "small", psi = "low", cell = 4L),
+               list(size = "small", psi = "high", cell = 4L),
+               list(size = "large", psi = "low", cell = 4L),
+               list(size = "large", psi = "high", cell = 4L),
+               list(size = "small", psi = "high", cell = 4L),
+               list(size = "small", psi = "high", cell = 2L),
+               list(size = "small", psi = "high", cell = 3L),
+               list(size = "small", psi = "high", cell = 4L))[[min(id, 8L)]]
+  set.seed(79000L + min(id, 8L))
+  sim <- Simulate(spec$cell, Meanlog(spec$psi), sizeLevels[[spec$size]])
+  saveRDS(sim, args[[3]])
 } else if (length(args) && args[[1]] == "pilot") {
   res <- Pilot(as.integer(args[[2]]))
   cat("pilot", res$id, "done; extant", res$nExtant, "fossil", res$nFossil, "\n")

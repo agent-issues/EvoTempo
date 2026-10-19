@@ -5,6 +5,7 @@
 #   rung6-full-tests.csv  chi-square (10 bins) and KS uniformity per cell and
 #                         quantity, with Holm and Benjamini-Hochberg adjustment
 #                         over all cell x quantity tests of each kind
+#   rung6-full-tests-ess50.csv  the same, on replicates with ESS >= 50 throughout
 #   rung6-full-ess.csv    ESS per cell and quantity
 #   rung6-full-cells.csv  per-cell verdict, ESS and core-hours
 #   rung6-full-ecdf.csv   ECDF differences, and rung6-full-ecdf-band.csv the
@@ -41,28 +42,36 @@ runs <- do.call(rbind, lapply(res, function(r) {
 }))
 write.csv(runs, file.path(dir, "rung6-full-runs.csv"), row.names = FALSE)
 
-set.seed(6021)
 nBin <- 10L
-tests <- do.call(rbind, lapply(split(ranks, list(ranks$cell, ranks$quantity)), function(d) {
-  rk <- d$rank[!is.na(d$rank)]
-  n <- length(rk)
-  counts <- tabulate(rk %/% ((nRank + 1L) / nBin) + 1L, nBin)
-  u <- (rk + stats::runif(n)) / (nRank + 1L)
-  data.frame(cell = d$cell[1], beta = d$beta[1], gamma = d$gamma[1],
-             quantity = d$quantity[1], n = n,
-             chisq = suppressWarnings(stats::chisq.test(counts)$statistic),
-             pChisq = suppressWarnings(stats::chisq.test(counts)$p.value),
-             ksD = stats::ks.test(u, "punif")$statistic,
-             pKS = stats::ks.test(u, "punif")$p.value,
-             minBin = min(counts), maxBin = max(counts))
-}))
-tests$pChisqHolm <- stats::p.adjust(tests$pChisq, "holm")
-tests$pKSHolm <- stats::p.adjust(tests$pKS, "holm")
-tests$pChisqBH <- stats::p.adjust(tests$pChisq, "BH")
-tests$pKSBH <- stats::p.adjust(tests$pKS, "BH")
-tests$pass <- tests$pChisqHolm >= 0.05 & tests$pKSHolm >= 0.05
-tests <- tests[order(tests$cell, match(tests$quantity, quantities)), ]
+Tests <- function(ranks) {
+  tests <- do.call(rbind, lapply(split(ranks, list(ranks$cell, ranks$quantity)), function(d) {
+    rk <- d$rank[!is.na(d$rank)]
+    n <- length(rk)
+    counts <- tabulate(rk %/% ((nRank + 1L) / nBin) + 1L, nBin)
+    u <- (rk + stats::runif(n)) / (nRank + 1L)
+    data.frame(cell = d$cell[1], beta = d$beta[1], gamma = d$gamma[1],
+               quantity = d$quantity[1], n = n,
+               chisq = suppressWarnings(stats::chisq.test(counts)$statistic),
+               pChisq = suppressWarnings(stats::chisq.test(counts)$p.value),
+               ksD = stats::ks.test(u, "punif")$statistic,
+               pKS = stats::ks.test(u, "punif")$p.value,
+               minBin = min(counts), maxBin = max(counts))
+  }))
+  tests$pChisqHolm <- stats::p.adjust(tests$pChisq, "holm")
+  tests$pKSHolm <- stats::p.adjust(tests$pKS, "holm")
+  tests$pChisqBH <- stats::p.adjust(tests$pChisq, "BH")
+  tests$pKSBH <- stats::p.adjust(tests$pKS, "BH")
+  tests$pass <- tests$pChisqHolm >= 0.05 & tests$pKSHolm >= 0.05
+  tests[order(tests$cell, match(tests$quantity, quantities)), ]
+}
+set.seed(6021)
+tests <- Tests(ranks)
 write.csv(tests, file.path(dir, "rung6-full-tests.csv"), row.names = FALSE)
+# Sensitivity: only replicates whose every ranked quantity reached ESS 50
+set.seed(6023)
+okG <- runs$g[runs$minEss >= 50]
+write.csv(Tests(ranks[ranks$g %in% okG, ]), file.path(dir, "rung6-full-tests-ess50.csv"),
+          row.names = FALSE)
 
 ess <- do.call(rbind, lapply(split(ranks, list(ranks$cell, ranks$quantity)), function(d) {
   e <- d$ess[!is.na(d$ess)]

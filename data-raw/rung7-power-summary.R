@@ -139,19 +139,25 @@ contrasts <- rbind(
 write.csv(contrasts, file.path(resDir, "rung7-contrasts.csv"), row.names = FALSE)
 
 # Calibration: pooled (dataset, cell) pairs binned by posterior probability
-Calibration <- function(P, label) {
-  p <- as.vector(P)
-  hit <- as.vector(outer(runs$cell, 1:4, `==`))
-  bins <- cut(p, c(0, 0.01, seq(0.1, 0.9, 0.1), 0.99, 1), include.lowest = TRUE)
-  do.call(rbind, lapply(split(data.frame(p, hit), bins, drop = TRUE), function(x) {
+Calibration <- function(P, label, rows = seq_len(nrow(runs)), nChar = "all",
+                        breaks = c(0, 0.01, seq(0.1, 0.9, 0.1), 0.99, 1)) {
+  p <- as.vector(P[rows, , drop = FALSE])
+  hit <- as.vector(outer(runs$cell[rows], 1:4, `==`))
+  bins <- cut(p, breaks, include.lowest = TRUE)
+  out <- do.call(rbind, lapply(split(data.frame(p, hit), bins, drop = TRUE), function(x) {
     ci <- Wilson(sum(x$hit), nrow(x))
-    data.frame(probabilities = label, n = nrow(x), meanP = mean(x$p),
+    data.frame(probabilities = label, nChar = nChar, n = nrow(x), meanP = mean(x$p),
                observed = mean(x$hit), lo = ci[["lo"]], hi = ci[["hi"]])
   }))
+  out$bin <- rownames(out)
+  out
 }
-calibration <- rbind(Calibration(post, "uniform prior"),
-                     Calibration(postC, "size-corrected"))
-calibration$bin <- rownames(calibration)
+coarse <- c(0, 0.1, 0.3, 0.5, 0.7, 0.9, 1)
+calibration <- rbind(
+  Calibration(post, "uniform prior"), Calibration(postC, "size-corrected"),
+  do.call(rbind, lapply(sort(unique(runs$nChar)), function(n) {
+    Calibration(postC, "size-corrected", which(runs$nChar == n), n, coarse)
+  })))
 write.csv(calibration, file.path(resDir, "rung7-calibration.csv"), row.names = FALSE)
 
 # Data-averaged posterior (Schad et al. 2022): E[P(m | D)] = P(m) = 1/4, with
@@ -164,6 +170,39 @@ averaged <- do.call(rbind, lapply(split(seq_len(nrow(runs)), runs$nChar), functi
              fracTrue = vapply(1:4, function(m) mean(runs$cell[i] == m), 0))
 }))
 write.csv(averaged, file.path(resDir, "rung7-averaged.csv"), row.names = FALSE)
+
+# (1,1) vs (0,1): decisions against the true s (the effect size)
+d <- runs[runs$cell %in% c(2, 4), ]
+d$right <- ifelse(d$cell == 4, d$logBFbeta1 > 0, d$logBFbeta1 < 0)
+d$sBin <- as.character(cut(d$s, c(0, 0.4, 0.7, Inf),
+                           labels = c("s < 0.4", "0.4 <= s < 0.7", "s >= 0.7"), right = FALSE))
+powerS <- do.call(rbind, lapply(split(d, d[c("truth", "sBin", "nChar")], drop = TRUE),
+                                function(x) {
+  ci <- Wilson(sum(x$right), nrow(x))
+  data.frame(truth = x$truth[1], sBin = x$sBin[1], nChar = x$nChar[1], n = nrow(x),
+             pRight = mean(x$right), lo = ci[["lo"]], hi = ci[["hi"]],
+             medianLogBF = stats::median(x$logBFbeta1))
+}))
+write.csv(powerS[order(powerS$truth, powerS$nChar, powerS$sBin), ],
+          file.path(resDir, "rung7-power-s.csv"), row.names = FALSE)
+
+# Mixing: ESS of the posterior chains' character log-likelihood and of the
+# bridge terms; ladder self-consistency (stepping-stone minus TI)
+runs$essMin <- pmin(runs$essTop11, runs$essTop01, runs$bridgeEss0, runs$bridgeEss1)
+mixing <- do.call(rbind, lapply(split(runs, runs[c("nChar", "size")], drop = TRUE),
+                                function(x) {
+  data.frame(nChar = x$nChar[1], size = x$size[1], n = nrow(x),
+             medianEssTop11 = stats::median(x$essTop11),
+             medianEssTop01 = stats::median(x$essTop01),
+             medianMinParameterEss = stats::median(x$minEssTop),
+             fracEss50 = mean(x$essMin >= 50),
+             medianAbsSSminusTI = stats::median(abs(x$logZ11 - x$logZ11TI)),
+             maxAbsSSminusTI = max(abs(x$logZ11 - x$logZ11TI)),
+             # chains restarted after an engine error: attempts beyond one per
+             # chain (17 ladder rungs + the (0,1) posterior chain)
+             retries = sum(x$attempts - 18L))
+}))
+write.csv(mixing, file.path(resDir, "rung7-mixing.csv"), row.names = FALSE)
 
 # Bridge vs a separate (0,1) ladder (replicate block 1)
 chk <- runs[!is.na(runs$logZ01ladder), ]

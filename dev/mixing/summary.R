@@ -52,6 +52,39 @@ if (!is.null(chains)) {
   write.csv(chains, file.path(dir, "chains.csv"), row.names = FALSE)
 }
 
+# Split R-hat (Gelman et al. 2013) over the replicate chains of each cell and
+# configuration: each chain is cut in halves
+SplitRhat <- function(chs) {
+  halves <- unlist(lapply(chs, function(x) {
+    x <- x[is.finite(x)]
+    n <- length(x) %/% 2
+    list(x[seq_len(n)], x[n + seq_len(n)])
+  }), recursive = FALSE)
+  n <- min(lengths(halves))
+  m <- vapply(halves, function(h) mean(h[seq_len(n)]), 0)
+  w <- mean(vapply(halves, function(h) stats::var(h[seq_len(n)]), 0))
+  b <- n * stats::var(m)
+  sqrt(((n - 1) / n * w + b / n) / w)
+}
+if (length(files)) {
+  meta <- do.call(rbind, lapply(files, function(f) {
+    data.frame(file = f, cell = sub("-r\\d+\\.rds$", "", basename(f)))
+  }))
+  rq <- c("theta", "s", "rate", "lambda", "rootBin", "clock", "charLL")
+  rhat <- RbindFill(lapply(split(meta$file, meta$cell), function(fs) {
+    if (length(fs) < 2) return(NULL)
+    xs <- lapply(fs, function(f) readRDS(f)$samples)
+    vals <- vapply(rq, function(q) {
+      if (!q %in% names(xs[[1]])) return(NA_real_)
+      v <- lapply(xs, function(s) if (q %in% c("theta", "s", "rate", "lambda")) log(s[[q]]) else s[[q]])
+      SplitRhat(v)
+    }, 0)
+    data.frame(cell = sub("^chain-", "", sub("-r\\d+\\.rds$", "", basename(fs[[1]]))),
+               nRep = length(fs), t(setNames(vals, paste0("rhat.", rq))), check.names = FALSE)
+  }))
+  if (!is.null(rhat)) write.csv(rhat, file.path(dir, "rhat.csv"), row.names = FALSE)
+}
+
 # ---- Probes -----------------------------------------------------------------
 pf <- list.files(dir, "^probe-.*\\.rds$", full.names = TRUE)
 probes <- do.call(rbind, lapply(pf, function(f) {

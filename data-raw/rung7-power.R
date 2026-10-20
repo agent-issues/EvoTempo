@@ -41,7 +41,7 @@
 #
 # Usage, from a checkout with EvoTempo installed (or EVOTEMPO_LOAD_ALL=1):
 #   Rscript data-raw/rung7-power.R pilot <id>        (ids 1-7, see Pilot())
-#   Rscript data-raw/rung7-power.R task <id> <nPer>  (production; design below)
+#   Rscript data-raw/rung7-power.R task <id> <nPer>  (trees (id-1)*nPer+1..id*nPer)
 # Environment:
 #   EVOTEMPO_POWER_OUT  output folder (default data-raw/rung7-results)
 #   EVOTEMPO_LOAD_ALL   if set, pkgload::load_all(".") instead of library()
@@ -745,17 +745,21 @@ Pilot <- function(id) {
 
 # ---- Production ---------------------------------------------------------------
 # Tree g (1, 2, ...): true cell (g - 1) %% 4 + 1; fossil-density x size combination
-# ((g - 1) %/% 4) %% 4 + 1 of `combos`; seed 70000 + g.  One tree carries
-# nCharMax characters; the nChar levels use its first 30 / 100 / 300, so the
-# levels are nested and paired.  Task id: tree (id - 1) %/% 3 + 1, nChar level
-# (id - 1) %% 3 + 1.  Any subset of ids can run in any order; done work is skipped.
+# ((g - 1) %/% 4) %% 4 + 1 of `combos`; replicate block (g - 1) %/% 16 + 1;
+# seed 70000 + g.  One tree carries nCharMax characters; the nChar levels use its
+# first nChar, so the levels are nested and paired.  One task = one tree, all
+# nChar levels (the tree evidence is shared); one output file per level, and
+# levels already done are skipped.  In replicate block 1 the (0,1) cell is also
+# estimated by its own stepping-stone ladder, to check the bridge at production
+# settings.
 combos <- expand.grid(psi = names(psiLevels), size = names(sizeLevels),
                       stringsAsFactors = FALSE)
 EnvNum <- function(name, default) {
   v <- Sys.getenv(name)
-  if (nzchar(v)) as.numeric(v) else default
+  if (nzchar(v)) as.numeric(strsplit(v, ",")[[1]]) else default
 }
-ladderK <- EnvNum("EVOTEMPO_POWER_K", 24)
+prodLevels <- as.integer(EnvNum("EVOTEMPO_POWER_NCHAR", c(10, 30, 100)))
+ladderK <- EnvNum("EVOTEMPO_POWER_K", 16)
 ladderIter <- EnvNum("EVOTEMPO_POWER_ITER", 1000)
 ladderBurn <- EnvNum("EVOTEMPO_POWER_BURN", 200)
 ladderThin <- EnvNum("EVOTEMPO_POWER_THIN", 2)
@@ -764,79 +768,98 @@ topIter <- EnvNum("EVOTEMPO_POWER_TOPITER", 8000)
 topThin <- EnvNum("EVOTEMPO_POWER_TOPTHIN", 8)
 topBurn <- EnvNum("EVOTEMPO_POWER_TOPBURN", 500)
 
-Task <- function(id) {
-  g <- (id - 1L) %/% 3L + 1L
-  level <- (id - 1L) %% 3L + 1L
-  nChar <- nCharLevels[[level]]
-  file <- file.path(outDir, "replicates", sprintf("tree%04d-n%03d.rds", g, nChar))
-  if (file.exists(file)) {
+Task <- function(g) {
+  files <- file.path(outDir, "replicates", sprintf("tree%04d-n%03d.rds", g, prodLevels))
+  if (all(file.exists(files))) {
     return(invisible(NULL))
   }
-  t0 <- proc.time()[["elapsed"]]
   cell <- (g - 1L) %% 4L + 1L
   combo <- combos[((g - 1L) %/% 4L) %% nrow(combos) + 1L, ]
+  block <- (g - 1L) %/% 16L + 1L
   meanlog <- Meanlog(combo$psi)
+  t0 <- proc.time()[["elapsed"]]
   set.seed(70000L + g)
   sim <- Simulate(cell, meanlog, sizeLevels[[combo$size]])
   tt <- sim$tt
-  chars <- sim$chars[, seq_len(nChar), drop = FALSE]
   start0 <- as.list(exp(meanlog))
-  # Tree evidence: identical in the three nChar tasks of a tree (same seed)
   set.seed(71000L + g)
   zT0 <- Secs(LogZTree0(tt, meanlog))
   zT1 <- Secs(LogZMarginal(tt, Model(1, 1), meanlog, treePar, start0,
                            nIter = treeIter, burnin = 500))
-  rS <- Secs(LogRStrict(tt, chars, meanlog))
-  # gamma contrast at beta = 1: stepping-stone ladder, recorded posterior top
-  st1 <- start0
-  st1[treePar] <- zT1$value$last
-  seedBase <- 72000L + 10L * g + 1000000L * level
-  lad <- Secs(LogRLadder(tt, Model(1, 1), chars, meanlog, st1, K = ladderK,
-                         nIter = ladderIter, burnin = ladderBurn, thin = ladderThin,
-                         seed = seedBase, nIterTop = topIter, thinTop = topThin,
-                         recordTop = TRUE))
-  # beta contrast at gamma = 1: posterior under (0,1), bridge to (1,1)
-  top0 <- Secs(TemperedChain(tt, Model(0, 1), chars, lad$value$top$state$par,
-                             TruncPriors(meanlog, sdlog), 1, nIter = topIter,
-                             burnin = topBurn, thin = topThin,
-                             seed = seedBase + 500000L, recordState = TRUE))
-  br <- BetaBridge(tt, top0$value, lad$value$top, 1, meanlog)
-  logZ11 <- zT1$value$logZ + lad$value$logR
-  logZ <- c(zT0$value + rS$value, logZ11 - br$logBF,
-            zT1$value$logZ + rS$value, logZ11)
-  se11 <- sqrt(zT1$value$se^2 + lad$value$se^2)
-  se <- c(0, sqrt(se11^2 + br$se^2), zT1$value$se, se11)
-  logZTI <- c(NA, NA, NA, zT1$value$logZ + lad$value$logRTI)
+  treeSecs <- proc.time()[["elapsed"]] - t0
   topSummary <- function(ch) {
     list(logL = ch$logL, essLogL = Ess(ch$logL),
          posteriorMean = colMeans(ch$samples[names(meanlog)]),
          posteriorEss = vapply(ch$samples[names(meanlog)], Ess, 0),
          acceptance = ch$acceptance, attempts = ch$attempts)
   }
-  ladder <- lad$value
-  ladder$top <- topSummary(ladder$top)
-  names(logZ) <- names(se) <- names(logZTI) <- vapply(1:4, CellLabel, "")
-  out <- list(id = id, g = g, cell = cell, beta = cells$beta[cell],
-              gamma = cells$gamma[cell], psiLevel = combo$psi, size = combo$size,
-              nChar = nChar, seed = 70000L + g, truth = sim$truth,
-              rootBin = sim$rootBin, nExtant = sim$nExtant, nFossil = sim$nFossil,
-              nAncestor = sim$nAncestor, tries = sim$tries,
-              logZ = logZ, se = se, logZTI = logZTI,
-              logZT0 = zT0$value, zT1 = zT1$value, logRStrict = rS$value,
-              ladder = ladder, top01 = topSummary(top0$value), bridge = br,
-              secs = c(tree0 = zT0$secs, tree1 = zT1$secs, strict = rS$secs,
-                       ladder11 = lad$secs, top01 = top0$secs, bridge = br$secs,
-                       total = proc.time()[["elapsed"]] - t0),
-              settings = list(K = ladderK, iter = ladderIter, burn = ladderBurn,
-                              thin = ladderThin, topIter = topIter, topThin = topThin,
-                              topBurn = topBurn, treeIter = treeIter, grid = grid0,
-                              moves = moves, nSlice = nSlice, sdlog = sdlog,
-                              meanlog = meanlog),
-              packageVersion = as.character(utils::packageVersion("EvoTempo")),
-              sha = Sys.getenv("EVOTEMPO_SHA"))
-  tmp <- paste0(file, ".tmp")
-  saveRDS(out, tmp)
-  file.rename(tmp, file)
+  out <- NULL
+  for (level in seq_along(prodLevels)) {
+    if (file.exists(files[level])) next
+    tl <- proc.time()[["elapsed"]]
+    nChar <- prodLevels[[level]]
+    chars <- sim$chars[, seq_len(nChar), drop = FALSE]
+    rS <- Secs(LogRStrict(tt, chars, meanlog))
+    # gamma contrast at beta = 1: stepping-stone ladder, recorded posterior top
+    st1 <- start0
+    st1[treePar] <- zT1$value$last
+    seedBase <- 72000L + 10L * g + 1000000L * nChar
+    lad <- Secs(LogRLadder(tt, Model(1, 1), chars, meanlog, st1, K = ladderK,
+                           nIter = ladderIter, burnin = ladderBurn,
+                           thin = ladderThin, seed = seedBase, nIterTop = topIter,
+                           thinTop = topThin, recordTop = TRUE))
+    # beta contrast at gamma = 1: posterior under (0,1), bridge to (1,1)
+    top0 <- Secs(TemperedChain(tt, Model(0, 1), chars, lad$value$top$state$par,
+                               TruncPriors(meanlog, sdlog), 1, nIter = topIter,
+                               burnin = topBurn, thin = topThin,
+                               seed = seedBase + 500000L, recordState = TRUE))
+    br <- BetaBridge(tt, top0$value, lad$value$top, 1, meanlog)
+    check01 <- if (block == 1L) {
+      r <- Secs(LogRLadder(tt, Model(0, 1), chars, meanlog, start0, K = ladderK,
+                           nIter = ladderIter, burnin = ladderBurn,
+                           thin = ladderThin, seed = seedBase + 700000L))
+      r$value$top <- topSummary(r$value$top)
+      c(r$value, list(secs = r$secs, logZ = zT0$value + r$value$logR))
+    }
+    logZ11 <- zT1$value$logZ + lad$value$logR
+    logZ <- c(zT0$value + rS$value, logZ11 - br$logBF,
+              zT1$value$logZ + rS$value, logZ11)
+    se11 <- sqrt(zT1$value$se^2 + lad$value$se^2)
+    se <- c(0, sqrt(se11^2 + br$se^2), zT1$value$se, se11)
+    logZTI <- c(NA, NA, NA, zT1$value$logZ + lad$value$logRTI)
+    names(logZ) <- names(se) <- names(logZTI) <- vapply(1:4, CellLabel, "")
+    ladder <- lad$value
+    ladder$top <- topSummary(ladder$top)
+    out <- list(g = g, block = block, cell = cell, beta = cells$beta[cell],
+                gamma = cells$gamma[cell], psiLevel = combo$psi, size = combo$size,
+                nChar = nChar, seed = 70000L + g, truth = sim$truth,
+                rootBin = sim$rootBin, nExtant = sim$nExtant, nFossil = sim$nFossil,
+                nAncestor = sim$nAncestor, tries = sim$tries,
+                logZ = logZ, se = se, logZTI = logZTI,
+                logZT0 = zT0$value, zT1 = zT1$value, logRStrict = rS$value,
+                ladder = ladder, top01 = topSummary(top0$value), bridge = br,
+                check01 = check01,
+                secs = c(tree = if (level == 1L) treeSecs else 0,
+                         strict = rS$secs, ladder11 = lad$secs, top01 = top0$secs,
+                         bridge = br$secs,
+                         check01 = if (is.null(check01)) 0 else check01$secs,
+                         level = proc.time()[["elapsed"]] - tl),
+                treeSecs = treeSecs,
+                settings = list(K = ladderK, iter = ladderIter, burn = ladderBurn,
+                                thin = ladderThin, topIter = topIter,
+                                topThin = topThin, topBurn = topBurn,
+                                treeIter = treeIter, grid = grid0, moves = moves,
+                                nSlice = nSlice, sdlog = sdlog, meanlog = meanlog,
+                                zTrunc = zTrunc),
+                packageVersion = as.character(utils::packageVersion("EvoTempo")),
+                sha = Sys.getenv("EVOTEMPO_SHA"))
+    tmp <- paste0(files[level], ".tmp")
+    saveRDS(out, tmp)
+    file.rename(tmp, files[level])
+    cat(sprintf("tree %d (cell %d, %s/%s) nChar %d: %.1f min; logZ %s\n", g, cell,
+                combo$psi, combo$size, nChar, out$secs[["level"]] / 60,
+                paste(sprintf("%.2f", logZ), collapse = " ")))
+  }
   invisible(out)
 }
 
@@ -907,14 +930,8 @@ if (length(args) && args[[1]] == "smoke") {
   cat("pilot", res$id, "done; extant", res$nExtant, "fossil", res$nFossil, "\n")
 } else if (length(args) && args[[1]] == "task") {
   n <- as.integer(args[[3]])
-  for (id in (as.integer(args[[2]]) - 1L) * n + seq_len(n)) {
-    res <- Task(id)
-    if (!is.null(res)) {
-      cat(sprintf("task %d (tree %d, cell %d, %s/%s, nChar %d): %.1f min; logZ %s\n",
-                  id, res$g, res$cell, res$psiLevel, res$size, res$nChar,
-                  res$secs[["total"]] / 60,
-                  paste(sprintf("%.2f", res$logZ), collapse = " ")))
-    }
+  for (g in (as.integer(args[[2]]) - 1L) * n + seq_len(n)) {
+    Task(g)
   }
 } else if (!interactive()) {
   stop("Usage: rung7-power.R smoke | pilot <id> | task <id> <nPerTask>")

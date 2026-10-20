@@ -28,7 +28,7 @@ Ess <- function(x) {
 
 runs <- do.call(rbind, lapply(reps, function(r) {
   data.frame(
-    id = r$id, tree = r$g, cell = r$cell, truth = cellLab[r$cell],
+    tree = r$g, block = r$block, cell = r$cell, truth = cellLab[r$cell],
     psiLevel = r$psiLevel, size = r$size, nChar = r$nChar,
     nExtant = r$nExtant, nFossil = r$nFossil, nAncestor = r$nAncestor,
     tries = r$tries,
@@ -46,10 +46,12 @@ runs <- do.call(rbind, lapply(reps, function(r) {
     essTop11 = r$ladder$top$essLogL, essTop01 = r$top01$essLogL,
     minEssTop = min(r$ladder$top$posteriorEss, r$top01$posteriorEss),
     attempts = sum(r$ladder$attempts) + r$top01$attempts,
-    hours = r$secs[["total"]] / 3600,
+    logZ01ladder = if (is.null(r$check01)) NA else r$check01$logZ,
+    logZ01ladderSE = if (is.null(r$check01)) NA else r$check01$se,
+    hours = (r$secs[["level"]] + r$secs[["tree"]]) / 3600,
     sha = r$sha, stringsAsFactors = FALSE)
 }))
-runs <- runs[order(runs$id), ]
+runs <- runs[order(runs$tree, runs$nChar), ]
 
 # P(size in range | cell, psi, size) from the parameter draws per tree
 # (1 / mean tries; one value per tree, so deduplicated over nChar levels)
@@ -162,6 +164,13 @@ averaged <- do.call(rbind, lapply(split(seq_len(nrow(runs)), runs$nChar), functi
              fracTrue = vapply(1:4, function(m) mean(runs$cell[i] == m), 0))
 }))
 write.csv(averaged, file.path(resDir, "rung7-averaged.csv"), row.names = FALSE)
+
+# Bridge vs a separate (0,1) ladder (replicate block 1)
+chk <- runs[!is.na(runs$logZ01ladder), ]
+chk$z <- (chk$logZ01 - chk$logZ01ladder) / sqrt(chk$se01^2 + chk$logZ01ladderSE^2)
+write.csv(chk[c("tree", "nChar", "psiLevel", "size", "truth", "logZ01", "se01",
+                "logZ01ladder", "logZ01ladderSE", "z")],
+          file.path(resDir, "rung7-bridge-check.csv"), row.names = FALSE)
 
 cat(sprintf("%d runs from %d trees; %.1f core-hours of replicate run time\n",
             nrow(runs), nrow(trees), sum(runs$hours)))

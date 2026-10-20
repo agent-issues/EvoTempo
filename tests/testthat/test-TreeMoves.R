@@ -122,6 +122,25 @@ test_that("Tree moves with no candidates return NULL", {
   expect_null(.ProposeTreeMove("saJump", rootFossil, set, st))
 })
 
+test_that("saJump leaves a tree without fossils unchanged", {
+  extantOnly <- structure(
+    list(
+      edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
+      edge.length = c(1, 2, 2, 3),
+      tip.label = c("a", "b", "c"),
+      Nnode = 2
+    ),
+    class = "phylo"
+  )
+  set.seed(1)
+  run <- TempoMCMC(extantOnly, DCETModel(nBin = 11, zRange = c(-2, 2)),
+                   list(lambda = 0.5, mu = 0.2, theta = 0.1, s = 1),
+                   TempoPriors()[c("lambda", "theta")], nIter = 1, nSlice = 4,
+                   moves = c(saJump = 1))
+  expect_identical(run$state$tree, TempoTree(extantOnly))
+  expect_equal(run$acceptance[["saJump"]], 0)
+})
+
 test_that("TempoMCMC() runs every move with characters", {
   set.seed(3)
   chars <- matrix(sample(0:1, 5 * 6, TRUE), 5)

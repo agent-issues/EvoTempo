@@ -181,6 +181,81 @@ test_that("Infeasible bridges are signalled and their moves rejected", {
   expect_identical(res$state$paths, st$paths)
 })
 
+stiffTree <- TempoTree(structure(
+  list(
+    edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
+    edge.length = c(4, 4, 4, 8),
+    tip.label = c("a", "b", "c"),
+    Nnode = 2
+  ),
+  class = "phylo"
+))
+stiffModel <- DCETModel(
+  nBin = 16, zRange = c(-3, 3), rho = 0.5, beta = 1, gamma = 0
+)
+okPar <- list(lambda = 0.47, mu = 0.136, psi = 0.029, theta = 0.306, s = 0.84)
+# Top-bin rates too stiff for the C++ E solver
+stiffPar <- replace(okPar, "s", 12)
+flat <- list(s = function(x) 0)
+
+test_that("A failed E solve is an infeasible proposal, but not at the start", {
+  expect_error(
+    .Precompute(stiffTree, stiffPar, stiffModel),
+    "ODE solver failed", class = "infeasibleProposal"
+  )
+  other <- tryCatch(.SolverInfeasible(stop("Other")), error = identity)
+  expect_s3_class(other, "simpleError")
+  expect_false(inherits(other, "infeasibleProposal"))
+  expect_error(
+    TempoMCMC(stiffTree, stiffModel, stiffPar, flat, nIter = 1, nSlice = 4),
+    "ODE solver failed"
+  )
+  expect_error(
+    MarginalMCMC(stiffTree, stiffModel, stiffPar, flat, nIter = 1),
+    "ODE solver failed"
+  )
+})
+
+test_that(".ParameterSweep() rejects an infeasible target as a zero density", {
+  Sweep <- function(Target) {
+    set.seed(2)
+    sweep <- .ParameterSweep(okPar, flat, c(s = 1), list(value = 0), Target)
+    c(sweep, u = runif(1))
+  }
+  infeasible <- Sweep(function(...) .Infeasible("ODE solver failed"))
+  expect_identical(infeasible, Sweep(function(...) list(value = -Inf)))
+  expect_false(infeasible$accepted[["s"]])
+})
+
+test_that("MarginalMCMC() rejects a parameter whose solve fails", {
+  # The first proposal is s = 13
+  set.seed(7)
+  start <- replace(okPar, "s", 8)
+  run <- MarginalMCMC(stiffTree, stiffModel, start, flat, nIter = 1)
+  expect_equal(run$s, 8)
+  expect_equal(run$logLik, TreeLikelihood(stiffTree, start, stiffModel))
+})
+
+test_that(".JointSweep() rejects a parameter whose E solve fails", {
+  set <- .AddSlices(stiffTree, .Precompute(stiffTree, okPar, stiffModel), 4)
+  msg <- .Messages(stiffTree, set)
+  set.seed(3)
+  d <- .SampleTree(stiffTree, set, msg)
+  st <- list(tree = stiffTree, par = okPar, set = set, msg = msg,
+             paths = d$paths, bin = d$bin, charLL = 0)
+  seed <- .Random.seed
+  Rewind <- function() assign(".Random.seed", seed, envir = globalenv())
+  # Step size that proposes s = 12 from the next random number
+  step <- c(s = log(12 / 0.84) / (runif(1) - 0.5))
+  Rewind()
+  res <- .JointSweep(st, flat, step, stiffModel, 4, function(...) 0)
+  u <- runif(1)
+  expect_false(res$accepted[["s"]])
+  expect_identical(res$state, st)
+  Rewind()
+  expect_identical(runif(2)[[2]], u)
+})
+
 test_that(".Sample1() draws in proportion and rejects empty weights", {
   set.seed(9)
   draws <- vapply(1:4000, function(i) .Sample1(c(0.2, 0, 0.5, 0.3)), 0L)

@@ -241,6 +241,7 @@ if (mode == "oracle") {
                  extra = list(ShiftExtra(compAll, n = 2), AnchoredExtra(c("theta", "s"), 2))),
     thetaAj1 = list(free = "theta", sweep = FALSE, extra = list(AnchoredExtra("theta", 1))),
     sAj1 = list(free = "s", sweep = FALSE, extra = list(AnchoredExtra("s", 1))),
+    thetaSweep = list(free = "theta", sweep = TRUE, extra = list()),
     thetaShift = list(free = "theta", sweep = TRUE, extra = list(ShiftExtra("theta", n = 3))),
     lambdaShift = list(free = "lambda", sweep = TRUE, extra = list(ShiftExtra("lambda", n = 3))),
     muShift = list(free = "mu", sweep = TRUE, extra = list(ShiftExtra("mu", n = 3))),

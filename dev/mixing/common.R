@@ -384,6 +384,69 @@ AnchoredJoint <- function(st, model, priors, step, which, every, CharLL,
   list(state = st, accepted = accepted)
 }
 
+# ---- Candidate move 3: non-equilibrium (NCMC) parameter move ------------------
+# Nilmeier et al. (2011, PNAS 108:E1009).  Parameter v moves to v' = v f in J
+# geometric stages v_j = v f^(j / J); after each stage j < J the paths relax
+# under nRelax random-scan local path moves (node / tip / branch, each an MH
+# kernel reversible for pi(. | v_j), so their mixture and its powers are
+# reversible too).  With work W = sum_j [log pi(v_j, P_{j-1}) -
+# log pi(v_{j-1}, P_{j-1})] (prior and characters included) and the log-scale
+# proposal, the acceptance is min(1, exp(W) f).  The reverse protocol (factor
+# 1 / f) visits the same stages in reverse order, as detailed balance on the
+# extended space of intermediate paths requires.
+NcmcMove <- function(st, model, priors, step, which, CharLL, nStage = 8L, nRelax = 40L,
+                     weights = c(node = 0.3, tip = 0.2, branch = 0.5)) {
+  tree <- st$tree
+  nSl <- length(st$set$slices)
+  accepted <- setNames(logical(length(which)), which)
+  for (p in which) {
+    f <- exp(step[[p]] * (stats::runif(1) - 0.5))
+    if (!is.finite(priors[[p]](st$par[[p]] * f))) next
+    cur <- st
+    work <- 0
+    ok <- TRUE
+    for (j in seq_len(nStage)) {
+      par <- cur$par
+      par[[p]] <- st$par[[p]] * f^(j / nStage)
+      set <- tryCatch(.AddSlices(tree, .Precompute(tree, par, model), nSl),
+                      error = function(e) NULL)
+      if (is.null(set)) {
+        ok <- FALSE
+        break
+      }
+      charLL <- CharLL(tree, cur$paths, par, set)
+      work <- work + .LogAugmented(tree, set, cur$paths, cur$bin) + charLL +
+        .LogPrior(par, priors) -
+        (.LogAugmented(tree, cur$set, cur$paths, cur$bin) + cur$charLL +
+           .LogPrior(cur$par, priors))
+      cur$par <- par
+      cur$set <- set
+      cur$charLL <- charLL
+      cur$msg <- .Messages(tree, set)
+      if (j < nStage) {
+        u <- stats::runif(nRelax) * sum(weights)
+        kinds <- names(weights)[findInterval(u, cumsum(c(0, weights)))]
+        for (kind in kinds) {
+          cur <- .PathMove(kind, cur, CharLL)$state
+        }
+      }
+    }
+    if (ok && is.finite(work) && log(stats::runif(1)) < work + log(f)) {
+      st <- cur
+      accepted[[p]] <- TRUE
+    }
+  }
+  list(state = st, accepted = accepted)
+}
+
+NcmcExtra <- function(which, nStage = 8L, nRelax = 40L, n = 1, target = 0.3) {
+  list(name = paste0("ncmc", nStage, "x", nRelax, "[", paste(which, collapse = ","), "]"),
+       n = n, parameter = TRUE, which = which, adapt = TRUE, target = target,
+       Fun = function(st, ctx) {
+         NcmcMove(st, ctx$model, ctx$priors, ctx$step, which, ctx$CharLL, nStage, nRelax)
+       })
+}
+
 # ---- Driver ------------------------------------------------------------------------
 # `extra`: list of extra moves, run after the TempoMCMC() path/joint schedule
 # and before the parameter sweep.  Each is list(name, n, Fun, which, adapt,

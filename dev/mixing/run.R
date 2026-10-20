@@ -52,6 +52,10 @@ configs <- list(
   L25SAc = list(local = 0.25, extra = list(ShiftExtra(compAll),
                                            AnchoredExtra("theta", 1),
                                            AnchoredExtra("s", 1, comp = compAll))),
+  L25SN = list(local = 0.25, extra = list(ShiftExtra(compAll)),
+               ncmc = list(which = c("theta", "s"), nStage = 8L, frac = 0.25)),
+  L25SN16 = list(local = 0.25, extra = list(ShiftExtra(compAll)),
+                 ncmc = list(which = c("theta", "s"), nStage = 16L, frac = 0.25)),
   L25SAJ = list(local = 0.25, keepJoint = 0.1,
                 extra = list(ShiftExtra(compAll), AnchoredExtra(c("theta", "s"), 1)))
 )
@@ -109,6 +113,10 @@ RunChain <- function(tr, nChar, cfgName, rep, nIter, burnin, thin) {
   cfg <- configs[[cfgName]]
   if (!is.null(cfg$local)) {
     cfg$moves <- c(LocalMoves(tr$tt, cfg$local), joint = cfg$keepJoint %||% 0)
+  }
+  if (!is.null(cfg$ncmc)) {
+    nRelax <- ceiling(cfg$ncmc$frac * length(.PathNodes(TempoTree(tr$tt))))
+    cfg$extra <- c(cfg$extra, list(NcmcExtra(cfg$ncmc$which, cfg$ncmc$nStage, nRelax)))
   }
   model <- Model(1, 1)
   priors <- TruncPriors(Meanlog("high"), sdlog)
@@ -228,6 +236,8 @@ if (mode == "oracle") {
                  extra = list(ShiftExtra(compAll, n = 2), AnchoredExtra(c("theta", "s"), 2))),
     thetaAj1 = list(free = "theta", sweep = FALSE, extra = list(AnchoredExtra("theta", 1))),
     sAj1 = list(free = "s", sweep = FALSE, extra = list(AnchoredExtra("s", 1))),
+    thetaNcmc = list(free = "theta", sweep = FALSE, extra = list(NcmcExtra("theta", 4L, 10L))),
+    sNcmc = list(free = "s", sweep = FALSE, extra = list(NcmcExtra("s", 4L, 10L))),
     sComp = list(free = c("lambda", "mu", "theta", "s", "rate"), sweep = TRUE,
                  extra = list(ShiftExtra(compAll, n = 2), AnchoredExtra("theta", 1),
                               AnchoredExtra("s", 1, comp = compAll, n = 2)))

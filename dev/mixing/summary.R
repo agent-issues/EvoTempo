@@ -38,6 +38,11 @@ chains <- RbindFill(lapply(files, function(f) {
              essBranchXMin = min(s$essBranchX, na.rm = TRUE),
              essBranchXMed = stats::median(s$essBranchX, na.rm = TRUE),
              charLLdrift = drift, charLLmean = mean(x$samples$charLL),
+             t(setNames(vapply(intersect(c("lambda", "mu", "psi", "theta", "s", "rate"),
+                                         names(x$samples)),
+                               function(p) stats::sd(log(x$samples[[p]])), 0),
+                        paste0("postSdLog.", intersect(c("lambda", "mu", "psi", "theta",
+                                                         "s", "rate"), names(x$samples))))),
              t(setNames(acc, paste0("acc.", names(acc)))),
              t(setNames(x$seconds / sum(x$seconds), paste0("share.", names(x$seconds)))),
              check.names = FALSE)

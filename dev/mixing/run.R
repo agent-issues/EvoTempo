@@ -39,8 +39,31 @@ configs <- list(
                extra = list(ShiftExtra(compAll), AnchoredExtra(c("theta", "s"), 2))),
   comboNJ = list(moves = replace(baseMoves, "joint", 0),
                  extra = list(ShiftExtra(compAll),
-                              AnchoredExtra(c("lambda", "mu", "psi", "theta", "s"), 2)))
+                              AnchoredExtra(c("lambda", "mu", "psi", "theta", "s"), 2))),
+  # Wave 2: no whole-tree FFBS or joint moves; local path moves scaled to the
+  # tree (fraction `frac` of the internal nodes, tips and branches per iteration)
+  L25 = list(local = 0.25),
+  L100 = list(local = 1),
+  fixedL25 = list(local = 0.25, fixed = TRUE),
+  fixedL100 = list(local = 1, fixed = TRUE),
+  L25S = list(local = 0.25, extra = list(ShiftExtra(compAll))),
+  L25SA = list(local = 0.25, extra = list(ShiftExtra(compAll),
+                                          AnchoredExtra(c("theta", "s"), 1))),
+  L25SAc = list(local = 0.25, extra = list(ShiftExtra(compAll),
+                                           AnchoredExtra("theta", 1),
+                                           AnchoredExtra("s", 1, comp = compAll))),
+  L25SAJ = list(local = 0.25, keepJoint = 0.1,
+                extra = list(ShiftExtra(compAll), AnchoredExtra(c("theta", "s"), 1)))
 )
+
+# Local-move counts per iteration for configuration field `local`
+LocalMoves <- function(tt, frac) {
+  tree <- TempoTree(tt)
+  nodes <- .PathNodes(tree)
+  c(node = ceiling(frac * length(tree$postorder)),
+    tip = ceiling(frac * sum(nodes <= tree$nTip)),
+    branch = ceiling(frac * length(nodes)))
+}
 
 if (!length(args)) stop("see header for usage")
 mode <- args[[1]]
@@ -84,6 +107,9 @@ if (mode == "check") {
 
 RunChain <- function(tr, nChar, cfgName, rep, nIter, burnin, thin) {
   cfg <- configs[[cfgName]]
+  if (!is.null(cfg$local)) {
+    cfg$moves <- c(LocalMoves(tr$tt, cfg$local), joint = cfg$keepJoint %||% 0)
+  }
   model <- Model(1, 1)
   priors <- TruncPriors(Meanlog("high"), sdlog)
   chars <- if (nChar > 0) tr$chars[, seq_len(nChar), drop = FALSE] else NULL

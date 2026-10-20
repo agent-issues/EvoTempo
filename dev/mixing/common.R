@@ -302,9 +302,31 @@ DrawAnchored <- function(tree, set, msg, paths, every, phase) {
   new
 }
 
+# Anchor-measurable exposure sum_e int_e exp(e z s) dt, by the trapezoid rule
+# on the anchors of each branch (the same for any two paths sharing anchors)
+AnchorExposure <- function(tree, set, msg, paths, every, phase, s, expo) {
+  z <- set$grid$z
+  out <- 0
+  for (v in .PathNodes(tree)) {
+    pc <- msg$pieces[[v]]
+    path <- paths[[v]]
+    for (js in Segments(pc, set, every, phase)) {
+      ab <- SegmentEnds(pc, path, js)
+      span <- pc$edges[[js[[1]]]] - pc$edges[[js[[length(js)]] + 1L]]
+      out <- out + span * (exp(expo * s * z[[ab[[1]]]]) + exp(expo * s * z[[ab[[2]]]])) / 2
+    }
+  }
+  out
+}
+
 # One anchored joint update of each parameter in `which`.  Target ratio x
 # q(P | anchors, Theta) / q(P' | anchors, Theta') x prior ratio x factor.
-AnchoredJoint <- function(st, model, priors, step, which, every, CharLL) {
+# With `comp` (for p = "s" only), each compensated parameter q is multiplied
+# by A_q(s) / A_q(s'), A_q the anchor exposure with q's tempo exponent: a
+# bijection on (log s, log q) with unit Jacobian there, i.e. factor q' / q in
+# the natural scale; its reverse (1 / f, same anchors) restores q exactly.
+AnchoredJoint <- function(st, model, priors, step, which, every, CharLL,
+                          comp = character(0)) {
   tree <- st$tree
   nSl <- length(st$set$slices)
   accepted <- setNames(logical(length(which)), which)
@@ -314,6 +336,23 @@ AnchoredJoint <- function(st, model, priors, step, which, every, CharLL) {
     factor <- exp(step[[p]] * (stats::runif(1) - 0.5))
     proposal[[p]] <- proposal[[p]] * factor
     lp <- priors[[p]](proposal[[p]])
+    lpOld <- priors[[p]](st$par[[p]])
+    logJac <- log(factor)
+    cq <- if (p == "s") intersect(comp, names(priors)) else character(0)
+    if (length(cq)) {
+      expo <- c(rate = model$gamma, lambda = model$beta, mu = model$beta,
+                psi = model$delta, theta = model$alpha)
+      for (q in cq) {
+        r <- AnchorExposure(tree, st$set, st$msg, st$paths, every, phase,
+                            st$par$s, expo[[q]]) /
+          AnchorExposure(tree, st$set, st$msg, st$paths, every, phase,
+                         proposal$s, expo[[q]])
+        proposal[[q]] <- st$par[[q]] * r
+        logJac <- logJac + log(r)
+        lp <- lp + priors[[q]](proposal[[q]])
+        lpOld <- lpOld + priors[[q]](st$par[[q]])
+      }
+    }
     if (!is.finite(lp)) next
     if (.SameSet(st$set, tree, proposal)) {
       set <- st$set
@@ -331,8 +370,8 @@ AnchoredJoint <- function(st, model, priors, step, which, every, CharLL) {
     logQold <- LogAnchored(tree, st$set, st$msg, st$paths, every, phase)
     charLL <- CharLL(tree, paths, proposal, set)
     logRatio <- .LogAugmented(tree, set, paths, st$bin) + charLL + lp - logQnew -
-      (.LogAugmented(tree, st$set, st$paths, st$bin) + st$charLL +
-         priors[[p]](st$par[[p]]) - logQold) + log(factor)
+      (.LogAugmented(tree, st$set, st$paths, st$bin) + st$charLL + lpOld - logQold) +
+      logJac
     if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
       st$par <- proposal
       st$set <- set
@@ -399,7 +438,12 @@ Driver <- function(tt, model, start, priors, nIter, burnin = 0, thin = 1,
   Tick <- function() proc.time()[["elapsed"]]
   for (i in seq_len(burnin + nIter)) {
     for (move in moveNames[moves > 0]) {
-      for (rep in seq_len(moves[[move]])) {
+      nRep <- moves[[move]]
+      if (nRep != floor(nRep)) {
+        # Fractional count: a random number of repeats, independent of the state
+        nRep <- floor(nRep) + (stats::runif(1) < nRep - floor(nRep))
+      }
+      for (rep in seq_len(nRep)) {
         t0 <- Tick()
         if (move == "joint") {
           if (!updateParameters || !length(priors)) next
@@ -494,11 +538,13 @@ ShiftExtra <- function(comp, n = 1) {
        parameter = TRUE, which = character(0),
        Fun = function(st, ctx) ShiftMove(st, ctx$model, ctx$priors, comp, ctx$CharLL))
 }
-AnchoredExtra <- function(which, every, n = 1, target = 0.3) {
-  list(name = paste0("anchored", every, "[", paste(which, collapse = ","), "]"), n = n,
-       parameter = TRUE, which = which, adapt = TRUE, target = target,
+AnchoredExtra <- function(which, every, n = 1, target = 0.3, comp = character(0)) {
+  list(name = paste0("anchored", every, "[", paste(which, collapse = ","), "]",
+                     if (length(comp)) paste0("c[", paste(comp, collapse = ","), "]")),
+       n = n, parameter = TRUE, which = which, adapt = TRUE, target = target,
        Fun = function(st, ctx) {
-         AnchoredJoint(st, ctx$model, ctx$priors, ctx$step, which, every, ctx$CharLL)
+         AnchoredJoint(st, ctx$model, ctx$priors, ctx$step, which, every, ctx$CharLL,
+                       comp)
        })
 }
 

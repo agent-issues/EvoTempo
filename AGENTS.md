@@ -170,6 +170,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
 | `data-raw/rung4b-theta-identity.R` | Importance-sampling identity (augmented to marginal likelihood) across theta, with or without the character |
 | `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
+| `data-raw/rung6-sbc-full*.{R,sh,py}` | Rung 6 full size (#21): SBC with tree moves, 200 replicates per cell as Slurm array tasks on Hamilton; results and verdict in `data-raw/rung6-full-results/` |
 | `data-raw/validation-report-phase2.R` | Summary CSVs for the rungs 3-6 report (`data-raw/validation-report-phase2/README.md`) |
 
 ## Tree-move proposals

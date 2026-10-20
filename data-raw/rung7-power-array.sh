@@ -14,7 +14,9 @@ export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 W=/nobackup/pjjg18/evotempo-power
 L=/nobackup/pjjg18/evotempo-sbc/lib-a2c3aa1
 export R_LIBS=$L:/nobackup/pjjg18/evotempo-dev/lib
-export EVOTEMPO_SHA=$(cat $L/SHA)
+# Pinned for the whole study: main 57054a0 (R-CMD-check green); its package code
+# (R/, src/, DESCRIPTION, NAMESPACE, inst/) is identical to the a2c3aa1 build in $L
+export EVOTEMPO_SHA="main=57054a0;package=$(cat $L/SHA);scripts=$(git -C $W/EvoTempo rev-parse --short HEAD)"
 export EVOTEMPO_POWER_OUT=${EVOTEMPO_POWER_OUT:-$W/out}
 cd $W/EvoTempo
 if [ "${MODE:-task}" = "pilot" ]; then

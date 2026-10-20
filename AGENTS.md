@@ -171,6 +171,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung4b-theta-identity.R` | Importance-sampling identity (augmented to marginal likelihood) across theta, with or without the character |
 | `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
 | `data-raw/rung6-sbc-full*.{R,sh,py}` | Rung 6 full size (#21): SBC with tree moves, 200 replicates per cell as Slurm array tasks on Hamilton; results and verdict in `data-raw/rung6-full-results/` |
+| `data-raw/rung7-power.R`, `-array.sh`, `-summary.R`, `-figure.py` | Rung 7: power of (beta, gamma) model selection by marginal likelihoods on fixed true trees (quadrature, bridge sampling, character-power stepping-stone, posterior-to-posterior bridge); results and caveats in `data-raw/rung7-results/README.md` |
 | `data-raw/validation-report-phase2.R` | Summary CSVs for the rungs 3-6 report (`data-raw/validation-report-phase2/README.md`) |
 
 ## Tree-move proposals

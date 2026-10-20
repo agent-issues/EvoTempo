@@ -72,6 +72,9 @@ for truth, col, mk in [("(1,1)", "#3182bd", "o"), ("(0,1)", "#636363", "^")]:
                lw=0, label=f"true {truth}")
 ax.axhline(0, color="#999999", lw=0.7)
 ax.set_xscale("log")
+ax.set_xticks([0.2, 0.5, 1, 2])
+ax.set_xticklabels(["0.2", "0.5", "1", "2"])
+ax.minorticks_off()
 ax.set_xlabel("true s (stationary sd of log-tempo)")
 ax.set_ylabel("log BF, (1,1) vs (0,1)")
 ax.set_title("Evidence for \u03b2 grows with s (100 characters)")
@@ -91,7 +94,9 @@ for ax, truth in zip(axes, ["(0,0)", "(0,1)", "(1,0)", "(1,1)"]):
     ax.axhline(0.25, color="#999999", lw=0.7, ls=":")
 axes[0].set_ylabel("fraction selecting the true cell")
 axes[0].text(9, 0.27, "chance", fontsize=6, color="#777777")
-axes[3].legend(frameon=False, loc="lower right", handlelength=1.2)
+h, l = axes[0].get_legend_handles_labels()
+fig.legend(h, l, frameon=False, loc="lower center", ncol=4, bbox_to_anchor=(0.5, -0.2),
+           handlelength=1.2)
 fig.savefig(os.path.join(res, "fig-rung7-recovery.png"), bbox_inches="tight")
 plt.close(fig)
 
@@ -101,13 +106,15 @@ avg = pd.read_csv(os.path.join(res, "rung7-averaged.csv"))
 fig, axes = plt.subplots(1, 2, figsize=(5.4, 2.5), gridspec_kw={"wspace": 0.4})
 ax = axes[0]
 ax.plot([0, 1], [0, 1], color="#999999", lw=0.7)
-for lab, col, mk in [("size-corrected", "#3182bd", "o"), ("uniform prior", "#636363", "s")]:
-    x = cal[cal.probabilities == lab]
+blues = ["#9ecae1", "#4292c6", "#08306b"]
+for k, n in enumerate(nChars):
+    x = cal[(cal.probabilities == "size-corrected") & (cal.nChar.astype(str) == str(n))]
     ax.errorbar(x.meanP, x.observed, yerr=[x.observed - x.lo, x.hi - x.observed],
-                color=col, marker=mk, ms=3.5, lw=0, elinewidth=0.8, label=lab)
+                color=blues[k], marker="o", ms=3.5, lw=0.8, elinewidth=0.8,
+                label=f"{n} characters")
 ax.set_xlabel("posterior model probability (bin mean)")
 ax.set_ylabel("fraction that is the true cell")
-ax.set_title("Posterior model probabilities are calibrated")
+ax.set_title("Near-calibrated; overconfident\nat the extremes")
 ax.legend(frameon=False, loc="upper left")
 ax.set_xlim(-0.03, 1.03)
 ax.set_ylim(-0.03, 1.03)
@@ -117,15 +124,14 @@ for k, n in enumerate(nChars):
     x = avg[avg.nChar == n].set_index("cell").loc[cellNames]
     pos = np.arange(4) + (k - 1) * 0.22
     ax.errorbar(pos, x.meanPCorrected, yerr=1.96 * x.se, fmt="o", ms=3.5,
-                color=["#c6dbef", "#6baed6", "#08519c"][k], elinewidth=0.8,
+                color=blues[k], elinewidth=0.8,
                 label=f"{n} characters")
 ax.axhline(0.25, color="#999999", lw=0.7)
 ax.set_xticks(range(4))
 ax.set_xticklabels(cellNames)
 ax.set_xlabel("cell")
 ax.set_ylabel("mean posterior probability")
-ax.set_title("Data-averaged posterior = 1/4")
-ax.legend(frameon=False, loc="upper right", fontsize=6)
+ax.set_title("Data-averaged posterior vs prior 1/4")
 for a, s in zip(axes, "ab"):
     letter(a, s)
 fig.savefig(os.path.join(res, "fig-rung7-calibration.png"), bbox_inches="tight")

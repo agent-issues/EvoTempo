@@ -13,12 +13,15 @@
   ages <- sort(unique(c(seq(0, maxAge, length.out = 401),
                         maxAge * 10^seq(-6, 0, length.out = 61), extra)))
   if (.UseCpp()) {
-    return(c(list(ages = ages), .EGridCpp(ages, Q, lambda, mu, psi, rho, rtol, atol)))
+    eg <- .SolverInfeasible(
+      .EGridCpp(ages, Q, lambda, mu, psi, rho, rtol, atol)
+    )
+    return(c(list(ages = ages), eg))
   }
   sigma <- lambda + mu + psi
   Rhs <- function(e) mu - sigma * e + lambda * e * e + as.vector(Q %*% e)
   eIdx <- seq_len(nBin)
-  out <- .Integrate(
+  out <- .SolverInfeasible(.Integrate(
     c(rep(1 - rho, nBin), numeric(nBin)), ages,
     function(t, y) c(Rhs(y[eIdx]), y[eIdx]),
     function(t, y) {
@@ -28,7 +31,7 @@
       jac
     },
     rtol, atol
-  )
+  ))
   E <- out[, eIdx, drop = FALSE]
   list(ages = ages, E = E, G = out[, nBin + eIdx, drop = FALSE],
        dE = t(apply(E, 1, Rhs)))
@@ -82,9 +85,11 @@
     extant = if (all(set[["psi"]] == 0)) {
       (1 - .EVector(eg, rootAge))^2
     } else {
-      (1 - ExtinctionProbability(
+      eRoot <- .SolverInfeasible(ExtinctionProbability(
         rootAge, Q, set[["lambda"]], set[["mu"]] + removal * set[["psi"]], 0,
-        rho)[1, ])^2
+        rho
+      ))
+      (1 - eRoot[1, ])^2
     },
     survival = (1 - .EVector(eg, rootAge))^2
   )
@@ -248,6 +253,16 @@
 .Infeasible <- function(message = "Infeasible bridge") {
   stop(structure(class = c("infeasibleProposal", "error", "condition"),
                  list(message = message, call = NULL)))
+}
+
+# A failed stiff solve as an infeasible proposal; other errors pass unchanged
+.SolverInfeasible <- function(expr) {
+  tryCatch(expr, error = function(e) {
+    if (identical(conditionMessage(e), "ODE solver failed")) {
+      .Infeasible(conditionMessage(e))
+    }
+    stop(e)
+  })
 }
 
 # One draw from weights `w` (negative round-off treated as zero)

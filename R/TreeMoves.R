@@ -294,6 +294,7 @@
     },
     saJump = {
       fossils <- which(tree[["tipType"]] != "extant")
+      if (!length(fossils)) return(NULL)
       f <- fossils[[.Sample1(rep(1, length(fossils)))]]
       p <- parent[[f]]
       if (p == tree[["root"]]) return(NULL)

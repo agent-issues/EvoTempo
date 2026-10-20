@@ -1,0 +1,6 @@
+oracle thetaShift 12000 8 1
+oracle thetaShift 12000 8 2
+oracle lambdaShift 12000 8 1
+oracle lambdaShift 12000 8 2
+oracle muShift 12000 8 1
+oracle muShift 12000 8 2

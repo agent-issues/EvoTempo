@@ -82,8 +82,16 @@ BatchVar <- function(x, nBatch = 30) {
 }
 probs <- c(0.05, 0.25, 0.5, 0.75, 0.95)
 of <- list.files(dir, "^oracle-.*\\.rds$", full.names = TRUE)
-oracles <- do.call(rbind, lapply(of, function(f) {
-  x <- readRDS(f)
+# Blocks of the same variant and length (oracle-<variant>-<nIter>-bNN.rds) are pooled
+key <- sub("-b\\d+$", "", sub("\\.rds$", "", basename(of)))
+key[grepl("-b\\d+\\.rds$", of)] <- paste0(key[grepl("-b\\d+\\.rds$", of)], "-blocks")
+oracles <- do.call(rbind, lapply(unique(key), function(k) {
+  parts <- lapply(of[key == k], readRDS)
+  x <- parts[[1]]
+  x$chains <- do.call(c, lapply(parts, `[[`, "chains"))
+  x$marginal <- do.call(c, lapply(parts, `[[`, "marginal"))
+  x$variant <- paste0(x$variant, "-", x$nIter, if (length(parts) > 1) "x" else "",
+                      if (length(parts) > 1) length(parts) else "")
   do.call(rbind, lapply(x$spec$free, function(p) {
     draws <- lapply(x$chains, function(ch) log(ch$samples[[p]]))
     if (!is.null(x$exact)) {

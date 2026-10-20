@@ -213,7 +213,12 @@ if (mode == "oracle") {
   variant <- args[[2]]
   nIter <- if (length(args) > 2) as.integer(args[[3]]) else 12000L
   nChain <- if (length(args) > 3) as.integer(args[[4]]) else 8L
-  file <- file.path(outDir, sprintf("oracle-%s-%d.rds", variant, nIter))
+  block <- if (length(args) > 4) as.integer(args[[5]]) else 0L
+  file <- file.path(outDir, if (block) {
+    sprintf("oracle-%s-%d-b%02d.rds", variant, nIter, block)
+  } else {
+    sprintf("oracle-%s-%d.rds", variant, nIter)
+  })
   r4b <- readRDS("data-raw/rung5-results/rung4b.rds")
   tt <- r4b$tt
   model <- r4b$model
@@ -247,7 +252,7 @@ if (mode == "oracle") {
   sdl <- c(lambda = 0.5, mu = 0.5, psi = 0.5, theta = 0.75, s = 0.3, rate = 0.5)
   GridFor <- function(p) exp(seq(meanlog[[p]] - 3.5 * sdl[[p]], meanlog[[p]] + 3.5 * sdl[[p]],
                                  length.out = 161))
-  set.seed(1920000L + sum(utf8ToInt(variant)))
+  set.seed(1920000L + sum(utf8ToInt(variant)) + 7777L * block)
   burnin <- 500L
   chains <- lapply(seq_len(nChain), function(i) {
     Driver(tt, model, truth, priors[spec$free], nIter = nIter, burnin = burnin,

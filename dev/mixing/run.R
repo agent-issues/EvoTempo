@@ -225,7 +225,12 @@ if (mode == "oracle") {
     sAj2 = list(free = "s", sweep = FALSE, extra = list(AnchoredExtra("s", 2))),
     rateShift = list(free = "rate", sweep = TRUE, extra = list(ShiftExtra("rate", n = 3))),
     multi = list(free = c("lambda", "mu", "theta", "s", "rate"), sweep = TRUE,
-                 extra = list(ShiftExtra(compAll, n = 2), AnchoredExtra(c("theta", "s"), 2)))
+                 extra = list(ShiftExtra(compAll, n = 2), AnchoredExtra(c("theta", "s"), 2))),
+    thetaAj1 = list(free = "theta", sweep = FALSE, extra = list(AnchoredExtra("theta", 1))),
+    sAj1 = list(free = "s", sweep = FALSE, extra = list(AnchoredExtra("s", 1))),
+    sComp = list(free = c("lambda", "mu", "theta", "s", "rate"), sweep = TRUE,
+                 extra = list(ShiftExtra(compAll, n = 2), AnchoredExtra("theta", 1),
+                              AnchoredExtra("s", 1, comp = compAll, n = 2)))
   )
   meanlog <- c(lambda = log(0.5), mu = log(0.2), psi = log(0.1), theta = log(0.1),
                s = log(0.8), rate = log(0.3))

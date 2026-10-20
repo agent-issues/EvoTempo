@@ -137,6 +137,8 @@ test_that("saJump leaves a tree without fossils unchanged", {
                    list(lambda = 0.5, mu = 0.2, theta = 0.1, s = 1),
                    TempoPriors()[c("lambda", "theta")], nIter = 1, nSlice = 4,
                    moves = c(saJump = 1))
+  st <- run$state
+  expect_null(.ProposeTreeMove("saJump", st$tree, st$set, st))
   expect_identical(run$state$tree, TempoTree(extantOnly))
   expect_equal(run$acceptance[["saJump"]], 0)
 })

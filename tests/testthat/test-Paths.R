@@ -216,6 +216,27 @@ test_that("A failed E solve is an infeasible proposal, but not at the start", {
   )
 })
 
+test_that("Every solve in .Precompute() can signal an infeasible proposal", {
+  WithR <- function(expr) {
+    old <- options(EvoTempo.engine = "R")
+    on.exit(options(old))
+    expr
+  }
+  local_mocked_bindings(.Integrate = function(...) stop("ODE solver failed"))
+  expect_error(
+    WithR(.Precompute(stiffTree, okPar, stiffModel)),
+    "ODE solver failed", class = "infeasibleProposal"
+  )
+  # Extant conditioning with fossils solves for E once more
+  local_mocked_bindings(
+    ExtinctionProbability = function(...) stop("ODE solver failed")
+  )
+  expect_error(
+    .Precompute(stiffTree, okPar, stiffModel),
+    "ODE solver failed", class = "infeasibleProposal"
+  )
+})
+
 test_that(".ParameterSweep() rejects an infeasible target as a zero density", {
   Sweep <- function(Target) {
     set.seed(2)
@@ -228,12 +249,15 @@ test_that(".ParameterSweep() rejects an infeasible target as a zero density", {
 })
 
 test_that("MarginalMCMC() rejects a parameter whose solve fails", {
-  # The first proposal is s = 13
-  set.seed(7)
-  start <- replace(okPar, "s", 8)
-  run <- MarginalMCMC(stiffTree, stiffModel, start, flat, nIter = 1)
-  expect_equal(run$s, 8)
-  expect_equal(run$logLik, TreeLikelihood(stiffTree, start, stiffModel))
+  # Where the real solver fails varies by platform: fix the threshold instead
+  local_mocked_bindings(TreeLikelihood = function(tree, par, ...) {
+    if (par[["s"]] > 1) stop("ODE solver failed")
+    -1
+  })
+  set.seed(7) # First proposal: s = 1.37
+  run <- MarginalMCMC(stiffTree, stiffModel, okPar, flat, nIter = 1)
+  expect_equal(run$s, okPar[["s"]])
+  expect_equal(run$logLik, -1)
 })
 
 test_that(".JointSweep() rejects a parameter whose E solve fails", {

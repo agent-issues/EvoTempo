@@ -53,3 +53,8 @@
 - `TempoMCMC()` tree moves run in C++: `nodeAge`, `slide` and `saJump` are
   two to two-and-a-half times faster
   ([#26](https://github.com/agent-issues/EvoTempo/issues/26)).
+- `TempoMCMC()` and `MarginalMCMC()` reject a proposal for which the stiff E
+  solver fails, rather than stopping; such parameters are given zero density.
+  The `saJump` move is a no-op on trees without fossils
+  ([#36](https://github.com/agent-issues/EvoTempo/issues/36),
+  [#37](https://github.com/agent-issues/EvoTempo/issues/37)).

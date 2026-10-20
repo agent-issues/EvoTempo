@@ -47,8 +47,10 @@ TempoPriors <- function(meanlog = c(lambda = log(0.5), mu = log(0.2),
     if (!is.finite(lp)) {
       next
     }
-    candidate <- tryCatch(Target(proposal, current),
-                          infeasibleProposal = function(e) list(value = -Inf))
+    candidate <- tryCatch(
+      Target(proposal, current),
+      infeasibleProposal = function(e) list(value = -Inf)
+    )
     logRatio <- candidate[["value"]] + lp - current[["value"]] -
       priors[[p]](par[[p]]) + log(factor)
     if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {

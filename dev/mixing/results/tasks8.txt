@@ -1,0 +1,16 @@
+oracle thetaSweep 12000 8 1
+oracle thetaSweep 12000 8 2
+oracle thetaSweep 12000 8 3
+oracle thetaSweep 12000 8 4
+oracle thetaSweep 12000 8 5
+oracle thetaSweep 12000 8 6
+oracle thetaSweep 12000 8 7
+oracle thetaSweep 12000 8 8
+oracle thetaShift 12000 8 9
+oracle thetaShift 12000 8 10
+oracle thetaShift 12000 8 11
+oracle thetaShift 12000 8 12
+oracle thetaShift 12000 8 13
+oracle thetaShift 12000 8 14
+oracle thetaShift 12000 8 15
+oracle thetaShift 12000 8 16

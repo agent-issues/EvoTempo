@@ -1,0 +1,141 @@
+oracle thetaAjInf
+oracle thetaAj2
+oracle sAj2
+oracle rateShift
+oracle multi
+probe 1 0
+probe 1 30
+probe 1 100
+probe 1 300
+probe 2 0
+probe 2 30
+probe 2 100
+probe 2 300
+chain 2 300 base 1
+chain 2 300 fixed 1
+chain 2 300 shift 1
+chain 2 300 shiftc 1
+chain 2 300 ajInf 1
+chain 2 300 aj4 1
+chain 2 300 aj2 1
+chain 2 300 aj1 1
+chain 2 300 combo 1
+chain 2 300 comboNJ 1
+chain 2 100 base 1
+chain 2 100 fixed 1
+chain 2 100 shift 1
+chain 2 100 shiftc 1
+chain 2 100 ajInf 1
+chain 2 100 aj4 1
+chain 2 100 aj2 1
+chain 2 100 aj1 1
+chain 2 100 combo 1
+chain 2 100 comboNJ 1
+chain 2 30 base 1
+chain 2 30 fixed 1
+chain 2 30 shift 1
+chain 2 30 shiftc 1
+chain 2 30 ajInf 1
+chain 2 30 aj4 1
+chain 2 30 aj2 1
+chain 2 30 aj1 1
+chain 2 30 combo 1
+chain 2 30 comboNJ 1
+chain 2 0 base 1
+chain 2 0 fixed 1
+chain 1 300 base 1
+chain 1 300 fixed 1
+chain 1 300 shift 1
+chain 1 300 shiftc 1
+chain 1 300 ajInf 1
+chain 1 300 aj4 1
+chain 1 300 aj2 1
+chain 1 300 aj1 1
+chain 1 300 combo 1
+chain 1 300 comboNJ 1
+chain 1 100 base 1
+chain 1 100 fixed 1
+chain 1 100 shift 1
+chain 1 100 shiftc 1
+chain 1 100 ajInf 1
+chain 1 100 aj4 1
+chain 1 100 aj2 1
+chain 1 100 aj1 1
+chain 1 100 combo 1
+chain 1 100 comboNJ 1
+chain 1 30 base 1
+chain 1 30 fixed 1
+chain 1 30 shift 1
+chain 1 30 shiftc 1
+chain 1 30 ajInf 1
+chain 1 30 aj4 1
+chain 1 30 aj2 1
+chain 1 30 aj1 1
+chain 1 30 combo 1
+chain 1 30 comboNJ 1
+chain 1 0 base 1
+chain 1 0 fixed 1
+chain 2 300 base 2
+chain 2 300 fixed 2
+chain 2 300 shift 2
+chain 2 300 shiftc 2
+chain 2 300 ajInf 2
+chain 2 300 aj4 2
+chain 2 300 aj2 2
+chain 2 300 aj1 2
+chain 2 300 combo 2
+chain 2 300 comboNJ 2
+chain 2 100 base 2
+chain 2 100 fixed 2
+chain 2 100 shift 2
+chain 2 100 shiftc 2
+chain 2 100 ajInf 2
+chain 2 100 aj4 2
+chain 2 100 aj2 2
+chain 2 100 aj1 2
+chain 2 100 combo 2
+chain 2 100 comboNJ 2
+chain 2 30 base 2
+chain 2 30 fixed 2
+chain 2 30 shift 2
+chain 2 30 shiftc 2
+chain 2 30 ajInf 2
+chain 2 30 aj4 2
+chain 2 30 aj2 2
+chain 2 30 aj1 2
+chain 2 30 combo 2
+chain 2 30 comboNJ 2
+chain 2 0 base 2
+chain 2 0 fixed 2
+chain 1 300 base 2
+chain 1 300 fixed 2
+chain 1 300 shift 2
+chain 1 300 shiftc 2
+chain 1 300 ajInf 2
+chain 1 300 aj4 2
+chain 1 300 aj2 2
+chain 1 300 aj1 2
+chain 1 300 combo 2
+chain 1 300 comboNJ 2
+chain 1 100 base 2
+chain 1 100 fixed 2
+chain 1 100 shift 2
+chain 1 100 shiftc 2
+chain 1 100 ajInf 2
+chain 1 100 aj4 2
+chain 1 100 aj2 2
+chain 1 100 aj1 2
+chain 1 100 combo 2
+chain 1 100 comboNJ 2
+chain 1 30 base 2
+chain 1 30 fixed 2
+chain 1 30 shift 2
+chain 1 30 shiftc 2
+chain 1 30 ajInf 2
+chain 1 30 aj4 2
+chain 1 30 aj2 2
+chain 1 30 aj1 2
+chain 1 30 combo 2
+chain 1 30 comboNJ 2
+chain 1 0 base 2
+chain 1 0 fixed 2

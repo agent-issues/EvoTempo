@@ -1,0 +1,3 @@
+oracle thetaAj1
+oracle sAj1
+oracle sComp

@@ -187,8 +187,9 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' frequencies change only during burn-in, so the sampling phase is a fixed
 #' mixture of kernels.
 #'
-#' Tree moves (root age fixed): `nodeAge` redraws the age of a bifurcation
-#' uniformly between its children and parent; `fossilAge` redraws a fossil's
+#' Tree moves: `nodeAge` redraws the age of a bifurcation
+#' uniformly between its children and parent (with `start = "origin"`, the
+#' root's too, between its children and the origin); `fossilAge` redraws a fossil's
 #' age within its stratigraphic range (see [TempoTree()]); `slide` prunes a
 #' subtree and regrafts it at a uniform height onto a uniformly chosen branch
 #' crossing that height; `saJump` converts a fossil tip to a sampled ancestor
@@ -198,6 +199,22 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' The target is the density of the unoriented labelled tree, i.e. the
 #' oriented density of [TreeLikelihood()] times \eqn{2^{|V|}}, \eqn{|V|} the
 #' number of bifurcations.
+#'
+#' The start age is fixed unless it has a prior in `agePriors`.
+#' With `start = "root"`, `rootAge` scales the distance between the root and
+#' its older child by \eqn{e^{u}}, \eqn{u \sim U(-\epsilon/2, \epsilon/2)},
+#' rebuilds the frozen model at the new root age (its E grid and slices end
+#' there) and redraws the paths on the two root branches between their
+#' fixed end bins.
+#' The survival conditioning is evaluated at the current root age, so the
+#' target is the root-age prior times the likelihood conditioned on survival
+#' from that age (spec section 6).
+#' With `start = "origin"`, the stem carries a path from the origin bin
+#' (drawn from the start-bin prior) to the root, the root carries a
+#' \eqn{\lambda} factor, survival is that of the single stem lineage, and
+#' `originAge` scales the stem length in the same way, redrawing the stem's
+#' path.
+#' Step sizes \eqn{\epsilon} adapt during burn-in.
 #'
 #' Characters follow the Mk model on branch lengths
 #' \eqn{\ell_e = c \int_e e^{\gamma x} dt}, with \eqn{c} the parameter `rate`
@@ -215,6 +232,10 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' then moves the bins only).
 #' @param minAcceptance Numeric: `tree` and `joint` moves whose acceptance
 #' during burn-in falls below this are not used after burn-in.
+#' @param agePriors Named list of functions giving log prior densities of
+#' the root age (`root`; with `start = "root"`) and of the origin age
+#' (`origin`; with `start = "origin"`), needed by the `rootAge` and
+#' `originAge` moves.
 #' @returns `TempoMCMC()` returns a list with elements
 #' - `samples`: data frame with one column per free parameter, `logPost`
 #'   (log augmented density, plus character log-likelihood and log prior),
@@ -222,7 +243,8 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #'   tree statistics: `nAncestor`, `treeLength`, `meanNodeAge` (of non-root
 #'   bifurcations), `cherries`, `oldestFossil`, `youngestFossil`, `clock`
 #'   (\eqn{\sum_e \int_e e^x dt}) and `inverseClock`
-#'   (\eqn{\sum_e \int_e e^{-x} dt});
+#'   (\eqn{\sum_e \int_e e^{-x} dt}), over the branches below the root,
+#'   `rootAge`, and with `start = "origin"`, `originAge`;
 #' - `occupancy`: matrix of time spent in each bin (columns), per sample;
 #' - `branchX`: matrix of the time-averaged log-tempo on each branch (for
 #'   chains without tree moves);
@@ -253,15 +275,14 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                       nSlice = 20, moves = NULL, characters = NULL,
                       nState = 2L, updateParameters = TRUE, minAcceptance = 0.01,
+                      agePriors = list(),
                       engine = getOption("EvoTempo.engine", "cpp")) {
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
-  tree <- TempoTree(tree)
-  if (model[["start"]] != "root") {
-    stop("TempoMCMC() supports `start = \"root\"` only")
-  }
+  tree <- .ForModel(TempoTree(tree), model)
+  origin <- .Origin(tree)
   moveNames <- c("tree", "node", "tip", "branch", "joint", "shift", "nodeAge",
-                 "fossilAge", "slide", "saJump")
+                 "fossilAge", "slide", "saJump", "rootAge", "originAge")
   if (is.null(moves)) {
     moves <- TempoMoves(tree, characters, model)
   }
@@ -270,6 +291,18 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   }
   moves <- replace(setNames(numeric(length(moveNames)), moveNames), names(moves),
                    moves)
+  ageMoves <- c(rootAge = "root", originAge = "origin")
+  for (move in names(ageMoves)[moves[names(ageMoves)] > 0]) {
+    if ((move == "originAge") != origin) {
+      stop("`", move, "` needs `start = \"", if (origin) "root" else "origin", "\"`",
+           if (origin) "; with an origin, `nodeAge` moves the root" else "")
+    }
+    if (!is.function(agePriors[[ageMoves[[move]]]])) {
+      stop("`", move, "` needs a prior `agePriors$", ageMoves[[move]], "`")
+    }
+  }
+  ageStep <- c(rootAge = 1, originAge = 1)
+  ageHits <- 0 * ageStep
   par <- as.list(start)
   CharLL <- function(tr, paths, p, set) {
     if (is.null(characters)) {
@@ -301,7 +334,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   jointHits <- hits
   pathNodes <- .PathNodes(tree)
   nKeep <- nIter %/% thin
-  statNames <- names(.TreeStats(tree))
+  statNames <- c(names(.TreeStats(tree)), if (origin) "originAge")
   samples <- matrix(NA_real_, nKeep, length(priors) + 3L + length(statNames),
                     dimnames = list(NULL, c(names(priors), "logPost", "rootBin",
                                             "meanX", statNames)))
@@ -310,6 +343,11 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L),
                                  c(moveNames, "parameters"))
   treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
+  # Character lengths below the root, for the clock statistics
+  Below <- function(tr, gamma) {
+    replace(.CharacterLengths(tr, st[["set"]][["grid"]][["x"]], st[["paths"]], 1,
+                              gamma), tr[["root"]], 0)
+  }
   free <- if (updateParameters) names(priors) else character(0)
   for (i in seq_len(burnin + nIter)) {
     for (move in moveNames[moves > 0]) {
@@ -319,6 +357,15 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
           st <- res[["state"]]
           moveTry[[move]] <- moveTry[[move]] + 1
           moveAcc[[move]] <- moveAcc[[move]] + res[["accepted"]]
+          next
+        }
+        if (move %in% names(ageMoves)) {
+          res <- .AgeMove(move, st, model, nSlice, CharLL,
+                          agePriors[[ageMoves[[move]]]], ageStep[[move]])
+          st <- res[["state"]]
+          moveTry[[move]] <- moveTry[[move]] + 1
+          moveAcc[[move]] <- moveAcc[[move]] + res[["accepted"]]
+          ageHits[[move]] <- ageHits[[move]] + res[["accepted"]]
           next
         }
         if (move == "joint") {
@@ -365,6 +412,12 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
         }
       }
     }
+    if (i <= burnin && i %% 20 == 0) {
+      for (move in names(ageMoves)[moves[names(ageMoves)] > 0]) {
+        ageStep[[move]] <- .Adapt(ageStep[[move]], ageHits[[move]] / (20 * moves[[move]]))
+      }
+      ageHits <- 0 * ageHits
+    }
     if (i == burnin) {
       # Whole-tree draws that the characters reject are dropped after burn-in
       for (move in c("tree", "joint")) {
@@ -384,8 +437,8 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
         .LogAugmented(tr, st[["set"]], st[["paths"]], st[["bin"]]) +
           st[["charLL"]] + .LogPrior(st[["par"]], priors),
         st[["bin"]][[tr[["root"]]]], summ[["meanX"]],
-        .TreeStats(tr, .CharacterLengths(tr, x, st[["paths"]], 1, 1),
-                   .CharacterLengths(tr, x, st[["paths"]], 1, -1)))
+        .TreeStats(tr, Below(tr, 1), Below(tr, -1)),
+        if (origin) .StartAge(tr))
       occupancy[j / thin, ] <- summ[["occupancy"]]
       if (length(summ[["branchX"]]) == ncol(branchX)) {
         branchX[j / thin, ] <- summ[["branchX"]]
@@ -616,6 +669,69 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
   list(state = st, accepted = FALSE)
 }
 
+# Move of the start age (`rootAge` with start = "root", `originAge` with an
+# origin): the distance from the start to its older child is scaled by
+# exp(step (U - 1/2)); the frozen model is rebuilt at the new tree (its E grid
+# and slices end at the start age); the paths on the branches from the start
+# (the root's two daughters, or the stem) are redrawn as frozen bridges
+# between their fixed end bins.  Accepted on the exact target, which includes
+# the survival conditioning at the new start age, with the age prior, the
+# Jacobian of the scaling and the bridge densities under the frozen model of
+# each state in the Hastings ratio.
+.AgeMove <- function(move, st, model, nSlice, CharLL, prior, step) {
+  reject <- list(state = st, accepted = FALSE)
+  tree <- st[["tree"]]
+  root <- tree[["root"]]
+  par <- st[["par"]]
+  oldAge <- .StartAge(tree)
+  newTree <- tree
+  factor <- exp(step * (stats::runif(1) - 0.5))
+  if (move == "rootAge") {
+    nodes <- tree[["kids"]][root - tree[["nTip"]], ]
+    bottom <- max(tree[["age"]][nodes])
+    newTree[["age"]][root] <- bottom + (oldAge - bottom) * factor
+  } else {
+    nodes <- root
+    newTree[["stem"]] <- tree[["stem"]] * factor
+  }
+  newAge <- .StartAge(newTree)
+  logPrior <- prior(newAge) - prior(oldAge)
+  if (!is.finite(logPrior)) {
+    return(reject)
+  }
+  prop <- tryCatch({
+    # The reverse move would draw from a frozen model built afresh at the
+    # current tree
+    oldSet <- if (.SameSet(st[["set"]], tree, par)) {
+      st[["set"]]
+    } else {
+      .AddSlices(tree, .Precompute(tree, par, model), nSlice)
+    }
+    set <- .AddSlices(newTree, .Precompute(newTree, par, model), nSlice)
+    list(oldSet = oldSet, set = set,
+         fwd = .DrawBridges(newTree, set, nodes, st[["bin"]], st[["paths"]]))
+  }, infeasibleProposal = function(e) NULL)
+  if (is.null(prop)) {
+    return(reject)
+  }
+  set <- prop[["set"]]
+  newPaths <- prop[["fwd"]][["paths"]]
+  newChar <- CharLL(newTree, newPaths, par, set)
+  logRatio <- .LogAugmented(newTree, set, newPaths, st[["bin"]]) -
+    .LogAugmented(tree, prop[["oldSet"]], st[["paths"]], st[["bin"]]) +
+    newChar - st[["charLL"]] + logPrior + log(factor) +
+    .LogBridges(tree, prop[["oldSet"]], nodes, st[["paths"]]) - prop[["fwd"]][["logQ"]]
+  if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+    st[["tree"]] <- newTree
+    st[["set"]] <- set
+    st[["msg"]] <- .Messages(newTree, set)
+    st[["paths"]] <- newPaths
+    st[["charLL"]] <- newChar
+    return(list(state = st, accepted = TRUE))
+  }
+  reject
+}
+
 # Dwell per bin, and time-averaged log-tempo per branch and overall
 .PathSummary <- function(tree, st, pathNodes = .PathNodes(tree)) {
   age <- tree[["age"]]
@@ -625,7 +741,7 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
   branchX <- numeric(length(pathNodes))
   for (i in seq_along(pathNodes)) {
     v <- pathNodes[[i]]
-    int <- .Intervals(st[["paths"]][[v]], age[[tree[["parent"]][[v]]]], age[[v]])
+    int <- .Intervals(st[["paths"]][[v]], .TopAge(tree, v), age[[v]])
     dwell <- int[["hi"]] - int[["lo"]]
     grouped <- rowsum(dwell, int[["bin"]])
     idx <- as.integer(rownames(grouped))
@@ -693,32 +809,46 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
         changed <- v
         newPaths <- paths
         newPaths[[v]] <- .SampleBranch(set, msg[["pieces"]][[v]], NULL,
-                                       bin[[parent[[v]]]], bin[[v]])
+                                       .TopBin(tree, bin, v), bin[[v]])
         newBin <- bin
       },
       node = {
+        # Internal nodes, and with an origin the origin bin
         internal <- tree[["postorder"]]
-        v <- internal[[.Sample1(rep(1, length(internal)))]]
-        kids <- .PathKids(tree, v)
-        w <- if (v == tree[["root"]]) {
-          set[["prior"]] / (if (set[["joint"]]) set[["survive"]] else 1)
-        } else if (tree[["sampled"]][v - nTip]) {
-          set[["psi"]] * .TransferRow(msg[["pieces"]][[v]], bin[[parent[[v]]]])
-        } else {
-          set[["lambda"]] * .TransferRow(msg[["pieces"]][[v]], bin[[parent[[v]]]])
-        }
-        for (kid in kids) {
-          w <- w * .TransferCol(msg[["pieces"]][[kid]], bin[[kid]])
-        }
+        origin <- .Origin(tree)
+        root <- tree[["root"]]
+        pick <- .Sample1(rep(1, length(internal) + origin))
         newBin <- bin
-        newBin[v] <- .Sample1(w)
-        sa <- tree[["kids"]][v - nTip, ]
-        newBin[sa[sa <= nTip & tree[["tipType"]][pmin(sa, nTip)] == "ancestor"]] <- newBin[v]
-        changed <- c(if (v != tree[["root"]]) v, kids)
         newPaths <- paths
-        for (u in changed) {
-          newPaths[[u]] <- .SampleBranch(set, msg[["pieces"]][[u]], NULL,
-                                         newBin[[parent[[u]]]], newBin[[u]])
+        startW <- set[["prior"]] / (if (set[["joint"]]) set[["survive"]] else 1)
+        if (pick > length(internal)) {
+          top <- length(bin)
+          newBin[top] <- .Sample1(startW * .TransferCol(msg[["pieces"]][[root]],
+                                                        bin[[root]]))
+          changed <- root
+          newPaths[[root]] <- .SampleBranch(set, msg[["pieces"]][[root]], NULL,
+                                            newBin[[top]], bin[[root]])
+        } else {
+          v <- internal[[pick]]
+          kids <- .PathKids(tree, v)
+          w <- if (v == root && !origin) {
+            startW
+          } else if (tree[["sampled"]][v - nTip]) {
+            set[["psi"]] * .TransferRow(msg[["pieces"]][[v]], .TopBin(tree, bin, v))
+          } else {
+            set[["lambda"]] * .TransferRow(msg[["pieces"]][[v]], .TopBin(tree, bin, v))
+          }
+          for (kid in kids) {
+            w <- w * .TransferCol(msg[["pieces"]][[kid]], bin[[kid]])
+          }
+          newBin[v] <- .Sample1(w)
+          sa <- tree[["kids"]][v - nTip, ]
+          newBin[sa[sa <= nTip & tree[["tipType"]][pmin(sa, nTip)] == "ancestor"]] <- newBin[v]
+          changed <- c(if (v != root || origin) v, kids)
+          for (u in changed) {
+            newPaths[[u]] <- .SampleBranch(set, msg[["pieces"]][[u]], NULL,
+                                           .TopBin(tree, newBin, u), newBin[[u]])
+          }
         }
       }
     )
@@ -767,7 +897,7 @@ SampleTempoPaths <- function(tree, par, model, n, nSlice = 20,
                              engine = getOption("EvoTempo.engine", "cpp")) {
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
-  tree <- TempoTree(tree)
+  tree <- .ForModel(TempoTree(tree), model)
   set <- .AddSlices(tree, .Precompute(tree, as.list(par), model), nSlice)
   msg <- .Messages(tree, set)
   pathNodes <- .PathNodes(tree)

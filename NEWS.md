@@ -67,3 +67,8 @@
   drops `tree` and `joint` after burn-in when their burn-in acceptance is
   below it.  The default `moves` is now `TempoMoves()`
   ([#19](https://github.com/agent-issues/EvoTempo/issues/19)).
+- `TempoMCMC()` supports `start = "origin"`, with a tempo path on the stem from
+  the origin to the root, and moves the start age: `rootAge` (crown start)
+  and `originAge` (origin start), with priors in `agePriors`; with an origin,
+  `nodeAge` also moves the root.  Samples gain `rootAge` (and `originAge`)
+  ([#18](https://github.com/agent-issues/EvoTempo/issues/18)).

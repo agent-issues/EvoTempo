@@ -68,7 +68,7 @@ double LogPathExact(const TreeView& tr, const FrozenSet& fs, int v, const Path& 
   const int n = p.k.size();
   std::vector<double> terms(n);
   for (int i = 0; i < n; ++i) {
-    const double hi = i == 0 ? tr.age[tr.parent[v]] : p.t[i - 1];
+    const double hi = i == 0 ? tr.TopAge(v) : p.t[i - 1];
     const double lo = i == n - 1 ? tr.age[v] : p.t[i];
     const int k = p.k[i] - 1;
     terms[i] = (fs.q(k, k) - fs.sigma[k]) * (hi - lo) +
@@ -176,7 +176,7 @@ List DrawBridgesCpp(List tree, List set, IntegerVector nodes, IntegerVector bin,
     for (int u1 : nodes) {
       const int u = u1 - 1;
       const Pieces pc = MakePieces(tr, fs, u);
-      const Path p = SampleBranch(fs, pc, nullptr, bin[tr.parent[u]], bin[u]);
+      const Path p = SampleBranch(fs, pc, nullptr, bin[tr.TopIndex(u)], bin[u]);
       out[u] = PathToR(p);
       logQ = logQ + LogBridge(tr, fs, u, p, pc);
     }

@@ -40,6 +40,7 @@ Other dCET inference:
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},
+\code{\link[=TempoMoves]{TempoMoves()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},
 \code{\link[=TreeLikelihood]{TreeLikelihood()}}

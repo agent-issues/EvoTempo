@@ -58,3 +58,12 @@
   The `saJump` move is a no-op on trees without fossils
   ([#36](https://github.com/agent-issues/EvoTempo/issues/36),
   [#37](https://github.com/agent-issues/EvoTempo/issues/37)).
+- `TempoMCMC()` gains a `shift` move, which moves every tempo bin up or down by
+  one and rescales `rate`, `lambda`, `mu`, `psi` and `theta` by their tempo
+  exponents so that the character likelihood is unchanged; a default move
+  schedule, `TempoMoves()`, which with characters omits the whole-tree `tree`
+  and `joint` draws (almost never accepted) and runs local path moves in
+  proportion to the tree; fractional move counts; and `minAcceptance`, which
+  drops `tree` and `joint` after burn-in when their burn-in acceptance is
+  below it.  The default `moves` is now `TempoMoves()`
+  ([#19](https://github.com/agent-issues/EvoTempo/issues/19)).

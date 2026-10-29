@@ -490,6 +490,13 @@ $$(m,\theta,\lambda,\mu,\psi,c) \sim (m+a,\ \theta e^{-\alpha a},\ \lambda e^{-\
 defines the same law of trees, sampling and characters: an exact one-dimensional ridge. **Fix m = 0** (B&M). Then λ means "speciation at
 τ = 1", and θ, c are likewise rates at unit tempo.
 
+With m fixed at 0 the ridge is no longer exact, but it remains a weak direction: the characters fix c·∫e^{γx}, the tree fixes
+λe^{βx}, and only the OU pull towards z = 0 and the start prior pin the tempo level. The `shift` move of `TempoMCMC()` (#19)
+follows it on the grid: every bin k → k ± 1 (x → x + d, d = ±hs) with θ, λ, μ, ψ, c multiplied by e^{−αd}, e^{−βd}, e^{−βd},
+e^{−δd}, e^{−γd}. This is the reparameterisation above with a = d applied to the free parameters, so the character
+lengths are unchanged exactly; the acceptance ratio carries the change in the augmented density (generator drift, start
+prior and conditioning, which depend on z) and the Jacobian Π p′/p.
+
 ### 9.2 Time scale
 
 dCET is time-homogeneous. Scaling all ages by κ and all rates (λ, μ, ψ, θ, c) by 1/κ leaves the law of 𝒯 in rescaled time and of the

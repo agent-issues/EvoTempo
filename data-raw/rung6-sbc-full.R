@@ -35,6 +35,9 @@
 #   EVOTEMPO_SBC_ITER  base post-burn-in iterations, one value or one per cell
 #   EVOTEMPO_SBC_MAXEXT  maximum number of chain extensions (default 3)
 #   EVOTEMPO_SBC_MOVES   overrides of the move counts, e.g. "nodeAge=12,slide=8"
+#   EVOTEMPO_SBC_SCHEDULE  "default" for the path moves of TempoMoves() (#19:
+#                      with characters, no `tree` or `joint`; local moves
+#                      scaled to the tree; `shift`), with the same tree moves
 #   EVOTEMPO_LOAD_ALL  if set, pkgload::load_all(".") instead of library()
 if (nzchar(Sys.getenv("EVOTEMPO_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
@@ -200,6 +203,10 @@ Replicate <- function(g) {
   # Without fossils, saJump and fossilAge have nothing to act on; saJump then
   # errors in the engine (issue #36), so both are dropped (identity moves)
   noFossil <- c("saJump", "fossilAge")
+  if (identical(Sys.getenv("EVOTEMPO_SBC_SCHEDULE"), "default")) {
+    treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
+    mainMoves <- c(TempoMoves(tt, chars, model), mainMoves[treeMoves])
+  }
   moves <- if (any(fossil)) mainMoves else mainMoves[setdiff(names(mainMoves), noFossil)]
   pMoves <- if (any(fossil)) preMoves else preMoves[setdiff(names(preMoves), noFossil)]
   # A chain that stops with an engine error (issue #37: ODE failure in a

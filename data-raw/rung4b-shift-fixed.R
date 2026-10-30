@@ -85,10 +85,12 @@ meanX <- data.frame(config = names(configs), mean = vapply(mx, `[[`, 0, "mean"),
 meanXz <- diff(meanX$mean) / sqrt(sum(meanX$mcse^2))
 acceptance <- do.call(rbind, lapply(names(configs), function(cfg) {
   a <- colMeans(do.call(rbind, lapply(runs[jobs$config == cfg], `[[`, "acceptance")))
-  data.frame(config = cfg, t(a[a > 0]), check.names = FALSE)
+  a <- a[a > 0]
+  data.frame(config = cfg, move = names(a), acceptance = unname(a))
 }))
 dir.create("data-raw/mixing-results", showWarnings = FALSE)
 saveRDS(list(exact = exact, out = out, meanX = meanX, meanXz = meanXz, runs = runs,
+             acceptance = acceptance,
              jobs = jobs, nIter = nIter, burnin = burnin, runtime = runtime),
         "data-raw/mixing-results/rung4b-shift-fixed.rds")
 write.csv(out, "data-raw/mixing-results/rung4b-shift-fixed.csv", row.names = FALSE)

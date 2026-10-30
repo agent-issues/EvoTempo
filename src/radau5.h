@@ -100,7 +100,10 @@ class Radau5 {
       prob.Rhs(y, f0_.data());
       for (int i = 0; i < n; ++i) scal_[i] = atol_ + rtol_ * std::fabs(y[i]);
       while (true) {
-        if (++nLocal > maxSteps_ || h < 1e-14 * span) return false;  // # nocov
+        // Too small a step for t + h to advance, as in RADAU5; a floor relative to
+        // the span would stop the initial transient of very stiff rates, which
+        // needs steps far below it (top-bin rates of 1e15 need h ~ 1e-18)
+        if (++nLocal > maxSteps_ || 0.1 * h <= t * uround) return false;  // # nocov
         const double sr = radau::kGamma / h;
         const std::complex<double> sc(radau::kAlpha / h, -radau::kBeta / h);
         if (!prob.Factor(sr, sc)) {

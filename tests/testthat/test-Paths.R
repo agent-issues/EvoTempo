@@ -195,10 +195,8 @@ stiffModel <- DCETModel(
 )
 okPar <- list(lambda = 0.47, mu = 0.136, psi = 0.029, theta = 0.306, s = 0.84)
 flat <- list(s = function(x) 0)
-# Where a real solver fails depends on the engine and the platform: at s = 12
-# the C++ Radau IIA solver gives up on these top-bin rates, whereas lsode in
-# the R engine solves them accurately.  Failures are therefore forced, in the
-# solver of each engine.
+# Where a real solver fails depends on the engine and the platform, so
+# failures are forced, in the solver of each engine
 FailSolve <- function(...) stop("ODE solver failed")
 
 test_that("A failed E solve is an infeasible proposal, but not at the start", {

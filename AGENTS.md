@@ -265,8 +265,8 @@ rung scripts passing; rerun them (in `data-raw/`, not `tests/`) and update their
 ## Testing pitfalls
 
 - Tests run on both engines (set `EVOTEMPO_TEST_ENGINE=R` locally for the R engine). Do not rely on
-  where a real solver fails: lsode (R) and Radau IIA (C++) give up at different parameter values,
-  so force the failure with a mock in each engine's solver.
+  where a real solver fails: lsode (R) and Radau IIA (C++) can give up at different parameter values
+  and on different platforms, so force the failure with a mock in each engine's solver.
 - Tests use small, seeded runs. A test that needs a rare branch of the code (an infeasible bridge,
   an underflow) must force it, for instance with `testthat::local_mocked_bindings()`, rather than
   hope that a random draw or round-off produces it.

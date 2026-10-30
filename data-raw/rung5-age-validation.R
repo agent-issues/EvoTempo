@@ -143,6 +143,7 @@ clusterExport(cl, c(".Setup", ".Sample1", ".TreeStats", "SimOne", "PriorDraw", "
                     "originLo", "originHi", "case"))
 t0 <- Sys.time()
 perWorker <- ceiling(nSim / nCore)
+clusterExport(cl, "perWorker")
 sims <- parLapply(cl, seq_len(nCore), function(i) {
   set.seed(18500 + i)
   do.call(rbind, lapply(seq_len(perWorker), function(j) SimOne()$stats))

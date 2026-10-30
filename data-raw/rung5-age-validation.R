@@ -19,7 +19,9 @@
 # Usage, from the package root (EvoTempo installed, or EVOTEMPO_LOAD_ALL=1):
 #   Rscript data-raw/rung5-age-validation.R <case> <fixed|free> [nIter] [nChain] [nSim]
 # Environment: EVOTEMPO_RUNG5_OUT (default data-raw/rung5-age-results),
-#   EVOTEMPO_CORES (default 16)
+#   EVOTEMPO_CORES (default 16), EVOTEMPO_SEED (offset added to every seed, for
+#   independent replicates; default 0, which also leaves the file names
+#   unchanged)
 if (nzchar(Sys.getenv("EVOTEMPO_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -39,7 +41,9 @@ nSim <- if (length(args) > 4) as.integer(args[[5]]) else 4000L
 nCore <- as.integer(Sys.getenv("EVOTEMPO_CORES", "16"))
 outDir <- Sys.getenv("EVOTEMPO_RUNG5_OUT", "data-raw/rung5-age-results")
 dir.create(outDir, recursive = TRUE, showWarnings = FALSE)
-tag <- paste0(case, if (fixedPar) "-fixed" else "-free")
+seedOffset <- as.integer(Sys.getenv("EVOTEMPO_SEED", "0"))
+tag <- paste0(case, if (fixedPar) "-fixed" else "-free",
+              if (seedOffset != 0) paste0("-seed", seedOffset))
 burnin <- 1000L
 thin <- 10L
 nSlice <- 16L
@@ -143,25 +147,25 @@ clusterExport(cl, c(".Setup", ".Sample1", ".TreeStats", "SimOne", "PriorDraw", "
                     "originLo", "originHi", "case"))
 t0 <- Sys.time()
 perWorker <- ceiling(nSim / nCore)
-clusterExport(cl, "perWorker")
+clusterExport(cl, c("perWorker", "seedOffset"))
 sims <- parLapply(cl, seq_len(nCore), function(i) {
-  set.seed(18500 + i)
+  set.seed(18500 + i + seedOffset)
   do.call(rbind, lapply(seq_len(perWorker), function(j) SimOne()$stats))
 })
 simTime <- difftime(Sys.time(), t0, units = "mins")
 sims <- as.data.frame(do.call(rbind, sims))
 
 # Starting tree: one simulated tree, fossil ranges wide enough never to bind
-set.seed(18000)
+set.seed(18000 + seedOffset)
 start <- SimOne()
 tt0 <- TempoTree(start$tree, present = start$T0)
 tt <- TempoTree(start$tree, present = start$T0,
                 ranges = cbind(0, ifelse(tt0$tipType == "extant", 0, 1e3)))
 clusterExport(cl, c("tt", "priors", "agePriors", "moves", "nIter", "burnin", "thin",
-                    "nSlice", "start"))
+                    "nSlice", "start", "seedOffset"))
 t0 <- Sys.time()
 chains <- parLapply(cl, seq_len(nChain), function(i) {
-  set.seed(18700 + i)
+  set.seed(18700 + i + seedOffset)
   run <- TempoMCMC(tt, model, if (fixedPar) medians else start$par,
                    if (fixedPar) list() else priors, nIter = nIter, burnin = burnin,
                    thin = thin, nSlice = nSlice, moves = moves, agePriors = agePriors)
@@ -176,6 +180,8 @@ quantities <- intersect(c(names(meanlog), "treeLength", "meanNodeAge", "rootAge"
                           "originAge", "oldestFossil", "youngestFossil", "clock",
                           "inverseClock", "nAncestor", "cherries"), names(sims))
 if (fixedPar) quantities <- setdiff(quantities, names(meanlog))
+# A start age that is held fixed is not tested
+quantities <- quantities[vapply(quantities, function(q) stats::var(sims[[q]]) > 0, TRUE)]
 probs <- c(0.05, 0.25, 0.5, 0.75, 0.95)
 rows <- list()
 for (q in quantities) {

@@ -1,0 +1,280 @@
+################################################################################
+# Hymenoptera (Ronquist et al. 2012; fossil age intervals and FBD settings of
+# Zhang et al. 2016): tip-dated baselines in RevBayes 1.4.1.
+#
+# Fossilized birth-death process with sampled ancestors, conditioned on the
+# root age (as MrBayes' FBD prior), random sampling of extant taxa with
+# rho = 0.0005, uniform fossil-age uncertainty on the stratum intervals;
+# uncorrelated lognormal (UCLN) relaxed clock; Mkv + Gamma(4) for morphology
+# (44 ordered characters) and GTR + Gamma(4) / SYM + Gamma(4) for DNA.  Priors
+# follow Zhang et al. 2016's constant-rate, random-sampling FBD analysis; see
+# README.md for every difference.
+#
+# Not run directly: a driver (written by run-hamilton.sh) sets
+#   config       "te-shared"    morphology + DNA, one set of UCLN branch-rate
+#                               multipliers (the EvoTempo comparator; MrBayes
+#                               links the clock across partitions the same way)
+#                "te-separate"  morphology + DNA, independent UCLN clocks
+#                "morph"        morphology only (like-for-like with CET runs)
+#   rep          replicate number (seeds the chain; names the output)
+#   n_gen        MCMC iterations (each = one sweep of the move list)
+#   sample_every thinning of the monitors
+#   burnin_gen   tuning iterations before sampling (not logged)
+# and optionally
+#   start_tree_file   starting tree (default data/start_tree.nwk)
+#   start_values_file Rev file of setValue() calls for scalar parameters
+#   resume            true to continue from out_stem + ".ckp"
+#   checkpoint_every  iterations between checkpoints (default 500)
+# and then sources this file.  Run from this directory.
+################################################################################
+
+seed(rep * 7919 + 211)
+out_stem = "output/hymenoptera_" + config + "_run" + rep
+use_dna = (config != "morph")
+
+moves    = VectorMoves()
+monitors = VectorMonitors()
+
+##### Data #####
+
+taxa = readTaxonData("data/taxa.tsv")
+n_taxa = taxa.size()
+n_branches = 2 * n_taxa - 2
+
+# partition names, state counts, ordering, site counts and taxon sets
+# (written by prepare-data.R)
+source("data/partitions.Rev")
+n_morph = morph_names.size()
+for (i in 1:n_morph) {
+  morpho[i] <- readDiscreteCharacterData("data/morph_" + morph_names[i] + ".nex")
+}
+n_morph_chars = sum(morph_nchar)
+if (use_dna) {
+  n_dna = dna_names.size()
+  for (i in 1:n_dna) {
+    dna[i] <- readDiscreteCharacterData("data/dna_" + dna_names[i] + ".nex")
+  }
+}
+
+##### FBD tree prior (Zhang et al. 2016) #####
+
+# net diversification d = lambda - mu ~ Exp(100); turnover r = mu / lambda and
+# fossil-sampling proportion s = psi / (mu + psi) ~ Beta(1, 1)
+diversification ~ dnExponential(100)
+turnover ~ dnBeta(1, 1)
+sampling_prop ~ dnBeta(1, 1)
+diversification.setValue(0.01)
+turnover.setValue(0.9)
+sampling_prop.setValue(0.1)
+moves.append( mvScale(diversification, lambda = 0.5, tune = true, weight = 5) )
+moves.append( mvSlide(turnover, delta = 0.05, tune = true, weight = 5) )
+moves.append( mvSlide(sampling_prop, delta = 0.05, tune = true, weight = 5) )
+
+lambda := diversification / abs(1 - turnover)
+mu := turnover * lambda
+psi := sampling_prop * mu / abs(1 - sampling_prop)
+
+# extant sampling proportion fixed (described Hymenoptera; Aguiar et al. 2013)
+rho <- 0.0005
+
+# root age: offset exponential, minimum 315 Ma (oldest neopteran), mean 396 Ma
+root_time ~ dnExponential(lambda = 1 / 81, offset = 315)
+moves.append( mvSlide(root_time, delta = 5, tune = true, weight = 5) )
+
+# condition = "survival": both root lineages leave sampled extant descendants
+fbd_dist = dnFBDP(rootAge = root_time, lambda = lambda, mu = mu, psi = psi,
+                  rho = rho, taxa = taxa, condition = "survival")
+# Holometabola (with all fossils) monophyletic: roots the tree as in the source
+fbd_tree ~ dnConstrainedTopology(fbd_dist, constraints = v(clade_holo))
+
+if (!exists("start_tree_file")) { start_tree_file = "data/start_tree.nwk" }
+start_tree = readTrees(start_tree_file, treetype = "clock")[1]
+root_time.setValue(start_tree.rootAge())
+fbd_tree.setValue(start_tree)
+
+moves.append( mvFNPR(fbd_tree, weight = 20) )
+moves.append( mvNarrow(fbd_tree, weight = 20) )
+moves.append( mvCollapseExpandFossilBranch(fbd_tree, root_time, weight = 15) )
+moves.append( mvNodeTimeSlideUniform(fbd_tree, weight = 60) )
+for (i in 1:n_taxa) {
+  if (taxa[i].getMaxAge() > taxa[i].getMinAge()) {
+    moves.append( mvFossilTipTimeUniform(fbd_tree, origin = root_time,
+                                         tip = taxa[i].getName(), weight = 1) )
+  }
+}
+# No tree-scaling moves (mvUpDownScale / mvTreeScale / mvSubtreeScale): in
+# RevBayes 1.4.1 they leave subtrees below a sampled ancestor unscaled but
+# count every interior node in the Hastings ratio (see README).
+
+# Holometabola age: offset exponential, minimum 302 Ma, mean 396 Ma, applied as
+# a calibration density on the FBD tree (MrBayes "calibrate"), via a clamped
+# exponential whose offset carries the node age:
+#   p(cal = 10000 | offset = 10302 - t) = exp(-(t - 302) / 94) / 94,  t > 302
+holo_age := tmrca(fbd_tree, clade_holo)
+holo_cal ~ dnExponential(lambda = 1 / 94, offset = abs(10302 - holo_age))
+holo_cal.clamp(10000)
+
+num_samp_anc := fbd_tree.numSampledAncestors()
+root_age := fbd_tree.rootAge()
+hym_crown_age := tmrca(fbd_tree, clade_hym_crown)
+hym_total_age := tmrca(fbd_tree, clade_hym_all)
+
+##### Relaxed clock(s) #####
+
+# Base rate ~ LogNormal(-7.1, 0.5) (Zhang et al. 2016 clockratepr), in
+# substitutions (changes) per site (character) per Myr averaged over the
+# partitions, which carry relative rate multipliers with weighted mean 1.
+# UCLN multipliers m = exp(sd z - sd^2/2), z ~ N(0, 1) (non-centred: mean 1 in
+# real space), sd ~ Exp(mean 0.587405) (RevBayes clock-tutorial prior; the
+# source used the IGR clock, for which there is no UCLN equivalent).
+if (config == "te-separate") {
+  clock_morph ~ dnLognormal(-7.1, 0.5)
+  clock_dna ~ dnLognormal(-7.1, 0.5)
+  ucld_sd_morph ~ dnExponential(1 / 0.587405)
+  ucld_sd_dna ~ dnExponential(1 / 0.587405)
+  clock_morph.setValue(0.0008)
+  clock_dna.setValue(0.0008)
+  ucld_sd_morph.setValue(0.5)
+  ucld_sd_dna.setValue(0.5)
+  moves.append( mvScale(clock_morph, lambda = 0.3, tune = true, weight = 10) )
+  moves.append( mvScale(clock_dna, lambda = 0.3, tune = true, weight = 10) )
+  moves.append( mvScale(ucld_sd_morph, lambda = 0.3, tune = true, weight = 5) )
+  moves.append( mvScale(ucld_sd_dna, lambda = 0.3, tune = true, weight = 5) )
+  for (j in 1:n_branches) {
+    z_morph[j] ~ dnNormal(0, 1)
+    z_dna[j] ~ dnNormal(0, 1)
+    z_morph[j].setValue(0.0)
+    z_dna[j].setValue(0.0)
+    moves.append( mvSlide(z_morph[j], delta = 0.5, tune = true, weight = 1) )
+    moves.append( mvSlide(z_dna[j], delta = 0.5, tune = true, weight = 1) )
+    mult_morph[j] := exp(ucld_sd_morph * z_morph[j] - ucld_sd_morph * ucld_sd_morph / 2)
+    mult_dna[j] := exp(ucld_sd_dna * z_dna[j] - ucld_sd_dna * ucld_sd_dna / 2)
+  }
+  morph_branch_rates := clock_morph * mult_morph
+  dna_branch_rates := clock_dna * mult_dna
+} else {
+  clock_rate ~ dnLognormal(-7.1, 0.5)
+  ucld_sd ~ dnExponential(1 / 0.587405)
+  clock_rate.setValue(0.0008)
+  ucld_sd.setValue(0.5)
+  moves.append( mvScale(clock_rate, lambda = 0.3, tune = true, weight = 10) )
+  moves.append( mvScale(ucld_sd, lambda = 0.3, tune = true, weight = 5) )
+  for (j in 1:n_branches) {
+    z_mult[j] ~ dnNormal(0, 1)
+    z_mult[j].setValue(0.0)
+    moves.append( mvSlide(z_mult[j], delta = 0.5, tune = true, weight = 1) )
+    branch_mult[j] := exp(ucld_sd * z_mult[j] - ucld_sd * ucld_sd / 2)
+  }
+  morph_branch_rates := clock_rate * branch_mult
+  dna_branch_rates := morph_branch_rates
+}
+
+# Relative partition rates: as MrBayes ratepr = variable, a flat Dirichlet on
+# (multiplier x proportion of sites), so the site-weighted mean multiplier is 1.
+# te-shared: 7 partitions (morphology + 6 DNA); te-separate: the 6 DNA
+# partitions (morphology has its own clock); morph: none.
+if (config == "te-shared") {
+  n_rate_parts = 1 + n_dna
+  part_sites[1] = n_morph_chars
+  for (i in 1:n_dna) part_sites[i + 1] = dna_sites[i]
+} else if (config == "te-separate") {
+  n_rate_parts = n_dna
+  for (i in 1:n_dna) part_sites[i] = dna_sites[i]
+} else {
+  n_rate_parts = 0
+}
+if (n_rate_parts > 0) {
+  total_sites = sum(part_sites)
+  part_props ~ dnDirichlet(rep(1, n_rate_parts))
+  moves.append( mvBetaSimplex(part_props, alpha = 10, tune = true, weight = 5) )
+  moves.append( mvDirichletSimplex(part_props, alpha = 50, tune = true, weight = 2) )
+  for (i in 1:n_rate_parts) part_mult[i] := part_props[i] * total_sites / part_sites[i]
+}
+if (config == "te-shared") {
+  morph_mult := part_mult[1]
+  for (i in 1:n_dna) dna_mult[i] := part_mult[i + 1]
+} else if (config == "te-separate") {
+  morph_mult <- 1.0
+  for (i in 1:n_dna) dna_mult[i] := part_mult[i]
+} else {
+  morph_mult <- 1.0
+}
+
+##### Morphology: Mkv (+ ordered) + Gamma(4), one shape #####
+
+alpha_morph ~ dnExponential(1)
+alpha_morph.setValue(1.0)
+moves.append( mvScale(alpha_morph, lambda = 0.5, tune = true, weight = 3) )
+site_rates_morph := fnDiscretizeGamma(alpha_morph, alpha_morph, 4)
+
+for (i in 1:n_morph) {
+  k = morph_k[i]
+  if (morph_ordered[i]) {
+    q_morph[i] <- fnOrderedRateMatrix(maxState = k - 1)
+  } else {
+    q_morph[i] <- fnJC(k)
+  }
+  phy_morph[i] ~ dnPhyloCTMC(tree = fbd_tree, Q = q_morph[i],
+                             branchRates = morph_branch_rates * morph_mult,
+                             siteRates = site_rates_morph, type = "Standard", coding = "variable")
+  phy_morph[i].clamp(morpho[i])
+}
+
+##### DNA: GTR + Gamma(4) per partition; 28S SYM + Gamma(4) #####
+
+if (use_dna) {
+  for (i in 1:n_dna) {
+    er[i] ~ dnDirichlet(rep(1, 6))
+    moves.append( mvBetaSimplex(er[i], alpha = 10, tune = true, weight = 2) )
+    moves.append( mvDirichletSimplex(er[i], alpha = 10, tune = true, weight = 1) )
+    if (dna_sym[i]) {
+      pi[i] <- simplex(v(1, 1, 1, 1))
+    } else {
+      pi[i] ~ dnDirichlet(v(1, 1, 1, 1))
+      moves.append( mvBetaSimplex(pi[i], alpha = 10, tune = true, weight = 1) )
+      moves.append( mvDirichletSimplex(pi[i], alpha = 10, tune = true, weight = 1) )
+    }
+    q_dna[i] := fnGTR(er[i], pi[i])
+    alpha_dna[i] ~ dnExponential(1)
+    alpha_dna[i].setValue(0.5)
+    moves.append( mvScale(alpha_dna[i], lambda = 0.5, tune = true, weight = 2) )
+    site_rates_dna[i] := fnDiscretizeGamma(alpha_dna[i], alpha_dna[i], 4)
+    phy_dna[i] ~ dnPhyloCTMC(tree = fbd_tree, Q = q_dna[i],
+                             branchRates = dna_branch_rates * dna_mult[i],
+                             siteRates = site_rates_dna[i], type = "DNA")
+    phy_dna[i].clamp(dna[i])
+  }
+}
+
+##### MCMC #####
+
+mymodel = model(fbd_tree)
+
+if (!exists("resume")) { resume = false }
+if (!exists("checkpoint_every")) { checkpoint_every = 500 }
+monitors.append( mnModel(filename = out_stem + ".log", printgen = sample_every, append = resume,
+                         exclude = ["z_mult", "z_morph", "z_dna", "branch_mult", "mult_morph", "mult_dna",
+                                    "morph_branch_rates", "dna_branch_rates", "q_dna", "q_morph",
+                                    "site_rates_dna", "site_rates_morph", "holo_cal"]) )
+monitors.append( mnFile(filename = out_stem + ".trees", printgen = sample_every, append = resume, fbd_tree) )
+if (config == "te-separate") {
+  monitors.append( mnExtNewick(filename = out_stem + "_rates.trees", printgen = sample_every,
+                               append = resume, isNodeParameter = false, fbd_tree, morph_branch_rates,
+                               dna_branch_rates) )
+} else {
+  monitors.append( mnExtNewick(filename = out_stem + "_rates.trees", printgen = sample_every,
+                               append = resume, isNodeParameter = false, fbd_tree, morph_branch_rates) )
+}
+monitors.append( mnScreen(printgen = sample_every * 20, root_age, hym_crown_age, num_samp_anc) )
+
+if (exists("start_values_file")) source(start_values_file)
+
+mymcmc = mcmc(mymodel, monitors, moves, moveschedule = "random")
+if (resume) {
+  mymcmc.initializeFromCheckpoint(out_stem + ".ckp")
+} else {
+  mymcmc.burnin(generations = burnin_gen, tuningInterval = 100)
+}
+mymcmc.run(generations = n_gen, tuningInterval = 0,
+           checkpointInterval = checkpoint_every, checkpointFile = out_stem + ".ckp")
+mymcmc.operatorSummary()

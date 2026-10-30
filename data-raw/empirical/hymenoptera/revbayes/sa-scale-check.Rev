@@ -1,0 +1,42 @@
+################################################################################
+# Prior-only check of RevBayes 1.4.1 tree-scaling moves with sampled ancestors.
+#
+# TreeUtilities::rescaleSubtree() leaves a node with a sampled-ancestor child,
+# and everything below it, unscaled, while mvUpDownScale's Hastings ratio
+# counts every interior node of the tree.  If that is wrong, adding an
+# up-down tree scale to an otherwise correct move set changes the stationary
+# distribution of node ages and of the number of sampled ancestors.
+#
+#   rb sa-scale-check.Rev    (with variant = "A" or "B" set by a driver)
+# A: node-time slides, FNPR, narrow, collapse/expand, root slide (reference)
+# B: A plus mvUpDownScale(tree down, an independent x ~ Exp(1) up)
+################################################################################
+seed(variant_seed)
+for (i in 1:4) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
+fossil_ages = v(0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
+for (i in 1:6) taxa_list[4 + i] = taxon("f" + i, fossil_ages[i], fossil_ages[i])
+origin_time <- 6.0
+tree ~ dnFBDP(originAge = origin_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
+              taxa = taxa_list, condition = "survival")
+x ~ dnExponential(1)
+moves = VectorMoves()
+moves.append( mvNodeTimeSlideUniform(tree, weight = 10) )
+moves.append( mvFNPR(tree, weight = 5) )
+moves.append( mvNarrow(tree, weight = 5) )
+moves.append( mvCollapseExpandFossilBranch(tree, origin_time, weight = 5) )
+moves.append( mvRootTimeSlideUniform(tree, origin_time, weight = 3) )
+moves.append( mvScale(x, lambda = 0.5, weight = 1) )
+if (variant == "B") {
+  ud = mvUpDownScale(lambda = 0.5, weight = 10)
+  ud.addVariable(x, up = true)
+  ud.addVariable(tree, up = false)
+  moves.append( ud )
+}
+root_age := tree.rootAge()
+num_sa := tree.numSampledAncestors()
+tree_length := tree.treeLength()
+monitors = VectorMonitors()
+monitors.append( mnModel(filename = "sa-check/" + variant + "_" + variant_seed + ".log", printgen = 10) )
+mymcmc = mcmc(model(tree), monitors, moves, moveschedule = "random")
+mymcmc.run(generations = n_gen)
+q()

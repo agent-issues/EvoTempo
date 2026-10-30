@@ -5,6 +5,22 @@
     .Call(`_EvoTempo_MkLikelihoodCpp`, tree, characters, lengths, nState)
 }
 
+.CharacterCacheCpp <- function(characters, nState) {
+    .Call(`_EvoTempo_CharacterCacheCpp`, characters, nState)
+}
+
+.CachedMkLikelihoodCpp <- function(cache, parent, lengths) {
+    .Call(`_EvoTempo_CachedMkLikelihoodCpp`, cache, parent, lengths)
+}
+
+.ResolveCharacterCacheCpp <- function(cache, accept) {
+    invisible(.Call(`_EvoTempo_ResolveCharacterCacheCpp`, cache, accept))
+}
+
+.CharacterCacheRecomputedCpp <- function(cache) {
+    .Call(`_EvoTempo_CharacterCacheRecomputedCpp`, cache)
+}
+
 .PiecesCpp <- function(tree, set, v) {
     .Call(`_EvoTempo_PiecesCpp`, tree, set, v)
 }

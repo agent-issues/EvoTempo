@@ -24,6 +24,49 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// CharacterCacheCpp
+SEXP CharacterCacheCpp(IntegerMatrix characters, int nState);
+RcppExport SEXP _EvoTempo_CharacterCacheCpp(SEXP charactersSEXP, SEXP nStateSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type characters(charactersSEXP);
+    Rcpp::traits::input_parameter< int >::type nState(nStateSEXP);
+    rcpp_result_gen = Rcpp::wrap(CharacterCacheCpp(characters, nState));
+    return rcpp_result_gen;
+END_RCPP
+}
+// CachedMkLikelihoodCpp
+double CachedMkLikelihoodCpp(SEXP cache, IntegerVector parent, NumericVector lengths);
+RcppExport SEXP _EvoTempo_CachedMkLikelihoodCpp(SEXP cacheSEXP, SEXP parentSEXP, SEXP lengthsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cache(cacheSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type parent(parentSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type lengths(lengthsSEXP);
+    rcpp_result_gen = Rcpp::wrap(CachedMkLikelihoodCpp(cache, parent, lengths));
+    return rcpp_result_gen;
+END_RCPP
+}
+// ResolveCharacterCacheCpp
+void ResolveCharacterCacheCpp(SEXP cache, bool accept);
+RcppExport SEXP _EvoTempo_ResolveCharacterCacheCpp(SEXP cacheSEXP, SEXP acceptSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type cache(cacheSEXP);
+    Rcpp::traits::input_parameter< bool >::type accept(acceptSEXP);
+    ResolveCharacterCacheCpp(cache, accept);
+    return R_NilValue;
+END_RCPP
+}
+// CharacterCacheRecomputedCpp
+int CharacterCacheRecomputedCpp(SEXP cache);
+RcppExport SEXP _EvoTempo_CharacterCacheRecomputedCpp(SEXP cacheSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cache(cacheSEXP);
+    rcpp_result_gen = Rcpp::wrap(CharacterCacheRecomputedCpp(cache));
+    return rcpp_result_gen;
+END_RCPP
+}
 // PiecesCpp
 List PiecesCpp(List tree, List set, int v);
 RcppExport SEXP _EvoTempo_PiecesCpp(SEXP treeSEXP, SEXP setSEXP, SEXP vSEXP) {
@@ -403,6 +446,10 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_MkLikelihoodCpp", (DL_FUNC) &_EvoTempo_MkLikelihoodCpp, 4},
+    {"_EvoTempo_CharacterCacheCpp", (DL_FUNC) &_EvoTempo_CharacterCacheCpp, 2},
+    {"_EvoTempo_CachedMkLikelihoodCpp", (DL_FUNC) &_EvoTempo_CachedMkLikelihoodCpp, 3},
+    {"_EvoTempo_ResolveCharacterCacheCpp", (DL_FUNC) &_EvoTempo_ResolveCharacterCacheCpp, 2},
+    {"_EvoTempo_CharacterCacheRecomputedCpp", (DL_FUNC) &_EvoTempo_CharacterCacheRecomputedCpp, 1},
     {"_EvoTempo_PiecesCpp", (DL_FUNC) &_EvoTempo_PiecesCpp, 3},
     {"_EvoTempo_SliceExpCpp", (DL_FUNC) &_EvoTempo_SliceExpCpp, 3},
     {"_EvoTempo_MessagesCpp", (DL_FUNC) &_EvoTempo_MessagesCpp, 2},

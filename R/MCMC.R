@@ -37,7 +37,8 @@ TempoPriors <- function(meanlog = c(lambda = log(0.5), mu = log(0.2),
 }
 
 # Shared random-walk parameter update: multiplicative proposals
-.ParameterSweep <- function(par, priors, step, current, Target) {
+.ParameterSweep <- function(par, priors, step, current, Target,
+                            Resolve = function(accepted) NULL) {
   accepted <- setNames(logical(length(priors)), names(priors))
   for (p in names(priors)) {
     proposal <- par
@@ -58,6 +59,7 @@ TempoPriors <- function(meanlog = c(lambda = log(0.5), mu = log(0.2),
       current <- candidate
       accepted[[p]] <- TRUE
     }
+    Resolve(accepted[[p]])
   }
   list(par = par, current = current, accepted = accepted)
 }
@@ -304,20 +306,17 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   ageStep <- c(rootAge = 1, originAge = 1)
   ageHits <- 0 * ageStep
   par <- as.list(start)
-  CharLL <- function(tr, paths, p, set) {
-    if (is.null(characters)) {
-      return(0)
-    }
-    MkLikelihood(tr, characters,
-                 .CharacterLengths(tr, set[["grid"]][["x"]], paths, p[["rate"]],
-                                   model[["gamma"]]), nState)
+  if (!is.null(characters)) {
+    characters <- as.matrix(characters)
   }
+  CharLL <- .CharacterLikelihood(characters, nState, model[["gamma"]])
   set <- .AddSlices(tree, .Precompute(tree, par, model), nSlice)
   msg <- .Messages(tree, set)
   draw <- .SampleTree(tree, set, msg)
   st <- list(tree = tree, par = par, set = set, msg = msg,
              paths = draw[["paths"]], bin = draw[["bin"]])
   st[["charLL"]] <- CharLL(tree, st[["paths"]], par, set)
+  .ResolveCharacters(CharLL, TRUE)
   # Reuses the current set when only parameters outside E change (`rate`)
   Target <- function(p, current) {
     s <- if (.SameSet(current[["set"]], st[["tree"]], p)) {
@@ -391,7 +390,8 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       current <- list(value = .LogAugmented(st[["tree"]], st[["set"]],
                                             st[["paths"]], st[["bin"]]) +
                         st[["charLL"]], set = st[["set"]])
-      sweep <- .ParameterSweep(st[["par"]], priors, step, current, Target)
+      sweep <- .ParameterSweep(st[["par"]], priors, step, current, Target,
+                               function(a) .ResolveCharacters(CharLL, a))
       moveTry[["parameters"]] <- moveTry[["parameters"]] + length(priors)
       moveAcc[["parameters"]] <- moveAcc[["parameters"]] + sum(sweep[["accepted"]])
       hits <- hits + sweep[["accepted"]]
@@ -402,6 +402,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
           st[["msg"]] <- .Messages(st[["tree"]], st[["set"]])
         }
         st[["charLL"]] <- CharLL(st[["tree"]], st[["paths"]], st[["par"]], st[["set"]])
+        .ResolveCharacters(CharLL, TRUE)
       }
       if (i <= burnin && i %% 20 == 0) {
         step <- .Adapt(step, hits / 20)
@@ -546,7 +547,9 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
   logRatio <- .LogAugmented(tree, set, new[["paths"]], new[["bin"]]) + charLL -
     .LogAugmented(tree, st[["set"]], st[["paths"]], st[["bin"]]) - st[["charLL"]] +
     logPrior + new[["logJac"]]
-  if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+  accept <- is.finite(logRatio) && log(stats::runif(1)) < logRatio
+  .ResolveCharacters(CharLL, accept)
+  if (accept) {
     if (!same) {
       st[["set"]] <- .AddSlices(tree, set, nSlice)
       st[["msg"]] <- .Messages(tree, st[["set"]])
@@ -628,7 +631,9 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
     charLL <- CharLL(tree, draw[["paths"]], proposal, set)
     candidate <- Value(set, msg, draw[["paths"]], charLL)
     logRatio <- candidate + lp - current - priors[[p]](st[["par"]][[p]]) + log(factor)
-    if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+    accept <- is.finite(logRatio) && log(stats::runif(1)) < logRatio
+    .ResolveCharacters(CharLL, accept)
+    if (accept) {
       st[["par"]] <- proposal
       st[["set"]] <- set
       st[["msg"]] <- msg
@@ -658,7 +663,9 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
     .LogAugmented(tree, set, st[["paths"]], st[["bin"]]) +
     (nBif(newTree) - nBif(tree)) * log(2) + newChar - st[["charLL"]] +
     prop[["logHastings"]]
-  if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+  accept <- is.finite(logRatio) && log(stats::runif(1)) < logRatio
+  .ResolveCharacters(CharLL, accept)
+  if (accept) {
     st[["tree"]] <- newTree
     st[["paths"]] <- prop[["paths"]]
     st[["bin"]] <- prop[["bin"]]
@@ -721,7 +728,9 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
     .LogAugmented(tree, prop[["oldSet"]], st[["paths"]], st[["bin"]]) +
     newChar - st[["charLL"]] + logPrior + log(factor) +
     .LogBridges(tree, prop[["oldSet"]], nodes, st[["paths"]]) - prop[["fwd"]][["logQ"]]
-  if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+  accept <- is.finite(logRatio) && log(stats::runif(1)) < logRatio
+  .ResolveCharacters(CharLL, accept)
+  if (accept) {
     st[["tree"]] <- newTree
     st[["set"]] <- set
     st[["msg"]] <- .Messages(newTree, set)
@@ -860,7 +869,9 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
   newChar <- CharLL(tree, newPaths, st[["par"]], set)
   logRatio <- .LogWeight(tree, set, msg, newPaths, changed) -
     .LogWeight(tree, set, msg, paths, changed) + newChar - st[["charLL"]]
-  if (log(stats::runif(1)) < logRatio) {
+  accept <- log(stats::runif(1)) < logRatio
+  .ResolveCharacters(CharLL, accept)
+  if (accept) {
     st[["paths"]] <- newPaths
     st[["bin"]] <- newBin
     st[["charLL"]] <- newChar

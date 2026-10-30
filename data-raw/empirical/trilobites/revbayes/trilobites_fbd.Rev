@@ -1,0 +1,154 @@
+################################################################################
+# Cambrian trilobites (Paterson, Edgecombe & Lee 2019): tip-dated baseline in
+# RevBayes 1.4.1.
+#
+# Fossilized birth-death process with sampled ancestors on an all-fossil tree:
+# the process starts at the origin and runs to the end of the Cambrian sampling
+# window (485.4 Ma = time 0), with no sampling at time 0 (rho = 0), conditioned
+# on at least one sampled lineage (condition = "sampling"); fixed (point) tip
+# ages; uncorrelated lognormal (UCLN) relaxed clock; Mkv + Gamma(4) partitioned
+# by number of states, characters 45 and 47 ordered.  Priors follow the BEAST2
+# FBD analysis (tree) and the BEAST 1.8 UCLN analysis (clock, Gamma shape) of
+# the source study; see README.md for every difference.
+#
+# Not run directly: a driver (written by run-hamilton.sh) sets
+#   config       "morph"  (the only configuration: the data are morphology only)
+#   rep          replicate number (seeds the chain; names the output)
+#   n_gen        MCMC iterations (each = one sweep of the move list)
+#   sample_every thinning of the monitors
+#   burnin_gen   tuning iterations before sampling (not logged)
+# and optionally start_tree_file, start_values_file, resume, checkpoint_every
+# (as for the Hymenoptera and penguin scripts).  Run from this directory.
+################################################################################
+
+seed(rep * 7919 + 307)
+out_stem = "output/trilobites_" + config + "_run" + rep
+
+moves    = VectorMoves()
+monitors = VectorMonitors()
+
+##### Data #####
+
+source("data/partitions.Rev")
+taxa = readTaxonData("data/taxa.tsv")
+n_taxa = taxa.size()
+n_branches = 2 * n_taxa - 2
+n_morph = morph_names.size()
+for (i in 1:n_morph) {
+  morpho[i] <- readDiscreteCharacterData("data/morph_" + morph_names[i] + ".nex")
+}
+
+##### FBD tree prior (BEAST2 SABirthDeathModel parameterisation) #####
+
+# net diversification d = lambda - mu ~ LogNormal(-3.5, 1.5), turnover
+# nu = mu / lambda ~ U(0, 1), sampling proportion s = psi / (mu + psi) ~ U(0, 1)
+diversification ~ dnLognormal(-3.5, 1.5)
+turnover ~ dnUniform(0, 1)
+sampling_prop ~ dnUniform(0, 1)
+diversification.setValue(0.05)
+turnover.setValue(0.5)
+sampling_prop.setValue(0.5)
+moves.append( mvScale(diversification, lambda = 0.5, tune = true, weight = 5) )
+moves.append( mvSlide(turnover, delta = 0.1, tune = true, weight = 5) )
+moves.append( mvSlide(sampling_prop, delta = 0.1, tune = true, weight = 5) )
+
+lambda := diversification / abs(1 - turnover)
+mu := turnover * lambda
+psi := sampling_prop * mu / abs(1 - sampling_prop)
+
+# no sampling at the end of the window
+rho <- 0.0
+
+# origin: BEAST2 origin ~ U(0, 1000) above the youngest tip (486.0 Ma, i.e.
+# 0.6 Myr in window time)
+origin_time ~ dnUniform(0.6, 1000.6)
+moves.append( mvSlide(origin_time, delta = 5, tune = true, weight = 3) )
+
+fbd_dist = dnFBDP(originAge = origin_time, lambda = lambda, mu = mu, psi = psi,
+                  rho = rho, taxa = taxa, condition = "sampling")
+# ingroup (all but the three fallotaspidoids) monophyletic
+fbd_tree ~ dnConstrainedTopology(fbd_dist, constraints = v(clade_ingroup))
+
+if (!exists("start_tree_file")) { start_tree_file = "data/start_tree.nwk" }
+start_tree = readTrees(start_tree_file, treetype = "clock")[1]
+origin_time.setValue(start_tree.rootAge() + 5)
+fbd_tree.setValue(start_tree)
+
+moves.append( mvFNPR(fbd_tree, weight = 20) )
+moves.append( mvNarrow(fbd_tree, weight = 20) )
+moves.append( mvCollapseExpandFossilBranch(fbd_tree, origin_time, weight = 15) )
+moves.append( mvNodeTimeSlideUniform(fbd_tree, weight = 60) )
+moves.append( mvRootTimeSlideUniform(fbd_tree, origin_time, weight = 5) )
+# No tree-scaling moves (see README: RevBayes 1.4.1 Hastings ratio with
+# sampled ancestors).
+
+num_samp_anc := fbd_tree.numSampledAncestors()
+root_age := fbd_tree.rootAge() + window_end
+ingroup_age := tmrca(fbd_tree, clade_ingroup) + window_end
+origin_age := origin_time + window_end
+
+##### Relaxed clock #####
+
+# BEAST 1.8 UCLN: mean rate ~ U(0, 100) (real-space mean of the lognormal),
+# coefficient of variation ~ Exp(mean 1/3); log-sd = sqrt(ln(1 + cv^2)).
+# Non-centred multipliers m = exp(sd z - sd^2/2), z ~ N(0, 1).
+clock_morph ~ dnUniform(0, 100)
+clock_morph.setValue(0.02)
+moves.append( mvScale(clock_morph, lambda = 0.3, tune = true, weight = 10) )
+ucld_cv ~ dnExponential(3)
+ucld_cv.setValue(0.3)
+moves.append( mvScale(ucld_cv, lambda = 0.3, tune = true, weight = 5) )
+ucld_sd := sqrt(ln(1 + ucld_cv * ucld_cv))
+for (j in 1:n_branches) {
+  z_mult[j] ~ dnNormal(0, 1)
+  z_mult[j].setValue(0.0)
+  moves.append( mvSlide(z_mult[j], delta = 0.5, tune = true, weight = 1) )
+  branch_mult[j] := exp(ucld_sd * z_mult[j] - ucld_sd * ucld_sd / 2)
+}
+morph_branch_rates := clock_morph * branch_mult
+
+##### Morphology: Mkv (+ ordered) + Gamma(4), one shape #####
+
+# BEAST 1.8: Gamma shape ~ Exp(mean 0.5)
+alpha_morph ~ dnExponential(2)
+alpha_morph.setValue(0.5)
+moves.append( mvScale(alpha_morph, lambda = 0.5, tune = true, weight = 3) )
+site_rates_morph := fnDiscretizeGamma(alpha_morph, alpha_morph, 4)
+
+for (i in 1:n_morph) {
+  k = morph_k[i]
+  if (morph_ordered[i]) {
+    q_morph[i] <- fnOrderedRateMatrix(maxState = k - 1)
+  } else {
+    q_morph[i] <- fnJC(k)
+  }
+  phy_morph[i] ~ dnPhyloCTMC(tree = fbd_tree, Q = q_morph[i], branchRates = morph_branch_rates,
+                             siteRates = site_rates_morph, type = "Standard", coding = "variable")
+  phy_morph[i].clamp(morpho[i])
+}
+
+##### MCMC #####
+
+mymodel = model(fbd_tree)
+
+if (!exists("resume")) { resume = false }
+if (!exists("checkpoint_every")) { checkpoint_every = 500 }
+monitors.append( mnModel(filename = out_stem + ".log", printgen = sample_every, append = resume,
+                         exclude = ["z_mult", "branch_mult", "morph_branch_rates", "q_morph",
+                                    "site_rates_morph"]) )
+monitors.append( mnFile(filename = out_stem + ".trees", printgen = sample_every, append = resume, fbd_tree) )
+monitors.append( mnExtNewick(filename = out_stem + "_rates.trees", printgen = sample_every,
+                             append = resume, isNodeParameter = false, fbd_tree, morph_branch_rates) )
+monitors.append( mnScreen(printgen = sample_every * 20, root_age, ingroup_age, num_samp_anc) )
+
+if (exists("start_values_file")) source(start_values_file)
+
+mymcmc = mcmc(mymodel, monitors, moves, moveschedule = "random")
+if (resume) {
+  mymcmc.initializeFromCheckpoint(out_stem + ".ckp")
+} else {
+  mymcmc.burnin(generations = burnin_gen, tuningInterval = 100)
+}
+mymcmc.run(generations = n_gen, tuningInterval = 0,
+           checkpointInterval = checkpoint_every, checkpointFile = out_stem + ".ckp")
+mymcmc.operatorSummary()

@@ -158,7 +158,34 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' frozen likelihood and the exact-to-frozen weight, so it mixes like MCMC on
 #' the marginal likelihood (at the cost of one FFBS draw per parameter).
 #' Without it, parameters such as `theta` that the paths determine closely
-#' mix slowly, especially with characters.
+#' mix slowly, at least without characters.
+#'
+#' `shift` moves every bin (nodes, tips and every piece of every path) by
+#' \eqn{m = \pm 1} with probability 1/2 each, keeping the jump times, so
+#' that log-tempo moves by \eqn{d = m h s} everywhere (\eqn{h} the bin
+#' spacing in units of `s`).
+#' Each free parameter that tempo scales is multiplied by
+#' \eqn{e^{-e_p d}}, \eqn{e_p} its exponent: `rate` by \eqn{e^{-\gamma d}},
+#' `lambda` and `mu` by \eqn{e^{-\beta d}}, `psi` by \eqn{e^{-\delta d}}
+#' and `theta` by \eqn{e^{-\alpha d}}.
+#' The map is a bijection whose inverse is the shift by \eqn{-m}; the
+#' Hastings ratio is its Jacobian, \eqn{\prod_p p'/p}, and a shift that
+#' would leave the grid is rejected.
+#' With `rate` free, the tempo-weighted lengths, and so the character
+#' likelihood, are unchanged exactly, so the move travels along the ridge
+#' between `rate` and the overall tempo level that the characters leave
+#' (spec section 9.1; issue #19).
+#'
+#' With characters, the whole-tree draws of `tree` and `joint` ignore the
+#' characters and are almost never accepted, so the default schedule
+#' ([TempoMoves()]) omits them and instead runs local path moves in
+#' proportion to the size of the tree.
+#' A fractional count \eqn{n + f} runs \eqn{n} moves and, with probability
+#' \eqn{f}, one more.
+#' At the end of burn-in, `tree` and `joint` are dropped from the sampling
+#' phase if their acceptance during burn-in was below `minAcceptance`; move
+#' frequencies change only during burn-in, so the sampling phase is a fixed
+#' mixture of kernels.
 #'
 #' Tree moves (root age fixed): `nodeAge` redraws the age of a bifurcation
 #' uniformly between its children and parent; `fossilAge` redraws a fossil's
@@ -180,10 +207,14 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' @inheritParams MkLikelihood
 #' @param nSlice Integer giving the number of time slices of the proposal.
 #' @param moves Named numeric vector giving the number of each move per
-#' iteration (see Details); unnamed moves are not used.
+#' iteration (see Details); unnamed moves are not used.  Defaults to
+#' [TempoMoves()] for `tree` and `characters`.
 #' @param characters Optional matrix of character states, as for
 #' [MkLikelihood()].
-#' @param updateParameters Logical; if `FALSE`, hold parameters fixed.
+#' @param updateParameters Logical; if `FALSE`, hold parameters fixed (`shift`
+#' then moves the bins only).
+#' @param minAcceptance Numeric: `tree` and `joint` moves whose acceptance
+#' during burn-in falls below this are not used after burn-in.
 #' @returns `TempoMCMC()` returns a list with elements
 #' - `samples`: data frame with one column per free parameter, `logPost`
 #'   (log augmented density, plus character log-likelihood and log prior),
@@ -196,6 +227,7 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' - `branchX`: matrix of the time-averaged log-tempo on each branch (for
 #'   chains without tree moves);
 #' - `acceptance`: acceptance rate of each move;
+#' - `moves`: the move counts used after burn-in;
 #' - `state`: the final state.
 #' @references
 #' Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference
@@ -219,8 +251,8 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' @importFrom stats setNames
 #' @export
 TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
-                      nSlice = 20, moves = c(tree = 1), characters = NULL,
-                      nState = 2L, updateParameters = TRUE,
+                      nSlice = 20, moves = NULL, characters = NULL,
+                      nState = 2L, updateParameters = TRUE, minAcceptance = 0.01,
                       engine = getOption("EvoTempo.engine", "cpp")) {
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
@@ -228,8 +260,11 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   if (model[["start"]] != "root") {
     stop("TempoMCMC() supports `start = \"root\"` only")
   }
-  moveNames <- c("tree", "node", "tip", "branch", "joint", "nodeAge", "fossilAge",
-                 "slide", "saJump")
+  moveNames <- c("tree", "node", "tip", "branch", "joint", "shift", "nodeAge",
+                 "fossilAge", "slide", "saJump")
+  if (is.null(moves)) {
+    moves <- TempoMoves(tree, characters, model)
+  }
   if (!all(names(moves) %in% moveNames)) {
     stop("Unknown move: ", paste(setdiff(names(moves), moveNames), collapse = ", "))
   }
@@ -275,9 +310,17 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L),
                                  c(moveNames, "parameters"))
   treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
+  free <- if (updateParameters) names(priors) else character(0)
   for (i in seq_len(burnin + nIter)) {
     for (move in moveNames[moves > 0]) {
-      for (rep in seq_len(moves[[move]])) {
+      for (rep in seq_len(.MoveCount(moves[[move]]))) {
+        if (move == "shift") {
+          res <- .ShiftMove(st, model, free, priors, nSlice, CharLL)
+          st <- res[["state"]]
+          moveTry[[move]] <- moveTry[[move]] + 1
+          moveAcc[[move]] <- moveAcc[[move]] + res[["accepted"]]
+          next
+        }
         if (move == "joint") {
           if (!updateParameters || !length(priors)) next
           res <- .JointSweep(st, priors, jointStep, model, nSlice, CharLL)
@@ -322,6 +365,15 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
         }
       }
     }
+    if (i == burnin) {
+      # Whole-tree draws that the characters reject are dropped after burn-in
+      for (move in c("tree", "joint")) {
+        if (moves[[move]] > 0 && moveTry[[move]] > 0 &&
+            moveAcc[[move]] / moveTry[[move]] < minAcceptance) {
+          moves[[move]] <- 0
+        }
+      }
+    }
     j <- i - burnin
     if (j > 0 && j %% thin == 0) {
       tr <- st[["tree"]]
@@ -342,7 +394,146 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   }
   list(samples = as.data.frame(samples), occupancy = occupancy,
        branchX = branchX, acceptance = moveAcc / pmax(moveTry, 1),
-       state = st)
+       moves = moves[moves > 0], state = st)
+}
+
+#' Default move schedule of TempoMCMC()
+#'
+#' Move counts per iteration for [TempoMCMC()], following the mixing study of
+#' issue #19 (`dev/mixing/README.md`).
+#'
+#' Without characters, or with \eqn{\gamma = 0} (when the characters do not
+#' depend on the paths), the schedule is one whole-tree draw (`tree`), two
+#' each of `node`, `tip` and `branch`, one `joint` sweep and one `shift`.
+#' With characters that depend on tempo, whole-tree draws from the frozen
+#' model are almost never accepted, so `tree` and `joint` are omitted, and
+#' `node`, `tip` and `branch` moves are run for a fraction `local` of the
+#' internal nodes, the tips with paths and the branches with paths
+#' respectively (rounded up), with one `shift`.
+#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `saJump`) are not included;
+#' add them to the returned vector.
+#'
+#' @param tree A [`TempoTree`][TempoTree()], or a tree that it accepts.
+#' @param characters Optional matrix of character states, as for
+#' [TempoMCMC()].
+#' @param model Optional [`DCETModel`][DCETModel()]; only its `gamma` is used.
+#' @param local Numeric giving the number of each local path move per
+#' iteration, as a fraction of the elements it updates.
+#' @returns `TempoMoves()` returns a named numeric vector of move counts, for
+#' the `moves` argument of [TempoMCMC()].
+#' @examples
+#' tree <- structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
+#'                        edge.length = c(1, 2, 2, 3), tip.label = c("a", "b", "c"),
+#'                        Nnode = 2), class = "phylo")
+#' TempoMoves(tree)
+#' TempoMoves(tree, characters = matrix(c(0, 1, 1), 3))
+#' c(TempoMoves(tree), nodeAge = 2, slide = 1)
+#' @family dCET inference
+#' @export
+TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
+  tree <- TempoTree(tree)
+  scored <- !is.null(characters) && NCOL(characters) > 0 &&
+    (is.null(model) || model[["gamma"]] != 0)
+  if (!scored) {
+    return(c(tree = 1, node = 2, tip = 2, branch = 2, joint = 1, shift = 1))
+  }
+  nodes <- .PathNodes(tree)
+  c(node = ceiling(local * length(tree[["postorder"]])),
+    tip = ceiling(local * sum(nodes <= tree[["nTip"]])),
+    branch = ceiling(local * length(nodes)),
+    shift = 1)
+}
+
+# Number of repeats of a move this iteration: a fractional count n + f gives n,
+# or n + 1 with probability f, independently of the state
+.MoveCount <- function(n) {
+  if (n == floor(n)) {
+    return(n)
+  }
+  floor(n) + (stats::runif(1) < n - floor(n))
+}
+
+# Shift move (#19; dev/mixing/README.md): every bin moves by m = +/-1, so the
+# log-tempo moves by d = m h s everywhere, and each free parameter p that
+# tempo scales is multiplied by exp(-e_p d).  The map is a bijection with
+# inverse the shift by -m, its Jacobian in natural scale is prod p' / p, and
+# with `rate` free (or gamma = 0) the character lengths, and so the character
+# likelihood, are unchanged exactly, so the stored value is kept.  A shift
+# that would leave the grid is rejected; so would its reverse.
+.ShiftMove <- function(st, model, free, priors, nSlice, CharLL) {
+  reject <- list(state = st, accepted = FALSE)
+  m <- if (stats::runif(1) < 0.5) -1L else 1L
+  new <- .Shifted(st, m, model, free)
+  if (is.null(new)) {
+    return(reject)
+  }
+  tree <- st[["tree"]]
+  logPrior <- sum(vapply(new[["comp"]], function(p) {
+    priors[[p]](new[["par"]][[p]]) - priors[[p]](st[["par"]][[p]])
+  }, 0))
+  if (!is.finite(logPrior)) {
+    return(reject)
+  }
+  same <- .SameSet(st[["set"]], tree, new[["par"]])
+  set <- if (same) {
+    st[["set"]]
+  } else {
+    tryCatch(.Precompute(tree, new[["par"]], model),
+             infeasibleProposal = function(e) NULL)
+  }
+  if (is.null(set)) {
+    return(reject)
+  }
+  invariant <- model[["gamma"]] == 0 || "rate" %in% new[["comp"]]
+  charLL <- if (invariant) {
+    st[["charLL"]]
+  } else {
+    CharLL(tree, new[["paths"]], new[["par"]], set)
+  }
+  logRatio <- .LogAugmented(tree, set, new[["paths"]], new[["bin"]]) + charLL -
+    .LogAugmented(tree, st[["set"]], st[["paths"]], st[["bin"]]) - st[["charLL"]] +
+    logPrior + new[["logJac"]]
+  if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+    if (!same) {
+      st[["set"]] <- .AddSlices(tree, set, nSlice)
+      st[["msg"]] <- .Messages(tree, st[["set"]])
+    }
+    st[["par"]] <- new[["par"]]
+    st[["bin"]] <- new[["bin"]]
+    st[["paths"]] <- new[["paths"]]
+    st[["charLL"]] <- charLL
+    return(list(state = st, accepted = TRUE))
+  }
+  reject
+}
+
+# The state shifted by m bins, with the free parameters in `free` that tempo
+# scales compensated; NULL if a bin would leave the grid.  Returns the new
+# parameters, bins and paths, the compensated parameters `comp` and the log
+# Jacobian (in natural scale) of the map.
+.Shifted <- function(st, m, model, free) {
+  nodes <- .PathNodes(st[["tree"]])
+  bin <- st[["bin"]]
+  paths <- st[["paths"]]
+  used <- bin > 0
+  allBins <- c(bin[used], unlist(lapply(paths[nodes], `[[`, "k")))
+  if (any(allBins + m < 1L | allBins + m > model[["nBin"]])) {
+    return(NULL)
+  }
+  d <- m * st[["set"]][["grid"]][["h"]] * st[["par"]][["s"]]
+  expo <- c(rate = model[["gamma"]], lambda = model[["beta"]], mu = model[["beta"]],
+            psi = model[["delta"]], theta = model[["alpha"]])
+  comp <- intersect(names(expo)[expo != 0], free)
+  par <- st[["par"]]
+  for (p in comp) {
+    par[[p]] <- par[[p]] * exp(-expo[[p]] * d)
+  }
+  bin[used] <- bin[used] + m
+  for (v in nodes) {
+    paths[[v]][["k"]] <- paths[[v]][["k"]] + m
+  }
+  list(par = par, bin = bin, paths = paths, comp = comp,
+       logJac = -sum(expo[comp]) * d)
 }
 
 # Joint parameter-path moves: for each free parameter, propose a new value and

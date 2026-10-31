@@ -40,8 +40,14 @@ Inference has two layers:
   time slices of the extinction probability E, with endpoint-conditioned bridges
   (Hobolth & Stone 2009); importance weights correct from the frozen to the exact model.
   Moves (argument `moves`): `tree`, `node`, `tip`, `branch` (path redraws); `joint` (a parameter
-  together with a fresh draw of every path; needed for theta to mix once characters are present);
-  `nodeAge`, `fossilAge`, `slide`, `saJump` (tree moves); plus a scale sweep over parameters.
+  together with a fresh draw of every path; makes theta mix without characters); `shift` (every bin
+  +/-1, with `rate`, `lambda`, `mu`, `psi`, `theta` rescaled by their tempo exponents so that the
+  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `saJump` (tree moves);
+  plus a scale sweep over parameters. The default schedule is `TempoMoves()`: with characters (and
+  gamma != 0) it omits `tree` and `joint`, whose whole-tree draws ignore the characters and are
+  almost never accepted, and runs `node`, `tip` and `branch` at 0.25 x the nodes, tips and branches
+  per iteration, plus one `shift`. Fractional counts are allowed. `minAcceptance` drops `tree` and
+  `joint` after burn-in if their burn-in acceptance is below it (default 1%).
 
 ## Code path of one `TempoMCMC()` run
 
@@ -51,8 +57,8 @@ gamma, conditioning) build the inputs. `.Precompute()` builds per-bin rates and 
 eigendecompositions; `.Messages()` runs the backward FFBS pass; `.SampleTree()` / `.SampleClade()` /
 `.SampleBranch()` / `.Bridge()` draw paths; `.LogAugmented()` is the exact log augmented density;
 `.FrozenLikelihood()` and `.LogWeight()` give the frozen likelihood and importance weights.
-`.PathMove()`, `.TreeMove()` (proposals in `R/TreeMoves.R`), `.JointSweep()` and `.ParameterSweep()`
-are the moves. `MkLikelihood()` scores characters on lengths from `.CharacterLengths()`.
+`.PathMove()`, `.TreeMove()` (proposals in `R/TreeMoves.R`), `.JointSweep()`, `.ShiftMove()` (map in
+`.Shifted()`) and `.ParameterSweep()` are the moves; `.MoveCount()` resolves fractional counts. `MkLikelihood()` scores characters on lengths from `.CharacterLengths()`.
 
 Infeasible proposals (a bridge or a weight that underflows) signal a condition of class
 `infeasibleProposal` via `.Infeasible()`; every move catches it and rejects. Never let one escape
@@ -168,11 +174,21 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |
 | `data-raw/rung5-fixed-parameters.R` | Rung 5 at fixed parameters (tree moves only) vs rejection simulation; regression check for tree-move Hastings ratios |
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
+| `data-raw/rung4b-shift-fixed.R` | Shift move at fixed parameters: root-bin posterior given the rung 4b tree and character vs the exact posterior from point-mass start priors (#19) |
+| `data-raw/mixing-schedule.R` | ESS per CPU hour of `TempoMCMC()` under the pre-#19 schedule and `TempoMoves()` on the `dev/mixing/` fixed trees; results and the shift-move oracles in `data-raw/mixing-results/README.md` |
 | `data-raw/rung4b-theta-identity.R` | Importance-sampling identity (augmented to marginal likelihood) across theta, with or without the character |
 | `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
 | `data-raw/rung6-sbc-full*.{R,sh,py}` | Rung 6 full size (#21): SBC with tree moves, 200 replicates per cell as Slurm array tasks on Hamilton; results and verdict in `data-raw/rung6-full-results/` |
 | `data-raw/rung7-power.R`, `-array.sh`, `-summary.R`, `-figure.py` | Rung 7: power of (beta, gamma) model selection by marginal likelihoods on fixed true trees (quadrature, bridge sampling, character-power stepping-stone, posterior-to-posterior bridge); results and caveats in `data-raw/rung7-results/README.md` |
 | `data-raw/validation-report-phase2.R` | Summary CSVs for the rungs 3-6 report (`data-raw/validation-report-phase2/README.md`) |
+
+## Moves that change parameters and paths together
+
+A move that maps (parameters, paths) deterministically, like `shift`, needs the Jacobian of the map in
+the Hastings ratio (`prod p' / p` for multiplicative parameter changes), and must reject, not clamp,
+proposals that leave the grid. The exact one-parameter oracle (`data-raw/rung4b-one-parameter.R`,
+seventh argument `shift`) checks each compensation separately; batch-means z-scores there scatter
+by about +/-2 at 8 chains, so use 16 or more.
 
 ## Tree-move proposals
 

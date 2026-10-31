@@ -3,7 +3,9 @@
 # Run from the package root:
 #   Rscript data-raw/rung4b-one-parameter.R [nIter] [parameters] [nDA] [character]
 # e.g. "12000 theta 8 no" frees theta only, 8 DA chains, without the character;
-# a fifth argument "joint" adds joint parameter-path moves.
+# a fifth argument "joint" adds joint parameter-path moves; a seventh argument
+# "shift" adds one shift move per iteration (#19), which compensates the free
+# parameter (`rate`, `lambda`, `mu`, `psi` or `theta`) for a shift of every bin.
 suppressMessages(pkgload::load_all(".", quiet = TRUE))
 library(parallel)
 args <- commandArgs(trailingOnly = TRUE)
@@ -15,10 +17,12 @@ useJoint <- length(args) > 4 && args[[5]] == "joint"
 # Sixth argument "rung4-K26": the rung-4 tree and model at the default grid
 # (no character; #17)
 source4 <- length(args) > 5 && args[[6]] == "rung4-K26"
+useShift <- length(args) > 6 && args[[7]] == "shift"
 tag <- if (length(args)) paste0("-", paste(free, collapse = "-"), "-", nIter,
                                 if (useCharacter) "" else "-nochar",
                                 if (useJoint) "-joint" else "",
-                                if (source4) "-rung4-K26" else "") else ""
+                                if (source4) "-rung4-K26" else "",
+                                if (useShift) "-shift" else "") else ""
 burnin <- 200L
 r4b <- readRDS(if (source4) "data-raw/rung4-results/rung4-K26.rds" else "data-raw/rung5-results/rung4b.rds")
 if (source4) useCharacter <- FALSE
@@ -26,8 +30,9 @@ tt <- r4b$tt; model <- r4b$model; truth <- r4b$truth
 character <- if (useCharacter) r4b$character else NULL
 priors <- c(TempoPriors(), rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
 gridFor <- function(p) {
-  m <- c(lambda = log(0.5), mu = log(0.2), psi = log(0.1), theta = log(0.1))[[p]]
-  s <- c(lambda = 0.5, mu = 0.5, psi = 0.5, theta = 0.75)[[p]]
+  m <- c(lambda = log(0.5), mu = log(0.2), psi = log(0.1), theta = log(0.1),
+         rate = log(0.3))[[p]]
+  s <- c(lambda = 0.5, mu = 0.5, psi = 0.5, theta = 0.75, rate = 0.5)[[p]]
   exp(seq(m - 3.5 * s, m + 3.5 * s, length.out = 161))
 }
 jobs <- rbind(
@@ -37,7 +42,7 @@ jobs <- rbind(
 cl <- makeCluster(min(15, nrow(jobs)))
 invisible(clusterCall(cl, function() suppressMessages(pkgload::load_all(".", quiet = TRUE))))
 clusterExport(cl, c("tt", "model", "truth", "character", "priors", "gridFor", "jobs",
-                    "nIter", "burnin", "useJoint"))
+                    "nIter", "burnin", "useJoint", "useShift"))
 t0 <- Sys.time()
 # Chains first (long), grid points fill the remaining workers
 order <- c(which(jobs$kind != "grid"), which(jobs$kind == "grid"))
@@ -50,7 +55,8 @@ res <- clusterApplyLB(cl, order, function(j) {
   }
   if (job$kind == "DA") {
     return(TempoMCMC(tt, model, truth, priors[job$p], nIter = nIter, burnin = burnin,
-                     nSlice = 20, moves = c(tree = 1, node = 2, tip = 2, branch = 2, joint = as.numeric(useJoint)),
+                     nSlice = 20, moves = c(tree = 1, node = 2, tip = 2, branch = 2, joint = as.numeric(useJoint),
+                                            shift = as.numeric(useShift)),
                      characters = if (!is.null(character)) matrix(character))$samples[[job$p]])
   }
   MarginalMCMC(tt, model, truth, priors[job$p], nIter = nIter, burnin = burnin,
@@ -89,6 +95,6 @@ out <- do.call(rbind, lapply(free, function(p) {
   }))
 }))
 saveRDS(list(jobs = jobs, res = res, out = out, useCharacter = useCharacter, nIter = nIter, burnin = burnin,
-             runtime = runtime), paste0("data-raw/rung5-results/rung4b-one-parameter", tag, ".rds"))
+             useShift = useShift, runtime = runtime), paste0("data-raw/rung5-results/rung4b-one-parameter", tag, ".rds"))
 print(out, digits = 3)
 cat("runtime", format(runtime), "\n")

@@ -151,7 +151,7 @@ test_that("TempoMCMC() runs every move with characters", {
                    moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 1,
                              fossilAge = 1, slide = 1, saJump = 1, joint = 1),
                    characters = chars)
-  expect_true(all(run$acceptance > 0))
+  expect_true(all(run$acceptance[c(names(run$moves), "parameters")] > 0))
   expect_true(all(is.finite(run$samples$logPost)))
   expect_true(all(run$samples$clock > 0))
   expect_error(TempoMCMC(moveTree, moveModel, movePar, list(), nIter = 1,

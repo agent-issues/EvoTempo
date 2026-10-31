@@ -14,7 +14,9 @@ Files:
 - `shift-oracles-between-chain.csv`: one-parameter oracles with the shift move
   (`data-raw/rung4b-one-parameter.R ... shift`);
 - `sbc/`: the short rung-6 SBC with the new schedule (`data-raw/rung6-sbc-full.R` with
-  `EVOTEMPO_SBC_SCHEDULE=default`; summary by `data-raw/rung6-sbc-full-summary.R`).
+  `EVOTEMPO_SBC_SCHEDULE=default`; summary by `data-raw/rung6-sbc-full-summary.R`);
+- `oracles-51-{psi,s,sNoShift,gamma0,identity}.csv`: seed and mutation sweeps of the oracles of
+  `tests/testthat/helper-oracles.R` (`data-raw/oracles-51.R`; section 4).
 
 The `.rds` outputs (chains, oracle draws) are not committed.
 
@@ -85,7 +87,11 @@ with a point-mass start prior on bin k. The MCSE is from batch means.
 Shift acceptance was 0.25. The mean log-tempo of the two samplers agrees
 (z = -0.82).
 
-## 2. Calibration is unchanged: short rung-6 SBC
+## 2. Short rung-6 SBC
+
+This SBC reuses the datasets and seeds of #21, so its ranks correlate with those of #21
+(Spearman 0.94-0.98) and it is not independent evidence that calibration is unchanged
+(#51). The independent run proposed in section 4 settles that.
 
 These are the gamma = 1 cells of the full rung-6 SBC (#21): the same replicate seeds
 (g = 2, 4, ..., 200, i.e. the first 50 replicates of cells 2 and 4), the same data, tree
@@ -231,6 +237,115 @@ Reading these together:
 - **Large tree, new schedule.** theta and s are still slow (R-hat 1.05-1.22 for 3 x 5000
   iterations), as the #19 study found. All large-tree theta and s values are
   **provisional**.
+
+## 4. Paths with no oracle, convergence and an independent SBC (#51)
+
+### Oracles
+
+`tests/testthat/test-Oracles.R` runs four checks on the five-tip tree of `test-Mixing.R`
+(K = 11, z in [-2, 2]). Each distributional oracle compares pooled chains with an exact
+posterior on a grid: the batch-means z of the mean log-parameter and of the CDF at the
+exact quartiles. The test fails if any |z| reaches 4.
+
+- `psi`: only psi free, delta = 2, three shifts per iteration, so each accepted shift
+  multiplies psi by exp(-2d). Exact target: `TreeLikelihood()` x prior.
+- `s`: `s` and `rate` free, one character, gamma = 2. Shifts compensate `rate` at the
+  current `s`. Exact target: `TreeLikelihood(character = )` x prior on a 33 x 33 grid.
+- `gamma0`: the default schedule at gamma = 0 (`tree`, `node`, `tip`, `branch`, `joint`,
+  `shift`), with `theta` and `rate` free and six characters. Exact target: theta | tree
+  from `TreeLikelihood()`, and rate | characters from `MkLikelihood()`. The test also
+  checks that `tree` and `joint` survive burn-in.
+- `identity`: 40 shifts with `s` = 0.6 and `rate` free, six characters. The kept character
+  likelihood must equal its recomputed value. One character carries too little data for
+  the `s` oracle to see an error in d.
+
+`data-raw/oracles-51.R` swept seeds at the test lengths and replaced `.Shifted()` in the
+loaded namespace with mutants (R/MCMC.R untouched). Columns: seeds, smallest / median /
+largest max|z| over seeds, and seeds with max|z| >= 4.
+
+| oracle | kernel | iterations x chains | seeds | max\|z\| min / median / max | fail |
+|---|---|---|---|---|---|
+| psi | correct | 3000 x 1 | 10 | 0.60 / 1.21 / 2.01 | 0 |
+| psi | psi dropped from the Jacobian | 3000 x 1 | 10 | 4.34 / 5.29 / 7.47 | 10 |
+| psi | psi x exp(+delta d), Jacobian unchanged | 3000 x 1 | 5 | 3.82 / 5.61 / 8.23 | 4 |
+| psi | psi not compensated (still exact) | 3000 x 1 | 5 | 0.97 / 1.37 / 2.30 | 0 |
+| s | correct | 6000 x 2 | 10 | 1.01 / 1.86 / 3.77 | 0 |
+| s | rate dropped from the Jacobian | 6000 x 2 | 6 | 3.51 / 6.17 / 8.20 | 5 |
+| gamma0 | correct | 3000 x 2 | 10 | 0.71 / 1.45 / 3.07 | 0 |
+| gamma0 | rate compensated as if gamma = 1 | 3000 x 2 | 5 | 7.79 / 9.43 / 9.57 | 5 |
+
+| identity | kernel | seeds | largest error in the kept log-likelihood |
+|---|---|---|---|
+| | correct | 5 | 3.6e-15 |
+| | d at s = 1 instead of the current s | 5 | 0.33-0.69 |
+
+At the test seed (100) the correct kernel gives max|z| = 0.72 (psi), 1.58 (s) and 1.92
+(gamma0). The mutants give 6.51 (psi Jacobian), 5.67 (psi sign), 4.18 (rate Jacobian) and
+9.44 (gamma = 0). The three tests take about 25, 45 and 45 s.
+
+The `s` oracle is the weakest. `s` mixes slowly, the correct kernel reached
+max|z| = 3.77 in one seed, and the rate-Jacobian mutant escaped in one seed of six.
+Its upper quartiles also lean one way across seeds. The table gives the
+Stouffer-pooled z of the correct kernel; `sNoShift` is the same oracle without `shift`.
+
+| runs | s.mean | s.q50 | s.q75 | rate.mean | rate.q50 | rate.q75 |
+|---|---|---|---|---|---|---|
+| `s`, 10 seeds x 2 x 6000, burn-in 200 | -1.57 | 1.91 | 2.31 | -1.25 | 1.23 | 3.49 |
+| `s`, 4 seeds x 2 x 20 000, burn-in 2000 | -0.35 | 0.38 | 2.27 | -1.71 | 1.68 | 2.72 |
+| `sNoShift`, 4 seeds x 2 x 20 000, burn-in 2000 | -0.08 | -0.34 | 0.42 | -1.06 | 1.22 | 1.89 |
+
+With `s` fixed at 0.6, `rate` alone at gamma = 2 (no shift, 2 x 2 x 20 000) gave
+|z| <= 1.46, so the chain and `TreeLikelihood(character = )` agree at gamma = 2.
+
+The lean in `rate` appears with and without `shift`. It is therefore more likely slow
+mixing along the s-rate ridge, or the `s` sweep, than the shift move. Only the shift runs
+lean in `s.q75`, however, so a small error in the shift with `s` free is not excluded.
+`data-raw/oracles-51-array.sh` (20 seeds of each, 2 x 50 000, about 4 core-hours)
+settles it.
+
+No oracle here covers:
+
+- the shift's recompute branch (`rate` fixed, gamma != 0, characters) beyond the unit
+  check in `test-Mixing.R`;
+- two or more parameters compensated at once;
+- a shift that clamps at the grid edge instead of rejecting (edge bins are rarely
+  occupied);
+- the production schedule with characters at gamma != 0, which only the SBC tests.
+
+### Dispersed starts
+
+`data-raw/mixing-schedule.R chain ... dispersed` starts each chain at the prior median
+times exp(2 sdlog z), with z standard normal truncated to the prior support, using one seed
+per replicate. Split R-hat across replicates then tests convergence, which the
+truth-started chains of section 3 do not. Pilot (local): small tree, 30 characters,
+`TempoMoves()`, 3 chains of 1000 + 3000 iterations each.
+
+| start | theta | s | rate | lambda | rootBin | clock | logPost |
+|---|---|---|---|---|---|---|---|
+| dispersed | 1.05 | 1.06 | 1.01 | 1.00 | 1.07 | 1.02 | 1.04 |
+| truth | 1.14 | 1.06 | 1.01 | 1.00 | 1.04 | 1.01 | 1.12 |
+
+The starts ranged over `s` 0.12-0.25 and `rate` 0.028-0.18 (truth 0.41 and 0.073).
+Three short chains cannot show convergence. They only show that the arm runs and does
+not stick. The full arm (`data-raw/mixing-schedule-array.sh`: both trees, 30 / 100 / 300
+characters, both schedules, 4 replicates of 2000 + 5000) costs about 10 core-hours.
+
+### Independent SBC (proposed; not run)
+
+`data-raw/sbc-51-array.sh` runs `rung6-sbc-full.R` under `TempoMoves()` in cell
+beta = 0, gamma = 1. Replicates now also save `posteriorMcse` (sd / sqrt(ESS)) and
+`posteriorMcseBatch`.
+
+- **standard**: all 200 cell-2 datasets of #21 (g = 2, 6, ..., 798). The 150 with
+  g >= 202 have never been run under the new schedule. About 110 core-hours.
+- **long**: the 50 datasets of section 2 at 10 x the base length (200 000 iterations,
+  no extensions). Its first 20 000 iterations repeat the standard chain, so a shift in
+  rank or posterior mean beyond the MCSE means the short chains had not converged.
+  About 210 core-hours; longest task about 5.5 h.
+
+`data-raw/sbc-51-summary.R` tests rank uniformity on the 150 new datasets, the 50 old
+ones, all 200 and the long arm. It also pairs the standard arm with #21 (200) and the
+long arm with the standard arm (50), comparing ranks and posterior means in MCSE units.
 
 ## Deviations and limits
 

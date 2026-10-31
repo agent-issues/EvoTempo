@@ -153,9 +153,10 @@ OracleGamma0 <- function(seed = 1, nIter = 3000, nChain = 2, burnin = 200) {
   priors <- TempoPriors(c(theta = log(0.1), rate = log(0.3)), c(theta = 0.75, rate = 0.5))
   runs <- OracleChains(seed, nChain, model, oraclePar, priors, nIter = nIter,
                        burnin = burnin, nSlice = 4, characters = oracleChars)
-  st <- runs[[1]]$state
-  # Lengths per unit rate: at gamma = 0 these do not depend on the paths
-  unitLengths <- .CharacterLengths(st$tree, st$set$grid$x, st$paths, 1, 0)
+  # Lengths per unit rate at gamma = 0: the durations of the branches with paths
+  nodes <- .PathNodes(oracleTree)
+  age <- oracleTree$age
+  unitLengths <- replace(numeric(length(age)), nodes, age[oracleTree$parent[nodes]] - age[nodes])
   logTheta <- log(0.1) + seq(-4, 4, length.out = 161) * 0.75
   logRate <- log(0.3) + seq(-4, 4, length.out = 161) * 0.5
   postTheta <- vapply(logTheta, function(lt) {

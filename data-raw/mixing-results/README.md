@@ -15,7 +15,7 @@ Files:
   (`data-raw/rung4b-one-parameter.R ... shift`);
 - `sbc/`: the short rung-6 SBC with the new schedule (`data-raw/rung6-sbc-full.R` with
   `EVOTEMPO_SBC_SCHEDULE=default`; summary by `data-raw/rung6-sbc-full-summary.R`);
-- `oracles-51-{psi,s,gamma0,identity}.csv`: seed and mutation sweeps of the oracles of
+- `oracles-51-{psi,s,sNoShift,gamma0,identity}.csv`: seed and mutation sweeps of the oracles of
   `tests/testthat/helper-oracles.R` (`data-raw/oracles-51.R`; section 4).
 
 The `.rds` outputs (chains, oracle draws) are not committed.
@@ -279,9 +279,38 @@ largest max|z| over seeds, and seeds with max|z| >= 4.
 | | correct | 5 | 3.6e-15 |
 | | d at s = 1 instead of the current s | 5 | 0.33-0.69 |
 
-The `s` oracle is the weakest: `s` mixes slowly, and the correct kernel reached
-max|z| = 3.77 in one seed. A 4 x 12 000 run (gamma = 1) gave max|z| = 1.62.
-The three tests take about 25, 45 and 45 s.
+At the test seed (100) the correct kernel gives max|z| = 0.72 (psi), 1.58 (s) and 1.92
+(gamma0). The mutants give 6.51 (psi Jacobian), 5.67 (psi sign), 4.18 (rate Jacobian) and
+9.44 (gamma = 0). The three tests take about 25, 45 and 45 s.
+
+The `s` oracle is the weakest. `s` mixes slowly, the correct kernel reached
+max|z| = 3.77 in one seed, and the rate-Jacobian mutant escaped in one seed of six.
+Its upper quartiles also lean one way across seeds. The table gives the
+Stouffer-pooled z of the correct kernel; `sNoShift` is the same oracle without `shift`.
+
+| runs | s.mean | s.q50 | s.q75 | rate.mean | rate.q50 | rate.q75 |
+|---|---|---|---|---|---|---|
+| `s`, 10 seeds x 2 x 6000, burn-in 200 | -1.57 | 1.91 | 2.31 | -1.25 | 1.23 | 3.49 |
+| `s`, 4 seeds x 2 x 20 000, burn-in 2000 | -0.35 | 0.38 | 2.27 | -1.71 | 1.68 | 2.72 |
+| `sNoShift`, 4 seeds x 2 x 20 000, burn-in 2000 | -0.08 | -0.34 | 0.42 | -1.06 | 1.22 | 1.89 |
+
+With `s` fixed at 0.6, `rate` alone at gamma = 2 (no shift, 2 x 2 x 20 000) gave
+|z| <= 1.46, so the chain and `TreeLikelihood(character = )` agree at gamma = 2.
+
+The lean in `rate` appears with and without `shift`. It is therefore more likely slow
+mixing along the s-rate ridge, or the `s` sweep, than the shift move. Only the shift runs
+lean in `s.q75`, however, so a small error in the shift with `s` free is not excluded.
+`data-raw/oracles-51-array.sh` (20 seeds of each, 2 x 50 000, about 4 core-hours)
+settles it.
+
+No oracle here covers:
+
+- the shift's recompute branch (`rate` fixed, gamma != 0, characters) beyond the unit
+  check in `test-Mixing.R`;
+- two or more parameters compensated at once;
+- a shift that clamps at the grid edge instead of rejecting (edge bins are rarely
+  occupied);
+- the production schedule with characters at gamma != 0, which only the SBC tests.
 
 ### Dispersed starts
 

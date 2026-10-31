@@ -12,7 +12,8 @@
 #   rateGamma0     at gamma = 0, rate compensated as if gamma were 1, while the
 #                  stored character likelihood is kept.
 # Usage, from the package root with EvoTempo installed:
-#   Rscript data-raw/oracles-51.R <psi|s|gamma0|identity> <mutation,...> <seed,...> [nIter] [nChain]
+#   Rscript data-raw/oracles-51.R <oracle> <mutation,...> <seed,...> [nIter] [nChain] [burnin]
+# with <oracle> psi, s, sNoShift (OracleS() without `shift`), gamma0 or identity.
 # `identity` is ShiftIdentityError(): its "z" is the largest error in the kept
 # character likelihood.  Appends one row per run to
 # data-raw/mixing-results/oracles-51-<oracle>.csv.
@@ -27,6 +28,7 @@ if (length(args) < 3) stop("see header for usage")
 oracle <- args[[1]]
 nIter <- if (length(args) > 3) as.integer(args[[4]]) else 3000L
 nChain <- if (length(args) > 4) as.integer(args[[5]]) else 2L
+burnin <- if (length(args) > 5) as.integer(args[[6]]) else 200L
 outFile <- sprintf("data-raw/mixing-results/oracles-51-%s.csv", oracle)
 Original <- get(".Shifted", ns)
 
@@ -78,7 +80,8 @@ Mutant <- function(kind) {
 }
 
 Run <- switch(oracle, psi = OraclePsi, s = OracleS, gamma0 = OracleGamma0,
-              identity = function(seed, nIter, nChain) {
+              sNoShift = function(...) OracleS(..., moves = c(node = 1, tip = 1, branch = 1)),
+              identity = function(seed, nIter, nChain, burnin) {
                 res <- ShiftIdentityError(seed)
                 list(z = c(error = res[["error"]]), shift = res[["accepted"]] / 40)
               },
@@ -87,10 +90,10 @@ for (kind in strsplit(args[[2]], ",")[[1]]) {
   utils::assignInNamespace(".Shifted", Mutant(kind), "EvoTempo")
   for (seed in as.integer(strsplit(args[[3]], ",")[[1]])) {
     t0 <- Sys.time()
-    res <- Run(seed, nIter = nIter, nChain = nChain)
+    res <- Run(seed, nIter = nIter, nChain = nChain, burnin = burnin)
     sec <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
     row <- data.frame(oracle = oracle, mutation = kind, seed = seed, nIter = nIter,
-                      nChain = nChain, maxAbsZ = max(abs(res$z)),
+                      nChain = nChain, burnin = burnin, maxAbsZ = max(abs(res$z)),
                       shiftAcceptance = res$shift, seconds = sec,
                       t(round(res$z, 3)))
     cat(sprintf("%s %s seed %d: max|z| %.2f (%s), shift %.2f, %.0f s\n", oracle, kind, seed,

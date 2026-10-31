@@ -3,12 +3,18 @@
 # path moves at 0.25 x the nodes, tips and branches; one `shift` per
 # iteration), on the fixed trees of the mixing study (dev/mixing/README.md:
 # small and large, cell beta = gamma = 1, K = 16, z in [-3, 3], 30 / 100 /
-# 300 nested characters, all six parameters free, start at the truth).
+# 300 nested characters, all six parameters free).
 # Unlike dev/mixing/, chains run the engine's own TempoMCMC().
+# Chains start at the truth, or (`dispersed`, #51) at an overdispersed draw:
+# each parameter at its prior median times exp(2 sdlog z), z standard normal
+# truncated to the prior support |z| <= 2, with a seed per replicate, so that
+# split R-hat across replicates tests convergence.
 # Usage, from the package root with EvoTempo installed:
-#   Rscript data-raw/mixing-schedule.R chain <tree> <nChar> <config> <rep> [nIter] [burnin]
+#   Rscript data-raw/mixing-schedule.R chain <tree> <nChar> <config> <rep> [nIter] [burnin] [start]
 #   Rscript data-raw/mixing-schedule.R summary
-# Environment: EVOTEMPO_MIXING_OUT (default data-raw/mixing-results)
+# Environment: EVOTEMPO_MIXING_OUT (default data-raw/mixing-results);
+#   EVOTEMPO_MIXING_TREES (default dev/mixing/results/trees.rds, from
+#   `Rscript dev/mixing/run.R sim`)
 suppressMessages(library(EvoTempo))
 args <- commandArgs(trailingOnly = TRUE)
 outDir <- Sys.getenv("EVOTEMPO_MIXING_OUT", "data-raw/mixing-results")
@@ -63,20 +69,34 @@ if (mode == "chain") {
   rep <- as.integer(args[[5]])
   nIter <- if (length(args) > 5) as.integer(args[[6]]) else 5000L
   burnin <- if (length(args) > 6) as.integer(args[[7]]) else 2000L
-  file <- file.path(outDir, "chains", sprintf("t%d-c%03d-%s-r%d.rds", treeId, nChar,
-                                              config, rep))
+  start <- if (length(args) > 7) args[[8]] else "truth"
+  file <- file.path(outDir, "chains", sprintf("t%d-c%03d-%s-r%d%s.rds", treeId, nChar,
+                                              config, rep,
+                                              if (start == "truth") "" else "-dispersed"))
   if (file.exists(file)) quit(save = "no")
-  tr <- readRDS("dev/mixing/results/trees.rds")[[treeId]]
+  tr <- readRDS(Sys.getenv("EVOTEMPO_MIXING_TREES", "dev/mixing/results/trees.rds"))[[treeId]]
   chars <- tr$chars[, seq_len(nChar), drop = FALSE]
   moves <- switch(config, old = oldMoves, new = NULL, stop("Unknown config"))
+  init <- switch(start, truth = tr$truth, dispersed = {
+    # Same start for both configs of a replicate
+    set.seed(5100L + 100L * treeId + rep)
+    z <- vapply(names(meanlog), function(p) {
+      repeat {
+        z <- stats::rnorm(1)
+        if (abs(z) <= zTrunc / 2) return(z)
+      }
+    }, 0)
+    replace(tr$truth, names(meanlog), as.list(exp(meanlog + 2 * sdlog * z)))
+  }, stop("Unknown start"))
   set.seed(1900L + 100L * treeId + 10L * rep + nChar)
   t0 <- proc.time()
-  run <- TempoMCMC(tr$tt, model, tr$truth, priors, nIter = nIter, burnin = burnin,
+  run <- TempoMCMC(tr$tt, model, init, priors, nIter = nIter, burnin = burnin,
                    thin = nIter %/% 1000L, nSlice = nSlice, moves = moves,
                    characters = chars, minAcceptance = if (config == "old") 0 else 0.01)
   cpu <- unname(sum((proc.time() - t0)[c("user.self", "sys.self")]))
   out <- list(tree = treeId, nChar = nChar, config = config, rep = rep, nIter = nIter,
-              burnin = burnin, cpu = cpu, samples = run$samples[quantities],
+              burnin = burnin, start = start, init = unlist(init[names(meanlog)]),
+              cpu = cpu, samples = run$samples[quantities],
               acceptance = run$acceptance, moves = run$moves,
               ess = vapply(run$samples[quantities], Ess, 0),
               sha = Sys.getenv("EVOTEMPO_SHA"))
@@ -86,12 +106,16 @@ if (mode == "chain") {
 
 if (mode == "summary") {
   files <- list.files(file.path(outDir, "chains"), "\\.rds$", full.names = TRUE)
-  res <- lapply(files, readRDS)
+  res <- lapply(files, function(f) {
+    r <- readRDS(f)
+    if (is.null(r$start)) r$start <- "truth"
+    r
+  })
   chains <- do.call(rbind, lapply(res, function(r) {
     # CPU time scaled to the sampling phase
     hours <- r$cpu * r$nIter / (r$nIter + r$burnin) / 3600
     data.frame(tree = c("small", "large")[r$tree], nChar = r$nChar, config = r$config,
-               rep = r$rep, cpuHours = hours, quantity = names(r$ess),
+               start = r$start, rep = r$rep, cpuHours = hours, quantity = names(r$ess),
                ess = unname(r$ess), essPerHour = unname(r$ess) / hours,
                essPer1000 = unname(r$ess) / r$nIter * 1000,
                sd = vapply(names(r$ess), function(q) {
@@ -100,19 +124,19 @@ if (mode == "summary") {
                }, 0))
   }))
   write.csv(chains, file.path(outDir, "mixing-schedule-chains.csv"), row.names = FALSE)
-  key <- interaction(chains$tree, chains$nChar, chains$quantity, drop = TRUE)
+  key <- interaction(chains$tree, chains$nChar, chains$quantity, chains$start, drop = TRUE)
   cells <- do.call(rbind, lapply(split(chains, key), function(d) {
     o <- d[d$config == "old", ]
     n <- d[d$config == "new", ]
     data.frame(tree = d$tree[1], nChar = d$nChar[1], quantity = d$quantity[1],
-               nRep = nrow(n), essPerHourOld = mean(o$essPerHour),
+               start = d$start[1], nRep = nrow(n), essPerHourOld = mean(o$essPerHour),
                essPerHourNew = mean(n$essPerHour), gain = mean(n$essPerHour) / mean(o$essPerHour),
                essPer1000Old = mean(o$essPer1000), essPer1000New = mean(n$essPer1000),
                sdOld = mean(o$sd), sdNew = mean(n$sd),
                secPerIterOld = mean(o$cpuHours) * 3600 / res[[1]]$nIter,
                secPerIterNew = mean(n$cpuHours) * 3600 / res[[1]]$nIter)
   }))
-  cells <- cells[order(match(cells$tree, c("small", "large")), cells$nChar,
+  cells <- cells[order(cells$start, match(cells$tree, c("small", "large")), cells$nChar,
                        match(cells$quantity, quantities)), ]
   write.csv(cells, file.path(outDir, "mixing-schedule-gains.csv"), row.names = FALSE)
   # Split R-hat over the replicate chains of each cell
@@ -128,10 +152,11 @@ if (mode == "summary") {
     sqrt(((n - 1) / n * w + b / n) / w)
   }
   rhat <- do.call(rbind, lapply(split(res, vapply(res, function(r) {
-    paste(r$tree, r$nChar, r$config)
+    paste(r$tree, r$nChar, r$config, r$start)
   }, "")), function(rs) {
     data.frame(tree = c("small", "large")[rs[[1]]$tree], nChar = rs[[1]]$nChar,
-               config = rs[[1]]$config, t(vapply(quantities, function(q) {
+               config = rs[[1]]$config, start = rs[[1]]$start, nRep = length(rs),
+               t(vapply(quantities, function(q) {
                  xs <- lapply(rs, function(r) {
                    x <- r$samples[[q]]
                    if (q %in% c("theta", "s", "rate", "lambda", "clock")) log(x) else x
@@ -140,7 +165,8 @@ if (mode == "summary") {
                }, 0)))
   }))
   write.csv(rhat, file.path(outDir, "mixing-schedule-rhat.csv"), row.names = FALSE)
-  print(cells[, c("tree", "nChar", "quantity", "gain", "essPerHourOld", "essPerHourNew")],
+  print(cells[, c("start", "tree", "nChar", "quantity", "gain", "essPerHourOld",
+                  "essPerHourNew")],
         digits = 3, row.names = FALSE)
   print(rhat, digits = 3, row.names = FALSE)
 }

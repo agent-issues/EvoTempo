@@ -203,7 +203,8 @@ Replicate <- function(g) {
   # Without fossils, saJump and fossilAge have nothing to act on; saJump then
   # errors in the engine (issue #36), so both are dropped (identity moves)
   noFossil <- c("saJump", "fossilAge")
-  if (identical(Sys.getenv("EVOTEMPO_SBC_SCHEDULE"), "default")) {
+  defaultSchedule <- identical(Sys.getenv("EVOTEMPO_SBC_SCHEDULE"), "default")
+  if (defaultSchedule) {
     treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
     mainMoves <- c(TempoMoves(tt, chars, model), mainMoves[treeMoves])
   }
@@ -220,7 +221,8 @@ Replicate <- function(g) {
     Chain <- function(tr, par, burn) {
       TempoMCMC(tr, model, par, priors, nIter = nIter, burnin = burn,
                 thin = nIter %/% nStore, nSlice = nSlice, moves = moves,
-                characters = chars, minAcceptance = 0)
+                characters = chars,
+                minAcceptance = if (defaultSchedule) 0.01 else 0)
     }
     run <- Chain(startTree, start, burnin)
     samples <- run$samples

@@ -82,7 +82,8 @@ with a point-mass start prior on bin k. The MCSE is from batch means.
 | reference | P(rootBin=11) | 0.004237 | 0.004059 | 0.0001245 | -1.43 |
 | reference | E(rootBin) | 6.252 | 6.245 | 0.003031 | -2.01 |
 
-Shift acceptance was 0.25. The mean log-tempo of the two samplers agrees
+Shift acceptance was 0.25 (burn-in included, as for every acceptance rate and `acc.*` column
+in this directory). The mean log-tempo of the two samplers agrees
 (z = -0.82).
 
 ## 2. Calibration is unchanged: short rung-6 SBC
@@ -134,10 +135,9 @@ hour of chain run time):
 | beta=1, gamma=1 | theta | 68 | 125 | 1.65 | 3.08 | 1.85 |
 | beta=1, gamma=1 | treeLength | 133 | 167 | 3.58 | 4.23 | 1.26 |
 
-The #21 runs used package commit a2c3aa1. Between it and this PR's commit, `src/` is
-unchanged and the only other change to `R/` is the solver-failure handling of #39, so the
-CPU comparison is confounded only by the runs being on other Hamilton nodes. Run times are
-therefore only indicative. The ESS-per-1000-iterations
+The #21 runs used package commit a2c3aa1. Between a2c3aa1 and 5f099ad (#42), `src/` is
+unchanged and the only other `R/` change is #39's solver-failure handling, so run times are
+confounded only by node; they are therefore only indicative. The ESS-per-1000-iterations
 columns do not depend on run time.
 
 ## 3. ESS per CPU hour: old schedule vs `TempoMoves()`
@@ -188,7 +188,8 @@ Per iteration, the new schedule runs 137 local moves on the large tree (`node` 4
 `branch` 68) and 36 on the small tree (11, 7, 18), each with a full `MkLikelihood()` re-prune,
 against 6 under `old`. On the large tree it costs 1.6-2.5x more per iteration than `old`. On the
 small tree it is cheaper, because the dropped `joint` sweep (one FFBS draw per parameter) costs
-more than the extra local moves. At 300 characters the acceptance rates were `node` 0.76-0.80,
+more than the extra local moves. At 300 characters the acceptance rates (burn-in included, as
+`TempoMCMC()` then reported them) were `node` 0.76-0.80,
 `tip` 0.78-0.85, `branch` 0.90-0.92 and `shift` 0.33-0.41.
 
 ### Posterior sd of log parameters (old / new; mean of replicates)

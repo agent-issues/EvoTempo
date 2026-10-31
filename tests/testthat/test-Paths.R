@@ -134,7 +134,7 @@ test_that("TempoMCMC() updates parameters and records summaries", {
   expect_equal(nrow(run$samples), 3)
   expect_named(run$samples[1:6], c("lambda", "theta", "s", "logPost", "rootBin", "meanX"))
   expect_equal(ncol(run$branchX), length(.PathNodes(pathTree)))
-  expect_gt(run$acceptance[["tree"]], 0.9)
+  expect_gt(run$burninAcceptance[["tree"]], 0.9)
   fixed <- TempoMCMC(pathTree, pathModel, pathPar, priors, nIter = 2, nSlice = 4,
                      updateParameters = FALSE)
   expect_equal(fixed$samples$lambda, rep(0.5, 2))

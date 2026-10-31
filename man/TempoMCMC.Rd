@@ -76,7 +76,8 @@ bifurcations), \code{cherries}, \code{oldestFossil}, \code{youngestFossil}, \cod
 \item \code{occupancy}: matrix of time spent in each bin (columns), per sample;
 \item \code{branchX}: matrix of the time-averaged log-tempo on each branch (for
 chains without tree moves);
-\item \code{acceptance}: acceptance rate of each move after burn-in;
+\item \code{acceptance}: acceptance rate of each move after burn-in (zero for
+moves not run);
 \item \code{burninAcceptance}: acceptance rate of each move during burn-in, or
 \code{NULL} without burn-in;
 \item \code{moves}: the move counts used after burn-in;
@@ -131,14 +132,13 @@ characters and are almost never accepted, so the default schedule
 proportion to the size of the tree.
 A fractional count \eqn{n + f} runs \eqn{n} moves and, with probability
 \eqn{f}, one more.
-At the end of burn-in, \code{tree} and \code{joint} are dropped from the sampling
-phase, with a warning, if their acceptance over at least 100 burn-in tries
-was below \code{minAcceptance}, provided that another whole-tree draw, or both
-\code{node} and \code{tip}, remain to update every path and node bin; move
-frequencies change only during burn-in, so the sampling phase is a fixed
-mixture of kernels.
-To reproduce a fixed schedule such as \code{moves = c(tree = 1)}, set
-\code{minAcceptance = 0}.
+At the end of burn-in, \code{tree} and \code{joint} are dropped, with a warning, if
+their acceptance over at least 100 burn-in proposals was below
+\code{minAcceptance} and another whole-tree draw, or both \code{node} and \code{tip},
+remain; set \code{minAcceptance = 0} to keep a fixed schedule such as
+\code{moves = c(tree = 1)}.
+Move frequencies change only during burn-in, so the sampling phase is a
+fixed mixture of kernels.
 
 Tree moves (root age fixed): \code{nodeAge} redraws the age of a bifurcation
 uniformly between its children and parent; \code{fossilAge} redraws a fossil's

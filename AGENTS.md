@@ -246,8 +246,9 @@ implementation. Rules for any change to either side:
 
 ## CI
 
-`.github/workflows/`: `R-CMD-check.yaml` (ubuntu, macOS, windows), `test-coverage.yaml` (covr,
-uploads to Codecov) and `render-manuscript.yaml` (on changes under `manuscript/`). A failure
+`.github/workflows/`: `R-CMD-check.yaml` (ubuntu, macOS, windows, and ubuntu again with the tests on
+the R engine: `EVOTEMPO_TEST_ENGINE=R`, read by `tests/testthat/setup-engine.R`), `test-coverage.yaml`
+(covr, uploads to Codecov) and `render-manuscript.yaml` (on changes under `manuscript/`). A failure
 that appears only in `test-coverage` usually means a test depends on the random-number state or on
 round-off: covr runs the tests in a different order and state from R CMD check.
 
@@ -279,6 +280,9 @@ rung scripts passing; rerun them (in `data-raw/`, not `tests/`) and update their
 
 ## Testing pitfalls
 
+- Tests run on both engines (set `EVOTEMPO_TEST_ENGINE=R` locally for the R engine). Do not rely on
+  where a real solver fails: lsode (R) and Radau IIA (C++) can give up at different parameter values
+  and on different platforms, so force the failure with a mock in each engine's solver.
 - Tests use small, seeded runs. A test that needs a rare branch of the code (an infeasible bridge,
   an underflow) must force it, for instance with `testthat::local_mocked_bindings()`, rather than
   hope that a random draw or round-off produces it.

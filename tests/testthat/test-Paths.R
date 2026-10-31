@@ -194,24 +194,27 @@ stiffModel <- DCETModel(
   nBin = 16, zRange = c(-3, 3), rho = 0.5, beta = 1, gamma = 0
 )
 okPar <- list(lambda = 0.47, mu = 0.136, psi = 0.029, theta = 0.306, s = 0.84)
-# Top-bin rates too stiff for the C++ E solver
-stiffPar <- replace(okPar, "s", 12)
 flat <- list(s = function(x) 0)
+# Where a real solver fails depends on the engine and the platform, so
+# failures are forced, in the solver of each engine
+FailSolve <- function(...) stop("ODE solver failed")
 
 test_that("A failed E solve is an infeasible proposal, but not at the start", {
+  local_mocked_bindings(.Integrate = FailSolve, .EGridCpp = FailSolve,
+                        .PruneTreeCpp = FailSolve)
   expect_error(
-    .Precompute(stiffTree, stiffPar, stiffModel),
+    .Precompute(stiffTree, okPar, stiffModel),
     "ODE solver failed", class = "infeasibleProposal"
   )
   other <- tryCatch(.SolverInfeasible(stop("Other")), error = identity)
   expect_s3_class(other, "simpleError")
   expect_false(inherits(other, "infeasibleProposal"))
   expect_error(
-    TempoMCMC(stiffTree, stiffModel, stiffPar, flat, nIter = 1, nSlice = 4),
+    TempoMCMC(stiffTree, stiffModel, okPar, flat, nIter = 1, nSlice = 4),
     "ODE solver failed"
   )
   expect_error(
-    MarginalMCMC(stiffTree, stiffModel, stiffPar, flat, nIter = 1),
+    MarginalMCMC(stiffTree, stiffModel, okPar, flat, nIter = 1),
     "ODE solver failed"
   )
 })
@@ -267,6 +270,12 @@ test_that(".JointSweep() rejects a parameter whose E solve fails", {
   d <- .SampleTree(stiffTree, set, msg)
   st <- list(tree = stiffTree, par = okPar, set = set, msg = msg,
              paths = d$paths, bin = d$bin, charLL = 0)
+  # The E solve fails for s > 1, as .Precompute() reports a failed solve
+  Precompute <- .Precompute
+  local_mocked_bindings(.Precompute = function(tree, par, model) {
+    if (par[["s"]] > 1) .Infeasible("ODE solver failed")
+    Precompute(tree, par, model)
+  })
   seed <- .Random.seed
   Rewind <- function() assign(".Random.seed", seed, envir = globalenv())
   # Step size that proposes s = 12 from the next random number

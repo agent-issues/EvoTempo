@@ -10,11 +10,17 @@
 #   rb sa-scale-check.Rev    (with variant = "A" or "B" set by a driver)
 # A: node-time slides, FNPR, narrow, collapse/expand, root slide (reference)
 # B: A plus mvUpDownScale(tree down, an independent x ~ Exp(1) up)
+# C, D: as A, B with 10 extant taxa and no fossils (no sampled ancestors),
+#       which isolates the root term of the Hastings ratio
 ################################################################################
 seed(variant_seed)
-for (i in 1:4) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
-fossil_ages = v(0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
-for (i in 1:6) taxa_list[4 + i] = taxon("f" + i, fossil_ages[i], fossil_ages[i])
+if (variant == "A" || variant == "B") {
+  for (i in 1:4) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
+  fossil_ages = v(0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
+  for (i in 1:6) taxa_list[4 + i] = taxon("f" + i, fossil_ages[i], fossil_ages[i])
+} else {
+  for (i in 1:10) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
+}
 origin_time <- 6.0
 tree ~ dnFBDP(originAge = origin_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
               taxa = taxa_list, condition = "survival")
@@ -26,7 +32,7 @@ moves.append( mvNarrow(tree, weight = 5) )
 moves.append( mvCollapseExpandFossilBranch(tree, origin_time, weight = 5) )
 moves.append( mvRootTimeSlideUniform(tree, origin_time, weight = 3) )
 moves.append( mvScale(x, lambda = 0.5, weight = 1) )
-if (variant == "B") {
+if (variant == "B" || variant == "D") {
   ud = mvUpDownScale(lambda = 0.5, weight = 10)
   ud.addVariable(x, up = true)
   ud.addVariable(tree, up = false)

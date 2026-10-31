@@ -115,6 +115,9 @@ holo_cal ~ dnExponential(lambda = 1 / 94, offset = abs(10302 - holo_age))
 holo_cal.clamp(10000)
 
 num_samp_anc := fbd_tree.numSampledAncestors()
+n_fossils = 0
+for (i in 1:n_taxa) { if (taxa[i].getMaxAge() > 0) n_fossils += 1 }
+prop_anc_fossils := num_samp_anc / n_fossils
 root_age := fbd_tree.rootAge()
 hym_crown_age := tmrca(fbd_tree, clade_hym_crown)
 hym_total_age := tmrca(fbd_tree, clade_hym_all)

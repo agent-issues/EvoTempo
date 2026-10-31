@@ -27,7 +27,9 @@ res <- parLapply(cl, 1:16, function(i) {
   if (i <= 8) return(SimFixed(900 + i, 250))
   set.seed(i)
   TempoMCMC(tt5, model5, fixed, list(), nIter = 4000, burnin = 200, nSlice = 16,
-            moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 2, fossilAge = 2, slide = 2, saJump = 2))$samples
+            moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 2,
+                      fossilAge = 2, slide = 2, saJump = 2),
+            minAcceptance = 0)$samples
 })
 stopCluster(cl)
 saveRDS(res, paste0("data-raw/rung5-results/rung5-fixed-parameters", suffix, ".rds"))

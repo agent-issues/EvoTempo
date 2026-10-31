@@ -53,8 +53,8 @@ iteration (see Details); unnamed moves are not used.  Defaults to
 \item{updateParameters}{Logical; if \code{FALSE}, hold parameters fixed (\code{shift}
 then moves the bins only).}
 
-\item{minAcceptance}{Numeric: \code{tree} and \code{joint} moves whose acceptance
-during burn-in falls below this are not used after burn-in.}
+\item{minAcceptance}{Numeric giving the burn-in acceptance below which
+\code{tree} and \code{joint} moves are dropped after burn-in (see Details).}
 
 \item{engine}{Character string selecting the engine:
 \itemize{
@@ -76,7 +76,9 @@ bifurcations), \code{cherries}, \code{oldestFossil}, \code{youngestFossil}, \cod
 \item \code{occupancy}: matrix of time spent in each bin (columns), per sample;
 \item \code{branchX}: matrix of the time-averaged log-tempo on each branch (for
 chains without tree moves);
-\item \code{acceptance}: acceptance rate of each move;
+\item \code{acceptance}: acceptance rate of each move after burn-in;
+\item \code{burninAcceptance}: acceptance rate of each move during burn-in, or
+\code{NULL} without burn-in;
 \item \code{moves}: the move counts used after burn-in;
 \item \code{state}: the final state.
 }
@@ -130,9 +132,13 @@ proportion to the size of the tree.
 A fractional count \eqn{n + f} runs \eqn{n} moves and, with probability
 \eqn{f}, one more.
 At the end of burn-in, \code{tree} and \code{joint} are dropped from the sampling
-phase if their acceptance during burn-in was below \code{minAcceptance}; move
+phase, with a warning, if their acceptance over at least 100 burn-in tries
+was below \code{minAcceptance}, provided that another whole-tree draw, or both
+\code{node} and \code{tip}, remain to update every path and node bin; move
 frequencies change only during burn-in, so the sampling phase is a fixed
 mixture of kernels.
+To reproduce a fixed schedule such as \code{moves = c(tree = 1)}, set
+\code{minAcceptance = 0}.
 
 Tree moves (root age fixed): \code{nodeAge} redraws the age of a bifurcation
 uniformly between its children and parent; \code{fossilAge} redraws a fossil's

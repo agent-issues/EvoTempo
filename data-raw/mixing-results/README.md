@@ -100,7 +100,8 @@ K = 16 and z in [-3, 3].
 | beta=1, gamma=1 | 50 | 13 | 13 | True | 1.0 | 1.0 | 1 | 40000 | 0.54 | 39.64 |
 
 All 13 ranked quantities pass in both cells (chi-square and KS, Holm-adjusted). Every
-replicate reached ESS >= 50 on every quantity.
+replicate reached ESS >= 50 on every quantity. The two cells took 66.76 core-hours in total
+(`runtimeMin` in `sbc/rung6-full-runs.csv`).
 
 The same 100 replicates under the #21 schedule, from `data-raw/rung6-full-results/`:
 
@@ -133,8 +134,10 @@ hour of chain run time):
 | beta=1, gamma=1 | theta | 68 | 125 | 1.65 | 3.08 | 1.85 |
 | beta=1, gamma=1 | treeLength | 133 | 167 | 3.58 | 4.23 | 1.26 |
 
-The #21 runs used package commit a2c3aa1, before the #26 profiling rounds, on other
-Hamilton nodes. Run times are therefore only indicative. The ESS-per-1000-iterations
+The #21 runs used package commit a2c3aa1. Between it and this PR's commit, `src/` is
+unchanged and the only other change to `R/` is the solver-failure handling of #39, so the
+CPU comparison is confounded only by the runs being on other Hamilton nodes. Run times are
+therefore only indicative. The ESS-per-1000-iterations
 columns do not depend on run time.
 
 ## 3. ESS per CPU hour: old schedule vs `TempoMoves()`

@@ -220,7 +220,7 @@ Replicate <- function(g) {
     Chain <- function(tr, par, burn) {
       TempoMCMC(tr, model, par, priors, nIter = nIter, burnin = burn,
                 thin = nIter %/% nStore, nSlice = nSlice, moves = moves,
-                characters = chars)
+                characters = chars, minAcceptance = 0)
     }
     run <- Chain(startTree, start, burnin)
     samples <- run$samples

@@ -47,7 +47,10 @@ Inference has two layers:
   gamma != 0) it omits `tree` and `joint`, whose whole-tree draws ignore the characters and are
   almost never accepted, and runs `node`, `tip` and `branch` at 0.25 x the nodes, tips and branches
   per iteration, plus one `shift`. Fractional counts are allowed. `minAcceptance` drops `tree` and
-  `joint` after burn-in if their burn-in acceptance is below it (default 1%).
+  `joint` after burn-in, with a warning, if their acceptance over at least 100 burn-in tries is below
+  it (default 1%), unless that would leave no whole-tree draw and not both `node` and `tip` (#50).
+  `acceptance` covers the sampling phase; `burninAcceptance` the burn-in. Fixed schedules (rung
+  scripts, `moves = c(tree = 1)`) pass `minAcceptance = 0`.
 
 ## Code path of one `TempoMCMC()` run
 

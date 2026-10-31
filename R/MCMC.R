@@ -183,9 +183,13 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' A fractional count \eqn{n + f} runs \eqn{n} moves and, with probability
 #' \eqn{f}, one more.
 #' At the end of burn-in, `tree` and `joint` are dropped from the sampling
-#' phase if their acceptance during burn-in was below `minAcceptance`; move
+#' phase, with a warning, if their acceptance over at least 100 burn-in tries
+#' was below `minAcceptance`, provided that another whole-tree draw, or both
+#' `node` and `tip`, remain to update every path and node bin; move
 #' frequencies change only during burn-in, so the sampling phase is a fixed
 #' mixture of kernels.
+#' To reproduce a fixed schedule such as `moves = c(tree = 1)`, set
+#' `minAcceptance = 0`.
 #'
 #' Tree moves (root age fixed): `nodeAge` redraws the age of a bifurcation
 #' uniformly between its children and parent; `fossilAge` redraws a fossil's
@@ -213,8 +217,8 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' [MkLikelihood()].
 #' @param updateParameters Logical; if `FALSE`, hold parameters fixed (`shift`
 #' then moves the bins only).
-#' @param minAcceptance Numeric: `tree` and `joint` moves whose acceptance
-#' during burn-in falls below this are not used after burn-in.
+#' @param minAcceptance Numeric giving the burn-in acceptance below which
+#' `tree` and `joint` moves are dropped after burn-in (see Details).
 #' @returns `TempoMCMC()` returns a list with elements
 #' - `samples`: data frame with one column per free parameter, `logPost`
 #'   (log augmented density, plus character log-likelihood and log prior),
@@ -226,7 +230,9 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' - `occupancy`: matrix of time spent in each bin (columns), per sample;
 #' - `branchX`: matrix of the time-averaged log-tempo on each branch (for
 #'   chains without tree moves);
-#' - `acceptance`: acceptance rate of each move;
+#' - `acceptance`: acceptance rate of each move after burn-in;
+#' - `burninAcceptance`: acceptance rate of each move during burn-in, or
+#'   `NULL` without burn-in;
 #' - `moves`: the move counts used after burn-in;
 #' - `state`: the final state.
 #' @references
@@ -267,6 +273,9 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   }
   if (!all(names(moves) %in% moveNames)) {
     stop("Unknown move: ", paste(setdiff(names(moves), moveNames), collapse = ", "))
+  }
+  if (!is.numeric(moves) || !all(is.finite(moves) & moves >= 0)) {
+    stop("`moves` must be finite and non-negative")
   }
   moves <- replace(setNames(numeric(length(moveNames)), moveNames), names(moves),
                    moves)
@@ -311,6 +320,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                                  c(moveNames, "parameters"))
   treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
   free <- if (updateParameters) names(priors) else character(0)
+  burninAcceptance <- NULL
   for (i in seq_len(burnin + nIter)) {
     for (move in moveNames[moves > 0]) {
       for (rep in seq_len(.MoveCount(moves[[move]]))) {
@@ -366,13 +376,10 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       }
     }
     if (i == burnin) {
-      # Whole-tree draws that the characters reject are dropped after burn-in
-      for (move in c("tree", "joint")) {
-        if (moves[[move]] > 0 && moveTry[[move]] > 0 &&
-            moveAcc[[move]] / moveTry[[move]] < minAcceptance) {
-          moves[[move]] <- 0
-        }
-      }
+      moves <- .DropMoves(moves, moveAcc, moveTry, minAcceptance,
+                          updateParameters && length(priors) > 0)
+      burninAcceptance <- moveAcc / pmax(moveTry, 1)
+      moveTry[] <- moveAcc[] <- 0
     }
     j <- i - burnin
     if (j > 0 && j %% thin == 0) {
@@ -394,7 +401,33 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   }
   list(samples = as.data.frame(samples), occupancy = occupancy,
        branchX = branchX, acceptance = moveAcc / pmax(moveTry, 1),
-       moves = moves[moves > 0], state = st)
+       burninAcceptance = burninAcceptance, moves = moves[moves > 0],
+       state = st)
+}
+
+# Whole-tree draws (`tree`, `joint`) that the characters reject are dropped
+# after burn-in, unless too few were tried to tell, or unless no other move
+# would then update every path and node bin: `node` alone moves the root bin,
+# and `tip` alone the tip bins.
+.DropMoves <- function(moves, moveAcc, moveTry, minAcceptance, jointRuns,
+                       minTries = 100) {
+  for (move in c("tree", "joint")) {
+    if (moves[[move]] == 0 || moveTry[[move]] < minTries) next
+    acc <- moveAcc[[move]] / moveTry[[move]]
+    if (acc >= minAcceptance) next
+    other <- setdiff(c("tree", if (jointRuns) "joint"), move)
+    if (any(moves[other] > 0) || all(moves[c("node", "tip")] > 0)) {
+      moves[[move]] <- 0
+      warning("`", move, "` dropped after burn-in: acceptance ", signif(acc, 2),
+              " < `minAcceptance`", call. = FALSE)
+    } else {
+      warning("`", move, "` kept despite burn-in acceptance ", signif(acc, 2),
+              ", as no other move updates every path; add `node` and `tip`",
+              call. = FALSE)
+    }
+  }
+  # Return:
+  moves
 }
 
 #' Default move schedule of TempoMCMC()
@@ -431,6 +464,9 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 #' @family dCET inference
 #' @export
 TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
+  if (length(local) != 1 || !is.finite(local) || local <= 0) {
+    stop("`local` must be a single positive number")
+  }
   tree <- TempoTree(tree)
   scored <- !is.null(characters) && NCOL(characters) > 0 &&
     (is.null(model) || model[["gamma"]] != 0)

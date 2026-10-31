@@ -156,13 +156,49 @@ test_that("TempoMCMC() runs the default schedule with characters", {
 })
 
 test_that("Whole-tree draws with low burn-in acceptance are dropped", {
-  Run <- function(minAcceptance) {
+  Run <- function(moves, minAcceptance = 2, burnin = 100, nIter = 3) {
     set.seed(8)
-    TempoMCMC(mixTree, mixModel, mixPar, mixPriors["rate"], nIter = 3, burnin = 3,
-              nSlice = 4, characters = mixChars,
-              moves = c(tree = 1, joint = 1, branch = 1, shift = 1),
+    TempoMCMC(mixTree, mixModel, mixPar, mixPriors["rate"], nIter = nIter,
+              burnin = burnin, nSlice = 4, characters = mixChars, moves = moves,
               minAcceptance = minAcceptance)
   }
-  expect_equal(Run(0)$moves, c(tree = 1, branch = 1, joint = 1, shift = 1))
-  expect_equal(Run(2)$moves, c(branch = 1, shift = 1))
+  wholeTree <- c(tree = 1, joint = 1, branch = 1, shift = 1)
+  kept <- c(tree = 1, branch = 1, joint = 1, shift = 1)
+  expect_equal(Run(wholeTree, 0)$moves, kept)
+  # Too few burn-in tries to judge
+  expect_silent(few <- Run(wholeTree, burnin = 3))
+  expect_equal(few$moves, kept)
+  # `joint` is then the last move to update every path
+  expect_warning(expect_warning(both <- Run(wholeTree), "`tree` dropped"),
+                 "`joint` kept")
+  expect_equal(both$moves, c(branch = 1, joint = 1, shift = 1))
+  local <- c(tree = 1, node = 1, tip = 1, shift = 1)
+  expect_warning(dropped <- Run(local), "`tree` dropped after burn-in")
+  expect_equal(dropped$moves, c(node = 1, tip = 1, shift = 1))
+  expect_equal(dropped$acceptance[["tree"]], 0)
+  expect_gt(dropped$burninAcceptance[["tree"]], 0)
+  expect_null(Run(local, burnin = 0)$burninAcceptance)
+})
+
+test_that("The only path move is never dropped (#50)", {
+  expect_warning(run <- TempoMCMC(
+    mixTree, mixModel, mixPar, mixPriors["rate"], nIter = 40, burnin = 100,
+    nSlice = 4, characters = mixChars, moves = c(tree = 1), minAcceptance = 2,
+    engine = "R"
+  ), "`tree` kept")
+  expect_equal(run$moves, c(tree = 1))
+  expect_gt(run$acceptance[["tree"]], 0)
+  expect_gt(length(unique(run$samples$meanX)), 1)
+})
+
+test_that("Invalid move counts are rejected (#53)", {
+  for (local in list(0, -1, NA, Inf, c(0.5, 1))) {
+    expect_error(TempoMoves(mixTree, mixChars, local = local), "`local` must")
+  }
+  for (n in c(-1, NA, Inf)) {
+    expect_error(TempoMCMC(mixTree, mixModel, mixPar, list(), nIter = 1,
+                           moves = c(tree = n)), "`moves` must")
+  }
+  expect_error(TempoMCMC(mixTree, mixModel, mixPar, list(), nIter = 1,
+                         moves = c(tree = "1")), "`moves` must")
 })

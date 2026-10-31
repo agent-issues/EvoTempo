@@ -67,3 +67,11 @@
   drops `tree` and `joint` after burn-in when their burn-in acceptance is
   below it.  The default `moves` is now `TempoMoves()`
   ([#19](https://github.com/agent-issues/EvoTempo/issues/19)).
+- `minAcceptance` no longer drops `tree` or `joint` when no other move would
+  update every path and node bin, needs 100 burn-in tries, and warns on every
+  drop; `acceptance` now covers the sampling phase only, with burn-in rates in
+  `burninAcceptance`.  Pass `minAcceptance = 0` to run a fixed schedule such
+  as `moves = c(tree = 1)`.  `TempoMoves()` and `TempoMCMC()` reject
+  non-positive `local` and non-finite or negative move counts
+  ([#50](https://github.com/agent-issues/EvoTempo/issues/50),
+  [#53](https://github.com/agent-issues/EvoTempo/issues/53)).

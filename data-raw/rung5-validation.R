@@ -57,7 +57,8 @@ if (part %in% c("4b", "both")) {
     if (jobs4b$kind[j] == "DA") {
       TempoMCMC(tt, model4b, truth4b, priors4b, nIter = nIter4b, burnin = burnin4b,
                 nSlice = 20, moves = c(tree = 1, node = 2, tip = 2, branch = 2, joint = 1),
-                characters = matrix(character))[c("samples", "acceptance")]
+                characters = matrix(character),
+                minAcceptance = 0)[c("samples", "acceptance")]
     } else {
       list(samples = MarginalMCMC(tt, model4b, truth4b, priors4b, nIter = nIter4b,
                                   burnin = burnin4b, character = character))
@@ -200,7 +201,8 @@ if (part %in% c("5", "both")) {
       TempoMCMC(tt5, model5, start5, priors5, nIter = nIter, burnin = burnin,
                 nSlice = 16,
                 moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 2,
-                          fossilAge = 2, slide = 2, saJump = 2))[c("samples", "acceptance")]
+                          fossilAge = 2, slide = 2, saJump = 2),
+                minAcceptance = 0)[c("samples", "acceptance")]
     })
     chainTime <- difftime(Sys.time(), t0, units = "mins")
     saveRDS(list(chains = chains5, runtime = chainTime), chainFile)

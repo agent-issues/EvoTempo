@@ -17,6 +17,7 @@ struct TreeView {
   int nAll;
   int root;                 // zero-based
   double stem;
+  bool origin = false;      // paths start at an origin above the root
   std::vector<int> parent;  // -1 at the root
   std::vector<int> kids;    // 2 per internal node, row-major, zero-based
   std::vector<double> age;
@@ -30,6 +31,9 @@ struct TreeView {
     nAll = nTip + nNode;
     root = Rcpp::as<int>(tree["root"]) - 1;
     stem = Rcpp::as<double>(tree["stem"]);
+    if (tree.containsElementNamed("origin")) {
+      origin = Rcpp::as<bool>(tree["origin"]);
+    }
     const Rcpp::IntegerVector par = tree["parent"];
     parent.resize(nAll);
     for (int i = 0; i < nAll; ++i) {
@@ -58,14 +62,34 @@ struct TreeView {
 
   bool IsAncestorTip(int v) const { return v < nTip && tipType[v] == kAncestor; }
 
-  // Branches carrying paths: every non-root node except sampled-ancestor tips
-  // (.PathNodes), in increasing order
+  // Branches carrying paths: every non-root node except sampled-ancestor tips,
+  // and the root with an origin (.PathNodes), in increasing order
   std::vector<int> PathNodes() const {
     std::vector<int> out;
     for (int v = 0; v < nAll; ++v) {
-      if (parent[v] >= 0 && !IsAncestorTip(v)) out.push_back(v);
+      if ((parent[v] >= 0 || (origin && v == root)) && !IsAncestorTip(v)) {
+        out.push_back(v);
+      }
     }
     return out;
+  }
+
+  // .TopAge(): age at the top of the branch above v
+  double TopAge(int v) const {
+    return v == root ? age[root] + stem : age[parent[v]];
+  }
+
+  // Index in the bin vector of the bin at the top of the branch above v
+  // (.TopBin(); the origin bin follows the nodes' bins)
+  int TopIndex(int v) const { return v == root ? nAll : parent[v]; }
+
+  // .Compatible(tree, condition = "extant", origin)
+  bool Compatible() const {
+    if (!origin) return CrownCompatible();
+    for (int v = 0; v < nTip; ++v) {
+      if (tipType[v] == kExtant) return true;
+    }
+    return false;
   }
 
   // .Compatible(tree, condition = "extant", origin = FALSE)

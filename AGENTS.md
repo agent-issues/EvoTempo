@@ -42,8 +42,8 @@ Inference has two layers:
   Moves (argument `moves`): `tree`, `node`, `tip`, `branch` (path redraws); `joint` (a parameter
   together with a fresh draw of every path; makes theta mix without characters); `shift` (every bin
   +/-1, with `rate`, `lambda`, `mu`, `psi`, `theta` rescaled by their tempo exponents so that the
-  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `saJump` (tree moves);
-  plus a scale sweep over parameters. The default schedule is `TempoMoves()`: with characters (and
+  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `saJump` (tree moves); `rootAge`, `originAge` (start-age moves,
+  with priors in `agePriors`; #18); plus a scale sweep over parameters. The default schedule is `TempoMoves()`: with characters (and
   gamma != 0) it omits `tree` and `joint`, whose whole-tree draws ignore the characters and are
   almost never accepted, and runs `node`, `tip` and `branch` at 0.25 x the nodes, tips and branches
   per iteration, plus one `shift`. Fractional counts are allowed. `minAcceptance` drops `tree` and
@@ -52,7 +52,8 @@ Inference has two layers:
 ## Code path of one `TempoMCMC()` run
 
 `TempoTree()` (ages, tip types: extant / fossil / ancestor) and `DCETModel()` (grid, scheme, beta,
-gamma, conditioning) build the inputs. `.Precompute()` builds per-bin rates and the E grid
+gamma, conditioning, start) build the inputs; `.ForModel()` marks the tree with `origin = TRUE` for
+`start = "origin"`. `.Precompute()` builds per-bin rates and the E grid
 (`.EGrid()`, Hermite-interpolated by `.Hermite()`); `.AddSlices()` adds the frozen-E slices and their
 eigendecompositions; `.Messages()` runs the backward FFBS pass; `.SampleTree()` / `.SampleClade()` /
 `.SampleBranch()` / `.Bridge()` draw paths; `.LogAugmented()` is the exact log augmented density;
@@ -176,6 +177,9 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
 | `data-raw/rung4b-shift-fixed.R` | Shift move at fixed parameters: root-bin posterior given the rung 4b tree and character vs the exact posterior from point-mass start priors (#19) |
 | `data-raw/mixing-schedule.R` | ESS per CPU hour of `TempoMCMC()` under the pre-#19 schedule and `TempoMoves()` on the `dev/mixing/` fixed trees; results and the shift-move oracles in `data-raw/mixing-results/README.md` |
+| `data-raw/rung5-age-oracle.R` | Start-age moves on a fixed tree at fixed parameters vs the exact 1-D posterior of the root or origin age (prior x `TreeLikelihood()` on a grid) (#18) |
+| `data-raw/rung5-age-validation.R` | Rung 5 with a free start age (#18): prior-only MCMC vs rejection simulation for a free crown age, a fixed origin and a free origin, at fixed or free parameters; results in `data-raw/rung5-age-results/README.md` |
+| `data-raw/rung5-age-pool.R` | Pools independent replicates of `rung5-age-validation.R` per case (all chains vs all simulated trees); the 240-replicate check of the `originFree` flag in `data-raw/rung5-age-results/README.md` |
 | `data-raw/rung4b-theta-identity.R` | Importance-sampling identity (augmented to marginal likelihood) across theta, with or without the character |
 | `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
 | `data-raw/rung6-sbc-full*.{R,sh,py}` | Rung 6 full size (#21): SBC with tree moves, 200 replicates per cell as Slurm array tasks on Hamilton; results and verdict in `data-raw/rung6-full-results/` |
@@ -189,6 +193,20 @@ the Hastings ratio (`prod p' / p` for multiplicative parameter changes), and mus
 proposals that leave the grid. The exact one-parameter oracle (`data-raw/rung4b-one-parameter.R`,
 seventh argument `shift`) checks each compensation separately; batch-means z-scores there scatter
 by about +/-2 at 8 chains, so use 16 or more.
+
+## Origin start and start-age moves
+
+With `start = "origin"` (#18) the root edge (`tree$stem`) carries a path: `paths[[root]]` runs from
+the origin to the root, the origin bin is element `nTip + nNode + 1` of the bin vector, `.PathNodes()`
+includes the root, `.Messages()` returns the message at the origin as `top`, and the root is an
+ordinary bifurcation (lambda factor). Read the top of any branch with `.TopAge()` / `.TopBin()` (R) or
+`TreeView::TopAge()` / `TopIndex()` (C++), never `age[parent[v]]`, which is `NA` at the root.
+Survival is that of the single stem lineage (`set$survive` unsquared); a sampled ancestor at the root
+is not supported. `nodeAge` moves the root below a fixed origin; `originAge` moves the origin; with
+`start = "root"`, `rootAge` moves the root. A start-age move rebuilds the frozen model (its E grid
+and slices end at the start age), so its reverse bridge density uses a frozen model built afresh at
+the current tree, not a stale `st$set`. The conditioning is evaluated at the current start age, so
+the target is the age prior times the survival-conditioned likelihood (spec section 6.1).
 
 ## Tree-move proposals
 

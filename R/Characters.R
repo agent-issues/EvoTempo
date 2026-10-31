@@ -65,6 +65,7 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 }
 
 # Tempo-weighted branch lengths c * sum_k exp(gamma x_k) dwell_k, per node
+# (with an origin, the root's is the stem's, which MkLikelihood() ignores)
 .CharacterLengths <- function(tree, x, paths, rate, gamma) {
   if (.UseCpp()) {
     return(.CharacterLengthsCpp(tree, x, paths, rate, gamma))
@@ -72,7 +73,7 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
   age <- tree[["age"]]
   out <- numeric(tree[["nTip"]] + tree[["nNode"]])
   for (v in .PathNodes(tree)) {
-    int <- .Intervals(paths[[v]], age[[tree[["parent"]][[v]]]], age[[v]])
+    int <- .Intervals(paths[[v]], .TopAge(tree, v), age[[v]])
     out[v] <- rate * sum(exp(gamma * x[int[["bin"]]]) * (int[["hi"]] - int[["lo"]]))
   }
   out

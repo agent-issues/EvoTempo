@@ -1,7 +1,9 @@
 # Time-tree moves for TempoMCMC().  Each move changes the tree, redraws the
 # bins of moved nodes from their frozen conditional law and the paths on
 # affected branches from frozen bridges, and is accepted on the exact target
-# with explicit proposal densities in both directions.  The root age is fixed.
+# with explicit proposal densities in both directions.  These moves keep the
+# start age (the root's, or with an origin the origin's) fixed; .AgeMove() in
+# R/MCMC.R moves it.
 
 # Recompute derived fields after a change to `parent`, `age` or `tipType`
 .Rebuild <- function(tree) {
@@ -61,7 +63,7 @@
   if (.UseCpp()) {
     return(.LogPathExactCpp(tree, set, v, path))
   }
-  int <- .Intervals(path, tree[["age"]][[tree[["parent"]][[v]]]], tree[["age"]][[v]])
+  int <- .Intervals(path, .TopAge(tree, v), tree[["age"]][[v]])
   k <- int[["bin"]]
   Q <- set[["Q"]]
   kk <- path[["k"]]
@@ -93,7 +95,7 @@
   }
   logQ <- 0
   for (u in nodes) {
-    d <- .DrawBridge(tree, set, u, bin[[tree[["parent"]][[u]]]], bin[[u]])
+    d <- .DrawBridge(tree, set, u, .TopBin(tree, bin, u), bin[[u]])
     paths[[u]] <- d[["path"]]
     logQ <- logQ + d[["logQ"]]
   }
@@ -176,7 +178,7 @@
 .SlideNodes <- function(tree) {
   nTip <- tree[["nTip"]]
   p <- tree[["parent"]]
-  v <- .PathNodes(tree)
+  v <- setdiff(.PathNodes(tree), tree[["root"]])
   pv <- p[v]
   v[pv != tree[["root"]] & !tree[["sampled"]][pv - nTip]]
 }
@@ -185,7 +187,7 @@
 # pruned (its other child hangs from `p`'s parent)
 .Crossing <- function(tree, at, p, exclude) {
   parent <- tree[["parent"]]
-  nodes <- setdiff(.PathNodes(tree), c(exclude, p))
+  nodes <- setdiff(.PathNodes(tree), c(exclude, p, tree[["root"]]))
   top <- tree[["age"]][parent[nodes]]
   hangs <- parent[nodes] == p
   top[hangs] <- tree[["age"]][[parent[[p]]]]
@@ -219,13 +221,20 @@
   switch(
     move,
     nodeAge = {
+      # With an origin the root is a bifurcation below the stem, and its age
+      # moves too (the origin age stays fixed)
       cand <- tree[["postorder"]][!tree[["sampled"]][tree[["postorder"]] - nTip] &
-                                     tree[["postorder"]] != tree[["root"]]]
+                                     (tree[["postorder"]] != tree[["root"]] |
+                                        .Origin(tree))]
       if (!length(cand)) return(NULL)
       v <- cand[[.Sample1(rep(1, length(cand)))]]
       kids <- tree[["kids"]][v - nTip, ]
       newTree <- tree
-      newTree[["age"]][v] <- stats::runif(1, max(age[kids]), age[[parent[[v]]]])
+      top <- .TopAge(tree, v)
+      newTree[["age"]][v] <- stats::runif(1, max(age[kids]), top)
+      if (v == tree[["root"]]) {
+        newTree[["stem"]] <- top - newTree[["age"]][[v]]
+      }
       newTree <- .Rebuild(newTree)
       nodes <- c(v, kids)
       fwd <- Redraw(newTree, nodes, bin)
@@ -348,11 +357,13 @@
   )
 }
 
-# Summaries of a tree and its paths, comparable with simulated trees
+# Summaries of a tree and its paths, comparable with simulated trees;
+# `lengths` and `inverse` cover the branches below the root
 .TreeStats <- function(tree, lengths = NULL, inverse = NULL) {
   nTip <- tree[["nTip"]]
   age <- tree[["age"]]
-  nodes <- .PathNodes(tree)
+  # Branches below the root (with an origin, the stem is excluded)
+  nodes <- setdiff(.PathNodes(tree), tree[["root"]])
   internal <- tree[["postorder"]]
   bif <- internal[!tree[["sampled"]][internal - nTip] & internal != tree[["root"]]]
   kids <- tree[["kids"]]
@@ -365,5 +376,6 @@
     oldestFossil = if (length(fossilAge)) max(fossilAge) else NA,
     youngestFossil = if (length(fossilAge)) min(fossilAge) else NA,
     clock = if (is.null(lengths)) NA else sum(lengths),
-    inverseClock = if (is.null(inverse)) NA else sum(inverse))
+    inverseClock = if (is.null(inverse)) NA else sum(inverse),
+    rootAge = age[[tree[["root"]]]])
 }

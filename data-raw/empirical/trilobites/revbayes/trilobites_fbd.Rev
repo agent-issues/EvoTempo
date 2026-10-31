@@ -105,9 +105,9 @@ for (j in 1:n_branches) {
   z_mult[j] ~ dnNormal(0, 1)
   z_mult[j].setValue(0.0)
   moves.append( mvSlide(z_mult[j], delta = 0.5, tune = true, weight = 1) )
-  branch_mult[j] := exp(ucld_sd * z_mult[j] - ucld_sd * ucld_sd / 2)
+  # element by element: a move on z_j marks only branch j as changed
+  morph_branch_rates[j] := clock_morph * exp(ucld_sd * z_mult[j] - ucld_sd * ucld_sd / 2)
 }
-morph_branch_rates := clock_morph * branch_mult
 
 ##### Morphology: Mkv (+ ordered) + Gamma(4), one shape #####
 
@@ -139,7 +139,7 @@ mymodel = model(fbd_tree)
 if (!exists("resume")) { resume = false }
 if (!exists("checkpoint_every")) { checkpoint_every = 500 }
 monitors.append( mnModel(filename = out_stem + ".log", printgen = sample_every, append = resume,
-                         exclude = ["z_mult", "branch_mult", "morph_branch_rates", "q_morph",
+                         exclude = ["z_mult", "morph_branch_rates", "q_morph",
                                     "site_rates_morph"]) )
 monitors.append( mnFile(filename = out_stem + ".trees", printgen = sample_every, append = resume, fbd_tree) )
 monitors.append( mnExtNewick(filename = out_stem + "_rates.trees", printgen = sample_every,

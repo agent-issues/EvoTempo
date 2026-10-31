@@ -59,7 +59,10 @@ eigendecompositions; `.Messages()` runs the backward FFBS pass; `.SampleTree()` 
 `.SampleBranch()` / `.Bridge()` draw paths; `.LogAugmented()` is the exact log augmented density;
 `.FrozenLikelihood()` and `.LogWeight()` give the frozen likelihood and importance weights.
 `.PathMove()`, `.TreeMove()` (proposals in `R/TreeMoves.R`), `.JointSweep()`, `.ShiftMove()` (map in
-`.Shifted()`) and `.ParameterSweep()` are the moves; `.MoveCount()` resolves fractional counts. `MkLikelihood()` scores characters on lengths from `.CharacterLengths()`.
+`.Shifted()`) and `.ParameterSweep()` are the moves; `.MoveCount()` resolves fractional counts. `MkLikelihood()` scores characters on lengths from `.CharacterLengths()`;
+inside `TempoMCMC()` the moves call the closure from `.CharacterLikelihood()`, which under the C++ engine keeps a
+persistent MkPrime pruner and recomputes only changed clades (#26; `dev/plans/incremental-pruning.md`). A move that
+scores characters must report its decision with `.ResolveCharacters(CharLL, accepted)`.
 
 Infeasible proposals (a bridge or a weight that underflows) signal a condition of class
 `infeasibleProposal` via `.Infeasible()`; every move catches it and rejects. Never let one escape
@@ -160,7 +163,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `src/tree_likelihood.cpp` | C++ tree pruning, `ExtinctionProbability()`, E grid |
 | `src/paths.cpp`, `src/paths.h`, `src/frozen.h`, `src/tree.h` | C++ frozen messages, FFBS, bridges, augmented density, weights; read-only views of `set` and `TempoTree` |
 | `src/tree_moves.cpp` | C++ kernels of the tree moves: transfer rows, bridge densities and draws, node and tip bin weights, `.Rebuild()` |
-| `src/characters.cpp` | `MkLikelihood()` via `MkPrime::Pruner<JCModel>` |
+| `src/characters.cpp` | `MkLikelihood()` via `MkPrime::Pruner<JCModel>`; the persistent incremental `CharacterCache` behind `.CharacterLikelihood()` |
 | `R/TreeMoves.R` | Node-age, fossil-age, subtree-slide and sampled-ancestor moves with frozen-model bin and path proposals |
 | `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
 | `data-raw/rung2-validation.R`, `data-raw/validation-report.R` | Monte Carlo validation and the rung 1-2 report |
@@ -177,6 +180,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
 | `data-raw/rung4b-shift-fixed.R` | Shift move at fixed parameters: root-bin posterior given the rung 4b tree and character vs the exact posterior from point-mass start priors (#19) |
 | `data-raw/mixing-schedule.R` | ESS per CPU hour of `TempoMCMC()` under the pre-#19 schedule and `TempoMoves()` on the `dev/mixing/` fixed trees; results and the shift-move oracles in `data-raw/mixing-results/README.md` |
+| `data-raw/incremental-pruning-bench.R` | Paired benchmark of the incremental character cache (#26): identical seeded chains before and after, CPU ratios, large-tree R-hat; results in `data-raw/incremental-pruning-results/README.md` |
 | `data-raw/rung5-age-oracle.R` | Start-age moves on a fixed tree at fixed parameters vs the exact 1-D posterior of the root or origin age (prior x `TreeLikelihood()` on a grid) (#18) |
 | `data-raw/rung5-age-validation.R` | Rung 5 with a free start age (#18): prior-only MCMC vs rejection simulation for a free crown age, a fixed origin and a free origin, at fixed or free parameters; results in `data-raw/rung5-age-results/README.md` |
 | `data-raw/rung5-age-pool.R` | Pools independent replicates of `rung5-age-validation.R` per case (all chains vs all simulated trees); the 240-replicate check of the `originFree` flag in `data-raw/rung5-age-results/README.md` |

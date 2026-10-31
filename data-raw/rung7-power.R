@@ -22,8 +22,9 @@
 # TempoMCMC() has no power argument and does not report the character
 # log-likelihood per sample, so this script (not the package) rebinds two
 # functions inside the EvoTempo namespace for the duration of a run:
-# - MkLikelihood -> power * MkLikelihood (every acceptance ratio of TempoMCMC()
-#   reaches the characters through it);
+# - .CharacterLikelihood -> power * its character log-likelihood (every
+#   acceptance ratio of TempoMCMC() reaches the characters through the function
+#   it returns; #26 replaced direct MkLikelihood() calls by it);
 # - .TreeStats -> a wrapper that records the per-node clock lengths
 #   int_e e^x dt that TempoMCMC() passes to it at every stored sample, from
 #   which the untempered Mk log-likelihood of each draw is recomputed.
@@ -66,12 +67,18 @@ dir.create(file.path(outDir, "replicates"), recursive = TRUE, showWarnings = FAL
 .temper$lengths <- list()
 .temper$recordState <- FALSE
 .temper$states <- list()
-.TemperedMk <- function(tree, characters, lengths, nState = 2L,
-                        engine = getOption("EvoTempo.engine", "cpp")) {
-  if (.temper$power == 0) {
-    return(0)
+.clOriginal <- get(".CharacterLikelihood", ns)
+.TemperedCharacters <- function(characters, nState, gamma) {
+  Inner <- .clOriginal(characters, nState, gamma)
+  Tempered <- function(tr, paths, p, set) {
+    if (.temper$power == 0) {
+      return(0)
+    }
+    .temper$power * Inner(tr, paths, p, set)
   }
-  .temper$power * .mkOriginal(tree, characters, lengths, nState, engine)
+  # Keeps the incremental cache's resolve hook (#26)
+  attributes(Tempered) <- attributes(Inner)
+  Tempered
 }
 .RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
   if (!is.null(lengths)) {
@@ -84,7 +91,7 @@ dir.create(file.path(outDir, "replicates"), recursive = TRUE, showWarnings = FAL
   }
   .statsOriginal(tree, lengths, inverse)
 }
-utils::assignInNamespace("MkLikelihood", .TemperedMk, ns = "EvoTempo")
+utils::assignInNamespace(".CharacterLikelihood", .TemperedCharacters, ns = "EvoTempo")
 utils::assignInNamespace(".TreeStats", .RecordingStats, ns = "EvoTempo")
 .TreeStats <- .statsOriginal
 .LogAugmented <- get(".LogAugmented", ns)

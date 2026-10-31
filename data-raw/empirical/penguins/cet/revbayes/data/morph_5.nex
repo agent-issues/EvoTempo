@@ -1,0 +1,63 @@
+#NEXUS
+[Penguin morphology for the CET comparator, Mkv partition K = 5: columns 13 16 34 59 of ../../../penguins_morph.nex; ambiguous cells as missing]
+BEGIN DATA;
+  DIMENSIONS NTAX=55 NCHAR=4;
+  FORMAT DATATYPE=STANDARD MISSING=? GAP=- SYMBOLS="01234";
+  MATRIX
+  Aptenodytes_forsteri          0000
+  Aptenodytes_patagonicus       0000
+  Pygoscelis_antarctica         0041
+  Pygoscelis_papua              0102
+  Pygoscelis_adeliae            0101
+  Megadyptes_antipodes          1021
+  Eudyptes_chrysocome           1201
+  Eudyptes_chrysolophus         1201
+  Eudyptes_filholi              1201
+  Eudyptes_moseleyi             1201
+  Eudyptes_pachyrhynchus        1201
+  Eudyptes_robustus             1201
+  Eudyptes_schlegeli            1211
+  Eudyptes_sclateri             1201
+  Eudyptula_minor               0013
+  Madrynornis_mirandus          ????
+  Spheniscus_demersus           0000
+  Spheniscus_magellanicus       0000
+  Spheniscus_humboldti          0030
+  Spheniscus_mendiculus         0030
+  Spheniscus_urbinai            ????
+  Spheniscus_megaramphus        ????
+  Spheniscus_muizoni            ????
+  Marplesornis_novaezealandiae  ????
+  Palaeospheniscus_biloculata   ????
+  Palaeospheniscus_bergi        ????
+  Palaeospheniscus_patagonicus  ????
+  Eretiscus_tonnii              ????
+  Platydyptes_novaezealandiae   ????
+  Platydyptes_marplesi          ????
+  Paraptenodytes_antarcticus    ????
+  Archaeospheniscus_lopdelli    ????
+  Archaeospheniscus_lowei       ????
+  Pachydyptes_ponderosus        ????
+  Perudyptes_devriesi           ????
+  Icadyptes_salasi              ????
+  Inkayacu_paracasensis         ????
+  Burnside_Palaeudyptes         ????
+  Kairuku_waitaki               ????
+  Kairuku_grebneffi             ????
+  Palaeeudyptes_klekowskii      ????
+  Palaeeudyptes_gunnari         ????
+  Anthropornis_nordenskjoeldi   ????
+  Anthropornis_grandis          ????
+  Delphinornis_wimani           ????
+  Delphinornis_gracilis         ????
+  Delphinornis_arctowskii       ????
+  Delphinornis_larseni          ????
+  Mesetaornis_polaris           ????
+  Marambiornis_exilis           ????
+  Waimanu_tuatahi               ????
+  Waimanu_manneringi            ????
+  Duntroonornis_parvus          ????
+  Pygoscelis_grandis            ????
+  Palaeeudyptes_antarcticus     ????
+  ;
+END;

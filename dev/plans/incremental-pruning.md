@@ -22,8 +22,9 @@ local moves per iteration, and most of the time goes on this pruning.
    copies the tip states at construction, and copies the parent vector and branch lengths into
    `std::vector`s at every call. No R object is held between calls. A serialised pointer comes
    back null; using it is an error, not a crash.
-3. **Evaluation.** Each call passes the tree's `parent` vector and every branch length
-   (`.CharacterLengths()`, unchanged). If the parent vector equals the pruner's own topology,
+3. **Evaluation.** Each call passes the tree, the grid, the paths, `rate` and `gamma`. The
+   cache computes the branch lengths (see **Branch lengths**) and compares the tree's `parent`
+   vector with the pruner's topology. If the parent vector equals the pruner's own topology,
    the cache calls `set_edge_length()` on every edge. This is a no-op for unchanged lengths and
    otherwise marks the branch's parent and its ancestors dirty. If the topology differs (`slide`),
    `set_tree()` diffs the children of every node and marks only the nodes whose children or child
@@ -51,10 +52,23 @@ local moves per iteration, and most of the time goes on this pruning.
    Option `EvoTempo.incremental = FALSE` also restores full C++ pruning. It exists for tests and
    benchmarks only and is not documented for users.
 
+## Branch lengths
+
+Profiling the large tree with 300 characters (300 iterations of `TempoMoves()`) showed that
+after the pruning became incremental, recomputing every branch length at every call
+(`.CharacterLengthsCpp()`) cost about six times as much as the pruning itself. The cache
+therefore also memoizes lengths. For each branch it keeps a copy of the path (bins and jump
+times), the end ages and the sum `sum_i e^(gamma x_k_i) dwell_i`. A branch whose path and
+ages match the memo reuses the sum. Any other branch is summed afresh, with the same
+arithmetic as `.CharacterLengthsCpp()` (`LongSum()`), so every length is bitwise the same.
+A new grid `x` (a change of `s`) or a new `gamma` clears the memo. `rate` multiplies the
+sums, so a `rate` proposal re-prunes but does not re-sum. The memo is keyed on content, not
+on R object identity, so it holds no R objects and cannot be fooled by in-place modification.
+
 ## What is not incremental
 
-- `.CharacterLengths()` still sums every branch's path at each call. That is O(path pieces),
-  small beside pruning `nChar x nState` values per node.
+- Each call still reads every branch's path from R to compare it with the memo. That is
+  O(path pieces) without allocation or `exp()`.
 - Moves that change every length recompute the whole tree, as before: `rate` in the sweep,
   `joint`, `tree`, and `shift` when `rate` is not compensated. Rejections there are still
   undone from the journal.

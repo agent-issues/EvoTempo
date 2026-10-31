@@ -47,6 +47,36 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// CachedCharacterLikelihoodCpp
+double CachedCharacterLikelihoodCpp(SEXP cache, List tree, NumericVector x, List paths, double rate, double gamma);
+RcppExport SEXP _EvoTempo_CachedCharacterLikelihoodCpp(SEXP cacheSEXP, SEXP treeSEXP, SEXP xSEXP, SEXP pathsSEXP, SEXP rateSEXP, SEXP gammaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cache(cacheSEXP);
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< List >::type paths(pathsSEXP);
+    Rcpp::traits::input_parameter< double >::type rate(rateSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    rcpp_result_gen = Rcpp::wrap(CachedCharacterLikelihoodCpp(cache, tree, x, paths, rate, gamma));
+    return rcpp_result_gen;
+END_RCPP
+}
+// CachedCharacterLengthsCpp
+NumericVector CachedCharacterLengthsCpp(SEXP cache, List tree, NumericVector x, List paths, double rate, double gamma);
+RcppExport SEXP _EvoTempo_CachedCharacterLengthsCpp(SEXP cacheSEXP, SEXP treeSEXP, SEXP xSEXP, SEXP pathsSEXP, SEXP rateSEXP, SEXP gammaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cache(cacheSEXP);
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< List >::type paths(pathsSEXP);
+    Rcpp::traits::input_parameter< double >::type rate(rateSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    rcpp_result_gen = Rcpp::wrap(CachedCharacterLengthsCpp(cache, tree, x, paths, rate, gamma));
+    return rcpp_result_gen;
+END_RCPP
+}
 // ResolveCharacterCacheCpp
 void ResolveCharacterCacheCpp(SEXP cache, bool accept);
 RcppExport SEXP _EvoTempo_ResolveCharacterCacheCpp(SEXP cacheSEXP, SEXP acceptSEXP) {
@@ -448,6 +478,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_MkLikelihoodCpp", (DL_FUNC) &_EvoTempo_MkLikelihoodCpp, 4},
     {"_EvoTempo_CharacterCacheCpp", (DL_FUNC) &_EvoTempo_CharacterCacheCpp, 2},
     {"_EvoTempo_CachedMkLikelihoodCpp", (DL_FUNC) &_EvoTempo_CachedMkLikelihoodCpp, 3},
+    {"_EvoTempo_CachedCharacterLikelihoodCpp", (DL_FUNC) &_EvoTempo_CachedCharacterLikelihoodCpp, 6},
+    {"_EvoTempo_CachedCharacterLengthsCpp", (DL_FUNC) &_EvoTempo_CachedCharacterLengthsCpp, 6},
     {"_EvoTempo_ResolveCharacterCacheCpp", (DL_FUNC) &_EvoTempo_ResolveCharacterCacheCpp, 2},
     {"_EvoTempo_CharacterCacheRecomputedCpp", (DL_FUNC) &_EvoTempo_CharacterCacheRecomputedCpp, 1},
     {"_EvoTempo_PiecesCpp", (DL_FUNC) &_EvoTempo_PiecesCpp, 3},

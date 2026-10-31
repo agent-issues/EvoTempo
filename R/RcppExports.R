@@ -13,6 +13,14 @@
     .Call(`_EvoTempo_CachedMkLikelihoodCpp`, cache, parent, lengths)
 }
 
+.CachedCharacterLikelihoodCpp <- function(cache, tree, x, paths, rate, gamma) {
+    .Call(`_EvoTempo_CachedCharacterLikelihoodCpp`, cache, tree, x, paths, rate, gamma)
+}
+
+.CachedCharacterLengthsCpp <- function(cache, tree, x, paths, rate, gamma) {
+    .Call(`_EvoTempo_CachedCharacterLengthsCpp`, cache, tree, x, paths, rate, gamma)
+}
+
 .ResolveCharacterCacheCpp <- function(cache, accept) {
     invisible(.Call(`_EvoTempo_ResolveCharacterCacheCpp`, cache, accept))
 }

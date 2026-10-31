@@ -13,10 +13,11 @@ TempoMCMC(
   burnin = 0,
   thin = 1,
   nSlice = 20,
-  moves = c(tree = 1),
+  moves = NULL,
   characters = NULL,
   nState = 2L,
   updateParameters = TRUE,
+  minAcceptance = 0.01,
   engine = getOption("EvoTempo.engine", "cpp")
 )
 }
@@ -41,14 +42,19 @@ step sizes adapt.}
 \item{nSlice}{Integer giving the number of time slices of the proposal.}
 
 \item{moves}{Named numeric vector giving the number of each move per
-iteration (see Details); unnamed moves are not used.}
+iteration (see Details); unnamed moves are not used.  Defaults to
+\code{\link[=TempoMoves]{TempoMoves()}} for \code{tree} and \code{characters}.}
 
 \item{characters}{Optional matrix of character states, as for
 \code{\link[=MkLikelihood]{MkLikelihood()}}.}
 
 \item{nState}{Integer giving the number of character states.}
 
-\item{updateParameters}{Logical; if \code{FALSE}, hold parameters fixed.}
+\item{updateParameters}{Logical; if \code{FALSE}, hold parameters fixed (\code{shift}
+then moves the bins only).}
+
+\item{minAcceptance}{Numeric: \code{tree} and \code{joint} moves whose acceptance
+during burn-in falls below this are not used after burn-in.}
 
 \item{engine}{Character string selecting the engine:
 \itemize{
@@ -71,6 +77,7 @@ bifurcations), \code{cherries}, \code{oldestFossil}, \code{youngestFossil}, \cod
 \item \code{branchX}: matrix of the time-averaged log-tempo on each branch (for
 chains without tree moves);
 \item \code{acceptance}: acceptance rate of each move;
+\item \code{moves}: the move counts used after burn-in;
 \item \code{state}: the final state.
 }
 }
@@ -98,7 +105,34 @@ draw of every path under the proposed value; its acceptance ratio uses the
 frozen likelihood and the exact-to-frozen weight, so it mixes like MCMC on
 the marginal likelihood (at the cost of one FFBS draw per parameter).
 Without it, parameters such as \code{theta} that the paths determine closely
-mix slowly, especially with characters.
+mix slowly, at least without characters.
+
+\code{shift} moves every bin (nodes, tips and every piece of every path) by
+\eqn{m = \pm 1} with probability 1/2 each, keeping the jump times, so
+that log-tempo moves by \eqn{d = m h s} everywhere (\eqn{h} the bin
+spacing in units of \code{s}).
+Each free parameter that tempo scales is multiplied by
+\eqn{e^{-e_p d}}, \eqn{e_p} its exponent: \code{rate} by \eqn{e^{-\gamma d}},
+\code{lambda} and \code{mu} by \eqn{e^{-\beta d}}, \code{psi} by \eqn{e^{-\delta d}}
+and \code{theta} by \eqn{e^{-\alpha d}}.
+The map is a bijection whose inverse is the shift by \eqn{-m}; the
+Hastings ratio is its Jacobian, \eqn{\prod_p p'/p}, and a shift that
+would leave the grid is rejected.
+With \code{rate} free, the tempo-weighted lengths, and so the character
+likelihood, are unchanged exactly, so the move travels along the ridge
+between \code{rate} and the overall tempo level that the characters leave
+(spec section 9.1; issue #19).
+
+With characters, the whole-tree draws of \code{tree} and \code{joint} ignore the
+characters and are almost never accepted, so the default schedule
+(\code{\link[=TempoMoves]{TempoMoves()}}) omits them and instead runs local path moves in
+proportion to the size of the tree.
+A fractional count \eqn{n + f} runs \eqn{n} moves and, with probability
+\eqn{f}, one more.
+At the end of burn-in, \code{tree} and \code{joint} are dropped from the sampling
+phase if their acceptance during burn-in was below \code{minAcceptance}; move
+frequencies change only during burn-in, so the sampling phase is a fixed
+mixture of kernels.
 
 Tree moves (root age fixed): \code{nodeAge} redraws the age of a bifurcation
 uniformly between its children and parent; \code{fossilAge} redraws a fossil's
@@ -144,6 +178,7 @@ Other dCET inference:
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoEngine]{TempoEngine()}},
+\code{\link[=TempoMoves]{TempoMoves()}},
 \code{\link[=TempoPriors]{TempoPriors()}},
 \code{\link[=TempoTree]{TempoTree()}},
 \code{\link[=TreeLikelihood]{TreeLikelihood()}}

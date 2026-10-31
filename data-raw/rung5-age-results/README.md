@@ -120,12 +120,73 @@ Reading these results:
   smallest Holm-adjusted p is 0.19 (`originFree`, fixed parameters). Single runs reach
   |z| of up to 3.6. This is consistent with 50-86 correlated tests per run whose error comes
   from 16 chains.
-- `originFree` with fixed parameters has the largest pooled values, all in one direction:
-  `rootAge` mean -2.64, `clock` -2.62 and `treeLength` -2.0, meaning slightly younger trees
-  in the MCMC. That case was replicated six times for this reason. The signs vary between
-  replicates (seed 1000 is positive), and the exact oracle above, which isolates
-  `originAge`, shows no bias. This is recorded as an **unresolved flag**, not a verified
-  discrepancy. If it is real, the effect is about 1% of the root age.
+- `originFree` with fixed parameters had the largest pooled values, all in one direction:
+  `rootAge` mean -2.64, `clock` -2.62 and `treeLength` -2.0, which would mean slightly younger
+  trees in the MCMC (about 1% of the root age). The signs varied between replicates. Section 3
+  settles this flag: it was **noise**. The six replicates above are not independent of the
+  flag, because the seed-0 run is what raised it.
+
+## 3. The `originFree` flag: 240 further replicates (`data-raw/rung5-age-pool.R`)
+
+The fixed-parameter `originFree` case was rerun with 240 new seed offsets (6000 to 245000 in
+steps of 1000), in three batches decided in advance:
+
+- A: 40 replicates, the test of the flag;
+- B: 80, a confirmation of the largest value in A (`rootAge` q75);
+- C: 120, a confirmation of the largest value in B (`clock` mean).
+
+Controls were 10 replicates each of `origin` and `root` with fixed parameters (offsets 3000 to
+12000), plus 10 of `originFree` with free parameters (2000 to 11000). Settings are as in
+section 2 (16 chains x 40000 iterations, 8000 simulated trees), on Hamilton with the C++ engine
+at commit b99e810, whose package code is that of 8b4a55f.
+
+All chains of a case target the same distribution, and all simulated trees of a case come from
+the same simulator. `rung5-age-pool.R` therefore pools them: each mean or CDF estimate from all
+chains is compared with the estimate from all simulated trees. Its standard error combines the
+spread of the independent chains with the simulation's sampling error. Results are in
+`rung5-age-pooled.csv` and, per replicate, in `rung5-age-pooled-per-run.csv` (z of the means).
+
+| case | replicates | chains | simulated trees | tests | max \|z\| pooled | at | Holm min p |
+|---|---|---|---|---|---|---|---|
+| originFree-fixed | 240 | 3840 | 1920000 | 56 | 1.44 | originAge q50 | 1.00 |
+| originFree-free | 10 | 160 | 80000 | 86 | 2.43 | originAge q75 | 1.00 |
+| origin-fixed | 10 | 160 | 80000 | 50 | 2.31 | oldestFossil q25 | 1.00 |
+| root-fixed | 10 | 160 | 80000 | 50 | 1.37 | treeLength q50 | 1.00 |
+
+`originFree-fixed`, pooled over all 240 replicates. The relative difference is
+(MCMC - simulation) / simulation, given with its standard error:
+
+| statistic | simulation | MCMC | relative difference | z |
+|---|---|---|---|---|
+| rootAge | 3.6939 | 3.6940 | +0.003% +- 0.024% | 0.13 |
+| originAge | 5.2124 | 5.2121 | -0.006% +- 0.006% | -0.91 |
+| treeLength | 9.1507 | 9.1503 | -0.004% +- 0.026% | -0.16 |
+| meanNodeAge | 1.6617 | 1.6615 | -0.008% +- 0.044% | -0.18 |
+| clock | 9.0304 | 9.0286 | -0.020% +- 0.035% | -0.56 |
+
+Per-replicate z of the means, by batch (mean, sd; a calibrated test gives about 0 and 1.07):
+
+| batch | replicates | rootAge | clock | treeLength |
+|---|---|---|---|---|
+| A | 40 | 0.09, 1.08 | 0.07, 0.95 | 0.07, 1.07 |
+| B | 80 | -0.01, 1.01 | -0.26, 1.00 | -0.09, 0.98 |
+| C | 120 | -0.00, 0.99 | 0.08, 1.03 | 0.02, 0.93 |
+
+Reading these results:
+
+- **Verdict: noise, not bias.** Each value that stood out failed to replicate in the next
+  independent batch:
+  - `rootAge` q75 had z = -3.10 over A (Holm p 0.11; the six earlier runs gave +2.93, the
+    opposite sign), and -0.04 over B;
+  - `clock` mean had z = -2.36 over B, and +0.87 over C.
+- Pooled over all 240 replicates, no test exceeds |z| = 1.44.
+- The 95% interval for the relative bias of the mean root age is (-0.04%, +0.05%). A 1% bias
+  would have given z of about 40.
+- The per-replicate z behave as calibrated tests should: their spread matches the t law
+  expected from 16 chains. In batch A, the scatter of the simulated mean root age between
+  replicates is 1.02 times its standard error. The wider scatter seen in the first six
+  replicates (3.682 to 3.743) was chance.
+- No change to the moves or the simulator was needed, so none was made.
 
 ## Conditioning choice
 
@@ -136,6 +197,10 @@ the origin start uses that of the single stem lineage. This is documented in
 `dev/spec/dCET-spec.md` section 6.1.
 
 ## Deviations and limits
+
+- Section 3 commits only the pooled summaries, not the 270 per-replicate result files of
+  `rung5-age-validation.R` (about 1.3 GB of `.rds`). Each one can be regenerated with
+  `EVOTEMPO_SEED=<offset> Rscript data-raw/rung5-age-validation.R <case> fixed 40000 16 8000`.
 
 - A sampled ancestor at the root (a fossil on the stem ancestral to all other samples) is
   not supported. The simulator rejects such trees, and `TempoMCMC()` stops on them.

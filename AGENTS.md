@@ -180,8 +180,10 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
 | `data-raw/rung4b-shift-fixed.R` | Shift move at fixed parameters: root-bin posterior given the rung 4b tree and character vs the exact posterior from point-mass start priors (#19) |
 | `data-raw/mixing-schedule.R` | ESS per CPU hour of `TempoMCMC()` under the pre-#19 schedule and `TempoMoves()` on the `dev/mixing/` fixed trees; results and the shift-move oracles in `data-raw/mixing-results/README.md` |
+| `data-raw/incremental-pruning-bench.R` | Paired benchmark of the incremental character cache (#26): identical seeded chains before and after, CPU ratios, large-tree R-hat; results in `data-raw/incremental-pruning-results/README.md` |
 | `data-raw/rung5-age-oracle.R` | Start-age moves on a fixed tree at fixed parameters vs the exact 1-D posterior of the root or origin age (prior x `TreeLikelihood()` on a grid) (#18) |
 | `data-raw/rung5-age-validation.R` | Rung 5 with a free start age (#18): prior-only MCMC vs rejection simulation for a free crown age, a fixed origin and a free origin, at fixed or free parameters; results in `data-raw/rung5-age-results/README.md` |
+| `data-raw/rung5-age-pool.R` | Pools independent replicates of `rung5-age-validation.R` per case (all chains vs all simulated trees); the 240-replicate check of the `originFree` flag in `data-raw/rung5-age-results/README.md` |
 | `data-raw/rung4b-theta-identity.R` | Importance-sampling identity (augmented to marginal likelihood) across theta, with or without the character |
 | `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
 | `data-raw/rung6-sbc-full*.{R,sh,py}` | Rung 6 full size (#21): SBC with tree moves, 200 replicates per cell as Slurm array tasks on Hamilton; results and verdict in `data-raw/rung6-full-results/` |

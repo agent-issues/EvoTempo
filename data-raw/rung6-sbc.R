@@ -91,7 +91,7 @@ Replicate <- function(job) {
   run <- TempoMCMC(tt, model, PriorDraw(), priors, nIter = nIter, burnin = burnin,
                    thin = thin, nSlice = 16,
                    moves = c(tree = 1, node = 3, tip = 3, branch = 3),
-                   characters = chars)
+                   characters = chars, minAcceptance = 0)
   post <- run$samples
   rankOf <- function(draws, value) {
     sum(draws < value) + sample.int(sum(draws == value) + 1L, 1L) - 1L

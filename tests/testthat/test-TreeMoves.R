@@ -199,7 +199,7 @@ test_that("Joint parameter-path moves run and adapt", {
                    nIter = 4, burnin = 20, nSlice = 4,
                    moves = c(tree = 1, joint = 1), characters = chars)
   expect_equal(nrow(run$samples), 4)
-  expect_gt(run$acceptance[["joint"]], 0)
+  expect_gt(run$burninAcceptance[["joint"]], 0)
   # Proposals outside the prior support are skipped
   bounded <- list(theta = function(x) if (x > 1e6) 0 else -Inf)
   fixed <- TempoMCMC(moveTree, moveModel, movePar, bounded, nIter = 2,

@@ -438,7 +438,8 @@ TemperedChain <- function(tt, model, chars, start, priors, power, nIter, burnin,
     t0 <- proc.time()[["elapsed"]]
     run <- tryCatch(
       TempoMCMC(tt, model, start, priors, nIter = nIter, burnin = burnin,
-                thin = thin, nSlice = nSlice, moves = moves, characters = chars),
+                thin = thin, nSlice = nSlice, moves = moves, characters = chars,
+                minAcceptance = 0),
       error = function(e) e)
     secs <- proc.time()[["elapsed"]] - t0
     if (!inherits(run, "error")) break

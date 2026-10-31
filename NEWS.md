@@ -64,6 +64,15 @@
   schedule, `TempoMoves()`, which with characters omits the whole-tree `tree`
   and `joint` draws (almost never accepted) and runs local path moves in
   proportion to the tree; fractional move counts; and `minAcceptance`, which
-  drops `tree` and `joint` after burn-in when their burn-in acceptance is
-  below it.  The default `moves` is now `TempoMoves()`
-  ([#19](https://github.com/agent-issues/EvoTempo/issues/19)).
+  drops `tree` and `joint` after burn-in, with a warning, when their
+  acceptance over at least 100 burn-in proposals is below it and another
+  move still updates every path; pass `minAcceptance = 0` to keep a fixed
+  schedule such as `moves = c(tree = 1)`.  The default `moves` is now
+  `TempoMoves()` ([#19](https://github.com/agent-issues/EvoTempo/issues/19),
+  [#50](https://github.com/agent-issues/EvoTempo/issues/50)).
+- `TempoMCMC()` reports `acceptance` for the sampling phase only, with burn-in
+  rates in `burninAcceptance` (acceptance rates in results committed before
+  this change include burn-in); `TempoMoves()` and `TempoMCMC()` reject invalid
+  `local`, `moves` and `minAcceptance`
+  ([#50](https://github.com/agent-issues/EvoTempo/issues/50),
+  [#53](https://github.com/agent-issues/EvoTempo/issues/53)).

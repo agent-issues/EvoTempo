@@ -1,0 +1,148 @@
+################################################################################
+# Penguins (Gavryushkina et al. 2017), MORPHOLOGY ONLY: the RevBayes comparator
+# for the stage-1 CET analysis (data-raw/empirical/penguins/cet/).
+#
+# Matched to the CET runs (common.R) in everything but the clock:
+# - data: the 201 characters of cet/data/characters.csv (ambiguous cells as
+#   missing), Mkv partitioned by number of states, NO among-character rate
+#   variation (EvoTempo has none);
+# - tree prior: FBD with sampled ancestors, rho = 1, origin ~ U(0, 160),
+#   conditioned on a sampled extant descendant, and independent log-normal
+#   priors on lambda, mu, psi (as in common.R, which truncates them at
+#   +-4 sdlog for the E solver: 6e-5 of prior mass each, ignored here);
+# - tip ages uniform on their intervals; same starting tree.
+# The clock is either
+#   clock_model = "ucln"    uncorrelated lognormal (non-centred), log-sd
+#                           ~ Gamma(0.5396, scale 0.3819), the comparator; or
+#   clock_model = "strict"  strict clock, the RevBayes counterpart of the CET
+#                           (beta, gamma) = (0, 0) cell, as a pipeline check.
+# The morphological clock mean ~ LogNormal(-5.5, 2) in both.
+# The total-evidence baseline (../../revbayes/, branch penguins-revbayes) uses
+# the source analysis's FBD parameterisation and Gamma(4) rates instead.
+#
+# Not run directly: run-hamilton.sh writes a driver that sets clock_model, rep,
+# n_gen, sample_every, burnin_gen, checkpoint_every, resume and optionally
+# ml = true (stepping-stone marginal likelihood instead of the MCMC; cats,
+# ml_gen), then sources this file from this directory.
+################################################################################
+
+seed(rep * 7919 + 202)
+out_stem = "output/penguins_morph_" + clock_model + "_run" + rep
+moves    = VectorMoves()
+monitors = VectorMonitors()
+
+taxa = readTaxonData("data/taxa.tsv")
+n_taxa = taxa.size()
+n_branches = 2 * n_taxa - 2
+morph_k = v(2, 3, 4, 5, 6, 7)
+n_morph = morph_k.size()
+for (i in 1:n_morph) {
+  morpho[i] <- readDiscreteCharacterData("data/morph_" + morph_k[i] + ".nex")
+}
+extant = v("Aptenodytes_forsteri", "Aptenodytes_patagonicus", "Eudyptes_chrysocome",
+           "Eudyptes_chrysolophus", "Eudyptes_filholi", "Eudyptes_moseleyi",
+           "Eudyptes_pachyrhynchus", "Eudyptes_robustus", "Eudyptes_schlegeli",
+           "Eudyptes_sclateri", "Eudyptula_minor", "Megadyptes_antipodes",
+           "Pygoscelis_adeliae", "Pygoscelis_antarctica", "Pygoscelis_papua",
+           "Spheniscus_demersus", "Spheniscus_humboldti", "Spheniscus_magellanicus",
+           "Spheniscus_mendiculus")
+
+##### FBD tree prior, priors as CetPriors() in ../common.R #####
+lambda ~ dnLognormal(ln(0.1), 1.5)
+mu ~ dnLognormal(ln(0.1), 1.5)
+psi ~ dnLognormal(ln(0.05), 1.5)
+lambda.setValue(0.2)
+mu.setValue(0.15)
+psi.setValue(0.05)
+moves.append( mvScale(lambda, lambda = 0.5, tune = true, weight = 5) )
+moves.append( mvScale(mu, lambda = 0.5, tune = true, weight = 5) )
+moves.append( mvScale(psi, lambda = 0.5, tune = true, weight = 5) )
+diversification := lambda - mu
+turnover := mu / lambda
+rho <- 1.0
+origin_time ~ dnUniform(0, 160)
+# set before dnFBDP, which needs an origin older than every tip
+origin_time.setValue(start_origin)
+fbd_tree ~ dnFBDP(originAge = origin_time, lambda = lambda, mu = mu, psi = psi,
+                  rho = rho, taxa = taxa, condition = "survival")
+if (!exists("start_tree_file")) { start_tree_file = "data/start_tree.nwk" }
+start_tree = readTrees(start_tree_file, treetype = "clock")[1]
+fbd_tree.setValue(start_tree)
+moves.append( mvSlide(origin_time, delta = 5, tune = true, weight = 3) )
+moves.append( mvFNPR(fbd_tree, weight = 15) )
+moves.append( mvNarrow(fbd_tree, weight = 15) )
+moves.append( mvCollapseExpandFossilBranch(fbd_tree, origin_time, weight = 10) )
+moves.append( mvNodeTimeSlideUniform(fbd_tree, weight = 40) )
+moves.append( mvRootTimeSlideUniform(fbd_tree, origin_time, weight = 5) )
+for (i in 1:n_taxa) {
+  if (taxa[i].getMaxAge() > taxa[i].getMinAge()) {
+    moves.append( mvFossilTipTimeUniform(fbd_tree, origin = origin_time,
+                                         tip = taxa[i].getName(), weight = 1) )
+  }
+}
+num_samp_anc := fbd_tree.numSampledAncestors()
+root_age := fbd_tree.rootAge()
+crown_age := tmrca(fbd_tree, clade(extant))
+
+##### Clock #####
+clock_morph ~ dnLognormal(-5.5, 2)
+clock_morph.setValue(0.017)
+moves.append( mvScale(clock_morph, lambda = 0.5, tune = true, weight = 5) )
+if (clock_model == "ucln") {
+  ucld_sd ~ dnGamma(0.5396, 1 / 0.3819)
+  ucld_sd.setValue(0.2)
+  moves.append( mvScale(ucld_sd, lambda = 0.5, tune = true, weight = 5) )
+  for (j in 1:n_branches) {
+    z_mult[j] ~ dnNormal(0, 1)
+    z_mult[j].setValue(0.0)
+    moves.append( mvSlide(z_mult[j], delta = 0.5, tune = true, weight = 1) )
+    branch_mult[j] := exp(ucld_sd * z_mult[j] - ucld_sd * ucld_sd / 2)
+  }
+  morph_branch_rates := clock_morph * branch_mult
+} else {
+  morph_branch_rates := clock_morph
+}
+up_down = mvUpDownScale(lambda = 0.1, tune = true, weight = 5)
+up_down.addVariable(clock_morph, up = true)
+up_down.addVariable(fbd_tree, up = false)
+moves.append( up_down )
+
+##### Morphology: Mkv by number of states, no rate variation #####
+for (i in 1:n_morph) {
+  q_morph[i] <- fnJC(morph_k[i])
+  phy_morph[i] ~ dnPhyloCTMC(tree = fbd_tree, Q = q_morph[i], branchRates = morph_branch_rates,
+                             type = "Standard", coding = "variable")
+  phy_morph[i].clamp(morpho[i])
+}
+
+mymodel = model(fbd_tree)
+if (!exists("ml")) { ml = false }
+if (ml) {
+  # Stepping-stone: log p(characters | tip ages, model), the same quantity as
+  # the CET character-power ladder (README, Bayes factors)
+  pow_p = powerPosterior(mymodel, moves, monitors, out_stem + "_pp.out", cats = cats,
+                         sampleFreq = 10)
+  pow_p.burnin(generations = burnin_gen, tuningInterval = 100)
+  pow_p.run(generations = ml_gen)
+  ss = steppingStoneSampler(file = out_stem + "_pp.out", powerColumnName = "power",
+                            likelihoodColumnName = "likelihood")
+  write("stepping-stone", ss.marginal(), filename = out_stem + "_ml.txt")
+  q()
+}
+monitors.append( mnModel(filename = out_stem + ".log", printgen = sample_every, append = resume,
+                         exclude = ["z_mult", "branch_mult", "morph_branch_rates"]) )
+monitors.append( mnFile(filename = out_stem + ".trees", printgen = sample_every, append = resume, fbd_tree) )
+if (clock_model == "ucln") {
+  monitors.append( mnExtNewick(filename = out_stem + "_rates.trees", printgen = sample_every,
+                               append = resume, isNodeParameter = false, fbd_tree, morph_branch_rates) )
+}
+monitors.append( mnScreen(printgen = sample_every * 20, crown_age, num_samp_anc, origin_time) )
+mymcmc = mcmc(mymodel, monitors, moves, moveschedule = "random")
+if (resume) {
+  mymcmc.initializeFromCheckpoint(out_stem + ".ckp")
+} else {
+  mymcmc.burnin(generations = burnin_gen, tuningInterval = 100)
+}
+mymcmc.run(generations = n_gen, tuningInterval = 0,
+           checkpointInterval = checkpoint_every, checkpointFile = out_stem + ".ckp")
+mymcmc.operatorSummary()

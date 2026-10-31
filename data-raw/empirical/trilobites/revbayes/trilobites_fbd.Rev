@@ -71,6 +71,8 @@ fbd_tree ~ dnConstrainedTopology(fbd_dist, constraints = v(clade_ingroup))
 
 if (!exists("start_tree_file")) { start_tree_file = "data/start_tree.nwk" }
 start_tree = readTrees(start_tree_file, treetype = "clock")[1]
+# readTrees() puts the youngest tip at age 0; shift to its true window age
+start_tree.offset(youngest_tip_age)
 origin_time.setValue(start_tree.rootAge() + 5)
 fbd_tree.setValue(start_tree)
 
@@ -118,7 +120,10 @@ site_rates_morph := fnDiscretizeGamma(alpha_morph, alpha_morph, 4)
 for (i in 1:n_morph) {
   k = morph_k[i]
   if (morph_ordered[i]) {
-    q_morph[i] <- fnOrderedRateMatrix(maxState = k - 1)
+    # adjacent-state changes only, equal rates, rescaled to mean rate 1.  NB:
+    # despite its name, fnOrderedRateMatrix's maxState is the NUMBER of states
+    # (RevBayes 1.4.1 builds RateMatrix_FreeK(maxState)).
+    q_morph[i] <- fnOrderedRateMatrix(maxState = k)
   } else {
     q_morph[i] <- fnJC(k)
   }

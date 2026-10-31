@@ -106,8 +106,8 @@ write.table(parts, "data/morph_parts.tsv", sep = "\t", quote = FALSE, row.names 
 tips <- read.csv("../trilobites_tips.csv")
 stopifnot(setequal(tips$taxon, names(morph)), all(tips$min_age == tips$max_age),
           all(tips$min_age > windowEnd))
-write.table(data.frame(taxon = tips$taxon, min_age = tips$min_age - windowEnd,
-                       max_age = tips$max_age - windowEnd),
+write.table(data.frame(taxon = tips$taxon, min_age = sprintf("%.4f", tips$min_age - windowEnd),
+                       max_age = sprintf("%.4f", tips$max_age - windowEnd)),
             "data/taxa.tsv", sep = "\t", quote = FALSE, row.names = FALSE)
 
 cons <- read.csv("../trilobites_constraints.csv")
@@ -124,6 +124,7 @@ RevVec <- function(x) {
 writeLines(c(
   "# Written by prepare-data.R; do not edit",
   sprintf("window_end = %s", windowEnd),
+  sprintf("youngest_tip_age = %.4f", min(tips$min_age) - windowEnd),
   paste("morph_names =", RevVec(parts$part)),
   paste("morph_k =", RevVec(parts$k)),
   paste("morph_ordered =", RevVec(parts$ordered)),

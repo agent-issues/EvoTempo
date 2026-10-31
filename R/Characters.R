@@ -82,11 +82,12 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 # Character log-likelihood of a chain state, for TempoMCMC(): returns
 # function(tree, paths, par, set).  With the C++ engine the function holds a
 # persistent MkPrime pruner (src/characters.cpp; #26), so that a call
-# recomputes only the nodes below which a branch length or the topology has
-# changed since the previous call, and gives the same value, bit for bit, as
-# full pruning.  Moves report each Metropolis decision with
-# .ResolveCharacters(), which lets a rejected proposal be undone from the
-# pruner's journal; correctness does not depend on it.  The R engine, and
+# recomputes only the branch lengths whose path or end ages changed, and the
+# nodes below which a branch length or the topology changed, since the
+# previous call; it gives the same value, bit for bit, as full pruning.
+# Moves report each Metropolis decision with .ResolveCharacters(), which lets
+# a rejected proposal be undone from the pruner's journal; correctness does
+# not depend on it.  The R engine, and
 # option EvoTempo.incremental = FALSE, prune afresh at every call.
 .CharacterLikelihood <- function(characters, nState, gamma) {
   if (is.null(characters)) {
@@ -103,11 +104,13 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
   }
   nTip <- nrow(characters)
   cache <- .CharacterCacheCpp(matrix(as.integer(characters), nTip), as.integer(nState))
+  # The cache also memoizes each branch's length (.CharacterLengths())
   structure(function(tr, paths, p, set) {
     if (tr[["nTip"]] != nTip) {
       stop("`characters` needs one row per tip")
     }
-    .CachedMkLikelihoodCpp(cache, tr[["parent"]], Lengths(tr, paths, p, set))
+    .CachedCharacterLikelihoodCpp(cache, tr, set[["grid"]][["x"]], paths, p[["rate"]],
+                                  gamma)
   }, resolve = function(accepted) .ResolveCharacterCacheCpp(cache, accepted),
   cache = cache)
 }

@@ -106,6 +106,19 @@ test_that("Incremental pruning matches full pruning through accepted and rejecte
     expect_true(all(accepted[c("node", "tip", "branch", "slide")] > 0))
     expect_gt(sum(rejected), 0)
     expect_gt(sum(accepted[treeMoves]), 0)
+    # Memoized lengths equal .CharacterLengths() after a new rate, grid or gamma
+    cache <- attr(CL, "cache")
+    for (s in c(1, 1.3, 1)) {
+      par <- replace(st$par, c("s", "rate"), list(s, 0.4 * s))
+      newSet <- .AddSlices(st$tree, .Precompute(st$tree, par, cacheModel), 4)
+      for (gamma in c(1, 0.5)) {
+        expect_identical(
+          .CachedCharacterLengthsCpp(cache, st$tree, newSet$grid$x, st$paths, par$rate, gamma),
+          .CharacterLengths(st$tree, newSet$grid$x, st$paths, par$rate, gamma))
+      }
+      Checked(st$tree, st$paths, par, newSet)
+      .ResolveCharacters(Checked, FALSE)
+    }
     # A shift with `rate` fixed changes every length; a rejection restores them
     for (i in seq_len(6)) {
       st <- .ShiftMove(st, cacheModel, "lambda", TempoPriors()["lambda"], 4,
@@ -224,6 +237,8 @@ test_that(".CharacterLikelihood() falls back to full pruning where it must", {
                                    NULL))
     expect_error(.CachedMkLikelihoodCpp(stale, cacheTree$parent, numeric(9)),
                  "no longer valid")
+    expect_error(.CachedMkLikelihoodCpp(attr(CL, "cache"), cacheTree$parent, numeric(3)),
+                 "one entry per node")
   })
 })
 

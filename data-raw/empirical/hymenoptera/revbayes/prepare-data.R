@@ -139,6 +139,8 @@ sets <- list(
 stopifnot(length(sets$holometabola_withFossils) == 111, length(sets$hymenoptera_crown) == 60,
           length(sets$hymenoptera_all) == 105)
 for (s in names(sets)) writeLines(sets[[s]], sprintf("data/clade_%s.txt", s))
+# crown group for summarise.R (P(fossil in crown Hymenoptera))
+writeLines(sets$hymenoptera_crown, "data/crown_taxa.txt")
 
 # Rev definitions of the partitions and taxon sets, sourced by hymenoptera_fbd.Rev
 RevVec <- function(x) {

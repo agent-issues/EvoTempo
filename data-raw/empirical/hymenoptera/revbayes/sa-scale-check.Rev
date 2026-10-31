@@ -35,6 +35,8 @@ if (variant == "B") {
 root_age := tree.rootAge()
 num_sa := tree.numSampledAncestors()
 tree_length := tree.treeLength()
+# x is independent of the tree; this deterministic node only puts it in the model graph
+link := x + root_age
 monitors = VectorMonitors()
 monitors.append( mnModel(filename = "sa-check/" + variant + "_" + variant_seed + ".log", printgen = 10) )
 mymcmc = mcmc(model(tree), monitors, moves, moveschedule = "random")

@@ -1,0 +1,11 @@
+parameter,config,source,analysis,statistic,published_median,published_lower,published_upper
+root_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST2 FBD+SA, strict clock, discrete only (SABD median consensus)",median height + 486 Ma (youngest tip); 95% HPD,541.42,534.26,548.33
+ingroup_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST2 FBD+SA, strict clock, discrete only (SABD median consensus)",median height + 486 Ma (youngest tip); 95% HPD,539.92,533.81,546.74
+root_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST2 BDSS no ancestors, strict clock, discrete only",median height + 486 Ma (youngest tip); 95% HPD,540.87,534.53,547.89
+ingroup_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST2 BDSS no ancestors, strict clock, discrete only",median height + 486 Ma (youngest tip); 95% HPD,539.26,533.73,545.88
+root_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST 1.8 UCLN, discrete+meristic+continuous (median tree)",median height + 486 Ma (youngest tip); 95% HPD,529.5,525.59,534.3
+ingroup_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST 1.8 UCLN, discrete+meristic+continuous (median tree)",median height + 486 Ma (youngest tip); 95% HPD,528.73,524.99,533.13
+root_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST 1.8 strict, all data",median height + 486 Ma (youngest tip); 95% HPD,537.58,532.26,543.78
+ingroup_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST 1.8 strict, all data",median height + 486 Ma (youngest tip); 95% HPD,536.69,531.88,542.82
+root_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST 1.8 epoch clock, all data (Fig. 1)",median height + 486 Ma (youngest tip); 95% HPD,535.23,530.02,541.3
+ingroup_age,all,"Paterson et al. 2019, Dryad Dataset_4 consensus tree annotations","BEAST 1.8 epoch clock, all data (Fig. 1)",median height + 486 Ma (youngest tip); 95% HPD,534.4,529.4,539.95

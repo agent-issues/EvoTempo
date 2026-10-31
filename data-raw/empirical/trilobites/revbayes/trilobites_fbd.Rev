@@ -100,7 +100,7 @@ moves.append( mvScale(clock_morph, lambda = 0.3, tune = true, weight = 10) )
 ucld_cv ~ dnExponential(3)
 ucld_cv.setValue(0.3)
 moves.append( mvScale(ucld_cv, lambda = 0.3, tune = true, weight = 5) )
-ucld_sd := sqrt(ln(1 + ucld_cv * ucld_cv))
+ucld_sd := sqrt(abs(ln(1 + ucld_cv * ucld_cv)))
 for (j in 1:n_branches) {
   z_mult[j] ~ dnNormal(0, 1)
   z_mult[j].setValue(0.0)

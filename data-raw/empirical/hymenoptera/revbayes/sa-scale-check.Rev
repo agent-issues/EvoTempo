@@ -1,43 +1,70 @@
 ################################################################################
-# Prior-only check of RevBayes 1.4.1 tree-scaling moves with sampled ancestors.
+# Prior-only checks of RevBayes 1.4.1 tree-scaling moves.
 #
-# TreeUtilities::rescaleSubtree() leaves a node with a sampled-ancestor child,
-# and everything below it, unscaled, while mvUpDownScale's Hastings ratio
-# counts every interior node of the tree.  If that is wrong, adding an
-# up-down tree scale to an otherwise correct move set changes the stationary
-# distribution of node ages and of the number of sampled ancestors.
+# TreeUtilities::rescaleSubtree() scales a node and the interior nodes below
+# it, but stops at a node with a sampled-ancestor child (that node and its
+# subtree are left unscaled).  The Hastings ratios of the moves that call it
+# count nodes differently.  Each variant adds one move to a reference move set
+# (node-time slides, FNPR, narrow exchange, plus collapse/expand and root-time
+# slide on origin-conditioned trees) on a tree with no data, and compares the
+# stationary distribution with the reference.
 #
-#   rb sa-scale-check.Rev    (with variant = "A" or "B" set by a driver)
-# A: node-time slides, FNPR, narrow, collapse/expand, root slide (reference)
-# B: A plus mvUpDownScale(tree down, an independent x ~ Exp(1) up)
-# C, D: as A, B with 10 extant taxa and no fossils (no sampled ancestors),
-#       which isolates the root term of the Hastings ratio
+#   variant  tree                               added move
+#   A        4 extant + 6 fossils, origin       none (reference)
+#   B        as A                               mvUpDownScale(x up, tree down)
+#   C        10 extant, origin                  none (reference)
+#   D        as C                               mvUpDownScale(x up, tree down)
+#   E        as A                               mvSubtreeScale(tree)
+#   F        as C                               mvSubtreeScale(tree)
+#   G        as A                               mvLayeredScaleProposal(tree)
+#   H        as C                               mvLayeredScaleProposal(tree)
+#   I        10 extant, stochastic root age     none (reference for J)
+#   J        as I                               mvUpDownScale(x up, tree down, root_time down)
+#   K        as C                               mvTreeScale(tree) (count should be right)
+#
+# x ~ Exp(1) is independent of the tree in every variant (a deterministic
+# node links it into the model graph); it is paired with the tree in B, D, J.
+# A driver sets variant, variant_seed and n_gen; output sa-check/<variant>_<seed>.log
 ################################################################################
 seed(variant_seed)
-if (variant == "A" || variant == "B") {
+fossils = (variant == "A" || variant == "B" || variant == "E" || variant == "G")
+rooted = (variant == "I" || variant == "J")
+if (fossils) {
   for (i in 1:4) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
   fossil_ages = v(0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
   for (i in 1:6) taxa_list[4 + i] = taxon("f" + i, fossil_ages[i], fossil_ages[i])
 } else {
   for (i in 1:10) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
 }
-origin_time <- 6.0
-tree ~ dnFBDP(originAge = origin_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
-              taxa = taxa_list, condition = "survival")
-x ~ dnExponential(1)
 moves = VectorMoves()
+if (rooted) {
+  root_time ~ dnExponential(0.5)
+  root_time.setValue(3.0)
+  tree ~ dnFBDP(rootAge = root_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
+                taxa = taxa_list, condition = "survival")
+  moves.append( mvSlide(root_time, delta = 0.5, weight = 3) )
+} else {
+  origin_time <- 6.0
+  tree ~ dnFBDP(originAge = origin_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
+                taxa = taxa_list, condition = "survival")
+  moves.append( mvCollapseExpandFossilBranch(tree, origin_time, weight = 5) )
+  moves.append( mvRootTimeSlideUniform(tree, origin_time, weight = 3) )
+}
+x ~ dnExponential(1)
 moves.append( mvNodeTimeSlideUniform(tree, weight = 10) )
 moves.append( mvFNPR(tree, weight = 5) )
 moves.append( mvNarrow(tree, weight = 5) )
-moves.append( mvCollapseExpandFossilBranch(tree, origin_time, weight = 5) )
-moves.append( mvRootTimeSlideUniform(tree, origin_time, weight = 3) )
 moves.append( mvScale(x, lambda = 0.5, weight = 1) )
-if (variant == "B" || variant == "D") {
+if (variant == "B" || variant == "D" || variant == "J") {
   ud = mvUpDownScale(lambda = 0.5, weight = 10)
   ud.addVariable(x, up = true)
   ud.addVariable(tree, up = false)
+  if (variant == "J") ud.addVariable(root_time, up = false)
   moves.append( ud )
 }
+if (variant == "E" || variant == "F") moves.append( mvSubtreeScale(tree, weight = 10) )
+if (variant == "G" || variant == "H") moves.append( mvLayeredScaleProposal(tree, lambda = 0.5, weight = 10) )
+if (variant == "K") moves.append( mvTreeScale(tree, delta = 0.5, weight = 10) )
 root_age := tree.rootAge()
 num_sa := tree.numSampledAncestors()
 tree_length := tree.treeLength()
@@ -47,4 +74,5 @@ monitors = VectorMonitors()
 monitors.append( mnModel(filename = "sa-check/" + variant + "_" + variant_seed + ".log", printgen = 10) )
 mymcmc = mcmc(model(tree), monitors, moves, moveschedule = "random")
 mymcmc.run(generations = n_gen)
+mymcmc.operatorSummary()
 q()

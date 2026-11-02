@@ -25,6 +25,7 @@
 #   start_values_file Rev file of setValue() calls for scalar parameters
 #   resume            true to continue from out_stem + ".ckp"
 #   checkpoint_every  iterations between checkpoints (default 500)
+#   under_prior       true to ignore all data (prior-only check)
 # and then sources this file.  Run from this directory.
 ################################################################################
 
@@ -260,6 +261,8 @@ if (use_dna) {
 ##### MCMC #####
 
 mymodel = model(fbd_tree)
+# data-free (prior-only) runs: set under_prior = true in the driver
+if (exists("under_prior")) { if (under_prior) mymodel.ignoreAllData() }
 
 if (!exists("resume")) { resume = false }
 if (!exists("checkpoint_every")) { checkpoint_every = 500 }

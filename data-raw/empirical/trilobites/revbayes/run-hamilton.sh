@@ -10,9 +10,9 @@
 #   RESUME=true  continue this chain from output/trilobites_<CONFIG>_run<REP>.ckp,
 #                appending to its output files
 #   CKP_EVERY    iterations between checkpoints (default 500)
-# Run from a copy of this directory under /nobackup.  RB is RevBayes v1.4.1
-# built from the release tag (gcc/14.2 + boost/1.88.0); the cluster's
-# revbayes/1.2.5 module is not used.
+# Run from a copy of this directory under /nobackup.  RB defaults to the
+# pinned RevBayes development build a2a8e2db (gcc/14.2 + boost/1.88.0; see
+# README for why not v1.4.1); the cluster's revbayes/1.2.5 module is not used.
 #SBATCH -p shared
 #SBATCH -c 1
 #SBATCH --mem=2G
@@ -22,7 +22,7 @@ set +e; set +o pipefail
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 module purge
 module load gcc/14.2 boost/1.88.0
-RB=${RB:-/nobackup/pjjg18/revbayes-1.4.1/projects/cmake/build/rb}
+RB=${RB:-/nobackup/pjjg18/revbayes-dev-a2a8e2db/projects/cmake/build/rb}
 
 N_GEN=${N_GEN:-100000}
 SAMPLE_EVERY=${SAMPLE_EVERY:-50}

@@ -2,9 +2,12 @@
 
 UCLN + FBD comparator for the CET analyses of the Paterson, Edgecombe & Lee 2019 trilobite data
 (inputs in `..`). The data are 107 fossil species with 106 analysed discrete characters, so there
-is a single configuration (`morph`), run as six independent chains. The run uses RevBayes v1.4.1
-(tag `v1.4.1`, commit `3a504eb`), built on Hamilton (`/nobackup/pjjg18/revbayes-1.4.1`), not the
-cluster's `revbayes/1.2.5` module.
+is a single configuration (`morph`), run as six independent chains. The reported runs use the RevBayes development
+build at commit `a2a8e2db` (`rb --version`: `1.4.2-preview`, `/nobackup/pjjg18/revbayes-dev-a2a8e2db` on
+Hamilton), not the v1.4.1 release and not the cluster's `revbayes/1.2.5` module. A data-free check
+(see **Build check**) gave very different sampled-ancestor priors for v1.4.1 and the development
+build, so the first set of 6 v1.4.1 chains was superseded. The development-build chains started
+from their last states.
 
 ## Files
 

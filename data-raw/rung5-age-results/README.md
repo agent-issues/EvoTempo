@@ -215,6 +215,43 @@ longer kept (see below), so they cannot be regenerated from committed files.
 Stouffer sum (z sum / sqrt(n)). For the `clock` mean these are -2.31 (B) and +0.90 (C), close
 to the pooled -2.36 and +0.87; quantile tests per batch are not available (#57).
 
+## 4. Start-age moves under joint and survival conditioning (#54)
+
+Sections 1-3 use extant conditioning, marginal over the start bin. The oracle of section 1
+was rerun with the other conditionings that `TempoMCMC()` permits with a free start age:
+joint conditioning on the origin start, and `condition = "survival"` on both starts
+(`Rscript data-raw/rung5-age-oracle.R <root|origin> 20000 32 <joint|survival>`; 32 chains x
+20000 iterations each, seeds 19900 + i and 20900 + i, otherwise as in section 1). Results are
+in `rung5-age-oracle-<case>-<variant>.csv`.
+
+| variant | p | exact | mcmc | cdfAtExact | z |
+|---|---|---|---|---|---|
+| origin-joint | q05 | 4.275 | 4.275 | 0.0500 | 0.01 |
+| origin-joint | q25 | 4.617 | 4.620 | 0.2485 | -1.11 |
+| origin-joint | q50 | 5.188 | 5.194 | 0.4981 | -1.14 |
+| origin-joint | q75 | 6.078 | 6.080 | 0.7497 | -0.27 |
+| origin-joint | q95 | 7.420 | 7.424 | 0.9495 | -0.70 |
+| origin-joint | mean | 5.437 | 5.439 |  | 0.65 |
+| root-survival | q05 | 3.445 | 3.445 | 0.0499 | -0.15 |
+| root-survival | q25 | 3.655 | 3.657 | 0.2490 | -0.79 |
+| root-survival | q50 | 4.019 | 4.022 | 0.4985 | -0.99 |
+| root-survival | q75 | 4.639 | 4.640 | 0.7499 | -0.07 |
+| root-survival | q95 | 5.925 | 5.924 | 0.9501 | 0.16 |
+| root-survival | mean | 4.257 | 4.258 |  | 0.23 |
+| origin-survival | q05 | 4.274 | 4.273 | 0.0505 | 0.77 |
+| origin-survival | q25 | 4.615 | 4.617 | 0.2490 | -0.78 |
+| origin-survival | q50 | 5.186 | 5.188 | 0.4989 | -0.61 |
+| origin-survival | q75 | 6.075 | 6.070 | 0.7512 | 0.81 |
+| origin-survival | q95 | 7.419 | 7.421 | 0.9498 | -0.35 |
+| origin-survival | mean | 5.435 | 5.434 |  | -0.38 |
+
+The largest of the 18 |z| is 1.14. An earlier, independent run of the same comparison by the
+reviewers' probe script (24 chains x 15000 iterations, seeds 43001-43024, at the merge of
+`main` into this branch) gave a largest |z| of 1.85 (origin-joint q05). In the same probe,
+seeded chains with characters, every tree move and an age move agreed between the R and
+C++ engines under joint (origin) and survival (crown) conditioning, to 3e-11 relative, with
+identical acceptance; `tests/testthat/test-Origin.R` now includes both cases.
+
 ## Conditioning choice
 
 The start age is a parameter with its own prior, and the survival conditioning is

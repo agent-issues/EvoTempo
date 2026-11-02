@@ -7,7 +7,11 @@
 # a, c fossils; f a sampled ancestor (the fixture of tests/testthat/test-Origin.R).
 # z-scores use the spread of the CDF at each exact quantile over independent
 # chains.
-# Usage: Rscript data-raw/rung5-age-oracle.R <root|origin> [nIter] [nChain]
+# Usage: Rscript data-raw/rung5-age-oracle.R <root|origin> [nIter] [nChain] [variant]
+#   variant: extant (default; extant conditioning, marginal over the start bin),
+#   joint (extant, joint conditioning) or survival (condition = "survival");
+#   results of a variant other than extant go to files with a "-<variant>"
+#   suffix (#54).
 # Environment: EVOTEMPO_RUNG5_OUT (default data-raw/rung5-age-results)
 suppressMessages(library(EvoTempo))
 library(parallel)
@@ -16,6 +20,10 @@ case <- args[[1]]
 stopifnot(case %in% c("root", "origin"))
 nIter <- if (length(args) > 1) as.integer(args[[2]]) else 20000L
 nChain <- if (length(args) > 2) as.integer(args[[3]]) else 16L
+variant <- if (length(args) > 3) args[[4]] else "extant"
+stopifnot(variant %in% c("extant", "joint", "survival"))
+suffix <- if (variant == "extant") "" else paste0("-", variant)
+seedBase <- c(extant = 18900, joint = 19900, survival = 20900)[[variant]]
 outDir <- Sys.getenv("EVOTEMPO_RUNG5_OUT", "data-raw/rung5-age-results")
 dir.create(outDir, recursive = TRUE, showWarnings = FALSE)
 origin <- case == "origin"
@@ -27,7 +35,9 @@ phylo <- structure(
   class = "phylo")
 tree <- TempoTree(phylo)
 model <- DCETModel(nBin = 16, zRange = c(-3, 3), rho = 0.5,
-                   start = if (origin) "origin" else "root")
+                   start = if (origin) "origin" else "root",
+                   condition = if (variant == "survival") "survival" else "extant",
+                   joint = variant == "joint")
 par <- list(lambda = 0.5, mu = 0.2, psi = 0.15, theta = 0.2, s = 0.6)
 ageRange <- if (origin) c(4.2, 8) else c(3.4, 7)
 prior <- function(a) stats::dunif(a, ageRange[1], ageRange[2], log = TRUE)
@@ -42,11 +52,11 @@ grid <- seq(ageRange[1], ageRange[2], length.out = 321)
 cl <- makeCluster(16)
 invisible(clusterCall(cl, function() suppressMessages(library(EvoTempo))))
 clusterExport(cl, c("tree", "model", "par", "WithAge", "origin", "root", "agePriors",
-                    "prior", "ageRange", "nIter"))
+                    "prior", "ageRange", "nIter", "seedBase"))
 logL <- unlist(parLapply(cl, grid, function(a) TreeLikelihood(WithAge(a), par, model)))
 t0 <- Sys.time()
 chains <- parLapply(cl, seq_len(nChain), function(i) {
-  set.seed(18900 + i)
+  set.seed(seedBase + i)
   run <- TempoMCMC(tree, model, par, list(), nIter = nIter, burnin = 1000, thin = 5,
                    nSlice = 16, agePriors = agePriors,
                    moves = c(tree = 1, node = 2, tip = 2, branch = 2,
@@ -76,11 +86,12 @@ cm <- vapply(chains, function(ch) mean(ch$age), 0)
 out <- rbind(out, data.frame(case = case, p = NA, exact = exactMean, mcmc = mean(cm),
                              cdfAtExact = NA, z = (mean(cm) - exactMean) / (stats::sd(cm) / sqrt(length(cm)))))
 acceptance <- colMeans(do.call(rbind, lapply(chains, `[[`, "acceptance")))
-saveRDS(list(case = case, grid = grid, logL = logL, chains = chains, out = out,
+saveRDS(list(case = case, variant = variant, grid = grid, logL = logL, chains = chains, out = out,
              acceptance = acceptance, nIter = nIter, runtime = runtime,
              sha = Sys.getenv("EVOTEMPO_SHA")),
-        file.path(outDir, paste0("rung5-age-oracle-", case, ".rds")))
-write.csv(out, file.path(outDir, paste0("rung5-age-oracle-", case, ".csv")), row.names = FALSE)
+        file.path(outDir, paste0("rung5-age-oracle-", case, suffix, ".rds")))
+write.csv(out, file.path(outDir, paste0("rung5-age-oracle-", case, suffix, ".csv")),
+          row.names = FALSE)
 print(out, digits = 4, row.names = FALSE)
 print(round(acceptance[acceptance > 0], 3))
 cat("runtime", format(runtime), "\n")

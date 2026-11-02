@@ -173,7 +173,14 @@ test_that("Chains with an origin and age moves match between engines", {
                               shift = 1, nodeAge = 2, fossilAge = 1, slide = 1,
                               saJump = 1, originAge = 2), originPrior),
     list(crModel, orRanged, c(tree = 1, node = 1, branch = 1, shift = 1, nodeAge = 1,
-                              slide = 1, rootAge = 2), rootPrior)
+                              slide = 1, rootAge = 2), rootPrior),
+    # Joint and survival conditioning with start-age moves (#54)
+    list(DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, start = "origin", joint = TRUE),
+         orRanged, c(node = 2, branch = 1, shift = 1, nodeAge = 2, fossilAge = 1, slide = 1,
+                     saJump = 1, originAge = 2), originPrior),
+    list(DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, condition = "survival"),
+         orRanged, c(node = 1, branch = 1, shift = 1, nodeAge = 1, fossilAge = 1, saJump = 1,
+                     rootAge = 2), rootPrior)
   )
   for (case in cases) {
     cpp <- Run("cpp", case[[1]], case[[2]], case[[3]], case[[4]])

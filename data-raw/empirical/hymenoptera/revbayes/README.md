@@ -91,24 +91,48 @@ move fossils and node ages freely from there.
 
 ## RevBayes up-down move
 
-`mvUpDownScale` with a tree (and `mvTreeScale`) is not used. In RevBayes 1.4.1,
-`TreeUtilities::rescaleSubtree()` scales the root, but it does not rescale a node with a
-sampled-ancestor child, or anything below it. The Hastings ratio counts
-`Tree::getNumberOfInteriorNodes()`, which is every interior node except the root.
-`sa-scale-check.Rev` compares prior-only chains with and without
-`mvUpDownScale(x up, tree down)` for an independent x ~ Exponential(1). There are no data,
-400 000 iterations and 10 % burn-in:
+The models use no tree-scaling move. In RevBayes 1.4.1, `TreeUtilities::rescaleSubtree()`
+(`src/core/utils/TreeUtilities.cpp:1608-1631`) scales a node and the interior nodes below it. It
+stops at a node with a sampled-ancestor child, leaving that node and its subtree unscaled. The
+Hastings ratios of the moves that call it count nodes in other ways:
 
-| Tree | Moves | x mean (expected 1) | root age | tree length |
-|---|---|---|---|---|
-| 4 extant + 6 fossils (sampled ancestors possible) | reference | 0.999 | 3.497 | 8.27 |
-| | + up-down | 0.000 (collapses) | 3.729 | 8.90 |
-| 10 extant, no fossils | reference | 1.018 | 1.634 | 6.64 |
-| | + up-down | 1.571 | 1.573 | 6.36 |
+- `mvUpDownScale` counts `Tree::getNumberOfInteriorNodes()`, which leaves out the root
+  (`UpDownScaleProposal.cpp:208-256`, `Tree.cpp:836-853`).
+- `mvSubtreeScale` and `mvLayeredScaleProposal` use `getNumberOfNodesInSubtree(false) - 1`.
+- `mvTreeScale` counts all interior nodes.
 
-Both biases have the sign the miscount predicts. With no sampled ancestors, one node too few is
-counted (the root). With sampled ancestors, nodes are counted that the move did not scale. The
-penguin baseline (`../../penguins/revbayes/penguins_fbd.Rev`) uses this move.
+`sa-scale-check.Rev` adds one move at a time to a reference move set and compares the
+stationary distributions. The tree prior is `dnFBDP` with λ = 1, μ = 0.8, ψ = 0.6, ρ = 1, and there
+are no data. x ~ Exponential(1) is independent of the tree and is paired with it in the up-down
+variants. Each variant ran 4 chains × 400 000 iterations, sampled every 10, with 10 % burn-in. Cells
+give the pooled mean ± MCSE; full table in `summary/scale-move-check.csv`:
+
+| Variant | Tree | Added move | x (expected 1) | root age | tree length |
+|---|---|---|---|---|---|
+| A | 4 extant + 6 fossils, origin | none (reference) | 1.013 ± 0.011 | 3.489 ± 0.002 | 8.221 ± 0.013 |
+| B | as A | up-down (x up, tree down) | stuck at 0 | 3.724 ± 0.002 | 8.881 ± 0.013 |
+| C | 10 extant, origin | none (reference) | 0.993 ± 0.011 | 1.644 ± 0.002 | 6.666 ± 0.009 |
+| D | as C | up-down (x up, tree down) | 1.584 ± 0.008 | 1.574 ± 0.002 | 6.370 ± 0.008 |
+| E | as A | `mvSubtreeScale` | 0.999 ± 0.011 | 3.607 ± 0.002 | 9.319 ± 0.011 |
+| F | as C | `mvSubtreeScale` | 0.990 ± 0.011 | 1.639 ± 0.002 | 6.649 ± 0.007 |
+| G | as A | `mvLayeredScaleProposal` | 0.991 ± 0.011 | 3.725 ± 0.002 | 9.851 ± 0.013 |
+| H | as C | `mvLayeredScaleProposal` | 1.000 ± 0.011 | 1.702 ± 0.002 | 7.188 ± 0.007 |
+| I | 10 extant, stochastic root age | none (reference) | 1.016 ± 0.011 | 1.119 ± 0.002 | 5.065 ± 0.008 |
+| J | as I | up-down (x up, tree and root age down) | 1.004 ± 0.009 | 1.118 ± 0.002 | 5.060 ± 0.006 |
+| K | as C | `mvTreeScale` | 1.006 ± 0.011 | 1.642 ± 0.002 | 6.658 ± 0.006 |
+
+What the variants show:
+
+- **Up-down with a root-age variable is unbiased (J).** Leaving the root out of the count is
+  therefore a convention: the move expects the root age to be scaled as a variable of its own.
+- **That convention breaks on origin-conditioned trees.** There the root is a node of the tree
+  and cannot be added to the move, and the move is biased (D; root age −21 MCSE).
+- **Sampled ancestors bias up-down (B) and `mvSubtreeScale` (E)**, because nodes are counted that
+  were not scaled. Without them `mvSubtreeScale` (F) and `mvTreeScale` (K) agree with the reference.
+- **`mvLayeredScaleProposal` is biased even without sampled ancestors (H).**
+
+The penguin baseline's round-1 and round-2 model (`../../penguins/revbayes/penguins_fbd.Rev`)
+used up-down on an origin-conditioned FBD tree with sampled ancestors.
 
 ## Results
 

@@ -44,6 +44,27 @@ test_that("Extinction probabilities agree between engines", {
   expect_error(ExtinctionProbability(c(2, 1), Q, 1, 0.5), "sorted")
 })
 
+test_that("Both engines solve the stiff top-bin rates of a large s", {
+  # At s = 12 the top bins have rates of 2e15, whose initial transient needs
+  # steps of ~1e-18
+  model <- DCETModel(nBin = 16, zRange = c(-3, 3), rho = 0.5, beta = 1, gamma = 0)
+  par <- list(lambda = 0.47, mu = 0.136, psi = 0.029, theta = 0.306, s = 12)
+  set <- .Setup(par, model)
+  Grid <- function(engine) {
+    WithEngine(engine, .EGrid(set$Q, set$lambda, set$mu, set$psi, 0.5, 8))
+  }
+  cpp <- Grid("cpp")
+  ref <- Grid("R")
+  expect_equal(cpp$E, ref$E, tolerance = 1e-8)
+  expect_equal(cpp$G, ref$G, tolerance = 1e-8)
+  times <- c(0, 1e-9, 0.5, 8)
+  expect_equal(
+    ExtinctionProbability(times, set$Q, set$lambda, set$mu, set$psi, 0.5, engine = "cpp"),
+    ExtinctionProbability(times, set$Q, set$lambda, set$mu, set$psi, 0.5, engine = "R"),
+    tolerance = 1e-8
+  )
+})
+
 test_that("Tree likelihoods agree between engines", {
   for (cond in c("extant", "survival", "none")) {
     for (start in c("root", "origin")) {

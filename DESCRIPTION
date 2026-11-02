@@ -32,6 +32,7 @@ Suggests:
     ReacTran,
     testthat (>= 3.1.7),
     TreeTools,
+    withr,
     quarto,
     knitr
 Config/testthat/edition: 3

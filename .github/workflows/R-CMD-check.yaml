@@ -9,7 +9,7 @@ name: R-CMD-check
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
-    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
+    name: ${{ matrix.config.os }} (${{ matrix.config.r }}${{ matrix.config.engine && format(', {0} engine', matrix.config.engine) || '' }})
 
     strategy:
       fail-fast: false
@@ -18,9 +18,12 @@ jobs:
           - {os: ubuntu-latest,  r: 'release'}
           - {os: windows-latest, r: 'release'}
           - {os: macos-latest,   r: 'release'}
+          # The tests again on the pure-R reference engine
+          - {os: ubuntu-latest,  r: 'release', engine: 'R'}
 
     env:
       R_KEEP_PKG_SOURCE: yes
+      EVOTEMPO_TEST_ENGINE: ${{ matrix.config.engine }}
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
 
     steps:

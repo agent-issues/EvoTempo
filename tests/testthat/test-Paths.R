@@ -194,46 +194,94 @@ stiffModel <- DCETModel(
   nBin = 16, zRange = c(-3, 3), rho = 0.5, beta = 1, gamma = 0
 )
 okPar <- list(lambda = 0.47, mu = 0.136, psi = 0.029, theta = 0.306, s = 0.84)
-# Top-bin rates too stiff for the C++ E solver
-stiffPar <- replace(okPar, "s", 12)
 flat <- list(s = function(x) 0)
+# Where a real solver fails on a hard problem depends on the engine and the
+# platform, so such failures are forced, in the solver of each engine
+FailSolve <- function(...) stop("ODE solver failed")
+WithEngine <- function(engine, expr) {
+  old <- options(EvoTempo.engine = engine)
+  on.exit(options(old))
+  expr
+}
 
 test_that("A failed E solve is an infeasible proposal, but not at the start", {
+  local_mocked_bindings(.Integrate = FailSolve, .EGridCpp = FailSolve,
+                        .PruneTreeCpp = FailSolve)
   expect_error(
-    .Precompute(stiffTree, stiffPar, stiffModel),
+    .Precompute(stiffTree, okPar, stiffModel),
     "ODE solver failed", class = "infeasibleProposal"
   )
   other <- tryCatch(.SolverInfeasible(stop("Other")), error = identity)
   expect_s3_class(other, "simpleError")
   expect_false(inherits(other, "infeasibleProposal"))
   expect_error(
-    TempoMCMC(stiffTree, stiffModel, stiffPar, flat, nIter = 1, nSlice = 4),
+    TempoMCMC(stiffTree, stiffModel, okPar, flat, nIter = 1, nSlice = 4),
     "ODE solver failed"
   )
   expect_error(
-    MarginalMCMC(stiffTree, stiffModel, stiffPar, flat, nIter = 1),
+    MarginalMCMC(stiffTree, stiffModel, okPar, flat, nIter = 1),
     "ODE solver failed"
   )
 })
 
 test_that("Every solve in .Precompute() can signal an infeasible proposal", {
-  WithR <- function(expr) {
-    old <- options(EvoTempo.engine = "R")
-    on.exit(options(old))
-    expr
+  # The E grid: .Integrate() is the R engine's solver
+  with_mocked_bindings(
+    expect_error(
+      WithEngine("R", .Precompute(stiffTree, okPar, stiffModel)),
+      "ODE solver failed", class = "infeasibleProposal"
+    ),
+    .Integrate = FailSolve
+  )
+  # Extant conditioning with fossils solves for E once more.  Count the calls,
+  # so that an earlier failure cannot pass in its place
+  nCall <- 0L
+  local_mocked_bindings(ExtinctionProbability = function(...) {
+    nCall <<- nCall + 1L
+    FailSolve()
+  })
+  for (engine in c("cpp", "R")) {
+    expect_error(
+      WithEngine(engine, .Precompute(stiffTree, okPar, stiffModel)),
+      "ODE solver failed", class = "infeasibleProposal"
+    )
   }
-  local_mocked_bindings(.Integrate = function(...) stop("ODE solver failed"))
+  expect_equal(nCall, 2L)
+})
+
+# Unmocked: a non-finite rate makes each engine's stiff solver fail at t = 0.
+# These guard the message that .SolverInfeasible() matches, as raised by the
+# solvers themselves
+nanRates <- .Setup(okPar, stiffModel)
+nanRates$lambda[] <- NaN
+test_that("A real C++ solver failure is an infeasible proposal", {
+  r <- nanRates
   expect_error(
-    WithR(.Precompute(stiffTree, okPar, stiffModel)),
-    "ODE solver failed", class = "infeasibleProposal"
-  )
-  # Extant conditioning with fossils solves for E once more
-  local_mocked_bindings(
-    ExtinctionProbability = function(...) stop("ODE solver failed")
+    WithEngine("cpp", .EGrid(r$Q, r$lambda, r$mu, r$psi, 0.5, 8)),
+    "^ODE solver failed$", class = "infeasibleProposal"
   )
   expect_error(
-    .Precompute(stiffTree, okPar, stiffModel),
-    "ODE solver failed", class = "infeasibleProposal"
+    ExtinctionProbability(c(0, 8), r$Q, r$lambda, r$mu, r$psi, 0.5,
+                          engine = "cpp"),
+    "^ODE solver failed$"
+  )
+})
+
+test_that("A real R solver failure is an infeasible proposal", {
+  r <- nanRates
+  # lsode also warns, and prints a diagnostic
+  Quietly <- function(expr) {
+    capture.output(res <- suppressWarnings(expr))
+    res
+  }
+  expect_error(
+    Quietly(WithEngine("R", .EGrid(r$Q, r$lambda, r$mu, r$psi, 0.5, 8))),
+    "^ODE solver failed$", class = "infeasibleProposal"
+  )
+  expect_error(
+    Quietly(ExtinctionProbability(c(0, 8), r$Q, r$lambda, r$mu, r$psi, 0.5,
+                                  engine = "R")),
+    "^ODE solver failed$"
   )
 })
 
@@ -267,6 +315,12 @@ test_that(".JointSweep() rejects a parameter whose E solve fails", {
   d <- .SampleTree(stiffTree, set, msg)
   st <- list(tree = stiffTree, par = okPar, set = set, msg = msg,
              paths = d$paths, bin = d$bin, charLL = 0)
+  # The E solve fails for s > 1, as .Precompute() reports a failed solve
+  Precompute <- .Precompute
+  local_mocked_bindings(.Precompute = function(tree, par, model) {
+    if (par[["s"]] > 1) .Infeasible("ODE solver failed")
+    Precompute(tree, par, model)
+  })
   seed <- .Random.seed
   Rewind <- function() assign(".Random.seed", seed, envir = globalenv())
   # Step size that proposes s = 12 from the next random number

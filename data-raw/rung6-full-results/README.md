@@ -78,8 +78,9 @@ ancestors.
 The binding quantities are the tree statistics: tree length and mean node age reach about
 5–8 ESS per 1000 iterations. In the γ = 1 cells θ is also slow, at about 1–5 ESS per 1000
 iterations. With characters on tempo-scaled branch lengths, freshly drawn FFBS paths rarely
-agree with the 30 characters: mean acceptance of the `joint` move is 1.7% (β=0, γ=1) and 3.3%
-(β=1, γ=1), against 30% when γ = 0, and whole-tree `tree` redraws behave the same way.
+agree with the 30 characters: mean acceptance of the `joint` move (over the whole run, burn-in
+included; `acc.*` in the runs table likewise) is 1.7% (β=0, γ=1) and 3.3% (β=1, γ=1), against
+30% when γ = 0, and whole-tree `tree` redraws behave the same way.
 This is a cost, not a calibration problem. It is why the γ = 1 cells needed twice the base
 chain length and most of the extensions (54% and 70% of their replicates were extended, against
 15% and 30% for γ = 0). A path proposal that conditions on the characters would be the

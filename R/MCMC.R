@@ -182,10 +182,13 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' proportion to the size of the tree.
 #' A fractional count \eqn{n + f} runs \eqn{n} moves and, with probability
 #' \eqn{f}, one more.
-#' At the end of burn-in, `tree` and `joint` are dropped from the sampling
-#' phase if their acceptance during burn-in was below `minAcceptance`; move
-#' frequencies change only during burn-in, so the sampling phase is a fixed
-#' mixture of kernels.
+#' At the end of burn-in, `tree` and `joint` are dropped, with a warning, if
+#' their acceptance over at least 100 burn-in proposals was below
+#' `minAcceptance` and another whole-tree draw, or both `node` and `tip`,
+#' remain; set `minAcceptance = 0` to keep a fixed schedule such as
+#' `moves = c(tree = 1)`.
+#' Move frequencies change only during burn-in, so the sampling phase is a
+#' fixed mixture of kernels.
 #'
 #' Tree moves: `nodeAge` redraws the age of a bifurcation
 #' uniformly between its children and parent (with `start = "origin"`, the
@@ -230,8 +233,8 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' [MkLikelihood()].
 #' @param updateParameters Logical; if `FALSE`, hold parameters fixed (`shift`
 #' then moves the bins only).
-#' @param minAcceptance Numeric: `tree` and `joint` moves whose acceptance
-#' during burn-in falls below this are not used after burn-in.
+#' @param minAcceptance Numeric giving the burn-in acceptance below which
+#' `tree` and `joint` moves are dropped after burn-in (see Details).
 #' @param agePriors Named list of functions giving log prior densities of
 #' the root age (`root`; with `start = "root"`) and of the origin age
 #' (`origin`; with `start = "origin"`), needed by the `rootAge` and
@@ -248,7 +251,10 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' - `occupancy`: matrix of time spent in each bin (columns), per sample;
 #' - `branchX`: matrix of the time-averaged log-tempo on each branch (for
 #'   chains without tree moves);
-#' - `acceptance`: acceptance rate of each move;
+#' - `acceptance`: acceptance rate of each move after burn-in (zero for
+#'   moves not run);
+#' - `burninAcceptance`: acceptance rate of each move during burn-in, or
+#'   `NULL` without burn-in;
 #' - `moves`: the move counts used after burn-in;
 #' - `state`: the final state.
 #' @references
@@ -288,6 +294,12 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   }
   if (!all(names(moves) %in% moveNames)) {
     stop("Unknown move: ", paste(setdiff(names(moves), moveNames), collapse = ", "))
+  }
+  if (!is.numeric(moves) || !all(is.finite(moves) & moves >= 0)) {
+    stop("`moves` must be numeric, finite and non-negative")
+  }
+  if (!is.numeric(minAcceptance) || !isTRUE(is.finite(minAcceptance))) {
+    stop("`minAcceptance` must be a single number")
   }
   moves <- replace(setNames(numeric(length(moveNames)), moveNames), names(moves),
                    moves)
@@ -349,6 +361,8 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                               gamma), tr[["root"]], 0)
   }
   free <- if (updateParameters) names(priors) else character(0)
+  jointRuns <- updateParameters && length(priors) > 0
+  burninAcceptance <- NULL
   for (i in seq_len(burnin + nIter)) {
     for (move in moveNames[moves > 0]) {
       for (rep in seq_len(.MoveCount(moves[[move]]))) {
@@ -419,13 +433,9 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       ageHits <- 0 * ageHits
     }
     if (i == burnin) {
-      # Whole-tree draws that the characters reject are dropped after burn-in
-      for (move in c("tree", "joint")) {
-        if (moves[[move]] > 0 && moveTry[[move]] > 0 &&
-            moveAcc[[move]] / moveTry[[move]] < minAcceptance) {
-          moves[[move]] <- 0
-        }
-      }
+      moves <- .DropMoves(moves, moveAcc, moveTry, minAcceptance, jointRuns)
+      burninAcceptance <- moveAcc / pmax(moveTry, 1)
+      moveTry[] <- moveAcc[] <- 0
     }
     j <- i - burnin
     if (j > 0 && j %% thin == 0) {
@@ -445,9 +455,42 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       }
     }
   }
-  list(samples = as.data.frame(samples), occupancy = occupancy,
-       branchX = branchX, acceptance = moveAcc / pmax(moveTry, 1),
-       moves = moves[moves > 0], state = st)
+  list(
+    samples = as.data.frame(samples), occupancy = occupancy, branchX = branchX,
+    acceptance = moveAcc / pmax(moveTry, 1),
+    burninAcceptance = burninAcceptance, moves = moves[moves > 0], state = st
+  )
+}
+
+# Whole-tree draws (`tree`, `joint`) that the characters reject are dropped
+# after burn-in, unless too few were tried to tell, or unless no other move
+# would then update every path and node bin: `node` alone moves the root bin,
+# and `tip` alone the tip bins.  The worse move goes first, so that if only
+# one can go, the better one stays.
+.DropMoves <- function(moves, moveAcc, moveTry, minAcceptance, jointRuns,
+                       minTries = 100) {
+  acc <- moveAcc[c("tree", "joint")] / pmax(moveTry[c("tree", "joint")], 1)
+  for (move in names(sort(acc))) {
+    failed <- moveTry[[move]] >= minTries && acc[[move]] < minAcceptance
+    if (moves[[move]] == 0 || !failed) next
+    other <- setdiff(c("tree", if (jointRuns) "joint"), move)
+    rate <- signif(acc[[move]], 2)
+    if (any(moves[other] > 0) || all(moves[c("node", "tip")] > 0)) {
+      moves[[move]] <- 0
+      warning(
+        "`", move, "` dropped after burn-in: acceptance ", rate,
+        " < `minAcceptance`", call. = FALSE
+      )
+    } else {
+      warning(
+        "`", move, "` kept despite burn-in acceptance ", rate,
+        ", as no other move updates every path; add `node` and `tip`",
+        call. = FALSE
+      )
+    }
+  }
+  # Return:
+  moves
 }
 
 #' Default move schedule of TempoMCMC()
@@ -484,6 +527,9 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 #' @family dCET inference
 #' @export
 TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
+  if (!is.numeric(local) || !isTRUE(is.finite(local) & local > 0)) {
+    stop("`local` must be a single positive number")
+  }
   tree <- TempoTree(tree)
   scored <- !is.null(characters) && NCOL(characters) > 0 &&
     (is.null(model) || model[["gamma"]] != 0)

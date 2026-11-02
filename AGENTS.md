@@ -170,6 +170,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung5-validation.R` | Rung 4b (one character, product-space oracle) and rung 5 (prior-only MCMC vs simulator) |
 | `data-raw/cpp-engine-agreement.R` | C++ vs R agreement and run times on the rung 3/4 fixtures (K = 16, 26); results in `data-raw/cpp-engine-results/` |
 | `data-raw/empirical/` | Curated tip-dated datasets (penguins, Hymenoptera, trilobites): raw downloads with checksums, NEXUS matrices, tip-age tables, constraints, per-dataset README; `build.R` regenerates everything from `raw/` |
+| `data-raw/empirical/penguins/cet/` | Penguin CET pipeline, stage 1 (morphology only): data conversion, chain driver with exact checkpoint/resume, Slurm scripts, bridge-sampling Bayes factors between the (beta, gamma) cells, summaries, and the matched morphology-only RevBayes comparator; it rebinds `MkLikelihood()` and `.TreeStats()` in the namespace (see its README) |
 | `manuscript/` | Quarto manuscript (build-ignored; rendered by `render-manuscript.yaml`). Not in `vignettes/`: R CMD check treats a `.qmd` there as a vignette without an engine |
 | `tests/testthat/test-Engine.R` | C++ vs R agreement for every ported function, and identical seeded chains in both engines |
 | `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |

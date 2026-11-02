@@ -135,6 +135,16 @@ Ess <- function(x) {
   min(n, n / max(tau, 1e-8))
 }
 
+# Batch-means Monte Carlo standard error of a chain mean (25 batches)
+BatchMcse <- function(x, nBatch = 25) {
+  x <- x[is.finite(x)]
+  m <- floor(length(x) / nBatch) * nBatch
+  if (m < 2 * nBatch) {
+    return(NA_real_)
+  }
+  sqrt(stats::var(colMeans(matrix(x[seq_len(m)], ncol = nBatch))) / nBatch)
+}
+
 RankOf <- function(draws, value) {
   if (!is.finite(value) || anyNA(draws)) {
     return(NA_integer_)
@@ -203,7 +213,8 @@ Replicate <- function(g) {
   # Without fossils, saJump and fossilAge have nothing to act on; saJump then
   # errors in the engine (issue #36), so both are dropped (identity moves)
   noFossil <- c("saJump", "fossilAge")
-  if (identical(Sys.getenv("EVOTEMPO_SBC_SCHEDULE"), "default")) {
+  defaultSchedule <- identical(Sys.getenv("EVOTEMPO_SBC_SCHEDULE"), "default")
+  if (defaultSchedule) {
     treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
     mainMoves <- c(TempoMoves(tt, chars, model), mainMoves[treeMoves])
   }
@@ -220,7 +231,8 @@ Replicate <- function(g) {
     Chain <- function(tr, par, burn) {
       TempoMCMC(tr, model, par, priors, nIter = nIter, burnin = burn,
                 thin = nIter %/% nStore, nSlice = nSlice, moves = moves,
-                characters = chars)
+                characters = chars,
+                minAcceptance = if (defaultSchedule) 0.01 else 0)
     }
     run <- Chain(startTree, start, burnin)
     samples <- run$samples
@@ -260,6 +272,10 @@ Replicate <- function(g) {
               acceptance = do.call(rbind, acceptance),
               posteriorMean = colMeans(samples[quantities], na.rm = TRUE),
               posteriorSd = vapply(samples[quantities], stats::sd, 0, na.rm = TRUE),
+              # MCSE of posteriorMean (#51): from the ESS, and from batch means
+              posteriorMcse = vapply(samples[quantities], stats::sd, 0, na.rm = TRUE) /
+                sqrt(ess),
+              posteriorMcseBatch = vapply(samples[quantities], BatchMcse, 0),
               chainErrors = chainErrors, grid = model0, moves = moves, nStore = nStore,
               runtime = as.numeric(difftime(Sys.time(), t0, units = "mins")),
               packageVersion = as.character(utils::packageVersion("EvoTempo")),

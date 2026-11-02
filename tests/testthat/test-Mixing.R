@@ -156,13 +156,71 @@ test_that("TempoMCMC() runs the default schedule with characters", {
 })
 
 test_that("Whole-tree draws with low burn-in acceptance are dropped", {
-  Run <- function(minAcceptance) {
+  Run <- function(moves, minAcceptance = 2, burnin = 100, nIter = 3) {
     set.seed(8)
-    TempoMCMC(mixTree, mixModel, mixPar, mixPriors["rate"], nIter = 3, burnin = 3,
-              nSlice = 4, characters = mixChars,
-              moves = c(tree = 1, joint = 1, branch = 1, shift = 1),
+    TempoMCMC(mixTree, mixModel, mixPar, mixPriors["rate"], nIter = nIter,
+              burnin = burnin, nSlice = 4, characters = mixChars, moves = moves,
               minAcceptance = minAcceptance)
   }
-  expect_equal(Run(0)$moves, c(tree = 1, branch = 1, joint = 1, shift = 1))
-  expect_equal(Run(2)$moves, c(branch = 1, shift = 1))
+  wholeTree <- c(tree = 1, joint = 1, branch = 1, shift = 1)
+  kept <- c(tree = 1, branch = 1, joint = 1, shift = 1)
+  expect_equal(Run(wholeTree, 0)$moves, kept)
+  # Too few burn-in tries to judge
+  expect_silent(few <- Run(wholeTree, burnin = 3))
+  expect_equal(few$moves, kept)
+  # One whole-tree draw, the better, stays to update every path
+  expect_warning(expect_warning(both <- Run(wholeTree), "dropped"), "kept")
+  better <- names(which.max(both$burninAcceptance[c("tree", "joint")]))
+  expect_setequal(names(both$moves), c(better, "branch", "shift"))
+  local <- c(tree = 1, node = 1, tip = 1, shift = 1)
+  expect_warning(dropped <- Run(local), "`tree` dropped after burn-in")
+  expect_equal(dropped$moves, c(node = 1, tip = 1, shift = 1))
+  expect_equal(dropped$acceptance[["tree"]], 0)
+  expect_gt(dropped$burninAcceptance[["tree"]], 0)
+  expect_null(Run(local, burnin = 0)$burninAcceptance)
+  # Without parameter updates `joint` does not run, so cannot stand in
+  set.seed(8)
+  expect_warning(fixed <- TempoMCMC(
+    mixTree, mixModel, mixPar, mixPriors["rate"], nIter = 3, burnin = 100,
+    nSlice = 4, characters = mixChars, moves = wholeTree, minAcceptance = 2,
+    updateParameters = FALSE
+  ), "`tree` kept")
+  expect_equal(fixed$moves[["tree"]], 1)
+  # The better of two failing whole-tree draws is kept
+  tries <- c(tree = 100, joint = 100)
+  expect_warning(expect_warning(
+    kept <- .DropMoves(c(tree = 1, joint = 1, node = 0, tip = 0),
+                       c(tree = 50, joint = 20), tries, 0.6, TRUE),
+    "`joint` dropped"
+  ), "`tree` kept")
+  expect_equal(kept[["tree"]], 1)
+  expect_equal(kept[["joint"]], 0)
+})
+
+test_that("The only path move is never dropped (#50)", {
+  expect_warning(run <- TempoMCMC(
+    mixTree, mixModel, mixPar, mixPriors["rate"], nIter = 40, burnin = 100,
+    nSlice = 4, characters = mixChars, moves = c(tree = 1), minAcceptance = 2,
+    engine = "R"
+  ), "`tree` kept")
+  expect_equal(run$moves, c(tree = 1))
+  expect_gt(run$acceptance[["tree"]], 0)
+  expect_gt(length(unique(run$samples$meanX)), 1)
+})
+
+test_that("Invalid move counts are rejected (#53)", {
+  for (local in list(0, -1, NA, Inf, c(0.5, 1))) {
+    expect_error(TempoMoves(mixTree, mixChars, local = local), "`local` must")
+  }
+  for (n in c(-1, NA, Inf)) {
+    expect_error(TempoMCMC(mixTree, mixModel, mixPar, list(), nIter = 1,
+                           moves = c(tree = n)), "`moves` must")
+  }
+  expect_error(TempoMCMC(mixTree, mixModel, mixPar, list(), nIter = 1,
+                         moves = c(tree = "1")), "`moves` must")
+  expect_error(TempoMoves(mixTree, local = TRUE), "`local` must")
+  for (minAcc in list(NA, c(0, 1), "0")) {
+    expect_error(TempoMCMC(mixTree, mixModel, mixPar, list(), nIter = 1,
+                           minAcceptance = minAcc), "`minAcceptance` must")
+  }
 })

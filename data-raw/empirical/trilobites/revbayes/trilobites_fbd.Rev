@@ -135,6 +135,8 @@ for (i in 1:n_morph) {
 ##### MCMC #####
 
 mymodel = model(fbd_tree)
+# data-free (prior-only) runs: set under_prior = true in the driver
+if (exists("under_prior")) { if (under_prior) mymodel.ignoreAllData() }
 
 if (!exists("resume")) { resume = false }
 if (!exists("checkpoint_every")) { checkpoint_every = 500 }

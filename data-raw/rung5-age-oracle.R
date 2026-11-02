@@ -68,7 +68,10 @@ out <- do.call(rbind, lapply(probs, function(pr) {
              mcmc = stats::quantile(unlist(lapply(chains, `[[`, "age")), pr, names = FALSE),
              cdfAtExact = mean(f), z = (mean(f) - pr) / (stats::sd(f) / sqrt(length(f))))
 }))
-exactMean <- sum(grid * dens) / sum(dens)
+# Trapezoid rule, as for the CDF (an equal-weight sum overweights the ends of
+# the grid; #57)
+wTrap <- c(0.5, rep(1, length(grid) - 2), 0.5)
+exactMean <- sum(wTrap * grid * dens) / sum(wTrap * dens)
 cm <- vapply(chains, function(ch) mean(ch$age), 0)
 out <- rbind(out, data.frame(case = case, p = NA, exact = exactMean, mcmc = mean(cm),
                              cdfAtExact = NA, z = (mean(cm) - exactMean) / (stats::sd(cm) / sqrt(length(cm)))))

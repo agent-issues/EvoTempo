@@ -3,8 +3,9 @@
 Validation of the origin start (`start = "origin"`: stem path, origin bin, single-lineage
 survival) and of the start-age moves (`rootAge`, `originAge`, and `nodeAge` on the root under an
 origin) added to `TempoMCMC()` in this PR. Everything here was run on Hamilton with the C++
-engine, at branch `origin-root-age-18` (package code of commit 8b4a55f; later commits touch
-only `data-raw/`).
+engine, at branch `origin-root-age-18` (package code of commit 8b4a55f, unchanged up to
+fbfc5bc; the later start-up guards of #55 and sample columns of #56 change neither the moves
+nor the target).
 
 ## 1. Exact one-dimensional oracle (`data-raw/rung5-age-oracle.R`)
 
@@ -30,17 +31,21 @@ between-chain standard error.
 | origin | q50 | 5.187 | 5.19 | 0.4988 | -0.76 |
 | origin | q75 | 6.076 | 6.076 | 0.75 | 0.01 |
 | origin | q95 | 7.418 | 7.422 | 0.9497 | -0.55 |
-| origin | mean | 5.432 | 5.437 |  | 2.06 |
+| origin | mean | 5.436 | 5.437 |  | 0.51 |
 | root | q05 | 3.446 | 3.446 | 0.0503 | 0.55 |
 | root | q25 | 3.658 | 3.658 | 0.2501 | 0.1 |
 | root | q50 | 4.024 | 4.023 | 0.5008 | 0.65 |
 | root | q75 | 4.647 | 4.639 | 0.7521 | 1.9 |
 | root | q95 | 5.932 | 5.919 | 0.9509 | 1.42 |
-| root | mean | 4.257 | 4.259 |  | 1.42 |
+| root | mean | 4.262 | 4.259 |  | -1.65 |
 
-Both moves recover the exact posterior: the largest quantile |z| is 1.90. The origin mean
-(z = 2.06) uses a Riemann sum over the grid; the CDF at all five quantiles agrees to
-within |z| <= 0.92.
+Both moves recover the exact posterior: the largest |z| is 1.90 (root q75). The exact means
+use the trapezoid rule over the grid, as the CDF does. The first version of this table used
+an equal-weight sum, which overweights the ends of the grid and gave exact means of 5.432
+(origin, z = 2.06) and 4.257 (root, z = 1.42); the mean rows of the CSVs were recomputed
+from the same 321-point grid (`TreeLikelihood()` is deterministic, and the recomputed
+equal-weight means reproduce the stored ones exactly), with the chains' standard errors
+unchanged (#57).
 
 ## 2. Prior-only MCMC vs forward simulation (`data-raw/rung5-age-validation.R`)
 
@@ -96,12 +101,17 @@ error. Statistics: the free parameters, `treeLength`, `meanNodeAge`, `rootAge`,
 
 | case | replicates | tests | max |z| pooled | at | Holm min p |
 |---|---|---|---|---|---|
-| origin-fixed | 3 | 50 | 2.25 | oldestFossil q75 | 0.978 |
-| origin-free | 2 | 80 | 2.36 | youngestFossil q75 | 0.997 |
+| origin-fixed | 3 | 50 | 2.25 | oldestFossil q75 | 1.00 |
+| origin-free | 2 | 80 | 2.36 | youngestFossil q75 | 1.00 |
 | originFree-fixed | 6 | 56 | 2.93 | rootAge q75 | 0.191 |
-| originFree-free | 2 | 86 | 2.19 | inverseClock q95 | 0.983 |
-| root-fixed | 3 | 50 | 2.25 | inverseClock q95 | 0.998 |
+| originFree-free | 2 | 86 | 2.19 | inverseClock q95 | 1.00 |
+| root-fixed | 3 | 50 | 2.25 | inverseClock q95 | 1.00 |
 | root-free | 2 | 80 | 2.51 | meanNodeAge q75 | 0.972 |
+
+Holm min p is the Holm-adjusted two-sided p of the largest pooled |z|, min(1, m p) over the
+case's m tests, from the per-run CSVs (pooled z = sum of the per-run z / sqrt(n); tests
+present in every replicate). Four values in the first version of this table (0.978, 0.997,
+0.983, 0.998) did not reproduce from the CSVs; m p is 1.22, 1.48, 2.43 and 1.22 there (#57).
 
 Pooled z of the means of selected statistics:
 
@@ -121,10 +131,13 @@ Reading these results:
   |z| of up to 3.6. This is consistent with 50-86 correlated tests per run whose error comes
   from 16 chains.
 - `originFree` with fixed parameters had the largest pooled values, all in one direction:
-  `rootAge` mean -2.64, `clock` -2.62 and `treeLength` -2.0, which would mean slightly younger
-  trees in the MCMC (about 1% of the root age). The signs varied between replicates. Section 3
-  settles this flag: it was **noise**. The six replicates above are not independent of the
-  flag, because the seed-0 run is what raised it.
+  `rootAge` mean -2.64, `clock` -2.62 and `treeLength` -2.0. The gap in the mean root age
+  averaged over the six replicates is -0.45% of the root age (not about 1%, as first stated),
+  and it lies on the **simulation** side: the six replicates' MCMC means (3.690 to 3.701) all
+  agree with the 240-replicate pooled mean of section 3 (3.6940), while their simulated means
+  scatter from 3.682 to 3.743 around the pooled simulated mean (3.6939). Section 3 settles
+  this flag: it was **noise**, likeliest chance plus selection (the seed-0 run is what raised
+  it, so the six replicates are not independent of the flag).
 
 ## 3. The `originFree` flag: 240 further replicates (`data-raw/rung5-age-pool.R`)
 
@@ -187,6 +200,20 @@ Reading these results:
   replicates is 1.02 times its standard error. The wider scatter seen in the first six
   replicates (3.682 to 3.743) was chance.
 - No change to the moves or the simulator was needed, so none was made.
+- Detectable bias (half-width of the 95% interval for the relative bias of the mean, 1.96
+  standard errors): with all 240 replicates, 0.05% for `rootAge` and 0.01% for `originAge`;
+  with the 10-replicate controls, 0.11-0.23% (`rootAge`) and 0.06% (`originAge`,
+  `originFree`-free); with the 2-6 replicates of section 2, 0.22-0.62% (`rootAge`) and
+  0.09-0.16% (`originAge`). Section 2 alone therefore could not resolve a bias of the size
+  first suspected; section 3 can.
+
+The batch-level values quoted above for `rootAge` q75 (A, B) and the `clock` mean (B, C) were
+computed by `rung5-age-pool.R` over each batch's per-replicate `.rds` files, which are no
+longer kept (see below), so they cannot be regenerated from committed files.
+`rung5-age-batches.R` writes what the committed per-replicate z of the means support,
+`rung5-age-pooled-per-batch.csv`: per batch and statistic, the mean and sd of the z and their
+Stouffer sum (z sum / sqrt(n)). For the `clock` mean these are -2.31 (B) and +0.90 (C), close
+to the pooled -2.36 and +0.87; quantile tests per batch are not available (#57).
 
 ## Conditioning choice
 
@@ -199,8 +226,18 @@ the origin start uses that of the single stem lineage. This is documented in
 ## Deviations and limits
 
 - Section 3 commits only the pooled summaries, not the 270 per-replicate result files of
-  `rung5-age-validation.R` (about 1.3 GB of `.rds`). Each one can be regenerated with
+  `rung5-age-validation.R` (about 1.3 GB of `.rds`), which were deleted with the Hamilton
+  scratch directory. Each one can be regenerated with
   `EVOTEMPO_SEED=<offset> Rscript data-raw/rung5-age-validation.R <case> fixed 40000 16 8000`.
+- Provenance of the seed-0 runs of section 2: they cannot have used the script as committed
+  in 8b4a55f, where `perWorker` is not exported to the PSOCK workers (fixed in c0f3b36), so
+  they must have run a modified copy. The package code (`R/`, `src/`, `tests/`) is identical
+  from 8b4a55f to fbfc5bc, the head of this PR before the #57 corrections. The `sha` recorded in their `.rds` files cannot now be read, because those
+  files were deleted with the scratch directory (#57).
+- `.AgeMove()` rebuilds the frozen model at the current tree whenever a tree move has changed
+  a node age since the model was last built (the key of `.SameSet()` includes node ages,
+  which are points of the E grid). This costs one rebuild per age move after an accepted tree move;
+  it is needed for the reverse proposal density and was left unchanged (#57, F11).
 
 - A sampled ancestor at the root (a fossil on the stem ancestral to all other samples) is
   not supported. The simulator rejects such trees, and `TempoMCMC()` stops on them.

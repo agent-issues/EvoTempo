@@ -61,7 +61,9 @@ test_that("The stem path recovers the origin likelihood", {
   expect_lt(abs(exact - .FrozenLikelihood(orTree, set, msg)), 0.01)
   set.seed(2)
   maps <- SampleTempoPaths(orPhylo, orPar, orModel, n = 60, nSlice = 8)
-  expect_equal(maps$logLik, exact, tolerance = 5 * sd(exp(maps$logWeight)) / sqrt(60))
+  # Absolute error within 5 standard errors of the log of the mean weight
+  w <- exp(maps$logWeight)
+  expect_lt(abs(maps$logLik - exact), 5 * sd(w) / mean(w) / sqrt(60))
   expect_equal(ncol(maps$branchX), 8)
   draw <- .SampleTree(orTree, set, msg)
   expect_length(draw$bin, 10)
@@ -92,7 +94,7 @@ test_that("The stem path recovers the origin likelihood", {
 
 test_that("Path moves with an origin leave the exact conditional law invariant", {
   set.seed(3)
-  run <- TempoMCMC(orPhylo, orModel, orPar, list(), nIter = nMCo / 75, nSlice = 6,
+  run <- TempoMCMC(orPhylo, orModel, orPar, list(), nIter = nMCo / 15, nSlice = 6,
                    moves = c(node = 3, tip = 2, branch = 2))
   expect_true(all(run$acceptance[c("node", "tip", "branch")] > 0.9))
   st <- run$state
@@ -104,7 +106,11 @@ test_that("Path moves with an origin leave the exact conditional law invariant",
   expect_equal(unique(run$samples$originAge), 4.6)
   maps <- SampleTempoPaths(orPhylo, orPar, orModel, n = nMCo / 30, nSlice = 6)
   w <- exp(maps$logWeight - max(maps$logWeight))
-  expect_lt(abs(mean(run$samples$meanX) - sum(w * maps$meanX) / sum(w)), 1)
+  isMean <- sum(w * maps$meanX) / sum(w)
+  isSE <- sqrt(sum(w^2 * (maps$meanX - isMean)^2)) / sum(w)
+  # Batch means over 10 batches for the chain's standard error
+  mcSE <- stats::sd(colMeans(matrix(run$samples$meanX, ncol = 10))) / sqrt(10)
+  expect_lt(abs(mean(run$samples$meanX) - isMean), 4 * sqrt(mcSE^2 + isSE^2))
 })
 
 test_that("Origin kernels agree between engines", {

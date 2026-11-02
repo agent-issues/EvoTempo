@@ -398,12 +398,13 @@ When the start age (root age τ_r, or origin age τ_o) is a parameter of `TempoM
 p(τ) × p(𝒯, paths | Θ, τ) / C(τ),
 
 with p(τ) the user's prior (`agePriors`) and C(τ) the conditioning of the table above **evaluated at the current start age**:
-Σ_k π_k S̃_k(τ_r)² (crown, extant conditioning, the default), Σ_k π_k S_k(τ_o) (origin, any sampled descendant), or the
-joint versions. This is the convention of the FBD and BDS implementations in RevBayes and BEAST 2 (tree density conditioned
-on survival given the start age, with a separate prior on that age). Alternatives not implemented: no conditioning with an
-informative age prior (row "None"), and conditioning on the number of sampled tips. Because C depends on τ, the conditioning
-enters the acceptance ratio of every start-age move; the forward check is rung 5 with the start age drawn from its prior and
-the process resimulated at that age until it survives (`data-raw/rung5-age-validation.R`).
+Σ_k π_k S̃_k(τ_r)² (crown, extant conditioning, the default), Σ_k π_k S̃_k(τ_o) (origin, extant conditioning: a sampled
+*extant* descendant of the single stem lineage), the same with S for `condition = "survival"`, or the joint versions.
+This is the convention of the FBD and BDS implementations in RevBayes and BEAST 2 (tree density conditioned on survival
+given the start age, with a separate prior on that age). `condition = "none"` (row "None", no C(τ) term) also works with an
+informative age prior; conditioning on the number of sampled tips is not implemented. Because C depends on τ, the
+conditioning enters the acceptance ratio of every start-age move; the forward check is rung 5 with the start age drawn from
+its prior and the process resimulated at that age until it survives (`data-raw/rung5-age-validation.R`).
 
 With an origin, the stem carries its own path from the origin bin k_o ~ π to the root; the root is an ordinary bifurcation
 with factor λ_{k(root)}; survival is that of the single stem lineage (S unsquared), and with extant conditioning any

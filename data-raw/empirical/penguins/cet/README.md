@@ -250,7 +250,7 @@ iterations per chain; with a 4x margin, 200 000 iterations per chain at
 | `bayes-factors.R eval` (~0.02 s per state for all four model points) | < 2 |
 | Ladder rungs, if needed: 4 chains x 10.6 h per rung, up to 3 per edge, 4 edges | 0-510 |
 | Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 it.) | ~85 |
-| RevBayes comparator (running): UCLN 4 x 300 000 it. at ~0.43 s (first hour; 0.23 s in the smoke), strict 4 x 300 000 at ~0.05 s | ~145 + ~17 |
+| RevBayes comparator (first runs biased by `mvUpDownScale`, to be rerun): UCLN 4 x 300 000 it. at ~0.43 s (first hour; 0.23 s in the smoke), strict 4 x 300 000 at ~0.05 s | ~145 + ~17 |
 | RevBayes `powerPosterior` (UCLN, 32 powers x 10 000 it.) | ~20 per run |
 
 Wall time: one 3-day job slot per chain suffices (10.6 h); peak memory in the
@@ -266,7 +266,15 @@ as the RevBayes counterpart of cell (0, 0), a check of the pipeline (the two
 should agree on trees and FBD rates).  Smoke (600 iterations incl. 100
 tuning): strict 25 s, UCLN 137 s.  Four chains of each, 300 000 iterations
 (sample every 100, checkpoints every 5000), were launched on 2026-10-31 under
-`/nobackup/pjjg18/evotempo-penguin-cet/rbmorph/<clock>_run<k>/`.
+`/nobackup/pjjg18/evotempo-penguin-cet/rbmorph/<clock>_run<k>/` (Slurm jobs
+19299263-19299270).
+
+**Those first comparator runs are biased and must be rerun.** Their script had
+an `mvUpDownScale` move (`clock_morph` up, `fbd_tree` down). In RevBayes 1.4.1
+that move's Hastings ratio is wrong when the tree has sampled ancestors and on
+origin-conditioned trees (shown by prior-only runs), and the penguin tree has
+both. `penguins_morph_fbd.Rev` no longer has the move; no rerun has been
+launched yet, so no comparator results exist.
 
 ## Engine gaps
 

@@ -102,10 +102,7 @@ if (clock_model == "ucln") {
 } else {
   morph_branch_rates := clock_morph
 }
-up_down = mvUpDownScale(lambda = 0.1, tune = true, weight = 5)
-up_down.addVariable(clock_morph, up = true)
-up_down.addVariable(fbd_tree, up = false)
-moves.append( up_down )
+# No mvUpDownScale(clock_morph up, fbd_tree down): its Hastings ratio in RevBayes 1.4.1 is wrong with sampled ancestors and origin-conditioned trees
 
 ##### Morphology: Mkv by number of states, no rate variation #####
 for (i in 1:n_morph) {

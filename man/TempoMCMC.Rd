@@ -73,16 +73,24 @@ equations and MkPrime kernels for characters;
 \code{TempoMCMC()} returns a list with elements
 \itemize{
 \item \code{samples}: data frame with one column per free parameter, \code{logPost}
-(log augmented density, plus character log-likelihood and log prior),
-\code{rootBin}, \code{meanX} (lineage-time-averaged log-tempo over the tree) and
+(log augmented density, plus character log-likelihood, log prior of the
+parameters and, when \code{rootAge} or \code{originAge} moves it, log prior of the
+start age), \code{rootBin} (the bin at the root), \code{meanX}
+(lineage-time-averaged log-tempo over the tree) and
 tree statistics: \code{nAncestor}, \code{treeLength}, \code{meanNodeAge} (of non-root
 bifurcations), \code{cherries}, \code{oldestFossil}, \code{youngestFossil}, \code{clock}
 (\eqn{\sum_e \int_e e^x dt}) and \code{inverseClock}
 (\eqn{\sum_e \int_e e^{-x} dt}), over the branches below the root,
-\code{rootAge}, and with \code{start = "origin"}, \code{originAge};
-\item \code{occupancy}: matrix of time spent in each bin (columns), per sample;
-\item \code{branchX}: matrix of the time-averaged log-tempo on each branch (for
-chains without tree moves);
+\code{rootAge}, and with \code{start = "origin"}, \code{originAge} and \code{originBin}
+(the bin at the origin, whose prior is the start-bin prior; \code{rootBin}
+is then the bin at the end of the stem).
+With an origin, \code{meanX} (like \code{occupancy} and \code{branchX}) includes the
+stem, while \code{treeLength}, \code{clock} and \code{inverseClock} do not;
+\item \code{occupancy}: matrix of time spent in each bin (columns), per sample,
+over every branch with a path (with an origin, including the stem);
+\item \code{branchX}: matrix of the time-averaged log-tempo on each branch with a
+path (with an origin, including the stem; for chains without tree
+moves);
 \item \code{acceptance}: acceptance rate of each move after burn-in (zero for
 moves not run);
 \item \code{burninAcceptance}: acceptance rate of each move during burn-in, or

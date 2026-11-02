@@ -79,8 +79,11 @@
 - `TempoMCMC()` supports `start = "origin"`, with a tempo path on the stem from
   the origin to the root, and moves the start age: `rootAge` (crown start)
   and `originAge` (origin start), with priors in `agePriors`; with an origin,
-  `nodeAge` also moves the root.  Samples gain `rootAge` (and `originAge`)
-  ([#18](https://github.com/agent-issues/EvoTempo/issues/18)).  `TempoMCMC()`
+  `nodeAge` also moves the root.  Samples gain `rootAge` (and, with an origin,
+  `originAge` and the origin bin `originBin`), and `logPost` includes the
+  start-age prior when the start age moves
+  ([#18](https://github.com/agent-issues/EvoTempo/issues/18),
+  [#56](https://github.com/agent-issues/EvoTempo/issues/56)).  `TempoMCMC()`
   stops on a start age outside the support of its prior, and
   `TempoMCMC()` and `SampleTempoPaths()` on a sampled ancestor at the root
   ([#55](https://github.com/agent-issues/EvoTempo/issues/55)).

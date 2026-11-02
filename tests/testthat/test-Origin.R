@@ -213,6 +213,31 @@ test_that("Age moves check their set-up and reject what they cannot do", {
   expect_false(.AgeMove("rootAge", st, crModel, 4, NoChar, function(a) 0, 1)$accepted)
 })
 
+test_that("Samples report the start-age prior and the origin bin (#56)", {
+  agePrior <- function(a) stats::dgamma(a, 10, 2, log = TRUE)
+  set.seed(7)
+  run <- TempoMCMC(orPhylo, orModel, orPar, orPriors, nIter = 6, nSlice = 4,
+                   characters = orChars, moves = c(node = 1, branch = 1, originAge = 2),
+                   agePriors = list(origin = agePrior))
+  st <- run$state
+  last <- run$samples[6, ]
+  expect_equal(last$logPost,
+               .LogAugmented(st$tree, st$set, st$paths, st$bin) + st$charLL +
+                 .LogPrior(st$par, orPriors) + agePrior(.StartAge(st$tree)))
+  expect_equal(last$originAge, .StartAge(st$tree))
+  expect_equal(last$originBin, st$bin[[length(st$bin)]])
+  expect_equal(last$originBin, .TopBin(st$tree, st$bin, st$tree$root))
+  expect_equal(last$rootBin, st$bin[[st$tree$root]])
+  # Without a start-age move, an age prior adds nothing
+  set.seed(7)
+  fixed <- TempoMCMC(orPhylo, crModel, orPar, list(), nIter = 2, nSlice = 4,
+                     moves = c(node = 1), agePriors = list(root = function(a) -100))
+  st <- fixed$state
+  expect_equal(fixed$samples$logPost[[2]],
+               .LogAugmented(st$tree, st$set, st$paths, st$bin))
+  expect_false("originBin" %in% names(fixed$samples))
+})
+
 test_that("Root-age moves keep the root above its children and rebuild the model", {
   tree <- .ForModel(TempoTree(orPhylo), crModel)
   set.seed(6)

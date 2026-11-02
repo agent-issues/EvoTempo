@@ -243,16 +243,24 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' `originAge` moves.
 #' @returns `TempoMCMC()` returns a list with elements
 #' - `samples`: data frame with one column per free parameter, `logPost`
-#'   (log augmented density, plus character log-likelihood and log prior),
-#'   `rootBin`, `meanX` (lineage-time-averaged log-tempo over the tree) and
+#'   (log augmented density, plus character log-likelihood, log prior of the
+#'   parameters and, when `rootAge` or `originAge` moves it, log prior of the
+#'   start age), `rootBin` (the bin at the root), `meanX`
+#'   (lineage-time-averaged log-tempo over the tree) and
 #'   tree statistics: `nAncestor`, `treeLength`, `meanNodeAge` (of non-root
 #'   bifurcations), `cherries`, `oldestFossil`, `youngestFossil`, `clock`
 #'   (\eqn{\sum_e \int_e e^x dt}) and `inverseClock`
 #'   (\eqn{\sum_e \int_e e^{-x} dt}), over the branches below the root,
-#'   `rootAge`, and with `start = "origin"`, `originAge`;
-#' - `occupancy`: matrix of time spent in each bin (columns), per sample;
-#' - `branchX`: matrix of the time-averaged log-tempo on each branch (for
-#'   chains without tree moves);
+#'   `rootAge`, and with `start = "origin"`, `originAge` and `originBin`
+#'   (the bin at the origin, whose prior is the start-bin prior; `rootBin`
+#'   is then the bin at the end of the stem).
+#'   With an origin, `meanX` (like `occupancy` and `branchX`) includes the
+#'   stem, while `treeLength`, `clock` and `inverseClock` do not;
+#' - `occupancy`: matrix of time spent in each bin (columns), per sample,
+#'   over every branch with a path (with an origin, including the stem);
+#' - `branchX`: matrix of the time-averaged log-tempo on each branch with a
+#'   path (with an origin, including the stem; for chains without tree
+#'   moves);
 #' - `acceptance`: acceptance rate of each move after burn-in (zero for
 #'   moves not run);
 #' - `burninAcceptance`: acceptance rate of each move during burn-in, or
@@ -353,7 +361,13 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   jointHits <- hits
   pathNodes <- .PathNodes(tree)
   nKeep <- nIter %/% thin
-  statNames <- c(names(.TreeStats(tree)), if (origin) "originAge")
+  statNames <- c(names(.TreeStats(tree)), if (origin) c("originAge", "originBin"))
+  # Log prior of a free start age, part of `logPost` (#56)
+  AgePrior <- if (any(moves[names(ageMoves)] > 0)) {
+    agePriors[[if (origin) "origin" else "root"]]
+  } else {
+    function(a) 0
+  }
   samples <- matrix(NA_real_, nKeep, length(priors) + 3L + length(statNames),
                     dimnames = list(NULL, c(names(priors), "logPost", "rootBin",
                                             "meanX", statNames)))
@@ -452,10 +466,10 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       samples[j / thin, ] <- c(
         unlist(st[["par"]][names(priors)]),
         .LogAugmented(tr, st[["set"]], st[["paths"]], st[["bin"]]) +
-          st[["charLL"]] + .LogPrior(st[["par"]], priors),
+          st[["charLL"]] + .LogPrior(st[["par"]], priors) + AgePrior(.StartAge(tr)),
         st[["bin"]][[tr[["root"]]]], summ[["meanX"]],
         .TreeStats(tr, Below(tr, 1), Below(tr, -1)),
-        if (origin) .StartAge(tr))
+        if (origin) c(.StartAge(tr), .TopBin(tr, st[["bin"]], tr[["root"]])))
       occupancy[j / thin, ] <- summ[["occupancy"]]
       if (length(summ[["branchX"]]) == ncol(branchX)) {
         branchX[j / thin, ] <- summ[["branchX"]]

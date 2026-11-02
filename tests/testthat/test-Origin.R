@@ -41,6 +41,12 @@ test_that(".ForModel() marks the origin and checks the stem", {
                                      root.edge = 1), class = "phylo"))
   expect_error(.ForModel(saRoot, orModel), "sampled ancestor at the root")
   expect_error(TempoMCMC(saRoot, orModel, orPar, list(), nIter = 1), "sampled ancestor")
+  # ... and at a crown root, which TreeLikelihood() rejects too (#55)
+  expect_error(TreeLikelihood(saRoot, orPar, crModel), "ancestor")
+  expect_error(TempoMCMC(saRoot, crModel, orPar, list(), nIter = 1),
+               "sampled ancestor at the root")
+  expect_error(SampleTempoPaths(saRoot, orPar, crModel, n = 1),
+               "sampled ancestor at the root")
 })
 
 test_that("The stem path recovers the origin likelihood", {
@@ -183,6 +189,13 @@ test_that("Age moves check their set-up and reject what they cannot do", {
                "origin")
   expect_error(TempoMCMC(orPhylo, crModel, orPar, list(), nIter = 1,
                          moves = c(rootAge = 1)), "agePriors\\$root")
+  # A start age outside the support of its prior would never move (#55)
+  expect_error(TempoMCMC(orPhylo, crModel, orPar, list(), nIter = 1, moves = c(rootAge = 1),
+                         agePriors = list(root = function(a) stats::dunif(a, 5, 7, log = TRUE))),
+               "outside the support of `agePriors\\$root`")
+  expect_error(TempoMCMC(orPhylo, orModel, orPar, list(), nIter = 1, moves = c(originAge = 1),
+                         agePriors = list(origin = function(a) if (a > 5) 0 else NaN)),
+               "outside the support of `agePriors\\$origin`")
   tree <- .ForModel(TempoTree(orPhylo), crModel)
   set <- .AddSlices(tree, .Precompute(tree, orPar, crModel), 4)
   msg <- .Messages(tree, set)

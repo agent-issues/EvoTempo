@@ -203,7 +203,9 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' oriented density of [TreeLikelihood()] times \eqn{2^{|V|}}, \eqn{|V|} the
 #' number of bifurcations.
 #'
-#' The start age is fixed unless it has a prior in `agePriors`.
+#' The start age is fixed unless it has a prior in `agePriors`, and must then
+#' have a finite log prior density at the start.
+#' A sampled ancestor at the root is not supported, with either start.
 #' With `start = "root"`, `rootAge` scales the distance between the root and
 #' its older child by \eqn{e^{u}}, \eqn{u \sim U(-\epsilon/2, \epsilon/2)},
 #' rebuilds the frozen model at the new root age (its E grid and slices end
@@ -285,7 +287,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                       engine = getOption("EvoTempo.engine", "cpp")) {
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
-  tree <- .ForModel(TempoTree(tree), model)
+  tree <- .NoRootAncestor(.ForModel(TempoTree(tree), model))
   origin <- .Origin(tree)
   moveNames <- c("tree", "node", "tip", "branch", "joint", "shift", "nodeAge",
                  "fossilAge", "slide", "saJump", "rootAge", "originAge")
@@ -311,6 +313,11 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
     }
     if (!is.function(agePriors[[ageMoves[[move]]]])) {
       stop("`", move, "` needs a prior `agePriors$", ageMoves[[move]], "`")
+    }
+    # Outside the prior's support the move could never leave the start age
+    if (!is.finite(agePriors[[ageMoves[[move]]]](.StartAge(tree)))) {
+      stop("The start age (", signif(.StartAge(tree), 6), ") is outside the ",
+           "support of `agePriors$", ageMoves[[move]], "`")
     }
   }
   ageStep <- c(rootAge = 1, originAge = 1)
@@ -778,6 +785,17 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
   reject
 }
 
+# A sampled ancestor at the root has no branch above it to carry a path; with
+# a crown start TreeLikelihood() rejects it, and the samplers must too (#55).
+# .ForModel() already stops on it under an origin.
+.NoRootAncestor <- function(tree) {
+  if (tree[["sampled"]][tree[["root"]] - tree[["nTip"]]]) {
+    stop("The samplers do not support a sampled ancestor at the root")
+  }
+  # Return:
+  tree
+}
+
 # Dwell per bin, and time-averaged log-tempo per branch and overall
 .PathSummary <- function(tree, st, pathNodes = .PathNodes(tree)) {
   age <- tree[["age"]]
@@ -943,7 +961,7 @@ SampleTempoPaths <- function(tree, par, model, n, nSlice = 20,
                              engine = getOption("EvoTempo.engine", "cpp")) {
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
-  tree <- .ForModel(TempoTree(tree), model)
+  tree <- .NoRootAncestor(.ForModel(TempoTree(tree), model))
   set <- .AddSlices(tree, .Precompute(tree, as.list(par), model), nSlice)
   msg <- .Messages(tree, set)
   pathNodes <- .PathNodes(tree)

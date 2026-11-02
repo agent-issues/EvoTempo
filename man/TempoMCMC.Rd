@@ -160,7 +160,9 @@ The target is the density of the unoriented labelled tree, i.e. the
 oriented density of \code{\link[=TreeLikelihood]{TreeLikelihood()}} times \eqn{2^{|V|}}, \eqn{|V|} the
 number of bifurcations.
 
-The start age is fixed unless it has a prior in \code{agePriors}.
+The start age is fixed unless it has a prior in \code{agePriors}, and must then
+have a finite log prior density at the start.
+A sampled ancestor at the root is not supported, with either start.
 With \code{start = "root"}, \code{rootAge} scales the distance between the root and
 its older child by \eqn{e^{u}}, \eqn{u \sim U(-\epsilon/2, \epsilon/2)},
 rebuilds the frozen model at the new root age (its E grid and slices end

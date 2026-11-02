@@ -6,7 +6,8 @@
 #
 # On partition "shared" (3-day limit) each chain is followed by [n resumes]
 # jobs that continue it from its checkpoint (--dependency=afterany).  Job
-# names: evotempo-<dataset>-rb141-<config>-<rep>.  Extra sbatch --export
+# names: evotempo-<dataset>-<BUILD_TAG>-<config>-<rep> (BUILD_TAG default rb141;
+# set RB to the rb binary of another build).  Extra sbatch --export
 # variables (N_GEN, SAMPLE_EVERY, BURNIN_GEN, CKP_EVERY) come from the caller's
 # environment.
 set +e; set +o pipefail
@@ -21,7 +22,7 @@ for rep in $(seq "$FIRST" "$LAST"); do
   mkdir -p "$d/out" "$d/output"
   cp -r "$HERE"/*.Rev "$HERE"/*.sh "$HERE"/data "$d"/
   cd "$d"
-  name="evotempo-${SHORT}-rb141-${CONFIG}-${rep}"
+  name="evotempo-${SHORT}-${BUILD_TAG:-rb141}-${CONFIG}-${rep}"
   time=3-00:00:00; [ "$PART" = long ] && time=7-00:00:00
   jid=$(sbatch --parsable -p "$PART" --time="$time" -J "$name" -o out/slurm-%j.txt \
         --export=ALL,CONFIG="$CONFIG",REP="$rep" run-hamilton.sh)

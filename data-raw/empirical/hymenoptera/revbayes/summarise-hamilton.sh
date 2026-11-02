@@ -47,7 +47,7 @@ for config in $CONFIGS; do
   module purge
   module load gcc/14.2 boost/1.88.0
   printf 'config = "%s"\nsource("mcc.Rev")\nq()\n' "$config" > summary/mcc_${config}_driver.Rev
-  "${RB:-/nobackup/pjjg18/revbayes-1.4.1/projects/cmake/build/rb}" summary/mcc_${config}_driver.Rev > summary/mcc_${config}.out 2>&1
+  "${RB:-/nobackup/pjjg18/revbayes-dev-a2a8e2db/projects/cmake/build/rb}" summary/mcc_${config}_driver.Rev > summary/mcc_${config}.out 2>&1
   module purge
   module load r/4.5.1
   R_LIBS=/nobackup/pjjg18/evotempo-dev/lib Rscript summarise.R flat hymenoptera ${config} ${BURNIN}

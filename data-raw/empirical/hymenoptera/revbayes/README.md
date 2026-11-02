@@ -10,8 +10,15 @@ run as six independent chains:
 | `te-separate` | same | independent UCLN clocks for morphology and DNA |
 | `morph` | morphology only | one UCLN clock (like-for-like with CET runs that score morphology only) |
 
-All runs use RevBayes v1.4.1 (tag `v1.4.1`, commit `3a504eb`), built on Hamilton
-(`/nobackup/pjjg18/revbayes-1.4.1`), not the cluster's `revbayes/1.2.5` module.
+The reported runs use the RevBayes development build at commit `a2a8e2db`
+(`rb --version`: `1.4.2-preview`, `/nobackup/pjjg18/revbayes-dev-a2a8e2db` on Hamilton). They do not
+use the v1.4.1 release. In v1.4.1, `mvCollapseExpandFossilBranch` is biased when fossil ages are
+ranges: expand draws the new parent age above the top of the fossil's age range, but collapse is
+allowed from any parent age above the fossil's sampled age. This was found on the penguin data and
+fixed upstream after v1.4.1 (`c389174b`). Every fossil here has a stratum interval, so the
+maintainer chose the pinned development build. A first set of 22 v1.4.1 chains (about 2.5 days)
+was superseded; the development-build chains started from their last states. The cluster's
+`revbayes/1.2.5` module is not used.
 
 ## Files
 

@@ -57,7 +57,8 @@ res <- clusterApplyLB(cl, order, function(j) {
     return(TempoMCMC(tt, model, truth, priors[job$p], nIter = nIter, burnin = burnin,
                      nSlice = 20, moves = c(tree = 1, node = 2, tip = 2, branch = 2, joint = as.numeric(useJoint),
                                             shift = as.numeric(useShift)),
-                     characters = if (!is.null(character)) matrix(character))$samples[[job$p]])
+                     characters = if (!is.null(character)) matrix(character),
+                     minAcceptance = 0)$samples[[job$p]])
   }
   MarginalMCMC(tt, model, truth, priors[job$p], nIter = nIter, burnin = burnin,
                character = character)[[job$p]]

@@ -77,7 +77,8 @@ Chain <- function(i, kind, nIter, burnin) {
   if (kind == "DA") {
     TempoMCMC(tt, model, truth, priors, nIter = nIter, burnin = burnin,
               nSlice = 20, moves = c(tree = 1, node = 1, tip = 1, branch = 1,
-                                     joint = as.numeric(useJoint)))[
+                                     joint = as.numeric(useJoint)),
+              minAcceptance = 0)[
                 c("samples", "acceptance")]
   } else {
     list(samples = MarginalMCMC(tt, model, truth, priors, nIter = nIter,

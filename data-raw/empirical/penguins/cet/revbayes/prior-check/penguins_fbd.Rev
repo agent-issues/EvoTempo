@@ -1,0 +1,320 @@
+################################################################################
+# Penguins (Gavryushkina et al. 2017): total-evidence tip dating in RevBayes.
+#
+# Fossilized birth-death process with sampled ancestors, uniform tip-age
+# uncertainty, uncorrelated lognormal (UCLN) relaxed clock, partitioned Mkv
+# + Gamma(4) for morphology, GTR + Gamma(4) per DNA locus.  Priors follow the
+# BEAST2 analysis "8+dna R" (xmls/8+dna_R.xml); see README.md for every
+# difference.
+#
+# Not run directly: a driver (run_<clock>_<rep>.Rev) sets
+#   clock_model  "shared"   one set of branch-rate multipliers for morphology
+#                           and DNA (the EvoTempo comparator)
+#                "separate" independent UCLN clocks (the BEAST2 analysis)
+#   rep          replicate number (seeds the chain; names the output)
+#   n_gen        MCMC iterations (each iteration = one sweep of the move list)
+#   sample_every thinning of the monitors
+#   burnin_gen   tuning iterations before sampling (not logged)
+# and optionally
+#   ucln_param        "noncentred" (default) or "centred" relaxed-clock multipliers
+#   start_tree_file   starting tree (default data/start_tree.nwk)
+#   start_values_file Rev file of setValue() calls for scalar parameters
+#   resume            true to continue from out_stem + ".ckp"
+#   checkpoint_every  iterations between checkpoints (default 1000)
+#   use_up_down       true to add the (biased) clock-up/tree-down move; false
+#                     (default) from round 3 on
+#   under_prior       true to sample from the prior (data likelihoods ignored)
+# and then sources this file.  Run from this directory.
+################################################################################
+
+seed(rep * 7919 + 101)
+out_stem = "output/penguins_" + clock_model + "_run" + rep
+
+moves    = VectorMoves()
+monitors = VectorMonitors()
+
+##### Data #####
+
+taxa = readTaxonData("data/taxa.tsv")
+n_taxa = taxa.size()
+n_branches = 2 * n_taxa - 2
+
+loci = readDataDelimitedFile("data/loci.txt", header = false)
+n_loci = loci.size()
+for (i in 1:n_loci) {
+  dna[i] <- readDiscreteCharacterData("data/dna_" + loci[i][1] + ".nex")
+}
+
+morph_k = v(2, 3, 4, 5, 6, 7)
+n_morph = morph_k.size()
+for (i in 1:n_morph) {
+  morpho[i] <- readDiscreteCharacterData("data/morph_" + morph_k[i] + ".nex")
+}
+
+extant = v("Aptenodytes_forsteri", "Aptenodytes_patagonicus", "Eudyptes_chrysocome",
+           "Eudyptes_chrysolophus", "Eudyptes_filholi", "Eudyptes_moseleyi",
+           "Eudyptes_pachyrhynchus", "Eudyptes_robustus", "Eudyptes_schlegeli",
+           "Eudyptes_sclateri", "Eudyptula_minor", "Megadyptes_antipodes",
+           "Pygoscelis_adeliae", "Pygoscelis_antarctica", "Pygoscelis_papua",
+           "Spheniscus_demersus", "Spheniscus_humboldti", "Spheniscus_magellanicus",
+           "Spheniscus_mendiculus")
+
+##### FBD tree prior (BEAST2 SABirthDeathModel parameterisation) #####
+
+# net diversification d = lambda - mu, turnover nu = mu / lambda,
+# sampling proportion s = psi / (mu + psi); removal probability r = 0
+diversification ~ dnLognormal(-3.5, 1.5)
+turnover ~ dnUniform(0, 1)
+sampling_prop ~ dnUniform(0, 1)
+diversification.setValue(0.05)
+turnover.setValue(0.5)
+sampling_prop.setValue(0.5)
+moves.append( mvScale(diversification, lambda = 0.75, tune = true, weight = 5) )
+moves.append( mvSlide(turnover, delta = 0.1, tune = true, weight = 5) )
+moves.append( mvSlide(sampling_prop, delta = 0.1, tune = true, weight = 5) )
+
+lambda := diversification / abs(1 - turnover)
+mu := turnover * lambda
+psi := sampling_prop * mu / abs(1 - sampling_prop)
+
+# all 19 extant species are sampled
+rho <- 1.0
+
+origin_time ~ dnUniform(0, 160)
+origin_time.setValue(100)
+moves.append( mvSlide(origin_time, delta = 5, tune = true, weight = 3) )
+
+# condition = "survival" with an origin: at least one lineage sampled at the
+# present (BEAST2 conditionOnRhoSampling = true)
+fbd_tree ~ dnFBDP(originAge = origin_time, lambda = lambda, mu = mu, psi = psi,
+                  rho = rho, taxa = taxa, condition = "survival")
+
+# Start from the BEAST2 analysis's starting tree with fossil ages moved into
+# their intervals (start-tree.R).  Random FBD starting trees put the crown
+# fossils (bar one in one chain) outside a young crown, a region the chains
+# did not leave.
+# A later round may start from a previous chain's last tree (start_tree_file).
+if (!exists("start_tree_file")) { start_tree_file = "data/start_tree.nwk" }
+start_tree = readTrees(start_tree_file, treetype = "clock")[1]
+fbd_tree.setValue(start_tree)
+
+# Tip-age uncertainty: taxon ages range over [min_age, max_age] from taxa.tsv;
+# the tree density is zero outside the range, so the implied prior on each
+# fossil age is uniform on its interval given the FBD density.
+moves.append( mvFNPR(fbd_tree, weight = 15) )
+moves.append( mvNarrow(fbd_tree, weight = 15) )
+moves.append( mvCollapseExpandFossilBranch(fbd_tree, origin_time, weight = 10) )
+moves.append( mvNodeTimeSlideUniform(fbd_tree, weight = 40) )
+moves.append( mvRootTimeSlideUniform(fbd_tree, origin_time, weight = 5) )
+for (i in 1:n_taxa) {
+  if (taxa[i].getMaxAge() > taxa[i].getMinAge()) {
+    moves.append( mvFossilTipTimeUniform(fbd_tree, origin = origin_time,
+                                         tip = taxa[i].getName(), weight = 1) )
+  }
+}
+
+num_samp_anc := fbd_tree.numSampledAncestors()
+root_age := fbd_tree.rootAge()
+crown_age := tmrca(fbd_tree, clade(extant))
+
+# Common-ancestor ages of the extant-penguin nodes of Gavryushkina et al. 2017
+# Fig. 5 / SM Table 4 (node numbers as there); defined for every tree whether
+# or not the group is monophyletic, as BEAST2 common-ancestor heights are.
+node_2  := tmrca(fbd_tree, clade("Megadyptes_antipodes", "Eudyptes_chrysocome", "Eudyptes_chrysolophus", "Eudyptes_filholi", "Eudyptes_moseleyi", "Eudyptes_pachyrhynchus", "Eudyptes_robustus", "Eudyptes_schlegeli", "Eudyptes_sclateri", "Eudyptula_minor", "Spheniscus_demersus", "Spheniscus_humboldti", "Spheniscus_magellanicus", "Spheniscus_mendiculus"))
+node_3  := tmrca(fbd_tree, clade("Eudyptula_minor", "Spheniscus_demersus", "Spheniscus_humboldti", "Spheniscus_magellanicus", "Spheniscus_mendiculus"))
+node_4  := tmrca(fbd_tree, clade("Aptenodytes_forsteri", "Aptenodytes_patagonicus", "Pygoscelis_adeliae", "Pygoscelis_antarctica", "Pygoscelis_papua"))
+node_5  := tmrca(fbd_tree, clade("Pygoscelis_adeliae", "Pygoscelis_antarctica", "Pygoscelis_papua"))
+node_6  := tmrca(fbd_tree, clade("Megadyptes_antipodes", "Eudyptes_chrysocome", "Eudyptes_chrysolophus", "Eudyptes_filholi", "Eudyptes_moseleyi", "Eudyptes_pachyrhynchus", "Eudyptes_robustus", "Eudyptes_schlegeli", "Eudyptes_sclateri"))
+node_7  := tmrca(fbd_tree, clade("Pygoscelis_antarctica", "Pygoscelis_papua"))
+node_8  := tmrca(fbd_tree, clade("Eudyptes_chrysocome", "Eudyptes_chrysolophus", "Eudyptes_filholi", "Eudyptes_moseleyi", "Eudyptes_pachyrhynchus", "Eudyptes_robustus", "Eudyptes_schlegeli", "Eudyptes_sclateri"))
+node_9  := tmrca(fbd_tree, clade("Eudyptes_chrysocome", "Eudyptes_filholi", "Eudyptes_moseleyi", "Eudyptes_chrysolophus", "Eudyptes_schlegeli"))
+node_10 := tmrca(fbd_tree, clade("Eudyptes_pachyrhynchus", "Eudyptes_robustus", "Eudyptes_sclateri"))
+node_11 := tmrca(fbd_tree, clade("Spheniscus_demersus", "Spheniscus_humboldti", "Spheniscus_magellanicus", "Spheniscus_mendiculus"))
+node_12 := tmrca(fbd_tree, clade("Aptenodytes_forsteri", "Aptenodytes_patagonicus"))
+node_13 := tmrca(fbd_tree, clade("Spheniscus_humboldti", "Spheniscus_mendiculus"))
+node_14 := tmrca(fbd_tree, clade("Spheniscus_demersus", "Spheniscus_magellanicus"))
+node_15 := tmrca(fbd_tree, clade("Eudyptes_chrysocome", "Eudyptes_filholi", "Eudyptes_moseleyi"))
+node_16 := tmrca(fbd_tree, clade("Eudyptes_pachyrhynchus", "Eudyptes_robustus"))
+node_17 := tmrca(fbd_tree, clade("Eudyptes_chrysolophus", "Eudyptes_schlegeli"))
+node_18 := tmrca(fbd_tree, clade("Eudyptes_chrysocome", "Eudyptes_filholi"))
+
+##### Relaxed clocks #####
+
+# BEAST2 UCLN: branch rate = clock mean x multiplier, multiplier lognormal with
+# mean 1 in real space and log-sd ucld_sd ~ Gamma(shape 0.5396, scale 0.3819).
+# Morphology mean ~ LogNormal(-5.5, 2); DNA mean ~ LogNormal(-3.5, 1).
+clock_morph ~ dnLognormal(-5.5, 2)
+clock_dna ~ dnLognormal(-3.5, 1)
+clock_morph.setValue(0.01)
+clock_dna.setValue(0.01)
+moves.append( mvScale(clock_morph, lambda = 0.5, tune = true, weight = 5) )
+moves.append( mvScale(clock_dna, lambda = 0.5, tune = true, weight = 5) )
+
+# Multipliers are either centred (m ~ LogNormal(-sd^2/2, sd), round 1) or
+# non-centred (z ~ Normal(0, 1), m := exp(sd z - sd^2/2), round 2).  Both give
+# the same prior on m; the non-centred form lets the log-SD move without
+# moving every multiplier, which round 1 showed to mix slowly.
+if (!exists("ucln_param")) { ucln_param = "noncentred" }
+
+if (clock_model == "shared") {
+  ucld_sd ~ dnGamma(0.5396, 1 / 0.3819)
+  ucld_sd.setValue(0.3)
+  moves.append( mvScale(ucld_sd, lambda = 0.5, tune = true, weight = 5) )
+  for (j in 1:n_branches) {
+    if (ucln_param == "centred") {
+      branch_mult[j] ~ dnLognormal(-ucld_sd * ucld_sd / 2, ucld_sd)
+      branch_mult[j].setValue(1.0)
+      moves.append( mvScale(branch_mult[j], lambda = 0.5, tune = true, weight = 1) )
+    } else {
+      z_mult[j] ~ dnNormal(0, 1)
+      z_mult[j].setValue(0.0)
+      moves.append( mvSlide(z_mult[j], delta = 0.5, tune = true, weight = 1) )
+      branch_mult[j] := exp(ucld_sd * z_mult[j] - ucld_sd * ucld_sd / 2)
+    }
+  }
+  morph_branch_rates := clock_morph * branch_mult
+  dna_branch_rates := clock_dna * branch_mult
+} else {
+  ucld_sd_morph ~ dnGamma(0.5396, 1 / 0.3819)
+  ucld_sd_dna ~ dnGamma(0.5396, 1 / 0.3819)
+  ucld_sd_morph.setValue(0.3)
+  ucld_sd_dna.setValue(0.3)
+  moves.append( mvScale(ucld_sd_morph, lambda = 0.5, tune = true, weight = 5) )
+  moves.append( mvScale(ucld_sd_dna, lambda = 0.5, tune = true, weight = 5) )
+  for (j in 1:n_branches) {
+    if (ucln_param == "centred") {
+      branch_mult_morph[j] ~ dnLognormal(-ucld_sd_morph * ucld_sd_morph / 2, ucld_sd_morph)
+      branch_mult_dna[j] ~ dnLognormal(-ucld_sd_dna * ucld_sd_dna / 2, ucld_sd_dna)
+      branch_mult_morph[j].setValue(1.0)
+      branch_mult_dna[j].setValue(1.0)
+      moves.append( mvScale(branch_mult_morph[j], lambda = 0.5, tune = true, weight = 1) )
+      moves.append( mvScale(branch_mult_dna[j], lambda = 0.5, tune = true, weight = 1) )
+    } else {
+      z_morph[j] ~ dnNormal(0, 1)
+      z_dna[j] ~ dnNormal(0, 1)
+      z_morph[j].setValue(0.0)
+      z_dna[j].setValue(0.0)
+      moves.append( mvSlide(z_morph[j], delta = 0.5, tune = true, weight = 1) )
+      moves.append( mvSlide(z_dna[j], delta = 0.5, tune = true, weight = 1) )
+      branch_mult_morph[j] := exp(ucld_sd_morph * z_morph[j] - ucld_sd_morph * ucld_sd_morph / 2)
+      branch_mult_dna[j] := exp(ucld_sd_dna * z_dna[j] - ucld_sd_dna * ucld_sd_dna / 2)
+    }
+  }
+  morph_branch_rates := clock_morph * branch_mult_morph
+  dna_branch_rates := clock_dna * branch_mult_dna
+}
+
+# BEAST2 UpDownOperator: clock means up, tree down.  OFF by default: in
+# RevBayes 1.4.1 mvUpDownScale (like mvTreeScale) is biased on trees with
+# sampled ancestors.  Its Hastings ratio counts every interior node but the
+# root, while TreeUtilities::rescaleSubtree() scales the root and stops at any
+# sampled-ancestor parent, leaving that node and its whole subtree unscaled
+# (prior-only checks: data-raw/empirical/hymenoptera/revbayes/sa-scale-check.Rev).
+# Rounds 1 and 2 used it (use_up_down = true); round 3 does not.
+if (!exists("use_up_down")) { use_up_down = false }
+if (use_up_down) {
+  up_down = mvUpDownScale(lambda = 0.1, tune = true, weight = 5)
+  up_down.addVariable(clock_morph, up = true)
+  up_down.addVariable(clock_dna, up = true)
+  up_down.addVariable(fbd_tree, up = false)
+  moves.append( up_down )
+}
+
+##### Morphology: Mkv partitioned by number of states, shared Gamma(4) #####
+
+alpha_morph ~ dnUniform(0, 10)
+alpha_morph.setValue(1.0)
+moves.append( mvScale(alpha_morph, lambda = 0.5, tune = true, weight = 3) )
+site_rates_morph := fnDiscretizeGamma(alpha_morph, alpha_morph, 4)
+
+for (i in 1:n_morph) {
+  q_morph[i] <- fnJC(morph_k[i])
+  phy_morph[i] ~ dnPhyloCTMC(tree = fbd_tree, Q = q_morph[i], branchRates = morph_branch_rates,
+                             siteRates = site_rates_morph, type = "Standard", coding = "variable")
+  phy_morph[i].clamp(morpho[i])
+}
+
+##### DNA: GTR + Gamma(4) per locus, relative locus rates #####
+
+# BEAST2: rate_AG fixed at 1, the other five exchangeabilities uniform on
+# (0, 100); frequencies uniform on the simplex; shape ~ U(0, 10).  Locus rate
+# multipliers start at 0.2 each and are moved by an unweighted DeltaExchange,
+# so they sum to 1 with a flat prior: Dirichlet(1, ..., 1).
+locus_rates ~ dnDirichlet(rep(1, n_loci))
+moves.append( mvBetaSimplex(locus_rates, alpha = 10, tune = true, weight = 3) )
+moves.append( mvDirichletSimplex(locus_rates, alpha = 10, tune = true, weight = 1) )
+
+for (i in 1:n_loci) {
+  r_ac[i] ~ dnUniform(0, 100)
+  r_at[i] ~ dnUniform(0, 100)
+  r_cg[i] ~ dnUniform(0, 100)
+  r_ct[i] ~ dnUniform(0, 100)
+  r_gt[i] ~ dnUniform(0, 100)
+  r_ac[i].setValue(1)
+  r_at[i].setValue(1)
+  r_cg[i].setValue(1)
+  r_ct[i].setValue(1)
+  r_gt[i].setValue(1)
+  moves.append( mvScale(r_ac[i], lambda = 0.5, tune = true, weight = 1) )
+  moves.append( mvScale(r_at[i], lambda = 0.5, tune = true, weight = 1) )
+  moves.append( mvScale(r_cg[i], lambda = 0.5, tune = true, weight = 1) )
+  moves.append( mvScale(r_ct[i], lambda = 0.5, tune = true, weight = 1) )
+  moves.append( mvScale(r_gt[i], lambda = 0.5, tune = true, weight = 1) )
+  # RevBayes order: AC, AG, AT, CG, CT, GT; GTR is invariant to the scale
+  er[i] := simplex(v(r_ac[i], 1.0, r_at[i], r_cg[i], r_ct[i], r_gt[i]))
+
+  pi[i] ~ dnDirichlet(v(1, 1, 1, 1))
+  moves.append( mvBetaSimplex(pi[i], alpha = 10, tune = true, weight = 1) )
+  moves.append( mvDirichletSimplex(pi[i], alpha = 10, tune = true, weight = 1) )
+
+  q_dna[i] := fnGTR(er[i], pi[i])
+
+  alpha_dna[i] ~ dnUniform(0, 10)
+  alpha_dna[i].setValue(1.0)
+  moves.append( mvScale(alpha_dna[i], lambda = 0.5, tune = true, weight = 1) )
+  site_rates_dna[i] := fnDiscretizeGamma(alpha_dna[i], alpha_dna[i], 4)
+
+  phy_dna[i] ~ dnPhyloCTMC(tree = fbd_tree, Q = q_dna[i],
+                           branchRates = dna_branch_rates * locus_rates[i],
+                           siteRates = site_rates_dna[i], type = "DNA")
+  phy_dna[i].clamp(dna[i])
+}
+
+##### MCMC #####
+
+mymodel = model(fbd_tree)
+# prior-only runs (under_prior = true) ignore the clamped characters
+if (!exists("under_prior")) { under_prior = false }
+if (under_prior) { mymodel.ignoreAllData() }
+
+# Branch-rate multipliers are left out of the parameter log, which keeps every
+# model-level parameter; branch rates go to an annotated tree file instead.
+if (!exists("resume")) { resume = false }
+monitors.append( mnModel(filename = out_stem + ".log", printgen = sample_every, append = resume,
+                         exclude = ["branch_mult", "branch_mult_morph", "branch_mult_dna", "z_mult", "z_morph", "z_dna",
+                                    "morph_branch_rates", "dna_branch_rates", "er", "q_dna",
+                                    "site_rates_dna", "site_rates_morph"]) )
+monitors.append( mnFile(filename = out_stem + ".trees", printgen = sample_every, append = resume, fbd_tree) )
+monitors.append( mnExtNewick(filename = out_stem + "_rates.trees", printgen = sample_every,
+                             append = resume, isNodeParameter = false, fbd_tree, morph_branch_rates,
+                             dna_branch_rates) )
+monitors.append( mnScreen(printgen = sample_every * 20, crown_age, num_samp_anc, origin_time) )
+
+# Optional starting values for scalar parameters (a previous chain's last
+# sample; written by run-hamilton.sh when START_FROM is set)
+if (exists("start_values_file")) source(start_values_file)
+
+if (!exists("resume")) { resume = false }
+if (!exists("checkpoint_every")) { checkpoint_every = 1000 }
+
+mymcmc = mcmc(mymodel, monitors, moves, moveschedule = "random")
+if (resume) {
+  # continue a chain from its checkpoint; monitors append
+  mymcmc.initializeFromCheckpoint(out_stem + ".ckp")
+} else {
+  # move tuning; these iterations are not logged
+  mymcmc.burnin(generations = burnin_gen, tuningInterval = 100)
+}
+mymcmc.run(generations = n_gen, tuningInterval = 0,
+           checkpointInterval = checkpoint_every, checkpointFile = out_stem + ".ckp")
+mymcmc.operatorSummary()

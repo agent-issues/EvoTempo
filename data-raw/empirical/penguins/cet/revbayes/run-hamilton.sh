@@ -7,7 +7,12 @@
 # BURNIN_GEN, CKP_EVERY, RESUME=true (continue from the checkpoint),
 # ML=true (stepping-stone instead of MCMC; CATS, ML_GEN), START_TREE,
 # START_ORIGIN.  Run from a copy of this directory (with data/) under
-# /nobackup; RB is our RevBayes v1.4.1 build (never the revbayes/1.2.5 module).
+# /nobackup.  RB defaults to the project's pinned RevBayes development build
+# a2a8e2db (gcc/14.2 + boost/1.88.0; `rb --version` prints 1.4.2-preview), not
+# v1.4.1: in v1.4.1 mvCollapseExpandFossilBranch is biased when fossil ages
+# are uncertain (fixed upstream in c389174b), and every penguin fossil has an
+# age range (#66).  Never the cluster's revbayes/1.2.5 module.  The binary
+# path and its `--version` output go to out/rb_version_<CLOCK>_<REP>*.txt.
 #SBATCH -p shared
 #SBATCH -c 1
 #SBATCH --mem=1G
@@ -16,7 +21,7 @@ set +e; set +o pipefail
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 module purge
 module load gcc/14.2 boost/1.88.0
-RB=${RB:-/nobackup/pjjg18/revbayes-1.4.1/projects/cmake/build/rb}
+RB=${RB:-/nobackup/pjjg18/revbayes-dev-a2a8e2db/projects/cmake/build/rb}
 N_GEN=${N_GEN:-200000}
 SAMPLE_EVERY=${SAMPLE_EVERY:-100}
 BURNIN_GEN=${BURNIN_GEN:-2000}
@@ -46,5 +51,6 @@ source("penguins_morph_fbd.Rev")
 q()
 EOF
 suffix=""; [ "$RESUME" = true ] && suffix="_resume$(date +%s)"
+{ echo "RB=$RB"; "$RB" --version 2>&1; } > out/rb_version_${CLOCK}_${REP}${suffix}.txt
 /usr/bin/time -v "$RB" "$driver" > out/screen_${CLOCK}_${REP}${suffix}.txt 2> out/time_${CLOCK}_${REP}${suffix}.txt
 echo "rb exit status $?"

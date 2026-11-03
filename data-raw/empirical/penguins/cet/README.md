@@ -32,7 +32,8 @@ tree from the round-2 total-evidence RevBayes baseline (see **Starting tree**).
 | `smoke.sh`, `check-smoke.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume) |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`) |
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
-| `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes v1.4.1 comparator (UCLN, and strict as a pipeline check) |
+| `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66) |
+| `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
 | `smoke-results/` | Smoke and pilot outputs quoted below |
 
 ## Data conversion (`prepare.R`)
@@ -311,7 +312,7 @@ iterations per chain; with a 4x margin, 200 000 iterations per chain at
 | `bayes-factors.R eval` (~0.02 s per state for all four model points) | < 2 |
 | Ladder rungs, if needed: 4 chains x 10.6 h per rung, up to 3 per edge, 4 edges | 0-510 |
 | Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 it.) | ~85 |
-| RevBayes comparator (first runs biased by `mvUpDownScale`, to be rerun): UCLN 4 x 300 000 it. at ~0.43 s (first hour; 0.23 s in the smoke), strict 4 x 300 000 at ~0.05 s | ~145 + ~17 |
+| RevBayes comparator (first runs biased by `mvUpDownScale` and by v1.4.1's `mvCollapseExpandFossilBranch`, to be rerun on a2a8e2db): UCLN 4 x 300 000 it. at ~0.43 s (first hour; 0.23 s in the smoke), strict 4 x 300 000 at ~0.05 s | ~145 + ~17 |
 | RevBayes `powerPosterior` (UCLN, 32 powers x 10 000 it.) | ~20 per run |
 
 Wall time: one 3-day job slot per chain suffices (10.6 h); peak memory in the
@@ -330,12 +331,48 @@ tuning): strict 25 s, UCLN 137 s.  Four chains of each, 300 000 iterations
 `/nobackup/pjjg18/evotempo-penguin-cet/rbmorph/<clock>_run<k>/` (Slurm jobs
 19299263-19299270).
 
-**Those first comparator runs are biased and must be rerun.** Their script had
-an `mvUpDownScale` move (`clock_morph` up, `fbd_tree` down). In RevBayes 1.4.1
-that move's Hastings ratio is wrong when the tree has sampled ancestors and on
-origin-conditioned trees (shown by prior-only runs), and the penguin tree has
-both. `penguins_morph_fbd.Rev` no longer has the move; no rerun has been
-launched yet, so no comparator results exist.
+**Those first comparator runs are biased and must be rerun**, for two
+reasons.
+1. Their script had an `mvUpDownScale` move (`clock_morph` up, `fbd_tree`
+   down). That move's Hastings ratio is wrong when the tree has sampled
+   ancestors and on origin-conditioned trees (shown by prior-only runs), and
+   the penguin tree has both. `penguins_morph_fbd.Rev` no longer has the move.
+2. They ran on RevBayes v1.4.1 (`time_*.txt`), whose
+   `mvCollapseExpandFossilBranch` is biased when fossil ages are uncertain
+   (fixed upstream in c389174b). All 36 penguin fossils have age ranges, and
+   the comparator keeps the move (`penguins_morph_fbd.Rev:74`). Without data,
+   v1.4.1 gives about 32 sampled ancestors, against 16.6 in BEAST2 and 17.2
+   on a2a8e2db (below). `run-hamilton.sh` therefore defaults `RB` to the
+   project's development build a2a8e2db
+   (`/nobackup/pjjg18/revbayes-dev-a2a8e2db/projects/cmake/build/rb`, the
+   build the Hymenoptera and trilobite baselines use) and writes the binary
+   and its `rb --version` to `out/rb_version_<CLOCK>_<REP>*.txt` (#66).
+
+No rerun has been launched yet, so no comparator results exist.
+
+**Data-free check of the comparator's tree moves** (`revbayes/prior-check/`).
+On a2a8e2db, the total-evidence baseline script
+(`../revbayes/penguins_fbd.Rev`, `under_prior = true`, which calls
+`ignoreAllData()`) was run with exactly the comparator's six tree moves and
+weights (`mvFNPR` 15, `mvNarrow` 15, `mvCollapseExpandFossilBranch` 10,
+`mvNodeTimeSlideUniform` 40, `mvRootTimeSlideUniform` 5,
+`mvFossilTipTimeUniform` 1 per ranged tip), with sampled ancestors, an origin
+and ranged tip ages. It differs from the comparator only in the FBD
+parameterisation, which these moves do not touch, and its result can be
+compared with a data-free BEAST2 run of the source XML:
+
+| Program | Sampled ancestors, mean (sd) | MCSE | Sampling proportion |
+|---|---|---|---|
+| RevBayes a2a8e2db | 17.18 (6.83) | 0.23 (ESS 873) | 0.266 |
+| RevBayes v1.4.1 | 31.97 (3.00) | 0.07 (ESS 2013) | 0.735 |
+| BEAST2 2.4.8 + SA 1.1.7 | 16.57 (6.85) | ESS not recorded | 0.254 |
+
+a2a8e2db agrees with BEAST2, within about 1.9 combined MCSE (assuming BEAST2's
+MCSE is similar to a2a8e2db's); v1.4.1 does not. Details and caveats (the run
+directory was deleted before this commit, so only the archived summaries are
+kept) are in `revbayes/prior-check/README.md`.
+
+What this does not check: node ages against an exact oracle.
 
 ## Engine gaps
 

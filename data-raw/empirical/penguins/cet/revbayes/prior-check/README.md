@@ -52,7 +52,11 @@ from the archived summaries only.
 | RevBayes v1.4.1 | 7202 | 31.97 (3.00) | 2013 | 0.07 | 0.735 |
 | BEAST2 | 9001 | 16.57 (6.85) | not recorded | - | 0.254 |
 
-a2a8e2db agrees with BEAST2: the difference of 0.61 is 2.6 a2a8e2db MCSE, or
-about 1.9 combined MCSE if BEAST2's MCSE is similar, and the histograms have the
-same spread. v1.4.1 is far off (32 against 16.6). Not checked: node ages against
+a2a8e2db is close to BEAST2, but agreement is not shown. The difference of
+0.61 sampled ancestors is 2.6 a2a8e2db MCSE (0.231), or about 1.9 combined MCSE
+if BEAST2's MCSE were the same. BEAST2's ESS was not recorded, so its MCSE is
+unknown, and a residual difference of about 3.5% is not excluded. The sampling
+proportions (0.266 and 0.254) have no MCSE. The histograms have the same spread.
+v1.4.1 is far off (32 against 16.6), so the check does refute the v1.4.1 bias,
+which is what the choice of build (#66) needs. Not checked: node ages against
 an exact oracle, and the v1.4.1 run's move set (only the a2a8e2db run's was read).

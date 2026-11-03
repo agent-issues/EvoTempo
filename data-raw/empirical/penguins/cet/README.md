@@ -149,13 +149,14 @@ pass over the 132 patterns), so with the C++ engine it costs 1.7 ms more than
 the all-tips correction per evaluation, 3.6x the time of the all-tips
 evaluation.  In the smoke run (`smoke.sh` at this commit, `test` partition,
 the same node for both variants, `CET_MKV=allTips` against the default) this
-raises the time per MCMC iteration from 0.18-0.20 s to 0.28-0.33 s, 1.4-1.9x
-depending on the cell (`smoke-results/mkv-smoke-timing.csv`; the per-segment
-times, acceptance rates and the exact-resume check of the two variants are in
-`smoke-results/check-smoke-pattern.txt` and `check-smoke-allTips.txt`); the
-production estimate below, computed at 0.19 s per iteration, grows by the same
-factor (to about 270 core-hours).  A C++ implementation in the package (#47)
-would remove most of the extra cost.
+raises the time per MCMC iteration from 0.18-0.20 s to 0.28-0.33 s, 1.41-1.85x
+depending on the cell and segment, 1.603x on average
+(`smoke-results/mkv-smoke-timing.csv`; the per-segment times, acceptance rates
+and the exact-resume check of the two variants are in
+`smoke-results/check-smoke-pattern.txt` and `check-smoke-allTips.txt`).  The
+cost projection below therefore takes the pre-#65 pilot rate of 0.19 s per
+iteration times the mean ratio 1.603, i.e. 0.305 s per iteration.  A C++
+implementation in the package (#47) would remove most of the extra cost.
 
 ## Starting tree
 
@@ -283,6 +284,14 @@ numbers carry no information and are not reported.
 ## Smoke run and cost projection
 
 Hamilton, EvoTempo `origin-root-age-18` @ b99e810, `test` partition, one core.
+**These smoke and pilot runs predate #65.** They used the all-tips Mkv
+correction (now `CET_MKV=allTips`), so the times, acceptance rates, ESS rates
+and crown ages in this section are those of the earlier target.  Under the
+per-pattern correction each iteration costs 1.603x as much on average (see
+**Mkv correction**); acceptance rates in a 240-iteration smoke of both
+variants are in `smoke-results/check-smoke-pattern.txt` and
+`check-smoke-allTips.txt`.  The ESS per iteration has not been measured under
+the per-pattern target, and it may differ.
 
 | Cell (beta, gamma) | s/iteration, smoke (200 it.) | s/iteration, pilot (3000 it.) | Pilot ESS of slowest quantity / 3000 it. |
 |---|---|---|---|
@@ -300,26 +309,29 @@ priors; the 200-iteration smoke (`smoke-results/timing.csv`,
 54-65%, parameter sweep 28-36%; with gamma = 0, whole-tree draws 87-100% and
 `joint` 27-34%.  `slide` is the only topology move, and at 2-4% it is the
 likely bottleneck for tree mixing (RevBayes adds FNPR and narrow exchange).
-Pilot crown ages (provisional, single short chains): 12.2-13.5 Ma, against
-12.5 Ma in the round-1 total-evidence baseline.
+Pilot crown ages (provisional, single short chains, pre-#65 target):
+12.2-13.5 Ma, against 12.5 Ma in the round-1 total-evidence baseline.
 
-Projection (provisional: ESS from single 3000-iteration chains understate
-slow drifts).  The slowest quantities reach about 2 ESS per 1000 iterations.
-A pooled ESS of 200 per quantity (50 per chain) then needs about 25 000
-iterations per chain; with a 4x margin, 200 000 iterations per chain at
-0.19 s = 10.6 h.
+Projection (provisional: ESS from single 3000-iteration pre-#65 chains
+understate slow drifts, and may not carry over to the per-pattern target).
+The slowest quantities reach about 2 ESS per 1000 iterations.  A pooled ESS
+of 200 per quantity (50 per chain) then needs about 25 000 iterations per
+chain; with a 4x margin, 200 000 iterations per chain.  At the pre-#65 rate
+of 0.19 s that was 10.6 h per chain; at 0.19 s x 1.603 = 0.305 s it is
+16.9 h.  The table uses 0.305 s per iteration.
 
 | Item | Core-hours |
 |---|---|
-| Production: 4 cells x 4 chains x 200 000 iterations | 170 |
-| `bayes-factors.R eval` (~0.02 s per state for all four model points) | < 2 |
-| Ladder rungs, if needed: 4 chains x 10.6 h per rung, up to 3 per edge, 4 edges | 0-510 |
-| Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 it.) | ~85 |
+| Production: 4 cells x 4 chains x 200 000 iterations | ~270 (170 before #65) |
+| `bayes-factors.R eval` (about 0.05 s per state for all four model points: 20 states took 0.8 s in `smoke-results/bf-eval.txt`, 1.1 s in a rerun) | < 2 |
+| Ladder rungs, if needed: 4 chains x 16.9 h per rung, up to 3 per edge, 4 edges | 0-810 (0-510 before #65) |
+| Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 it.) | ~135 (85 before #65) |
 | RevBayes comparator (first runs biased by `mvUpDownScale` and by v1.4.1's `mvCollapseExpandFossilBranch`, to be rerun on a2a8e2db): UCLN 4 x 300 000 it. at ~0.43 s (first hour; 0.23 s in the smoke), strict 4 x 300 000 at ~0.05 s | ~145 + ~17 |
 | RevBayes `powerPosterior` (UCLN, 32 powers x 10 000 it.) | ~20 per run |
 
-Wall time: one 3-day job slot per chain suffices (10.6 h); peak memory in the
-pilot was 178-181 MB per chain.
+Wall time: one 3-day job slot per chain suffices (about 17 h per chain at
+0.305 s per iteration); peak memory in the pre-#65 pilot was 178-181 MB per
+chain.
 
 ## Morphology-only RevBayes comparator
 
@@ -343,7 +355,7 @@ reasons.
 2. They ran on RevBayes v1.4.1 (`time_*.txt`), whose
    `mvCollapseExpandFossilBranch` is biased when fossil ages are uncertain
    (fixed upstream in c389174b). All 36 penguin fossils have age ranges, and
-   the comparator keeps the move (`penguins_morph_fbd.Rev:74`). Without data,
+   the comparator keeps the move (`penguins_morph_fbd.Rev:77`). Without data,
    v1.4.1 gives about 32 sampled ancestors, against 16.6 in BEAST2 and 17.2
    on a2a8e2db (below). `run-hamilton.sh` therefore defaults `RB` to the
    project's development build a2a8e2db
@@ -370,8 +382,12 @@ compared with a data-free BEAST2 run of the source XML:
 | RevBayes v1.4.1 | 31.97 (3.00) | 0.07 (ESS 2013) | 0.735 |
 | BEAST2 2.4.8 + SA 1.1.7 | 16.57 (6.85) | ESS not recorded | 0.254 |
 
-a2a8e2db agrees with BEAST2, within about 1.9 combined MCSE (assuming BEAST2's
-MCSE is similar to a2a8e2db's); v1.4.1 does not. Details and caveats (the run
+a2a8e2db is close to BEAST2 but not shown to agree with it: the gap of 0.61
+sampled ancestors is 2.6 a2a8e2db MCSE (0.23), or about 1.9 combined MCSE if
+BEAST2's MCSE were the same; BEAST2's ESS was not recorded, so its MCSE is
+unknown.  A residual difference of about 3.5% is therefore not excluded.  The
+check does refute v1.4.1 (32 against 16.6 sampled ancestors), which is what
+the choice of build needs. Details and caveats (the run
 directory was deleted before this commit, so only the archived summaries are
 kept) are in `revbayes/prior-check/README.md`.
 

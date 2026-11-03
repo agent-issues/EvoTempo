@@ -141,6 +141,25 @@ What the variants show:
 The penguin baseline's round-1 and round-2 model (`../../penguins/revbayes/penguins_fbd.Rev`)
 used up-down on an origin-conditioned FBD tree with sampled ancestors.
 
+## Build check
+
+This is a data-free check of the `morph` model with `mymodel.ignoreAllData()`: 2 chains per build,
+200 000 iterations sampled every 100, and 10 % burn-in. Cells give mean ± MCSE, with the two chain
+means in brackets. Logs are on Hamilton under
+`/nobackup/pjjg18/evotempo-baselines-rb141/prior-check/`.
+
+| Quantity | v1.4.1 | development `a2a8e2db` |
+|---|---|---|
+| sampled ancestors | 0.039 ± 0.008 [0.015, 0.064] | 0.060 ± 0.004 [0.002, 0.118] |
+| sampling proportion s | 0.0010 ± 0.0007 | 0.0029 ± 0.0011 |
+| root age (Ma) | 559 ± 163 [329, 788] | 797 ± 8 [328, 1265] |
+
+Neither build mixes under this vague prior: within each build the two chains sit far apart, so
+the MCSEs understate the uncertainty and the comparison is inconclusive. Sampled ancestors are rare
+in both builds (< 0.12 per tree), because ρ = 0.0005 and d ~ Exponential(100). The move to the
+development build follows from the known `mvCollapseExpandFossilBranch` bug with interval ages,
+not from this check.
+
 ## Results
 
 {{RESULTS}}

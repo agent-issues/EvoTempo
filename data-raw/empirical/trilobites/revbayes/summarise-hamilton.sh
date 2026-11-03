@@ -15,6 +15,8 @@
 #SBATCH --time=0-06:00:00
 
 set +e; set +o pipefail
+# batch shells on Hamilton may lack MODULEPATH
+source /etc/profile >/dev/null 2>&1
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 ROOT=$1
 BURNIN=${2:-0.25}

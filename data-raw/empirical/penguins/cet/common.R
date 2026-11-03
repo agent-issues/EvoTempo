@@ -16,7 +16,8 @@
 #    state 0)), with P from a constant dummy column in which the unobserved
 #    tips are unknown (ConstantPatternLogLik()).  Under symmetric Mk with a
 #    uniform root, P(all observed tips in state j) is the same for every j.
-#    `.cet$mkv = "allTips"` (environment CET_MKV) restores the earlier
+#    `.cet$mkv = "allTips"` (environment CET_MKV; part of the chain label
+#    and checkpoint, see run-chain.R) restores the earlier
 #    variant (one constant column with every tip observed, which
 #    under-corrects when tips are missing); "none" drops the correction.  The rebound function also raises the
 #    character likelihood, correction included, to a power (`.cet$power`)
@@ -45,6 +46,11 @@ suppressMessages(library(ape))
 .cet <- new.env()
 .cet$power <- 1
 .cet$mkv <- Sys.getenv("CET_MKV", "pattern")
+stopifnot("CET_MKV must be \"pattern\", \"allTips\" or \"none\"" =
+            .cet$mkv %in% c("pattern", "allTips", "none"))
+# Label suffix of a non-default Mkv variant (run-chain.R, bayes-factors.R,
+# check-smoke.R): "" for the default, "_mkv<variant>" otherwise (#74)
+MkvSuffix <- function(mkv = .cet$mkv) if (mkv == "pattern") "" else paste0("_mkv", mkv)
 .cet$records <- list()
 .cet$resume <- NULL
 .cet$captured <- NULL
@@ -73,6 +79,10 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
     mkv,
     pattern = {
       pat <- attr(characters, "mkv")
+      # Without the attribute, ConstantPatternLogLik() would return numeric(0)
+      # and the correction would silently become 0 (#74)
+      stopifnot("characters with \"parts\" need the \"mkv\" attribute (MkvPatterns())" =
+                  !is.null(pat))
       -sum(pat$count * log1p(-pat$k * exp(ConstantPatternLogLik(tree, pat, lengths))))
     },
     allTips = -sum(vapply(parts, function(p) {
@@ -88,6 +98,14 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
 # characters that share it
 MkvPatterns <- function(x, nState) {
   observed <- !is.na(x)
+  # The Mkv conditional assumes that every character varies among its observed
+  # tips; a character constant there (such as character 81, which prepare.R
+  # drops) must be removed first (#74)
+  varies <- apply(x, 2, function(col) length(unique(col[!is.na(col)])) > 1L)
+  if (!all(varies)) {
+    stop("characters constant among their observed tips: ",
+         paste(utils::head(which(!varies), 10), collapse = ", "))
+  }
   key <- paste(nState, apply(observed, 2, function(o) paste(which(o), collapse = ",")))
   first <- !duplicated(key)
   pat <- list(k = nState[first], observed = observed[, first, drop = FALSE],

@@ -20,15 +20,21 @@
 #   CET_POWER        power on the character likelihood (default 1)
 #   CET_MKV          Mkv correction: "pattern" (default; one per missing-data
 #                    pattern, as RevBayes coding = "variable"), "allTips" (the
-#                    variant before #65) or "none"
+#                    variant before #65) or "none".  A non-default variant is
+#                    part of the label (<cell>_mkv<variant>[_t<power>]), and
+#                    every variant is stored in the checkpoint and checked on
+#                    resume (#74)
 #   CET_SEED         RNG seed (default 1000 * cell + rep)
 #   CET_NSLICE       frozen-model time slices (default 20)
 #   CET_TREE_MOVES   scale of the tree-move counts (default 1)
 #   CET_NBIN, CET_ZMAX   tempo grid (default 26 bins, z in [-5, 5])
 #   CET_STATES       "true" (default) to save per-sample states for
 #                    bayes-factors.R
-# Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples plus the
-# character log-likelihood, log prior and iteration), seg<k>_trees.nwk,
+# Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples plus charLL,
+# the character log-likelihood; logPrior, the log prior of the parameters,
+# as in bayes-factors.R's cross.csv; logOriginPrior, the log prior of the
+# origin age, which TempoMCMC()'s logPost also includes; and the iteration),
+# seg<k>_trees.nwk,
 # seg<k>_states.rds; acceptance.csv (per segment); checkpoint.rds (state at the
 # end of the last complete segment; written atomically); progress.txt.
 t0 <- proc.time()[["elapsed"]]
@@ -51,7 +57,8 @@ if (grepl("^[0-9]+$", cellArg)) {
   beta <- as.numeric(sub("^b([0-9.]+)g.*$", "\\1", cellArg))
   gamma <- as.numeric(sub("^b[0-9.]+g([0-9.]+)$", "\\1", cellArg))
 }
-label <- CellLabel(beta, gamma)
+mkv <- .cet$mkv
+label <- paste0(CellLabel(beta, gamma), MkvSuffix(mkv))
 power <- EnvNum("CET_POWER", 1)
 if (power != 1) label <- sprintf("%s_t%s", label, format(power))
 outDir <- file.path(Sys.getenv("CET_OUT", "cet-runs"), sprintf("%s_run%d", label, rep))
@@ -76,12 +83,21 @@ Progress <- function(...) {
 ckpFile <- file.path(outDir, "checkpoint.rds")
 if (file.exists(ckpFile)) {
   ckp <- readRDS(ckpFile)
+  # A checkpoint of another target must not be continued (#74)
+  ckpMkv <- if (is.null(ckp$mkv)) "unrecorded (checkpoint from before #74)" else ckp$mkv
+  if (!identical(ckp$mkv, mkv) || !identical(ckp$power, power) ||
+      !identical(ckp$beta, beta) || !identical(ckp$gamma, gamma)) {
+    stop(sprintf(paste("%s holds a chain with mkv %s, power %s, beta %s, gamma %s;",
+                       "this run has mkv %s, power %s, beta %s, gamma %s"),
+                 ckpFile, ckpMkv, format(ckp$power), format(ckp$beta), format(ckp$gamma),
+                 mkv, format(power), format(beta), format(gamma)))
+  }
   Progress("%s resuming after segment %d", format(Sys.time()), ckp$segment)
 } else {
   set.seed(EnvNum("CET_SEED", 1000 * cell + rep))
   ckp <- NULL
-  Progress("%s start %s rep %d (beta %g, gamma %g, power %g): nIter %d, burnin %d, thin %d, seg %d; moves %s",
-           format(Sys.time()), label, rep, beta, gamma, power, nIter, burnin, thin, seg,
+  Progress("%s start %s rep %d (beta %g, gamma %g, power %g, mkv %s): nIter %d, burnin %d, thin %d, seg %d; moves %s",
+           format(Sys.time()), label, rep, beta, gamma, power, mkv, nIter, burnin, thin, seg,
            paste(names(moves), moves, sep = "=", collapse = " "))
 }
 nSeg <- nIter %/% seg
@@ -107,9 +123,12 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   stopifnot(length(rec) == nrow(run$samples))
   smp <- run$samples
   smp$charLL <- vapply(rec, `[[`, 0, "charLL")
+  # logPrior: the parameters only, as cross.csv; the origin age prior, which
+  # the chain's logPost includes, is a separate column (#74)
   smp$logPrior <- vapply(seq_len(nrow(smp)), function(i) {
     sum(vapply(names(priors), function(p) priors[[p]](rec[[i]]$state$par[[p]]), 0))
-  }, 0) + vapply(rec, function(r) CetAgePriors()$origin(
+  }, 0)
+  smp$logOriginPrior <- vapply(rec, function(r) CetAgePriors()$origin(
     r$state$tree$age[[r$state$tree$root]] + r$state$tree$stem), 0)
   smp$iteration <- (k - 1) * seg + seq(thin, seg, by = thin)
   smp$segment <- k
@@ -125,7 +144,7 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),
                      append = file.exists(accFile))
   ckp <- list(segment = k, captured = .cet$captured, label = label, beta = beta, gamma = gamma,
-              power = power, rep = rep, thin = thin, seg = seg)
+              power = power, mkv = mkv, rep = rep, thin = thin, seg = seg)
   tmp <- paste0(ckpFile, ".tmp")
   saveRDS(ckp, tmp)
   file.rename(tmp, ckpFile)

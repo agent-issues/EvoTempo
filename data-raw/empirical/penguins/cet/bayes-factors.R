@@ -54,11 +54,14 @@ source("data-raw/empirical/penguins/cet/common.R")
 args <- commandArgs(trailingOnly = TRUE)
 burn <- as.numeric(Sys.getenv("CET_BF_BURN", "0.25"))
 
+# Chain labels (run-chain.R): b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>
 ParseLabel <- function(label) {
-  m <- regmatches(label, regexec("^b([0-9.]+)g([0-9.]+)(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
+  m <- regmatches(label, regexec(
+    "^b([0-9.]+)g([0-9.]+)(_mkv(allTips|none))?(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
   if (!length(m)) return(NULL)
   data.frame(label = label, beta = as.numeric(m[2]), gamma = as.numeric(m[3]),
-             power = if (nzchar(m[5])) as.numeric(m[5]) else 1, rep = as.integer(m[6]))
+             mkv = if (nzchar(m[5])) m[5] else "pattern",
+             power = if (nzchar(m[7])) as.numeric(m[7]) else 1, rep = as.integer(m[8]))
 }
 Chains <- function(root) {
   dirs <- list.dirs(root, recursive = FALSE)
@@ -93,7 +96,23 @@ CharLLAt <- function(state, gamma, characters) {
 if (args[[1]] == "eval") {
   dir <- args[[2]]
   me <- ParseLabel(basename(dir))
+  if (is.null(me)) stop("not a chain directory of run-chain.R: ", dir)
+  # Evaluate under the chain's own Mkv variant (its label, and its checkpoint
+  # if present), not this job's CET_MKV (#74)
+  if (nzchar(Sys.getenv("CET_MKV")) && Sys.getenv("CET_MKV") != me$mkv) {
+    stop(sprintf("CET_MKV is %s, but chain %s has mkv %s", Sys.getenv("CET_MKV"),
+                 basename(dir), me$mkv))
+  }
+  ckpFile <- file.path(dir, "checkpoint.rds")
+  if (file.exists(ckpFile)) {
+    ckpMkv <- readRDS(ckpFile)$mkv
+    if (!is.null(ckpMkv) && ckpMkv != me$mkv) {
+      stop(sprintf("%s records mkv %s, but its label says %s", ckpFile, ckpMkv, me$mkv))
+    }
+  }
+  .cet$mkv <- me$mkv
   all <- Chains(dirname(dir))
+  all <- all[all$mkv == me$mkv, ]
   betas <- if (nzchar(Sys.getenv("CET_BF_BETAS"))) {
     as.numeric(strsplit(Sys.getenv("CET_BF_BETAS"), ",")[[1]])
   } else sort(unique(all$beta))
@@ -115,7 +134,11 @@ if (args[[1]] == "eval") {
     # The chain's logPost includes the origin age prior (TempoMCMC() adds the
     # prior of a free start age since #56; CetMoves() sets originAge = 1).  It
     # is the same for every model point, so it cancels in the Bayes factors
-    # and is not part of logPrior; the check needs it (#67).
+    # and is not part of logPrior; the check needs it (#67).  logPrior means
+    # the same in the chain's seg*_samples.csv, which has the origin age prior
+    # as a separate column, logOriginPrior (#74).  Under U(0, 160) that prior
+    # is a constant on its support, so this check cannot tell at which age
+    # TempoMCMC() evaluated it.
     la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
     own <- LogAugAt(st, me$beta, me$gamma) + me$power * CharLLAt(st, me$gamma, dat$characters) +
       lp + la
@@ -166,7 +189,8 @@ SteppingStone <- function(ladder, logL) {
 
 root <- args[[2]]
 ch <- Chains(root)
-ch <- ch[file.exists(file.path(ch$dir, "cross.csv")), ]
+# Bridge only chains of one Mkv variant: CET_MKV, default "pattern" (#74)
+ch <- ch[ch$mkv == .cet$mkv & file.exists(file.path(ch$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
 LogQ <- function(x, beta, gamma) {

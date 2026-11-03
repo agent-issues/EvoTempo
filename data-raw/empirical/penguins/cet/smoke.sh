@@ -8,6 +8,9 @@
 # iterations, in two segments of 100 (so the second resumes from the
 # checkpoint).  Task 5: cell (1,1) again with one segment of 200; its last 10
 # samples must equal task 4's segment 2 (exact continuation; check-smoke.R).
+# CET_MKV (default pattern) selects the Mkv variant; a non-default one is in
+# the chain label (<cell>_mkv<variant>_run1), and check-smoke.R needs the same
+# CET_MKV.
 #SBATCH -p test
 #SBATCH -c 1
 #SBATCH --mem=3G
@@ -28,7 +31,8 @@ export CET_SEG=${SMOKE_SEG:-100} CET_OUT=${SMOKE_OUT:-$W/smoke}
 cell=$SLURM_ARRAY_TASK_ID
 if [ "$cell" = 5 ]; then cell=4; export CET_SEG=$CET_NITER CET_OUT=$CET_OUT-identity; fi
 labels=(x b0g0 b0g1 b1g0 b1g1)
-rm -rf $CET_OUT/${labels[$cell]}_run1
+sfx=""; if [ -n "$CET_MKV" ] && [ "$CET_MKV" != pattern ]; then sfx=_mkv$CET_MKV; fi
+rm -rf $CET_OUT/${labels[$cell]}${sfx}_run1
 log=$W/out/$(basename $CET_OUT)-$SLURM_ARRAY_TASK_ID
 /usr/bin/time -v Rscript data-raw/empirical/penguins/cet/run-chain.R $cell 1 > $log.txt 2> $log.err
 echo "exit $?" >> $log.txt

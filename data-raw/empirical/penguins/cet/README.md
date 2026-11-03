@@ -208,6 +208,18 @@ names, the pre-loop `.TreeStats()` call), so it must be rechecked
 (`smoke.sh` task 5) after any engine change; the engine issue below asks for
 this as API.
 
+Chain labels and sample columns (#74).  A chain's directory is
+`<cell>[_mkv<variant>][_t<power>]_run<rep>`: the Mkv variant appears only when
+it is not the default (`CET_MKV=allTips` or `none`), and the power only when
+it is not 1.  The checkpoint records the variant, power, beta and gamma, and
+`run-chain.R` stops rather than resume a checkpoint of another target.
+`bayes-factors.R eval` takes the variant from the chain's label (and checks it
+against the checkpoint), and `combine` bridges only chains of the variant
+given by `CET_MKV`.  In `seg*_samples.csv`, `logPrior` is the log prior of the
+parameters (as in `cross.csv`), and `logOriginPrior` is that of the origin
+age; the chain's `logPost` includes both.  Before #74 the samples' `logPrior`
+included the origin term (-log 160), unlike `cross.csv`.
+
 ## Running on Hamilton
 
     W=/nobackup/pjjg18/evotempo-penguin-cet     # src/ = checkout, lib-<sha>/ = EvoTempo build

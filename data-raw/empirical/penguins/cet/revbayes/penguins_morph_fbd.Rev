@@ -4,8 +4,11 @@
 #
 # Matched to the CET runs (common.R) in everything but the clock:
 # - data: the 201 characters of cet/data/characters.csv (ambiguous cells as
-#   missing), Mkv partitioned by number of states, NO among-character rate
-#   variation (EvoTempo has none);
+#   missing), partitioned by number of states, Mkv with coding = "variable",
+#   NO among-character rate variation (EvoTempo has none).  RevBayes treats
+#   `?` as a gap and conditions on variability once per missing-data pattern;
+#   since #65 common.R does the same (until then it conditioned as if every
+#   tip were observed, which is not the same);
 # - tree prior: FBD with sampled ancestors, rho = 1, origin ~ U(0, 160),
 #   conditioned on a sampled extant descendant, and independent log-normal
 #   priors on lambda, mu, psi (as in common.R, which truncates them at

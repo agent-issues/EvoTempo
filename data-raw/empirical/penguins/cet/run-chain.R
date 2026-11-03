@@ -18,6 +18,9 @@
 #                    (default 70, inside the 3-day `shared` limit); resubmit
 #                    the same command to continue from the checkpoint
 #   CET_POWER        power on the character likelihood (default 1)
+#   CET_MKV          Mkv correction: "pattern" (default; one per missing-data
+#                    pattern, as RevBayes coding = "variable"), "allTips" (the
+#                    variant before #65) or "none"
 #   CET_SEED         RNG seed (default 1000 * cell + rep)
 #   CET_NSLICE       frozen-model time slices (default 20)
 #   CET_TREE_MOVES   scale of the tree-move counts (default 1)

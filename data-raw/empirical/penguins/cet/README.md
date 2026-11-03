@@ -25,7 +25,8 @@ tree from the round-2 total-evidence RevBayes baseline (see **Starting tree**).
 | `prepare.R` | Converts `../penguins_morph.nex`, `../penguins_tips.csv`, `../penguins_constraints.csv` (empty) and a RevBayes MCC tree into `data/` and `revbayes/data/` |
 | `data/characters.csv`, `data/partitions.csv` | 55 taxa x 201 characters (0-based states, empty = unknown); number of states K per character |
 | `data/start-tree.nwk`, `data/start-tree-log.txt` | Starting time tree with the origin as root edge; every age `prepare.R` changed |
-| `common.R` | Model, priors, moves, data loading, and the two namespace rebindings (partitioned Mkv likelihood; per-sample recording and exact resume) |
+| `common.R` | Model, priors, moves, data loading, and the two namespace rebindings (partitioned Mkv likelihood with one correction per missing-data pattern; per-sample recording and exact resume) |
+| `check-mkv.R` | Fixed-tree check of the partitioned Mkv likelihood against RevBayes `coding = "variable"`, and its cost (#65) |
 | `run-chain.R` | One chain of one cell, in checkpointed segments |
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume) |
@@ -58,8 +59,10 @@ tree from the round-2 total-evidence RevBayes baseline (see **Starting tree**).
 
 `DCETModel(beta, gamma, rho = 1, condition = "extant", start = "origin")` at
 the default grid (K = 26 bins, z in [-5, 5], central scheme), alpha = 1,
-delta = 0, removal 0, equilibrium start-bin prior.  Characters: Mkv per
-K-partition, no among-character rate variation.  Time in Myr.
+delta = 0, removal 0, equilibrium start-bin prior.  Characters: Mk per
+K-partition with the Mkv correction per missing-data pattern (as RevBayes
+`coding = "variable"`; see **Mkv correction** below), no among-character rate
+variation.  Time in Myr.
 
 | Parameter | CET prior | RevBayes morphology-only comparator | Total-evidence baseline (source analysis) |
 |---|---|---|---|
@@ -92,6 +95,64 @@ Notes.
 - Starting values (`CetStart()`): near the round-1 total-evidence posterior
   means (lambda 0.2, mu 0.15, psi 0.05, rate 0.017; theta 0.05, s 0.2),
   multiplied by exp(N(0, 0.2^2)) per replicate > 1.
+
+### Mkv correction (#65)
+
+Every one of the 201 characters has unscored tips (median 34 of 55), and the
+matrix holds only characters that vary among their **scored** tips (character
+81 was dropped for being constant there).  The correct conditional is
+therefore the one RevBayes `dnPhyloCTMC(coding = "variable")` uses, with `?`
+treated as a gap: one correction per distinct missing-data pattern,
+
+    log L = sum_K [ log Mk(D_K) - sum_{patterns m in K} n_m log(1 - K P_m) ],
+
+where P_m is the probability that every tip observed in pattern m is in state
+0 (the same for every state under symmetric Mk with a uniform root), from
+pruning one constant column with the other tips unknown.  The 201 characters
+fall into 132 patterns within the six K-partitions.  `ConstantPatternLogLik()`
+prunes all 132 columns at once: in a constant column every partial
+likelihood has the form (L0, L1, ..., L1), so two numbers per node and pattern
+suffice.  The correction sits inside the term raised to the character power.
+
+Until #65 the pipeline used one constant column per partition with **every**
+tip observed.  That under-corrects: on the start tree with a strict clock it
+moved the fixed-tree clock MLE from 0.0181 (per pattern) to 0.0211, against
+0.0222 with no correction (verifier, #65).  `.cet$mkv = "allTips"` keeps
+that variant for comparison.
+
+`check-mkv.R` checks the likelihood on the committed start tree at three
+strict-clock rates (`smoke-results/mkv-check.csv`, both engines):
+
+| Rate | Per pattern (this pipeline) | RevBayes `coding = "variable"` | Difference | All tips observed (before #65) | Correction, per pattern | Correction, all tips |
+|---|---|---|---|---|---|---|
+| 0.005 | -1778.517905 | -1778.51784 | -6.5e-05 | -1861.343283 | 185.59 | 102.77 |
+| 0.017 | -1656.300536 | -1656.30055 | 1.4e-05 | -1693.677249 | 47.18 | 9.80 |
+| 0.05 | -1820.971062 | -1820.97102 | -4.2e-05 | -1827.535176 | 6.61 | 0.048 |
+
+The differences from RevBayes are within its print precision (7 significant
+digits per partition, summed over six partitions); the all-tips column
+reproduces the pipeline's earlier values to 5e-7.  `ConstantPatternLogLik()`
+equals `MkLikelihood()` on each of the 132 constant columns to 2e-14, the two
+engines agree to 7e-13, and power t scales the corrected log-likelihood exactly.
+
+Cost of one `PartitionedMk()` evaluation on the start tree
+(`smoke-results/mkv-check-timing.csv`, Hamilton cn120, AMD EPYC 7702, one core; mean of 500 evaluations):
+
+| Engine | No correction | All tips (before #65) | Per pattern |
+|---|---|---|---|
+| C++ | 0.41 ms | 0.66 ms | 2.34 ms |
+| R | 22.47 ms | 40.79 ms | 24.26 ms |
+
+The per-pattern correction is computed in R in both engines (one vectorised
+pass over the 132 patterns), so with the C++ engine it costs 1.7 ms more than
+the all-tips correction per evaluation, 3.6x the time of the all-tips
+evaluation.  In the smoke run (`smoke.sh` at this commit, `test` partition, the
+same node for both variants, `CET_MKV=allTips` against the default) this raises
+the time per MCMC iteration from 0.18-0.20 s to 0.28-0.33 s, 1.4-1.9x depending
+on the cell (`smoke-results/mkv-smoke-timing.csv`); the production estimate
+below, computed at 0.19 s per iteration, grows by the same factor (to about
+270 core-hours).  A C++ implementation in the package (#47) would remove
+most of the extra cost.
 
 ## Starting tree
 

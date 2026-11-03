@@ -9,12 +9,20 @@
 # 1. MkLikelihood() takes one number of states for all characters, and no
 #    ascertainment correction.  The penguin matrix has partitions with K = 2-7
 #    states and only variable characters, so the rebound MkLikelihood() scores
-#    each K-partition separately and applies the Mkv correction (Lewis 2001):
-#    log L - n_K log(1 - K P(all tips in state 0)), P from a constant
-#    dummy column, the BEAST2 / RevBayes coding = "variable" convention.  It
-#    also raises the character likelihood to a power (`.cet$power`) for
-#    character-power stepping-stone runs.  It applies only to character
-#    matrices that carry the attribute "parts" (from LoadPenguins()).
+#    each K-partition separately and applies the Mkv correction (Lewis 2001)
+#    per missing-data pattern, as RevBayes dnPhyloCTMC(coding = "variable")
+#    does (#65): for each partition and each distinct set of observed tips
+#    among its characters, log L - n_pattern log(1 - K P(all observed tips in
+#    state 0)), with P from a constant dummy column in which the unobserved
+#    tips are unknown (ConstantPatternLogLik()).  Under symmetric Mk with a
+#    uniform root, P(all observed tips in state j) is the same for every j.
+#    `.cet$mkv = "allTips"` (environment CET_MKV) restores the earlier
+#    variant (one constant column with every tip observed, which
+#    under-corrects when tips are missing); "none" drops the correction.  The rebound function also raises the
+#    character likelihood, correction included, to a power (`.cet$power`)
+#    for character-power stepping-stone runs.  It applies only to character
+#    matrices that carry the attributes "parts" and "mkv" (from
+#    LoadPenguins()).
 # 2. TempoMCMC() returns no per-sample trees or states.  The rebound
 #    .TreeStats(), which TempoMCMC() calls at every stored sample, reads the
 #    chain state `st` from its caller's frame and records the tree (Newick),
@@ -36,7 +44,7 @@ suppressMessages(library(ape))
 .ns <- asNamespace("EvoTempo")
 .cet <- new.env()
 .cet$power <- 1
-.cet$mkv <- TRUE
+.cet$mkv <- Sys.getenv("CET_MKV", "pattern")
 .cet$records <- list()
 .cet$resume <- NULL
 .cet$captured <- NULL
@@ -48,7 +56,7 @@ if (!exists(".mkOriginal")) {
 
 PartitionedMk <- function(tree, characters, lengths, nState = 2L,
                           engine = getOption("EvoTempo.engine", "cpp"),
-                          power = .cet$power) {
+                          power = .cet$power, mkv = .cet$mkv) {
   parts <- attr(characters, "parts")
   if (is.null(parts)) {
     return(.mkOriginal(tree, characters, lengths, nState, engine))
@@ -56,15 +64,79 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
   if (power == 0) {
     return(0)
   }
+  tree <- TempoTree(tree)
   ll <- 0
   for (p in parts) {
     ll <- ll + .mkOriginal(tree, p$x, lengths, p$k, engine)
-    if (.cet$mkv) {
-      lc <- .mkOriginal(tree, p$const, lengths, p$k, engine)
-      ll <- ll - ncol(p$x) * log1p(-p$k * exp(lc))
-    }
   }
+  ll <- ll + switch(
+    mkv,
+    pattern = {
+      pat <- attr(characters, "mkv")
+      -sum(pat$count * log1p(-pat$k * exp(ConstantPatternLogLik(tree, pat, lengths))))
+    },
+    allTips = -sum(vapply(parts, function(p) {
+      ncol(p$x) * log1p(-p$k * exp(.mkOriginal(tree, p$const, lengths, p$k, engine)))
+    }, 0)),
+    none = 0,
+    stop("`.cet$mkv` must be \"pattern\", \"allTips\" or \"none\""))
   power * ll
+}
+
+# Distinct missing-data patterns within each K-partition: for every pattern,
+# K, the tips observed (logical, one row per tip) and the number of
+# characters that share it
+MkvPatterns <- function(x, nState) {
+  observed <- !is.na(x)
+  key <- paste(nState, apply(observed, 2, function(o) paste(which(o), collapse = ",")))
+  first <- !duplicated(key)
+  pat <- list(k = nState[first], observed = observed[, first, drop = FALSE],
+              count = tabulate(match(key, key[first]), sum(first)))
+  # A pattern with fewer than two observed tips is constant whatever the
+  # states, so its correction would be log(0)
+  stopifnot(all(colSums(pat$observed) >= 2), sum(pat$count) == ncol(x))
+  pat
+}
+
+# log P(every observed tip in state 0) under Mk with K states and a uniform
+# root, for each pattern of `pat` (MkvPatterns()): pruning of one constant
+# column per pattern, with the tips not observed in it as unknown.  Under
+# symmetric Mk every partial likelihood of such a column has the form
+# (L0, L1, ..., L1), so two numbers per node and pattern suffice, and all the
+# patterns of all partitions are pruned together.  Same recursion and
+# per-node rescaling as the R engine of MkLikelihood(); check-mkv.R checks it
+# against MkLikelihood() column by column.
+ConstantPatternLogLik <- function(tree, pat, lengths) {
+  nTip <- tree[["nTip"]]
+  k <- pat$k
+  kU <- unique(k)
+  ki <- match(k, kU)
+  # One column per node (contiguous), one row per pattern
+  L0 <- matrix(1, length(k), nTip + tree[["nNode"]])
+  L1 <- L0
+  L1[, seq_len(nTip)] <- t(1 - pat$observed)
+  kids <- tree[["kids"]]
+  logScale <- 0
+  for (v in tree[["postorder"]]) {
+    a0 <- 1
+    a1 <- 1
+    for (kid in kids[v - nTip, ]) {
+      # Per distinct K: P(stay), and (K - 1) P(move) = 1 - P(stay)
+      stay <- 1 / kU + (kU - 1) / kU * exp(-kU * lengths[[kid]] / (kU - 1))
+      off <- 1 - stay
+      same <- stay + (kU - 2) / (kU - 1) * off
+      l0 <- L0[, kid]
+      l1 <- L1[, kid]
+      a0 <- a0 * (stay[ki] * l0 + off[ki] * l1)
+      a1 <- a1 * ((off / (kU - 1))[ki] * l0 + same[ki] * l1)
+    }
+    scale <- pmax(a0, a1)
+    L0[, v] <- a0 / scale
+    L1[, v] <- a1 / scale
+    logScale <- logScale + log(scale)
+  }
+  root <- tree[["root"]]
+  log((L0[, root] + (k - 1) * L1[, root]) / k) + logScale
 }
 
 RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
@@ -156,6 +228,7 @@ LoadPenguins <- function(startTree = file.path(cetDir, "data", "start-tree.nwk")
     cols <- which(parts$nState == k)
     list(k = k, x = x[, cols, drop = FALSE], const = matrix(0L, nTip, 1))
   })
+  attr(x, "mkv") <- MkvPatterns(x, parts$nState)
   list(tree = tt, characters = x, tips = info)
 }
 

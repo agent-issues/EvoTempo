@@ -147,13 +147,15 @@ Cost of one `PartitionedMk()` evaluation on the start tree
 The per-pattern correction is computed in R in both engines (one vectorised
 pass over the 132 patterns), so with the C++ engine it costs 1.7 ms more than
 the all-tips correction per evaluation, 3.6x the time of the all-tips
-evaluation.  In the smoke run (`smoke.sh` at this commit, `test` partition, the
-same node for both variants, `CET_MKV=allTips` against the default) this raises
-the time per MCMC iteration from 0.18-0.20 s to 0.28-0.33 s, 1.4-1.9x depending
-on the cell (`smoke-results/mkv-smoke-timing.csv`); the production estimate
-below, computed at 0.19 s per iteration, grows by the same factor (to about
-270 core-hours).  A C++ implementation in the package (#47) would remove
-most of the extra cost.
+evaluation.  In the smoke run (`smoke.sh` at this commit, `test` partition,
+the same node for both variants, `CET_MKV=allTips` against the default) this
+raises the time per MCMC iteration from 0.18-0.20 s to 0.28-0.33 s, 1.4-1.9x
+depending on the cell (`smoke-results/mkv-smoke-timing.csv`; the per-segment
+times, acceptance rates and the exact-resume check of the two variants are in
+`smoke-results/check-smoke-pattern.txt` and `check-smoke-allTips.txt`); the
+production estimate below, computed at 0.19 s per iteration, grows by the same
+factor (to about 270 core-hours).  A C++ implementation in the package (#47)
+would remove most of the extra cost.
 
 ## Starting tree
 
@@ -246,7 +248,7 @@ generalise:
   + [log Mkv(D | T, paths, rate, gamma_B) - log Mkv(D | T, paths, rate, gamma_A)],
   computable at every recorded state (`eval`; the chain's own value, with the
   origin age prior that `TempoMCMC()` has added to logPost since #56, is
-  checked against its logPost: residuals 4e-12 to 9e-8 on the 20 smoke states per cell at this commit, against a constant 5.075 = log 160 before #67).
+  checked against its logPost: maximum residuals 4.6e-12 to 9.3e-8 over the 20 smoke states of each cell, `smoke-results/bf-eval.txt`, against a constant 5.075 = log 160 before #67).
 - Two-sample bridge sampling (Meng & Wong 1996; `BridgeTwo()` from rung 7)
   on the draws of both posteriors estimates log Z_B / Z_A: the Bayes factor
   for all the data (characters, tip ages, sampled ancestors), with the tree

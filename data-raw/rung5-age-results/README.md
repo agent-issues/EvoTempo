@@ -287,12 +287,29 @@ sd_A / sqrt(ESS). The assumed ESS is 0.078 per chain iteration, half the rate ob
 section 4. Over the one-flag pairs (one conditioning flag changed: joint and marginal,
 extant and survival, extant and none), the smallest expected max |z| was 14.5 (origin) and
 30.3 (root). At the section-4 parameters it is 0.20 and 0.90
-(`rung5-age-oracle-<case>-design.csv`). The exact posteriors were also reproduced
-independently, to 1e-10, by a Python port of the E/D equations used to choose the design.
+(`rung5-age-oracle-<case>-design.csv`).
 
-**Pre-registered criteria.** Each run must match its own exact posterior with |z| < 3.5 for
-all six statistics (60 in total; about 3% family-wise false alarms). It must also reject
-every one-flag alternative with max |z| >= 5.
+**Criteria, and when they were set** (times UTC, 3 November 2026; Slurm accounting, file
+times and the scripts that ran are in `power-oracle-provenance.txt`).
+
+- *Negative controls, fixed before the runs.* The header of `rung5-age-oracle.R` in the copy
+  that ran (the Hamilton overlay of 08:10:55, on 589f866; the design ran at 08:22-08:23 and
+  the ten chain runs were submitted at 08:54:22) requires every run to reject each one-flag
+  alternative with max |z| >= 5. That is the only bar written down before any chain ran.
+- *Own target, chosen after the results.* No bar for a run against its own exact posterior
+  was written down beforehand. The bar used below, |z| < 3.5 for all six statistics, was
+  chosen after all ten runs had finished. Root-none (largest |z| 3.30) finished at 09:08:50
+  and root-extant (3.01) at 09:14:04, and the bar first appears in this README in commit
+  dc47aed (10:40:39). A bar of 3.0 would have failed both runs. The own-target tables are
+  therefore a post hoc reading, not a pre-registered test.
+- *False alarms.* Each z divides by the between-chain standard error of 32 chains, so its
+  reference distribution is close to t with 31 degrees of freedom, not N(0, 1). Under t31,
+  P(|z| >= 3.5) = 0.0014 per statistic. If every run were exact, the chance that at least
+  one of the 60 statistics of the ten runs reaches 3.5 would be about 8.2%: 12.9% over the
+  96 statistics that include the six root-extant replicates below, and 13.6% with the
+  root-none replicate as well. (An earlier version of this section gave 3%, the
+  normal-theory figure.) Statistics within a run are positively correlated, so the true
+  rates are somewhat lower than these independence calculations.
 
 **Own target** (`rung5-age-oracle-<case>-power-<variant>.csv`): z of the chains against their
 own conditioning's exact posterior.
@@ -317,10 +334,20 @@ Crown (root) start:
 | survival-joint | 1.02 | 0.81 | 0.54 | -0.46 | 0.07 | -0.19 |
 | none | -0.08 | -0.24 | -3.30 | -1.00 | 0.80 | 1.61 |
 
-The largest |z| is 3.30 (root, none, q50), so every run passes. Root-extant had a coherent
-pattern (q75 2.38, q95 3.01, mean -2.46; the section-1 run at the old design has the same
-signs). So it was rerun six times with new seeds (`EVOTEMPO_RUNG5_SEED_OFFSET` = 50000 to
-100000, 192 more chains; `-power-extant-seed<offset>.csv`):
+The largest |z| is 3.30 (root, none, q50), so every run is inside the post hoc bar of 3.5.
+
+**Replicates: sequential, and decided on the results.** Root-extant had a coherent pattern
+(q75 2.38, q95 3.01, mean -2.46; the section-1 run at the old design has the same signs).
+Root-none had the largest single |z| (3.30), so it was rerun as well. None of these reruns
+was planned before the first results. They ran in two batches, each decided after seeing
+the results before it (`EVOTEMPO_RUNG5_SEED_OFFSET`; files `-power-<variant>-seed<offset>.csv`):
+
+1. `confirm.sh`, submitted at 09:17:20, after the root-none (09:08:50) and root-extant
+   (09:14:04) results: root-extant at seed offsets 50000 and 60000, and root-none at 50000.
+2. `confirm2.sh`, submitted at 09:38:56, after the first two root-extant replicates had
+   finished (09:34:47 and 09:37:18): root-extant at 70000, 80000, 90000 and 100000.
+
+That makes six root-extant replicates (192 chains) and one root-none replicate (32 chains).
 
 | replicate (seed offset) | q05 | q25 | q50 | q75 | q95 | mean |
 |---|---|---|---|---|---|---|
@@ -332,10 +359,22 @@ signs). So it was rerun six times with new seeds (`EVOTEMPO_RUNG5_SEED_OFFSET` =
 | 90000 | -0.20 | 1.13 | 0.53 | 0.23 | 0.51 | -0.75 |
 | 100000 | 0.60 | 0.09 | 0.51 | -1.30 | -2.82 | 1.10 |
 | Stouffer, the 6 new replicates | 1.36 | 1.83 | 0.78 | 1.03 | 0.12 | -1.45 |
+| Stouffer, all 7 | 1.73 | 1.81 | 1.11 | 1.85 | 1.25 | -2.27 |
 
-The new replicates do not repeat the pattern (largest pooled |z| 1.83). Their pooled mean
-bias is -0.0010 +- 0.0006, against a posterior sd of 0.89 (95% interval -0.0023 to
-+0.0002). One extra root-none replicate (seed offset 50000) gave max |z| 0.98.
+The root-none replicate gave max |z| 0.98.
+
+The six new root-extant replicates are weaker than the first run (largest Stouffer |z|
+1.83), but they keep its direction in every statistic: positive z at the quantiles and a
+negative z for the mean, so the chains sit slightly young. The inverse-variance pooled mean
+bias (chain mean minus exact mean) is:
+
+- over the 6 unselected replicates: -0.00104 +- 0.00065 (z -1.60; 95% interval -0.0023 to
+  +0.0002);
+- over all 7 runs: -0.00144 +- 0.00060 (z -2.41).
+
+The 7-run figure includes the run that triggered the replication, so selection inflates
+it; the 6-run figure is the one to quote. Either way the bias is small, 0.12-0.16% of the
+posterior sd (0.89), but it is not excluded. It is tracked in #72.
 
 **Negative controls** (`-cross.csv`): max |z| over the six statistics when each run's chains
 are scored against each conditioning's exact posterior. The required one-flag alternatives
@@ -362,15 +401,32 @@ Crown (root) start:
 | none | **91.6** | 26.5 | 23.6 | 76.3 | (3.3) |
 
 Every one-flag alternative is rejected, the weakest at 19.7 (origin survival chains against
-survival-joint). The realised |z| are 1.3-1.9 times the design's predictions, because the
-design assumed half the observed ESS rate. Even pairs that differ in two flags, which the
+survival-joint). The realised max |z| are 1.36-1.93 times the design's predictions on the
+one-flag pairs and 1.40-2.04 times on the two-flag pairs, because the design assumed half
+the observed ESS rate. Even pairs that differ in two flags, which the
 design did not require, are rejected at 8.6 or more.
 
-**Validated combinations.** With a free start age, the chains recover the exact posterior,
-and only it, for crown and origin starts under extant, joint, survival, survival + joint
-and `condition = "none"`. This covers the combinations that section 4 left untested
-(crown + joint, joint + survival, none). Limits: fixed parameters, one small tree, no
-characters, K = 16.
+**What this shows, and what it does not.** With a free start age, for crown and origin
+starts under extant, joint, survival, survival + joint and `condition = "none"`:
+
+- every run rejects each one-flag alternative, at the bar fixed before the runs;
+- every run matches its own exact posterior within the bar chosen after the results.
+
+This covers the combinations that section 4 left untested (crown + joint, joint +
+survival, none). The exact reference is the package's own conditioned `TreeLikelihood()`,
+so the oracle shows that `TempoMCMC()`'s start-age moves sample that density and that each
+conditioning flag reaches the sampler. It does not show that the conditioning formulas
+themselves are right. Those are checked independently only in part:
+
+- extant conditioning, against forward simulation, in section 2;
+- `condition = "none"`, against simulation, in rung 3 (`data-raw/rung3-validation.R`,
+  Monte Carlo on tiny trees);
+- at beta = 0, `none`, `extant` and `survival` reduce to the closed-form FBD likelihood
+  (`tests/testthat/test-TreeLikelihood.R`).
+
+Survival conditioning and joint conditioning with rates that vary across bins have no
+check against simulation. Further limits: fixed parameters, one small tree, no characters,
+K = 16, and the small root-extant bias above (#72).
 
 ## Conditioning choice
 
@@ -381,6 +437,11 @@ the origin start uses that of the single stem lineage. This is documented in
 `dev/spec/dCET-spec.md` section 6.1.
 
 ## Deviations and limits
+
+- Section 5: the power design was chosen with the help of a Python port of the E/D
+  equations. The port and its comparison with `TreeLikelihood()` were not committed, so no
+  agreement is claimed for them here. An earlier version of section 5 claimed agreement to
+  1e-10; that claim is withdrawn.
 
 - Section 3 commits only the pooled summaries, not the 270 per-replicate result files of
   `rung5-age-validation.R` (about 1.3 GB of `.rds`), which were deleted with the Hamilton

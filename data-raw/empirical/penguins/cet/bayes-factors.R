@@ -112,7 +112,13 @@ if (args[[1]] == "eval") {
     aug <- vapply(betas, function(b) LogAugAt(st, b, me$gamma), 0)
     chr <- vapply(gammas, function(g) CharLLAt(st, g, dat$characters), 0)
     lp <- sum(vapply(names(priors), function(p) priors[[p]](st$par[[p]]), 0))
-    own <- LogAugAt(st, me$beta, me$gamma) + me$power * CharLLAt(st, me$gamma, dat$characters) + lp
+    # The chain's logPost includes the origin age prior (TempoMCMC() adds the
+    # prior of a free start age since #56; CetMoves() sets originAge = 1).  It
+    # is the same for every model point, so it cancels in the Bayes factors
+    # and is not part of logPrior; the check needs it (#67).
+    la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
+    own <- LogAugAt(st, me$beta, me$gamma) + me$power * CharLLAt(st, me$gamma, dat$characters) +
+      lp + la
     c(sample = i, setNames(aug, paste0("aug_b", format(betas))),
       setNames(chr, paste0("chr_g", format(gammas))), logPrior = lp,
       check = own - s$samples$logPost[i])

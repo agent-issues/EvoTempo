@@ -244,8 +244,9 @@ generalise:
   and one prior on it, and for cells A, B
   log q_B(x) - log q_A(x) = [log p(T, paths | Theta, beta_B) - log p(T, paths | Theta, beta_A)]
   + [log Mkv(D | T, paths, rate, gamma_B) - log Mkv(D | T, paths, rate, gamma_A)],
-  computable at every recorded state (`eval`; the chain's own value is
-  checked against its logPost: residuals 5e-12 to 6e-9 in the smoke run).
+  computable at every recorded state (`eval`; the chain's own value, with the
+  origin age prior that `TempoMCMC()` has added to logPost since #56, is
+  checked against its logPost: residuals 4e-12 to 9e-8 on the 20 smoke states per cell at this commit, against a constant 5.075 = log 160 before #67).
 - Two-sample bridge sampling (Meng & Wong 1996; `BridgeTwo()` from rung 7)
   on the draws of both posteriors estimates log Z_B / Z_A: the Bayes factor
   for all the data (characters, tip ages, sampled ancestors), with the tree
@@ -380,12 +381,12 @@ Workarounds live in `common.R`; the issues describe the engine support that
 would replace them.
 
 - Character model: per-character number of states, Mkv correction, ambiguous
-  states, among-character rate variation: <ISSUE_CHARS>.
+  states, among-character rate variation: #47.
 - `TempoMCMC()` output and control: per-sample trees and states, character
   log-likelihood column, character power, checkpoint/resume, bounded step
   adaptation, errors other than `infeasibleProposal` in proposals, topology
-  mixing, joint or transformed priors: <ISSUE_MCMC>.
-- DNA (stages 2-3): <ISSUE_DNA>.
+  mixing, joint or transformed priors: #48.
+- DNA (stages 2-3): #49.
 
 ## Deviations from the source analysis
 

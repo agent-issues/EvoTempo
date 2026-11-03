@@ -63,6 +63,53 @@
   .Hermite(eg, rep(at, nBin), seq_len(nBin), "E")
 }
 
+# Whether the paths start at an origin above the root, with a path on the
+# stem (`start = "origin"`; set by .ForModel())
+.Origin <- function(tree) {
+  isTRUE(tree[["origin"]])
+}
+
+# The tree as the samplers use it under `model`: with `start = "origin"`, the
+# root edge (`stem`) carries a path from the origin, whose bin is stored as
+# element nTip + nNode + 1 of the bin vector
+.ForModel <- function(tree, model) {
+  origin <- model[["start"]] == "origin"
+  if (origin) {
+    if (!(tree[["stem"]] > 0)) {
+      stop("`start = \"origin\"` needs a tree with a positive root edge")
+    }
+    if (tree[["sampled"]][tree[["root"]] - tree[["nTip"]]]) {
+      stop("The samplers do not support a sampled ancestor at the root")
+    }
+  }
+  tree[["origin"]] <- if (origin) TRUE
+  tree
+}
+
+# Age at which the process starts: the origin, or the root
+.StartAge <- function(tree) {
+  tree[["age"]][[tree[["root"]]]] + if (.Origin(tree)) tree[["stem"]] else 0
+}
+
+# Age of the top of the branch above each node in `v`: its parent's, or for
+# the root (with an origin) the origin's
+.TopAge <- function(tree, v) {
+  root <- tree[["root"]]
+  top <- tree[["age"]][tree[["parent"]][v]]
+  top[v == root] <- tree[["age"]][[root]] + tree[["stem"]]
+  top
+}
+
+# Bin at the top of the branch above node v: its parent's, or for the root
+# the origin bin
+.TopBin <- function(tree, bin, v) {
+  if (v == tree[["root"]]) {
+    bin[[tree[["nTip"]] + tree[["nNode"]] + 1L]]
+  } else {
+    bin[[tree[["parent"]][[v]]]]
+  }
+}
+
 # Model quantities at parameters `par`, for the augmented density
 .Precompute <- function(tree, par, model) {
   set <- .Setup(par, model)
@@ -70,7 +117,9 @@
   nBin <- nrow(Q)
   rho <- model[["rho"]]
   removal <- model[["removal"]]
-  rootAge <- tree[["age"]][[tree[["root"]]]]
+  rootAge <- .StartAge(tree)
+  # Conditioning on both root daughters, or on the single stem lineage
+  power <- if (.Origin(tree)) 1 else 2
   eg <- .EGrid(Q, set[["lambda"]], set[["mu"]], set[["psi"]], rho, rootAge,
                tree[["age"]])
   set[["eg"]] <- eg
@@ -83,27 +132,27 @@
     model[["condition"]],
     none = rep(1, nBin),
     extant = if (all(set[["psi"]] == 0)) {
-      (1 - .EVector(eg, rootAge))^2
+      (1 - .EVector(eg, rootAge))^power
     } else {
       eRoot <- .SolverInfeasible(ExtinctionProbability(
         rootAge, Q, set[["lambda"]], set[["mu"]] + removal * set[["psi"]], 0,
         rho
       ))
-      (1 - eRoot[1, ])^2
+      (1 - eRoot[1, ])^power
     },
-    survival = (1 - .EVector(eg, rootAge))^2
+    survival = (1 - .EVector(eg, rootAge))^power
   )
   set[["key"]] <- .SetKey(tree, par)
   set
 }
 
 # What a set from .Precompute() depends on besides the model: the parameters
-# that enter E and the generator (not `rate`), and the node ages, which are
-# points of the E grid.  Equal keys mean identical sets.
+# that enter E and the generator (not `rate`), the node ages, which are
+# points of the E grid, and the start age.  Equal keys mean identical sets.
 .SetKey <- function(tree, par) {
   list(par = vapply(c("lambda", "mu", "psi", "theta", "s"), function(p) {
     if (is.null(par[[p]])) 0 else as.numeric(par[[p]])
-  }, 0), age = tree[["age"]])
+  }, 0), age = tree[["age"]], start = .StartAge(tree))
 }
 
 # Whether `set` is the set of `tree` at parameters `par`
@@ -121,7 +170,7 @@
   logPi <- c(0, cumsum(log(up) - log(down)))
   set[["halfPi"]] <- exp((logPi - max(logPi)) / 2)
   off <- sqrt(up * down)
-  bounds <- seq(0, tree[["age"]][[tree[["root"]]]], length.out = nSlice + 1L)
+  bounds <- seq(0, .StartAge(tree), length.out = nSlice + 1L)
   set[["bounds"]] <- bounds
   if (.UseCpp()) {
     set[["slices"]] <- .SlicesCpp(set, (bounds[-1] + bounds[-length(bounds)]) / 2,
@@ -167,11 +216,12 @@
   out
 }
 
-# Branches carrying paths: every non-root node except sampled-ancestor tips
+# Branches carrying paths: every non-root node except sampled-ancestor tips,
+# and the root when the stem starts at an origin
 .PathNodes <- function(tree) {
   nAll <- tree[["nTip"]] + tree[["nNode"]]
   v <- seq_len(nAll)
-  v[!is.na(tree[["parent"]]) &
+  v[(!is.na(tree[["parent"]]) | (.Origin(tree) & v == tree[["root"]])) &
       !(v <= tree[["nTip"]] & c(tree[["tipType"]] == "ancestor",
                                 logical(tree[["nNode"]])))]
 }
@@ -181,7 +231,7 @@
   if (.UseCpp()) {
     return(.PiecesCpp(tree, set, v))
   }
-  top <- tree[["age"]][[tree[["parent"]][[v]]]]
+  top <- .TopAge(tree, v)
   bottom <- tree[["age"]][[v]]
   b <- set[["bounds"]]
   inside <- b[b > bottom + 1e-12 & b < top - 1e-12]
@@ -195,7 +245,8 @@
 }
 
 # Postorder frozen messages: D at each node, and per branch the backward
-# message at each piece boundary; log of the frozen likelihood
+# message at each piece boundary; log of the frozen likelihood.  With an
+# origin, `top` is the message at the origin.
 .Messages <- function(tree, set) {
   if (.UseCpp()) {
     return(.MessagesCpp(tree, set))
@@ -209,6 +260,7 @@
   beta <- vector("list", nAll)
   logScale <- 0
   removal <- set[["removal"]]
+  origin <- .Origin(tree)
   Up <- function(v) {
     pc <- .Pieces(tree, set, v)
     m <- length(pc[["M"]])
@@ -230,17 +282,27 @@
       value <- set[["psi"]] * (1 - removal) * Up(cont)
     } else {
       value <- Up(kids[[1]]) * Up(kids[[2]]) *
-        (if (v == tree[["root"]]) 1 else set[["lambda"]])
+        (if (v == tree[["root"]] && !origin) 1 else set[["lambda"]])
     }
     D[v, ] <- value / max(value)
     logScale <- logScale + log(max(value))
   }
-  list(D = D, pieces = pieces, beta = beta, logScale = logScale)
+  top <- if (origin) Up(tree[["root"]])
+  out <- list(D = D, pieces = pieces, beta = beta, logScale = logScale)
+  if (origin) {
+    out[["top"]] <- top
+  }
+  out
+}
+
+# Frozen message at the start: at the origin, or at the root
+.StartMessage <- function(tree, msg) {
+  if (.Origin(tree)) msg[["top"]] else msg[["D"]][tree[["root"]], ]
 }
 
 # Frozen likelihood (for testing the importance identity)
 .FrozenLikelihood <- function(tree, set, msg, joint = FALSE) {
-  top <- msg[["D"]][tree[["root"]], ]
+  top <- .StartMessage(tree, msg)
   prior <- set[["prior"]]
   if (joint) {
     log(sum(prior * top / set[["survive"]])) + msg[["logScale"]]
@@ -396,11 +458,16 @@
   }
   nAll <- tree[["nTip"]] + tree[["nNode"]]
   root <- tree[["root"]]
+  origin <- .Origin(tree)
   paths <- vector("list", nAll)
-  bin <- integer(nAll)
-  w <- set[["prior"]] * msg[["D"]][root, ]
+  bin <- integer(nAll + origin)
+  w <- set[["prior"]] * .StartMessage(tree, msg)
   if (set[["joint"]]) {
     w <- w / set[["survive"]]
+  }
+  if (origin) {
+    bin[nAll + 1L] <- .Sample1(w)
+    return(.SampleClade(tree, set, msg, paths, bin, root, bin[[nAll + 1L]]))
   }
   bin[root] <- .Sample1(w)
   out <- list(paths = paths, bin = bin)
@@ -442,19 +509,23 @@
   sum(vapply(nodes, function(v) .PathWeight(set, msg[["pieces"]][[v]], paths[[v]]), 0))
 }
 
-# Exact log augmented density (spec equation 3.4), start at the root
+# Exact log augmented density (spec equation 3.4), start at the root or, with
+# an origin, at the top of the stem
 .LogAugmented <- function(tree, set, paths, bin) {
   if (.UseCpp()) {
     return(.LogAugmentedCpp(tree, set, paths, bin))
   }
-  if (!.Compatible(tree, set[["condition"]])) {
+  origin <- .Origin(tree)
+  if (!.Compatible(tree, set[["condition"]], origin)) {
     return(-Inf)
   }
   nTip <- tree[["nTip"]]
   age <- tree[["age"]]
-  parent <- tree[["parent"]]
   nodes <- .PathNodes(tree)
-  ints <- lapply(nodes, function(v) .Intervals(paths[[v]], age[[parent[[v]]]], age[[v]]))
+  top <- .TopAge(tree, nodes)
+  ints <- lapply(seq_along(nodes), function(i) {
+    .Intervals(paths[[nodes[[i]]]], top[[i]], age[[nodes[[i]]]])
+  })
   k <- unlist(lapply(ints, `[[`, "bin"))
   hi <- unlist(lapply(ints, `[[`, "hi"))
   lo <- unlist(lapply(ints, `[[`, "lo"))
@@ -469,18 +540,19 @@
                                        .Hermite(set[["eg"]], lo, k))) +
     (if (is.null(jumps)) 0 else sum(log(Q[jumps])))
   internal <- tree[["postorder"]]
-  bif <- internal[!tree[["sampled"]][internal - nTip] & internal != tree[["root"]]]
+  bif <- internal[!tree[["sampled"]][internal - nTip] &
+                    (internal != tree[["root"]] | origin)]
   sa <- internal[tree[["sampled"]][internal - nTip]]
   tips <- seq_len(nTip)
   tipPart <- sum(log(.TipValues(tree, set)[cbind(tips, bin[tips])][tree[["tipType"]] != "ancestor"]))
-  root <- tree[["root"]]
+  start <- bin[[if (origin) nTip + tree[["nNode"]] + 1L else tree[["root"]]]]
   survive <- set[["survive"]]
   prior <- set[["prior"]]
   condition <- if (set[["joint"]]) {
-    log(survive[[bin[[root]]]])
+    log(survive[[start]])
   } else {
     log(sum(prior * survive))
   }
-  log(prior[[bin[[root]]]]) + pathPart + sum(log(lambda[bin[bif]])) +
+  log(prior[[start]]) + pathPart + sum(log(lambda[bin[bif]])) +
     sum(log(set[["psi"]][bin[sa]] * (1 - set[["removal"]]))) + tipPart - condition
 }

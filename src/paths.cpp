@@ -211,7 +211,7 @@ Path Bridge(const FrozenSet& set, int s, double span, int i, int j) {
 
 // .Pieces(tree, set, v), v zero-based
 Pieces MakePieces(const TreeView& tr, const FrozenSet& set, int v) {
-  const double top = tr.age[tr.parent[v]], bottom = tr.age[v];
+  const double top = tr.TopAge(v), bottom = tr.age[v];
   Pieces pc;
   pc.edges.push_back(top);
   for (int i = static_cast<int>(set.bounds.size()) - 1; i >= 0; --i) {
@@ -320,6 +320,7 @@ Path SampleBranch(const FrozenSet& set, const Pieces& pc, const Beta* betaIn,
 // Messages in C++ form
 struct Msg {
   std::vector<double> D;  // nAll x K column-major
+  std::vector<double> top;  // at the origin (empty without one)
   std::vector<Pieces> pieces;
   std::vector<Beta> beta;
   std::vector<int> has;
@@ -341,6 +342,10 @@ Msg MsgFromR(List msg, int nAll) {
     out.has[v] = 1;
   }
   out.logScale = as<double>(msg["logScale"]);
+  if (msg.containsElementNamed("top")) {
+    const NumericVector top = msg["top"];
+    out.top.assign(top.begin(), top.end());
+  }
   return out;
 }
 
@@ -369,7 +374,7 @@ void SampleClade(const TreeView& tr, const FrozenSet& set, const Msg& msg,
 }
 
 List DrawToR(const Draw& d, const List* pathsIn) {
-  const int nAll = d.bin.size();
+  const int nAll = d.paths.size();
   List paths = pathsIn ? clone(*pathsIn) : List(nAll);
   if (paths.size() < nAll) {
     List grown(nAll);
@@ -471,17 +476,21 @@ List MessagesCpp(List tree, List set) {
       const std::vector<double> u1 = Up(k1);
       const std::vector<double> u2 = Up(k2);
       for (int k = 0; k < K; ++k) {
-        value[k] = u1[k] * u2[k] * (v == tr.root ? 1.0 : fs.lambda[k]);
+        value[k] = u1[k] * u2[k] * (v == tr.root && !tr.origin ? 1.0 : fs.lambda[k]);
       }
     }
     const double mx = *std::max_element(value.begin(), value.end());
     for (int k = 0; k < K; ++k) D[v + static_cast<std::size_t>(k) * nAll] = value[k] / mx;
     logScale += std::log(mx);
   }
+  std::vector<double> top;
+  if (tr.origin) top = Up(tr.root);
   NumericMatrix Dm(nAll, K);
   std::copy(D.begin(), D.end(), Dm.begin());
-  return List::create(_["D"] = Dm, _["pieces"] = pieces, _["beta"] = beta,
-                      _["logScale"] = logScale);
+  List out = List::create(_["D"] = Dm, _["pieces"] = pieces, _["beta"] = beta,
+                          _["logScale"] = logScale);
+  if (tr.origin) out["top"] = NumericVector(top.begin(), top.end());
+  return out;
 }
 
 // [[Rcpp::export(name = ".BridgeCpp")]]
@@ -517,17 +526,24 @@ List SampleTreeCpp(List tree, List set, List msg) {
   Draw d;
   d.paths.resize(tr.nAll);
   d.hasPath.assign(tr.nAll, 0);
-  d.bin.assign(tr.nAll, 0);
+  d.bin.assign(tr.nAll + tr.origin, 0);
   try {
     std::vector<double> w(K);
     for (int k = 0; k < K; ++k) {
-      w[k] = fs.prior[k] * m.D[tr.root + static_cast<std::size_t>(k) * tr.nAll];
+      w[k] = fs.prior[k] * (tr.origin ? m.top[k] :
+                            m.D[tr.root + static_cast<std::size_t>(k) * tr.nAll]);
       if (fs.joint) w[k] = w[k] / fs.survive[k];
     }
-    d.bin[tr.root] = Sample1(w);
-    const int r = tr.root - tr.nTip;
-    for (int c = 0; c < 2; ++c) {
-      SampleClade(tr, fs, m, d, tr.kids[2 * r + c], d.bin[tr.root]);
+    if (tr.origin) {
+      // Origin bin, then the stem and the clade below it
+      d.bin[tr.nAll] = Sample1(w);
+      SampleClade(tr, fs, m, d, tr.root, d.bin[tr.nAll]);
+    } else {
+      d.bin[tr.root] = Sample1(w);
+      const int r = tr.root - tr.nTip;
+      for (int c = 0; c < 2; ++c) {
+        SampleClade(tr, fs, m, d, tr.kids[2 * r + c], d.bin[tr.root]);
+      }
     }
   } catch (const InfeasibleProposal& e) {
     return Infeasible(e);
@@ -545,7 +561,7 @@ List SampleCladeCpp(List tree, List set, List msg, List paths, IntegerVector bin
   d.paths.resize(tr.nAll);
   d.hasPath.assign(tr.nAll, 0);
   d.bin.assign(bin.begin(), bin.end());
-  d.bin.resize(tr.nAll, 0);
+  d.bin.resize(std::max<int>(bin.size(), tr.nAll + tr.origin), 0);
   try {
     SampleClade(tr, fs, m, d, v - 1, kTop);
   } catch (const InfeasibleProposal& e) {
@@ -573,12 +589,12 @@ double LogWeightCpp(List tree, List set, List msg, List paths, IntegerVector nod
   return LongSum(terms);
 }
 
-// .LogAugmented(): exact log augmented density, start at the root
+// .LogAugmented(): exact log augmented density, start at the root or origin
 // [[Rcpp::export(name = ".LogAugmentedCpp")]]
 double LogAugmentedCpp(List tree, List set, List paths, IntegerVector bin) {
   const TreeView tr(tree);
   const FrozenSet fs(set, false);
-  if (fs.condition == "extant" && !tr.CrownCompatible()) {
+  if (fs.condition == "extant" && !tr.Compatible()) {
     return -std::numeric_limits<double>::infinity();
   }
   const int nTip = tr.nTip;
@@ -589,7 +605,7 @@ double LogAugmentedCpp(List tree, List set, List paths, IntegerVector bin) {
     const Path p = PathFromR(paths[v]);
     const int n = p.k.size();
     for (int i = 0; i < n; ++i) {
-      const double hi = i == 0 ? tr.age[tr.parent[v]] : p.t[i - 1];
+      const double hi = i == 0 ? tr.TopAge(v) : p.t[i - 1];
       const double lo = i == n - 1 ? tr.age[v] : p.t[i];
       const int k = p.k[i] - 1;
       part.push_back((fs.q(k, k) - fs.sigma[k]) * (hi - lo) +
@@ -607,7 +623,7 @@ double LogAugmentedCpp(List tree, List set, List paths, IntegerVector bin) {
     const int b = bin[v] - 1;
     if (tr.sampled[v - nTip]) {
       psiTerms.push_back(std::log(fs.psi[b] * (1 - fs.removal)));
-    } else if (v != tr.root) {
+    } else if (v != tr.root || tr.origin) {
       lamTerms.push_back(std::log(fs.lambda[b]));
     }
   }
@@ -615,7 +631,7 @@ double LogAugmentedCpp(List tree, List set, List paths, IntegerVector bin) {
     if (tr.tipType[i] == EvoTempo::kAncestor) continue;
     tipTerms.push_back(std::log(fs.TipValue(tr.tipType[i], tr.age[i], bin[i] - 1)));
   }
-  const int rootBin = bin[tr.root] - 1;
+  const int rootBin = bin[tr.origin ? tr.nAll : tr.root] - 1;  // start bin
   double condition;
   if (fs.joint) {
     condition = std::log(fs.survive[rootBin]);
@@ -640,7 +656,7 @@ NumericVector CharacterLengthsCpp(List tree, NumericVector x, List paths,
     const int n = p.k.size();
     terms.assign(n, 0.0);
     for (int i = 0; i < n; ++i) {
-      const double hi = i == 0 ? tr.age[tr.parent[v]] : p.t[i - 1];
+      const double hi = i == 0 ? tr.TopAge(v) : p.t[i - 1];
       const double lo = i == n - 1 ? tr.age[v] : p.t[i];
       terms[i] = std::exp(gamma * x[p.k[i] - 1]) * (hi - lo);
     }

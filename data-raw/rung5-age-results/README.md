@@ -218,8 +218,8 @@ to the pooled -2.36 and +0.87; quantile tests per batch are not available (#57).
 ## 4. Start-age moves under joint and survival conditioning (#54)
 
 Sections 1-3 use extant conditioning, marginal over the start bin. The oracle of section 1
-was rerun with the other conditionings that `TempoMCMC()` permits with a free start age:
-joint conditioning on the origin start, and `condition = "survival"` on both starts
+was rerun with three other conditionings with a free start age: joint conditioning on the
+origin start, and `condition = "survival"` on both starts
 (`Rscript data-raw/rung5-age-oracle.R <root|origin> 20000 32 <joint|survival>`; 32 chains x
 20000 iterations each, seeds 19900 + i and 20900 + i, otherwise as in section 1). Results are
 in `rung5-age-oracle-<case>-<variant>.csv`.
@@ -250,7 +250,127 @@ reviewers' probe script (24 chains x 15000 iterations, seeds 43001-43024, at the
 `main` into this branch) gave a largest |z| of 1.85 (origin-joint q05). In the same probe,
 seeded chains with characters, every tree move and an age move agreed between the R and
 C++ engines under joint (origin) and survival (crown) conditioning, to 3e-11 relative, with
-identical acceptance; `tests/testthat/test-Origin.R` now includes both cases.
+identical acceptance; `tests/testthat/test-Origin.R` now includes both cases. The probe's
+output is `pr43-probe-output.txt` (the probe script itself was not committed).
+
+**These runs have no power to tell the conditionings apart (#69).** At the fixture
+parameters the survival probability barely depends on the start age. The largest shift
+of an exact quantile from the extant-conditioned one is 0.0024 for origin-joint, 0.0010
+for origin-survival and 0.0078 for root-survival, which is 0.53, 0.16 and 1.61 SE. So a
+chain that ignored `joint` or `condition = "survival"` would pass this table as well.
+Section 5 repeats the oracle at parameters where the conditionings differ, with a
+negative control.
+
+## 5. High-power start-age oracle with negative controls (#69)
+
+Section 4 cannot tell the conditionings apart. This section reruns the oracle of section 1 at
+parameters where they differ, for every conditioning that `TempoMCMC()` accepts with a free
+start age, and scores each run against every other conditioning's exact posterior as a
+negative control.
+
+**Design** (`rung5-age-oracle.R <case> 60000 32 <variant> power`). Same tree, grid (K = 16,
+z in [-3, 3]), moves and age priors as section 1, with lambda = mu = 1, psi = 0.15,
+theta = 0.4, s = 1 and rho = 0.35. The process is critical in every bin, so the survival
+probability falls steadily with the start age, and the bins spread over e^-3 to e^3, so
+conditioning given the start bin (joint) differs from marginal conditioning. The exact
+reference uses a 641-point grid. The variants are `extant`, `joint` (extant, joint),
+`survival`, `survival-joint` and `none`, on both starts: 10 runs of 32 chains x 60000
+iterations, seeds 118900 + i, 119900 + i, 120900 + i, 121900 + i and 122900 + i.
+Each run took 12-20 min on 16 cores (Hamilton, EvoTempo 589f866 with this commit's
+`data-raw/`).
+
+**Power, before running** (`rung5-age-oracle.R <case> 60000 32 design power`;
+`rung5-age-oracle-<case>-power-design.csv`, and the exact posteriors in `-design-exact.csv`).
+For chains targeting A, scored against B's exact posterior, the expected |z| is
+|F_A(q_B(p)) - p| / sqrt(p(1 - p) / ESS) at B's quantiles, and the difference of means over
+sd_A / sqrt(ESS). The assumed ESS is 0.078 per chain iteration, half the rate observed in
+section 4. Over the one-flag pairs (one conditioning flag changed: joint and marginal,
+extant and survival, extant and none), the smallest expected max |z| was 14.5 (origin) and
+30.3 (root). At the section-4 parameters it is 0.20 and 0.90
+(`rung5-age-oracle-<case>-design.csv`). The exact posteriors were also reproduced
+independently, to 1e-10, by a Python port of the E/D equations used to choose the design.
+
+**Pre-registered criteria.** Each run must match its own exact posterior with |z| < 3.5 for
+all six statistics (60 in total; about 3% family-wise false alarms). It must also reject
+every one-flag alternative with max |z| >= 5.
+
+**Own target** (`rung5-age-oracle-<case>-power-<variant>.csv`): z of the chains against their
+own conditioning's exact posterior.
+
+Origin start:
+
+| conditioning | q05 | q25 | q50 | q75 | q95 | mean |
+|---|---|---|---|---|---|---|
+| extant | 0.06 | 0.17 | -0.29 | 0.90 | 1.74 | -0.64 |
+| joint | 0.61 | -0.69 | -0.92 | -0.20 | -1.66 | 1.91 |
+| survival | 0.92 | 1.12 | 1.97 | 1.32 | 1.15 | -1.79 |
+| survival-joint | -1.96 | -1.96 | -1.30 | 0.07 | 0.98 | 0.96 |
+| none | 1.36 | 0.76 | -0.64 | -1.45 | -2.10 | 1.04 |
+
+Crown (root) start:
+
+| conditioning | q05 | q25 | q50 | q75 | q95 | mean |
+|---|---|---|---|---|---|---|
+| extant | 1.25 | 0.32 | 1.01 | 2.38 | 3.01 | -2.46 |
+| joint | 2.03 | 0.91 | 0.42 | -0.28 | -0.86 | -0.40 |
+| survival | -1.12 | -1.12 | -1.46 | -0.69 | -0.10 | 1.16 |
+| survival-joint | 1.02 | 0.81 | 0.54 | -0.46 | 0.07 | -0.19 |
+| none | -0.08 | -0.24 | -3.30 | -1.00 | 0.80 | 1.61 |
+
+The largest |z| is 3.30 (root, none, q50), so every run passes. Root-extant had a coherent
+pattern (q75 2.38, q95 3.01, mean -2.46; the section-1 run at the old design has the same
+signs). So it was rerun six times with new seeds (`EVOTEMPO_RUNG5_SEED_OFFSET` = 50000 to
+100000, 192 more chains; `-power-extant-seed<offset>.csv`):
+
+| replicate (seed offset) | q05 | q25 | q50 | q75 | q95 | mean |
+|---|---|---|---|---|---|---|
+| 0 | 1.25 | 0.32 | 1.01 | 2.38 | 3.01 | -2.46 |
+| 50000 | -1.40 | 0.67 | -0.25 | 0.59 | 1.07 | -0.44 |
+| 60000 | 1.41 | 1.75 | 1.17 | 1.18 | 0.74 | -1.89 |
+| 70000 | 1.57 | 1.37 | 0.75 | 1.10 | 1.21 | -1.70 |
+| 80000 | 1.34 | -0.54 | -0.80 | 0.72 | -0.42 | 0.13 |
+| 90000 | -0.20 | 1.13 | 0.53 | 0.23 | 0.51 | -0.75 |
+| 100000 | 0.60 | 0.09 | 0.51 | -1.30 | -2.82 | 1.10 |
+| Stouffer, the 6 new replicates | 1.36 | 1.83 | 0.78 | 1.03 | 0.12 | -1.45 |
+
+The new replicates do not repeat the pattern (largest pooled |z| 1.83). Their pooled mean
+bias is -0.0010 +- 0.0006, against a posterior sd of 0.89 (95% interval -0.0023 to
++0.0002). One extra root-none replicate (seed offset 50000) gave max |z| 0.98.
+
+**Negative controls** (`-cross.csv`): max |z| over the six statistics when each run's chains
+are scored against each conditioning's exact posterior. The required one-flag alternatives
+are in bold and the run's own target is in brackets.
+
+Origin start:
+
+| chains \ scored against | extant | joint | survival | survival-joint | none |
+|---|---|---|---|---|---|
+| extant | (1.7) | **22.3** | **48.4** | 69.3 | **41.8** |
+| joint | **27.3** | (1.9) | 35.3 | **62.0** | 26.9 |
+| survival | **52.2** | 28.6 | (2.0) | **19.7** | 8.6 |
+| survival-joint | 84.3 | **56.4** | **24.5** | (2.0) | 32.6 |
+| none | **52.1** | 23.4 | 9.3 | 35.4 | (2.1) |
+
+Crown (root) start:
+
+| chains \ scored against | extant | joint | survival | survival-joint | none |
+|---|---|---|---|---|---|
+| extant | (3.0) | **47.2** | **85.5** | 125.6 | **68.7** |
+| joint | **53.1** | (2.0) | 40.1 | **82.6** | 22.3 |
+| survival | **108.4** | 46.5 | (1.5) | **51.2** | 19.8 |
+| survival-joint | 147.3 | **90.2** | **46.3** | (1.0) | 65.6 |
+| none | **91.6** | 26.5 | 23.6 | 76.3 | (3.3) |
+
+Every one-flag alternative is rejected, the weakest at 19.7 (origin survival chains against
+survival-joint). The realised |z| are 1.3-1.9 times the design's predictions, because the
+design assumed half the observed ESS rate. Even pairs that differ in two flags, which the
+design did not require, are rejected at 8.6 or more.
+
+**Validated combinations.** With a free start age, the chains recover the exact posterior,
+and only it, for crown and origin starts under extant, joint, survival, survival + joint
+and `condition = "none"`. This covers the combinations that section 4 left untested
+(crown + joint, joint + survival, none). Limits: fixed parameters, one small tree, no
+characters, K = 16.
 
 ## Conditioning choice
 

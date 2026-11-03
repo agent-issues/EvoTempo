@@ -1,0 +1,44 @@
+EvoTempo from /nobackup/pjjg18/evotempo-pr43/lib-merge/EvoTempo 
+
+== 1. Oracle mean: Riemann vs trapezoid ==
+origin: riemann 5.43187 trapezoid 5.43579 | mcmc 5.43714 se 0.00256 | z(riemann) 2.06 z(trapezoid) 0.53 | density at lower bound (normalised) 0.689
+root: riemann 4.25709 trapezoid 4.26209 | mcmc 4.25937 se 0.00157 | z(riemann) 1.45 z(trapezoid) -1.73 | density at lower bound (normalised) 1.121
+
+== 2. Extra oracles (conditioning variants not covered by the PR) ==
+         case    p exact     cdf       z
+ origin-joint 0.05 4.275 0.04861 -1.8516
+ origin-joint 0.25 4.617 0.24757 -1.6979
+ origin-joint 0.50 5.188 0.49760 -1.3206
+ origin-joint 0.75 6.078 0.74782 -1.3194
+ origin-joint 0.95 7.420 0.94988 -0.1258
+ origin-joint   NA 5.437 5.44318  1.5531
+          case    p exact     cdf       z
+ root-survival 0.05 3.445 0.05068  0.7440
+ root-survival 0.25 3.655 0.24939 -0.4221
+ root-survival 0.50 4.019 0.50049  0.2571
+ root-survival 0.75 4.639 0.74806 -1.1827
+ root-survival 0.95 5.925 0.94974 -0.2761
+ root-survival   NA 4.257 4.25830  0.3130
+            case    p exact     cdf        z
+ origin-survival 0.05 4.274 0.04986 -0.14688
+ origin-survival 0.25 4.615 0.25079  0.46728
+ origin-survival 0.50 5.186 0.49988 -0.06119
+ origin-survival 0.75 6.075 0.74853 -0.87321
+ origin-survival 0.95 7.419 0.94918 -1.15655
+ origin-survival   NA 5.435 5.43844  0.79597
+oracle time 8.167405 mins 
+
+== 3. Edge probes ==
+3a origin age range - 4.6: 0 0  unique values: 1 
+3b originAge acceptance with start outside prior support: 0  range: 4.6 4.6 
+3c crown SA root + rootAge: error: No pieces for branch 1 
+3c TreeLikelihood on that tree: The root cannot bear a sampled ancestor unless `start = "origin"` 
+3d logPost last -42.29111  LogAugmented -42.29111  ageprior -4.825699 
+3e rootBin column (root node bin) 6  origin bin 9 
+
+== 4. Engine agreement, joint / survival conditioning with age moves ==
+origin joint : max rel diff 3.132264e-11  acceptance identical: TRUE  age acc 0.62 0.67 0 0.92 
+root survival : max rel diff 4.93201e-12  acceptance identical: TRUE  age acc 0.58 0.58 0.92 0 
+
+== 5. test-Origin.R ==
+exit 0

@@ -84,6 +84,27 @@ with its youngest tip at age 0, which lies outside that tip's fixed age ("The ag
 initial tree is outside of specified bounds"). The chains therefore run on Hamilton's `long`
 partition (7 days) in one job each, rather than as 3-day jobs resumed from checkpoints.
 
+## Build check
+
+This is a data-free check: the same model with `mymodel.ignoreAllData()`, 2 chains per build,
+200 000 iterations sampled every 100, and 10 % burn-in. Cells give mean ± MCSE, with the two chain
+means in brackets. Logs are on Hamilton under
+`/nobackup/pjjg18/evotempo-baselines-rb141/prior-check-tri/`.
+
+| Quantity | v1.4.1 | development `a2a8e2db` |
+|---|---|---|
+| sampled ancestors | 100.6 ± 0.3 [99.6, 101.7] | 6.49 ± 0.13 [6.36, 6.62] |
+| sampling proportion s | 0.953 ± 0.002 | 0.0111 ± 0.0004 |
+| root age (Ma) | 519.40 ± 0.01 | 519.62 ± 0.01 |
+| ingroup age (Ma) | 518.48 ± 0.01 | 518.87 ± 0.01 |
+
+Under v1.4.1, about 101 of the 107 tips become sampled ancestors under the prior, even though all
+ages are points. That rules out the interval-age `mvCollapseExpandFossilBranch` bug that affects
+the penguin and Hymenoptera data. The development build also contains sampled-ancestor fixes,
+including `mvNarrow` reversibility with sampled-ancestor tips. The v1.4.1 chains were therefore
+superseded. Their posterior had about 3 sampled ancestors, so the data dominate the prior there,
+but the v1.4.1 results are not reported.
+
 ## Results
 
 {{RESULTS}}

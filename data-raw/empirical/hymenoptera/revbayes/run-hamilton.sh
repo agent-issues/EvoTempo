@@ -19,6 +19,7 @@
 #SBATCH --time=3-00:00:00
 
 set +e; set +o pipefail
+source /etc/profile >/dev/null 2>&1
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 module purge
 module load gcc/14.2 boost/1.88.0

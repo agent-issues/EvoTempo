@@ -137,6 +137,31 @@ What the variants show:
 - **Sampled ancestors bias up-down (B) and `mvSubtreeScale` (E)**, because nodes are counted that
   were not scaled. Without them `mvSubtreeScale` (F) and `mvTreeScale` (K) agree with the reference.
 - **`mvLayeredScaleProposal` is biased even without sampled ancestors (H).**
+- **With sampled ancestors, up-down is biased even when the root age is a variable of the move.**
+  Variants L and M repeat I and J on 4 extant taxa and 6 fossils. The root is constrained to
+  split e1 from the rest, and `root_time ~ dnExponential(1, offset = 3)`. Values are M minus L,
+  with z in MCSE:
+
+  | Build | x | root age | tree length | sampled ancestors |
+  |---|---|---|---|---|
+  | 1.4.1 | −0.830 (z −60) | +0.210 (z +123) | +0.547 (z +32) | −0.088 (z −16) |
+  | development `a2a8e2db` | −0.863 (z −64) | +0.214 (z +126) | +0.562 (z +33) | −0.081 (z −15) |
+
+  Up-down is therefore not usable on any FBD tree with sampled ancestors in either build, and the
+  `te-*` chains run without it.
+- **Fossils must be kept off the root when the root age is a variable.** In an earlier L/M design
+  the topology was unconstrained, and the root ran away to about 13 700 in both builds. The
+  cause is a separate fault. With `dnFBDP(rootAge = root_time)` and
+  `mvCollapseExpandFossilBranch(tree, root_time)`, collapsing a fossil that is a child of the root
+  sets the root node's age to the fossil's age, while `root_time` stays unchanged
+  (`CollapseExpandFossilBranchProposal.cpp`, lines 169–192 in `a2a8e2db`). Each later move on
+  `root_time` then carries the fossil, now a sampled ancestor at the root, with the root. No
+  age-range check stops this, and a root-age prior bounded above the oldest fossil does not
+  prevent it. Origin-conditioned trees are not affected.
+
+  The analysis here is safe for two reasons. All 45 fossils lie inside the constrained
+  Holometabola clade, and the root lies outside it. We also checked every fifth sampled tree of
+  every chain: no tree has a fossil outside its age range or a sampled ancestor at the root.
 
 The penguin baseline's round-1 and round-2 model (`../../penguins/revbayes/penguins_fbd.Rev`)
 used up-down on an origin-conditioned FBD tree with sampled ancestors.

@@ -21,14 +21,16 @@
 #   I        10 extant, stochastic root age     none (reference for J)
 #   J        as I                               mvUpDownScale(x up, tree down, root_time down)
 #   K        as C                               mvTreeScale(tree) (count should be right)
+#   L        4 extant + 6 fossils, stochastic root age   none (reference for M)
+#   M        as L                               mvUpDownScale(x up, tree down, root_time down)
 #
 # x ~ Exp(1) is independent of the tree in every variant (a deterministic
 # node links it into the model graph); it is paired with the tree in B, D, J.
 # A driver sets variant, variant_seed and n_gen; output sa-check/<variant>_<seed>.log
 ################################################################################
 seed(variant_seed)
-fossils = (variant == "A" || variant == "B" || variant == "E" || variant == "G")
-rooted = (variant == "I" || variant == "J")
+fossils = (variant == "A" || variant == "B" || variant == "E" || variant == "G" || variant == "L" || variant == "M")
+rooted = (variant == "I" || variant == "J" || variant == "L" || variant == "M")
 if (fossils) {
   for (i in 1:4) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
   fossil_ages = v(0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
@@ -39,10 +41,11 @@ if (fossils) {
 moves = VectorMoves()
 if (rooted) {
   root_time ~ dnExponential(0.5)
-  root_time.setValue(3.0)
+  root_time.setValue(4.0)
   tree ~ dnFBDP(rootAge = root_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
                 taxa = taxa_list, condition = "survival")
   moves.append( mvSlide(root_time, delta = 0.5, weight = 3) )
+  if (fossils) moves.append( mvCollapseExpandFossilBranch(tree, root_time, weight = 5) )
 } else {
   origin_time <- 6.0
   tree ~ dnFBDP(originAge = origin_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
@@ -55,11 +58,11 @@ moves.append( mvNodeTimeSlideUniform(tree, weight = 10) )
 moves.append( mvFNPR(tree, weight = 5) )
 moves.append( mvNarrow(tree, weight = 5) )
 moves.append( mvScale(x, lambda = 0.5, weight = 1) )
-if (variant == "B" || variant == "D" || variant == "J") {
+if (variant == "B" || variant == "D" || variant == "J" || variant == "M") {
   ud = mvUpDownScale(lambda = 0.5, weight = 10)
   ud.addVariable(x, up = true)
   ud.addVariable(tree, up = false)
-  if (variant == "J") ud.addVariable(root_time, up = false)
+  if (variant == "J" || variant == "M") ud.addVariable(root_time, up = false)
   moves.append( ud )
 }
 if (variant == "E" || variant == "F") moves.append( mvSubtreeScale(tree, weight = 10) )

@@ -41,9 +41,13 @@ if (fossils) {
 moves = VectorMoves()
 if (rooted) {
   if (fossils) {
-    # bounded: with fossils, the root-age-conditioned FBD density alone lets the
-    # root drift upwards (an offset-exponential prior did not hold it)
-    root_time ~ dnUniform(3.0, 6.0)
+    # Lower bound above the oldest fossil (3.0). If the root may reach a fossil's
+    # age, collapse/expand + FNPR/narrow can make that fossil a sampled ancestor
+    # AT the root, after which root-age moves drag the fossil's age with them
+    # (no age-range check; both builds) and the root runs away. As in the
+    # Hymenoptera analysis (root >= 315 Ma, oldest fossil <= 242 Ma), a root
+    # prior bounded above every fossil rules this out.
+    root_time ~ dnExponential(1, offset = 3.5)
   } else {
     root_time ~ dnExponential(0.5)
   }

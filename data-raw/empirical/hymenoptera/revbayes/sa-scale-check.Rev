@@ -40,7 +40,12 @@ if (fossils) {
 }
 moves = VectorMoves()
 if (rooted) {
-  root_time ~ dnExponential(0.5)
+  if (fossils) {
+    # bounded below by the oldest fossil (3.0); a light tail keeps the chain mixing
+    root_time ~ dnExponential(1, offset = 3)
+  } else {
+    root_time ~ dnExponential(0.5)
+  }
   root_time.setValue(4.0)
   tree ~ dnFBDP(rootAge = root_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
                 taxa = taxa_list, condition = "survival")

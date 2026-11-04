@@ -41,8 +41,9 @@ if (fossils) {
 moves = VectorMoves()
 if (rooted) {
   if (fossils) {
-    # bounded below by the oldest fossil (3.0); a light tail keeps the chain mixing
-    root_time ~ dnExponential(1, offset = 3)
+    # bounded: with fossils, the root-age-conditioned FBD density alone lets the
+    # root drift upwards (an offset-exponential prior did not hold it)
+    root_time ~ dnUniform(3.0, 6.0)
   } else {
     root_time ~ dnExponential(0.5)
   }

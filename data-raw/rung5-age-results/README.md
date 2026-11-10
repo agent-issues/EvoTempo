@@ -387,14 +387,21 @@ once at dc47aed: 80 runs x 32 chains x 60 000 iterations in three arms. Deviatio
 pre-registration are listed in `bias72/deviations-bias72.md`; the main one is that the
 analysis scripts were written by the agent that ran the test (still before any chain data
 were seen). Results: `bias72/bias72-arms.csv` (per arm), `bias72/bias72-perrun.csv` (per
-run) and `bias72/bias72-verdict.csv` (decision rules).
+run) and `bias72/bias72-verdict.csv` (decision rules). The scripts that ran are in
+`bias72/scripts/` (`oracle-gamma.R`, the arm-B variant of `rung5-age-oracle.R`; the Slurm
+array `run-array.sh` with `tasks.txt`; and `extract.R`, `fine-exact.R` and `analyse.R`).
+The per-run chain output (`.rds`) was deleted after extraction, so the pooled arm
+statistics cannot be regenerated from the committed per-run CSV, which has per-run z and
+acceptance but no per-run bias or SE. Artifact IDs in the two `.md` files refer to the
+project's analysis records, not to repository files.
 
 - Arm A, the unchanged power design (root start, extant conditioning; 40 runs, 1280
   chains): bias +0.000070 +- 0.000236 (z 0.30; 99% interval -0.00054 to +0.00068). This
   excludes both the 7-run -0.00144 and the 6-run -0.00104 above, so there is no bias of the
-  reported size; a bias up to about 0.0007 in either direction is not excluded.
-- Arm B, the root-age prior changed to a gamma with its lower bound away from the posterior
-  mass (grid to 12; 24 runs): -0.000006 +- 0.000252 (z -0.02).
+  reported size; a bias between about -0.0005 and +0.0007 is not excluded.
+- Arm B, root-age prior 3.4 + Gamma(3, 0.6) truncated to (3.4, 12): the same lower bound,
+  but the prior density vanishes there, so the posterior mass moves off the bound (exact
+  mean 4.64 against 4.46 in arm A; 24 runs): -0.000006 +- 0.000252 (z -0.02).
 - Arm C, an origin-start control (16 runs): +0.00085 +- 0.00045 (z 1.91).
 
 Neither B nor C is a finding under the pre-registered rules. The earlier signal is best

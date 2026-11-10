@@ -6,8 +6,10 @@ is a single configuration (`morph`), run as six independent chains. The reported
 build at commit `a2a8e2db` (`rb --version`: `1.4.2-preview`, `/nobackup/pjjg18/revbayes-dev-a2a8e2db` on
 Hamilton), not the v1.4.1 release and not the cluster's `revbayes/1.2.5` module. A data-free check
 (see **Build check**) gave very different sampled-ancestor priors for v1.4.1 and the development
-build, so the first set of 6 v1.4.1 chains was superseded. The development-build chains started
-from their last states.
+build, so the first set of 6 v1.4.1 chains was superseded. An independent BEAST2 oracle agrees
+with the development build (see **Build check**). The development-build chains started from the
+last tree and seven scalar values of the v1.4.1 chains; `hamilton-runs.md` records the commands,
+and `start-states/` holds the starting states.
 
 ## Files
 
@@ -19,6 +21,9 @@ from their last states.
 | `run-hamilton.sh`, `launch-hamilton.sh` | One chain per Slurm job; chains run on `long` (7 days), see **Checkpoints** |
 | `summarise-hamilton.sh`, `summarise.R`, `mcc.Rev` | Pooled post-burn-in trees, MCC tree and the CSVs in `summary/` |
 | `check-diagnostics.R` | Checks that the coda-free ESS, PSRF and HPD in `summarise.R` reproduce coda |
+| `hamilton-runs.md` | The commands that produced the reported chains: build, per-chain starting states, job IDs |
+| `start-states/` | Start tree, start values and driver of each reported chain, as written by `run-hamilton.sh` |
+| `prior-check/` | Build-check script, summariser and results, and the independent BEAST2 oracle (see **Build check**) |
 | `published.csv` | Root and ingroup ages from the source's consensus trees (`../raw/Dataset_4_BEAST_and_BEAST2.zip`) |
 | `summary/` | Results (below). Pooled tree files and traces are not committed |
 
@@ -27,12 +32,12 @@ from their last states.
 | Component | This analysis (RevBayes) | Paterson et al. 2019 |
 |---|---|---|
 | Tree prior | `dnFBDP(originAge, lambda, mu, psi, rho = 0)` with sampled ancestors; time 0 = 485.4 Ma; `condition = "sampling"` | BEAST2: `SABirthDeathModel` (FBD with sampled ancestors, strict clock, discrete data only). BEAST 1.8 main analyses: birth-death serial sampling without sampled ancestors |
-| Net diversification, turnover, sampling proportion | LogNormal(−3.5, 1.5); U(0, 1); U(0, 1) | BEAST2: the same |
-| Origin | U(0, 1000) Myr above the youngest tip (486.0 Ma) | BEAST2: origin ~ U(0, 1000) above the youngest tip |
+| Net diversification, turnover, sampling proportion | LogNormal(−3.5, 1.5); U(0, 1); U(0, 1) | BEAST2: the same, with ρ tied to the sampling proportion (see below). BEAST 1.8: birth rate ~ U(0, 1000), relative death rate ~ U(0, 1), ψ ~ U(0, 1000) |
+| Origin | U(0, 1000) Myr above the youngest tip (486.0 Ma) | BEAST2: **fixed** at 150 Myr above the youngest tip (636 Ma; `SABD…xml` and `BDSS…xml`, line 528). Their U(0, 1000) prior (line 536) is on a parameter, `originF.t`, that the tree prior does not use. BEAST 1.8: origin ~ U(0, 10⁸) |
 | Tip ages | fixed point ages (`../trilobites_tips.csv`) | fixed |
 | Topology | ingroup (all but the three fallotaspidoids) monophyletic | the same constraint |
-| Clock | UCLN: mean rate ~ U(0, 100) (real-space mean); coefficient of variation ~ Exponential(mean 1/3), log-SD = √ln(1 + CV²); non-centred multipliers | BEAST 1.8 UCLN analysis: the same priors. BEAST2: strict clock |
-| Morphology | Mkv (`coding = "variable"`) + Γ4, one shape ~ Exponential(mean 0.5); partitions by number of states K; characters 45 (K = 5) and 47 (K = 4) ordered; character 17 excluded | BEAST 1.8: Mkv partitioned by number of states, partition rates scaled, Γ shape ~ Exponential(mean 0.5), the same two characters ordered. BEAST2: 106 characters in unordered and ordered partitions with relative rates |
+| Clock | UCLN: mean rate ~ U(0, 100) (real-space mean); coefficient of variation of the lognormal ~ Exponential(mean 1/3), log-SD = √ln(1 + CV²); non-centred multipliers | BEAST 1.8 UCLN analysis: mean rate ~ U(0, 100). Exponential(mean 1/3) prior on the *empirical* CV of the discretised branch rates (`discrete.coefficientOfVariation`, line 4165); none on the log-SD `discrete.ucld.stdev` (line 2840). BEAST2: strict clock |
+| Morphology | Mkv (`coding = "variable"`) + Γ4, one shape ~ Exponential(mean 0.5); partitions by number of states K; characters 45 (K = 5) and 47 (K = 4) ordered; character 17 excluded | BEAST 1.8: Mkv partitioned by number of states, partition rates scaled, Γ shape ~ Exponential(mean 0.5), the same two characters ordered. BEAST2: 106 characters in unordered and ordered partitions with relative rates. BEAST 1.8 and BEAST2 score polymorphic cells as missing (`useAmbiguities="false"`); RevBayes treats them as ambiguous among the listed states. BEAST2: Γ shape ~ U(0, 10) |
 | Other traits | not used (outside Mk) | BEAST 1.8 main analyses: 2 meristic and 6 continuous traits with separate clocks |
 
 ### FBD conditioning for an all-fossil tree
@@ -52,22 +57,51 @@ and is an ordinary ψ-sample.
 
 ### Differences from the source analysis
 
-1. **Clock and tree prior combine two source analyses.** The tree prior is the BEAST2 FBD analysis
-   (the only source analysis with sampled ancestors). The clock and Γ priors are the BEAST 1.8 UCLN
-   analysis (the only source analysis with a relaxed clock).
+1. **Clock and tree prior combine two source analyses, and match neither exactly.** The priors on
+   diversification, turnover and sampling proportion are those of the BEAST2 FBD analysis, the
+   only source analysis with sampled ancestors. The BEAST2 analysis differs in three further
+   ways:
+   - it fixes the origin at 636 Ma, where ours has origin ~ U(0, 1000) Myr above the youngest tip;
+   - it ties ρ to the sampling proportion, where ours has ρ = 0 at the end of the sampling window;
+   - it has Γ shape ~ U(0, 10).
+
+   The clock and Γ priors are those of the BEAST 1.8 UCLN analysis, the only source analysis with
+   a relaxed clock, except for the CV prior (item 5).
 2. **Discrete characters only, 106 of 107.** Character 17 shows one state in all taxa; it carries no
    information under Mkv and cannot be scored with `coding = "variable"`. The BEAST2 files also
    have 106 characters, which is consistent with this being the character that analysis dropped
    (the curated README leaves this open). That has not been checked column by column: the BEAST2
    matrices recode some characters. The 2 meristic and 6 continuous traits of the BEAST 1.8 analyses are not used.
+
+   One character changes partition. BEAST 1.8's partitions hold 80, 12, 6, 2, 1, 1, 2 and 1
+   unordered characters with 2–16 states, plus one ordered 4-state and one ordered 5-state
+   character: 107 in all. Ours hold 79, 13, 5, 2, 1, 1, 2 and 1, plus the same two ordered
+   characters: 106. Character 17 accounts for the 2-state difference. Character 11 ("Shape of
+   laterally confined S2") accounts for the other: its observed states are 0–2, so it has K = 3
+   here, but it sits in BEAST 1.8's 4-state partition. It is the only match for that partition's
+   third column (state patterns agree on all 68 taxa scored in both).
+
+   Polymorphisms are scored differently. The matrix has 84 polymorphic cells. BEAST scores them as
+   missing (`useAmbiguities="false"`); RevBayes treats them as ambiguous among the listed states.
 3. **One relative rate for all Mkv partitions.** The partitions share one rate; the source scales
    partition rates. K is the highest observed state + 1, so character 76 (states 0-1 and 3-8) has
    K = 9, as in the BEAST 1.8 9-state partition.
-4. **No tree-scaling moves.** In both v1.4.1 and the development build, `mvUpDownScale`,
-   `mvSubtreeScale` and `mvLayeredScaleProposal` give biased results on FBD trees with sampled
-   ancestors; see `../../hymenoptera/revbayes/README.md` (**RevBayes up-down move**). Node ages move by
-   `mvNodeTimeSlideUniform` and `mvRootTimeSlideUniform`; topology by `mvFNPR`, `mvNarrow` and
-   `mvCollapseExpandFossilBranch`. There is no Metropolis coupling.
+4. **No tree-scaling moves.** On FBD trees with sampled ancestors, prior-only checks find the
+   following:
+   - `mvUpDownScale` is biased in v1.4.1 and in the development build;
+   - `mvSubtreeScale` and `mvLayeredScaleProposal` are biased in v1.4.1 (not run on the
+     development build);
+   - `mvTreeScale` was tested only on a tree without sampled ancestors.
+
+   The checks are in the Hymenoptera baseline, PR #79
+   (https://github.com/agent-issues/EvoTempo/pull/79): `data-raw/empirical/hymenoptera/revbayes/README.md`,
+   section **RevBayes up-down move**, and `sa-scale-check.Rev`. That PR is to be merged first.
+   Here, node ages move by `mvNodeTimeSlideUniform` and `mvRootTimeSlideUniform`; topology by
+   `mvFNPR`, `mvNarrow` and `mvCollapseExpandFossilBranch`. There is no Metropolis coupling.
+5. **UCLN CV prior.** Our Exponential(mean 1/3) prior is on the CV of the lognormal branch-rate
+   distribution, CV = √(exp(σ²) − 1). BEAST 1.8 instead puts it on the empirical CV of the
+   discretised rates realised on the tree, and leaves the log-SD without a prior of its own. The
+   two induce different priors on σ.
 
 ## Starting tree
 
@@ -89,7 +123,9 @@ partition (7 days) in one job each, rather than as 3-day jobs resumed from check
 
 This is a data-free check: the same model with `mymodel.ignoreAllData()`, 2 chains per build,
 200 000 iterations sampled every 100, and 10 % burn-in. Cells give mean ± MCSE, with the two chain
-means in brackets. Logs are on Hamilton under
+means in brackets. The script, summariser and results are in `prior-check/` (`prior-check.sh`,
+`prior-summary.R`, `prior-summary.csv`). `run-hamilton.sh` now repeats such runs with
+`UNDER_PRIOR=true`. The logs are on Hamilton under
 `/nobackup/pjjg18/evotempo-baselines-rb141/prior-check-tri/`.
 
 | Quantity | v1.4.1 | development `a2a8e2db` |
@@ -106,10 +142,29 @@ including `mvNarrow` reversibility with sampled-ancestor tips. The v1.4.1 chains
 superseded. Their posterior had about 3 sampled ancestors, so the data dominate the prior there,
 but the v1.4.1 results are not reported.
 
+**Independent oracle.** The reviewer of PR #78 settled which build is right. They ran a
+pre-registered, data-free BEAST2 (2.4.8, SA 1.1.7) analysis with the same 107 fixed ages,
+ingroup constraint and tree priors, and compared it with this model's tree block on each build
+(`prior-check/oracle/`, `prior-check/README.md`).
+
+| Statistic | BEAST2 | `a2a8e2db` | z | v1.4.1 |
+|---|---|---|---|---|
+| sampled ancestors | 6.247 ± 0.052 | 6.282 ± 0.048 | −0.49 | 100.63 ± 0.21 |
+| sampling proportion s | 0.01032 ± 0.00014 | 0.01037 ± 0.00012 | −0.28 | 0.9551 ± 0.0018 |
+
+- **Large case:** all seven compared statistics agree between BEAST2 and the development build
+  (|z| ≤ 0.49).
+- **Small exact case:** the development build also matches a forward simulation of the FBD
+  process (|z| ≤ 1.28), and v1.4.1 does not.
+
+The development build is correct for this model and v1.4.1 is not. Because v1.4.1 is wrong here
+even with point ages, it has a second sampled-ancestor fault, separate from the interval-age
+`mvCollapseExpandFossilBranch` bug.
+
 ## Results
 
 Six chains, run on Hamilton (`long` partition, one 7-day job each, development build `a2a8e2db`).
-They started from the last states of the superseded v1.4.1 chains and ran 778 400–849 400
+They started from the states in `start-states/` (`hamilton-runs.md`) and ran 778 400–849 400
 iterations, sampled every 200. `summarise.R` discards the first 25 % of each chain; the shortest
 chain keeps 2919 samples. All files are in
 `summary/`: `headline_morph.txt`, `convergence_morph.csv`, `parameters_morph.csv`,
@@ -154,6 +209,19 @@ No fossil is a sampled ancestor with probability above 0.3. The highest are
 *Kuetsingocephalus qiannanensis* (0.28), *Myopsolenites altus* (0.23) and *Xingrenaspis
 xingrenensis* (0.23).
 
+**Root age.** `root_age` is the age of the root node. In an origin-conditioned tree,
+`mvCollapseExpandFossilBranch` can make a fossil whose parent is the root into a sampled ancestor
+at the root. The root's age then equals that fossil's age and is not a split. This cannot have
+happened in these chains: the 95 % HPD of `root_age` starts at 524.5 Ma, older than the oldest
+tip (519.0 Ma).
+
+**The birth–death rates are set by the prior.** The posterior turnover (median 0.992) equals its
+data-free value: 0.9917 in the oracle's development-build run at this window offset. The posterior
+sampling proportion (median 0.0026, 95 % HPD < 0.0001–0.0132) stays within the prior's range
+(data-free mean 0.0104). With 107 fixed point ages and no extant taxa, the characters carry little
+information about λ, μ and ψ. These rates should not be read as estimated from the characters, and
+a comparison with CET should treat them as prior-dominated.
+
 ### Comparison with the published analyses
 
 Published values are the median heights in the source's consensus trees plus 486.0 Ma (the
@@ -170,10 +238,19 @@ youngest tip), with 95 % HPD (`published.csv`).
 
 The ages agree with the source's one relaxed-clock analysis (BEAST 1.8 UCLN): the medians differ by
 about 1 Myr and the HPDs overlap almost entirely. They are 7–13 Myr younger than the strict-clock
-and epoch-clock analyses. The clock model, not the tree prior, accounts for the difference.
-Our tree prior is that of the BEAST2 FBD + SA analysis, yet our ages match the BEAST 1.8 UCLN
-analysis, which has no sampled ancestors. Among the strict-clock analyses, swapping FBD + SA for
-BDSS moves the root by only 0.5 Myr.
+and epoch-clock analyses.
+
+The clean evidence that the clock model drives this difference is the BEAST 1.8 strict–UCLN
+pair. Those two analyses share data, tree prior (birth–death serial sampling with identical
+priors) and Mkv model. They differ only in the clock models, apart from the stepping-stone
+settings for marginal likelihoods. Moving from strict to UCLN takes the root
+from 537.58 to 529.50 Ma (−8.1 Myr) and the ingroup from 536.69 to 528.73 Ma (−8.0 Myr). Our UCLN
+estimate is within about 1 Myr of BEAST 1.8 UCLN.
+
+The BEAST2 analyses do not isolate the tree prior's effect from ours. They differ from this
+analysis in clock (strict), origin (fixed at 636 Ma), ρ, Γ prior and character coding, not only
+in the tree prior. The 0.5-Myr difference between their FBD + SA and BDSS roots shows only that,
+with everything else fixed, sampled ancestors moved BEAST2's root little.
 
 `mcc_morph.nex` is the maximum-clade-credibility tree with RevBayes' node annotations. The tree
 files store branch lengths only, so its node ages are in Myr before 486.0 Ma (the youngest tip).
@@ -181,7 +258,8 @@ Add 486.0 for ages in Ma.
 
 ## Compute
 
-Core-hours on Hamilton (Slurm `CPUTimeRAW`, one core per chain job):
+Core-hours on Hamilton (Slurm `CPUTimeRAW`, one core per chain job). Rows are rounded; the total is
+summed from unrounded values.
 
 | Jobs | Core-hours |
 |---|---|
@@ -191,4 +269,6 @@ Core-hours on Hamilton (Slurm `CPUTimeRAW`, one core per chain job):
 | Smoke test | 0.1 |
 | **Total** | **1515.2** |
 
-The summary jobs ran on 4 cores, about 2 core-hours in all, shared with the Hymenoptera baseline.
+The summary jobs ran on 4 cores, about 2 core-hours in all, shared with the Hymenoptera
+baseline. The independent oracle (`prior-check/oracle/`) used 80.4 core-hours of the review's
+own compute and is not counted here.

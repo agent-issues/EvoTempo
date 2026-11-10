@@ -16,7 +16,8 @@
 #
 # Run from this directory: Rscript prepare-data.R
 
-# Shared NEXUS helpers (identical copies in hymenoptera/revbayes and trilobites/revbayes)
+# Shared NEXUS helpers (identical copies in hymenoptera/revbayes/prepare-data.R,
+# PR #79, and here)
 ReadMatrix <- function(file) {
   lines <- readLines(file, warn = FALSE)
   start <- grep("^\\s*MATRIX\\s*$", lines, ignore.case = TRUE)[1]

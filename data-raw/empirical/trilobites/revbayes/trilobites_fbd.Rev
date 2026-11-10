@@ -1,15 +1,17 @@
 ################################################################################
 # Cambrian trilobites (Paterson, Edgecombe & Lee 2019): tip-dated baseline in
-# RevBayes 1.4.1.
+# RevBayes (the reported chains use the development build a2a8e2db; see
+# README.md).
 #
 # Fossilized birth-death process with sampled ancestors on an all-fossil tree:
 # the process starts at the origin and runs to the end of the Cambrian sampling
 # window (485.4 Ma = time 0), with no sampling at time 0 (rho = 0), conditioned
 # on at least one sampled lineage (condition = "sampling"); fixed (point) tip
 # ages; uncorrelated lognormal (UCLN) relaxed clock; Mkv + Gamma(4) partitioned
-# by number of states, characters 45 and 47 ordered.  Priors follow the BEAST2
-# FBD analysis (tree) and the BEAST 1.8 UCLN analysis (clock, Gamma shape) of
-# the source study; see README.md for every difference.
+# by number of states, characters 45 and 47 ordered.  The tree-rate priors
+# follow the BEAST2 FBD analysis and the clock and Gamma-shape priors the BEAST
+# 1.8 UCLN analysis of the source study, with differences (origin, UCLN CV
+# prior, ...) listed in README.md.
 #
 # Not run directly: a driver (written by run-hamilton.sh) sets
 #   config       "morph"  (the only configuration: the data are morphology only)
@@ -81,8 +83,8 @@ moves.append( mvNarrow(fbd_tree, weight = 20) )
 moves.append( mvCollapseExpandFossilBranch(fbd_tree, origin_time, weight = 15) )
 moves.append( mvNodeTimeSlideUniform(fbd_tree, weight = 60) )
 moves.append( mvRootTimeSlideUniform(fbd_tree, origin_time, weight = 5) )
-# No tree-scaling moves (see README: RevBayes 1.4.1 Hastings ratio with
-# sampled ancestors).
+# No tree-scaling moves: they are biased on FBD trees with sampled ancestors
+# (README, Differences from the source analysis, item 4).
 
 num_samp_anc := fbd_tree.numSampledAncestors()
 root_age := fbd_tree.rootAge() + window_end

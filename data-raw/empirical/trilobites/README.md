@@ -46,13 +46,13 @@ Tip-dated test of the Cambrian case. All 107 terminals are fossils.
 | Tip ages | Fixed point ages (tip-date sampling is commented out) |
 | Topology | `Ingroup_node` (all but the three fallotaspidoids) monophyletic |
 | Discrete model | Mkv (ascertained patterns) partitioned by number of states, partition rates scaled, Γ shape ~ Exp(mean 0.5); two characters ordered |
-| Clocks (separate for discrete, meristic and continuous data) | Strict; UCLN (mean ~ U(0, 100), coefficient of variation ~ Exp(mean 1/3)); or a 3-epoch clock with boundaries 509 and 497 Ma (heights 23 and 11 above 486 Ma) |
+| Clocks (separate for discrete, meristic and continuous data) | Strict; UCLN (mean ~ U(0, 100); an Exp(mean 1/3) prior on the empirical coefficient of variation of the discretised branch rates, `*.coefficientOfVariation`, with no prior on the log-SD `*.ucld.stdev`); or a 3-epoch clock with boundaries 509 and 497 Ma (heights 23 and 11 above 486 Ma) |
 | Meristic / continuous | 2 meristic traits as a discrete partition with adjacent-state-only rate matrix (ordered); 6 continuous traits under Brownian diffusion with Wishart priors |
 | MCMC | 10⁸ generations; stepping-stone marginal likelihoods |
 
 The paper's result is rate constancy across the Cambrian. The strict clock fits better than the epoch clock, and UCLN rates show no early peak.
 
-**BEAST2 (discrete data only, `BEAST2_executables_DiscreteDataOnly`)**: 106 discrete characters (104 unordered + 2 ordered), strict clock. One file uses the FBD prior with sampled ancestors (`SABD`); the other approximates birth–death serial sampling without ancestors (`BDSS`: `SABirthDeathModel` with removal probability 0.999999999999999). Diversification ~ LogNormal(−3.5, 1.5); turnover and sampling proportion ~ U(0, 1); origin ~ U(0, 1000); Γ shape ~ U(0, 10); ingroup monophyletic.
+**BEAST2 (discrete data only, `BEAST2_executables_DiscreteDataOnly`)**: 106 discrete characters (104 unordered + 2 ordered), strict clock. One file uses the FBD prior with sampled ancestors (`SABD`); the other approximates birth–death serial sampling without ancestors (`BDSS`: `SABirthDeathModel` with removal probability 0.999999999999999). Diversification ~ LogNormal(−3.5, 1.5); turnover and sampling proportion ~ U(0, 1); Γ shape ~ U(0, 10); ingroup monophyletic. The origin is **fixed** at 150 Myr above the youngest tip (636 Ma; `<parameter name="origin" … value="150.">`, line 528 of both XMLs). The U(0, 1000) prior and scale operator in the XMLs act on `originF.t`, a parameter the tree prior does not use.
 
 ## Oddities
 

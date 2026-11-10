@@ -1,15 +1,19 @@
 #!/bin/bash
 # One MCMC chain of the trilobites RevBayes baseline on Hamilton (Durham HPC).
 #
-#   sbatch -J evotempo-tril-rb141-<config>-<rep> --export=ALL,CONFIG=<config>,REP=<rep> run-hamilton.sh
+#   sbatch -J evotempo-tril-dev-<config>-<rep> --export=ALL,CONFIG=<config>,REP=<rep> run-hamilton.sh
 #
 # CONFIG = morph; REP = replicate (seeds the chain).  Optional:
 #   N_GEN, SAMPLE_EVERY, BURNIN_GEN  chain length, thinning, tuning iterations
 #   START_FROM   output/ directory of an earlier chain: start from its last
-#                tree and scalar parameter values
+#                tree and the scalar values matched below (diversification,
+#                turnover, sampling_prop, origin_time, clock_morph, ucld_cv,
+#                alpha_morph); the UCLN branch multipliers start afresh
 #   RESUME=true  continue this chain from output/trilobites_<CONFIG>_run<REP>.ckp,
 #                appending to its output files
 #   CKP_EVERY    iterations between checkpoints (default 500)
+#   UNDER_PRIOR=true  data-free run (mymodel.ignoreAllData()), as in the build
+#                check (prior-check/)
 # Run from a copy of this directory under /nobackup.  RB defaults to the
 # pinned RevBayes development build a2a8e2db (gcc/14.2 + boost/1.88.0; see
 # README for why not v1.4.1); the cluster's revbayes/1.2.5 module is not used.
@@ -30,6 +34,7 @@ SAMPLE_EVERY=${SAMPLE_EVERY:-50}
 BURNIN_GEN=${BURNIN_GEN:-2000}
 RESUME=${RESUME:-false}
 CKP_EVERY=${CKP_EVERY:-500}
+UNDER_PRIOR=${UNDER_PRIOR:-false}
 
 mkdir -p output out
 extra=""
@@ -57,10 +62,12 @@ sample_every = ${SAMPLE_EVERY}
 burnin_gen = ${BURNIN_GEN}
 resume = ${RESUME}
 checkpoint_every = ${CKP_EVERY}
+under_prior = ${UNDER_PRIOR}
 ${extra}
 source("trilobites_fbd.Rev")
 q()
 EOF
 suffix=""; [ "$RESUME" = true ] && suffix="_resume$(date +%s)"
+"$RB" --version > out/rb_version_${CONFIG}_${REP}${suffix}.txt 2>&1
 /usr/bin/time -v "$RB" "$driver" > out/screen_${CONFIG}_${REP}${suffix}.txt 2> out/time_${CONFIG}_${REP}${suffix}.txt
 echo "rb exit status $?"

@@ -1,5 +1,7 @@
 # Convergence diagnostics and posterior summaries for the RevBayes baselines
-# (adapted from data-raw/empirical/penguins/revbayes/summarise.R).
+# (adapted from the penguin baseline's summarise.R, not yet merged; the same
+# script, before its rank-diagnostic additions, is hymenoptera/revbayes/summarise.R
+# in PR #79).
 #
 #   Rscript summarise.R <output dir> <prefix> <config> [burn-in fraction]
 #

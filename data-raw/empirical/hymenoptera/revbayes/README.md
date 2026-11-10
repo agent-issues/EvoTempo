@@ -136,7 +136,10 @@ give the pooled mean ± MCSE; full table in `summary/scale-move-check.csv`.
 
 All of A–K ran on v1.4.1, and the table below is from that build. On the development build
 `a2a8e2db`, only A–D, L and M were run. They reproduce the up-down biases there: in B, x is stuck
-at 0; D − C shifts the root age by z = −20.8; and M − L appears further down. E–K were not run on
+at 0; D − C shifts the root age by z = −20.8; and M − L appears further down.
+`summary/scale-move-check.csv` holds the development-build rows for A–D, L and M, tagged
+`dev-a2a8e2db`. Its earlier dev-build L/M runs used an unconstrained root and are invalid
+(see below); they are not included. E–K were not run on
 `a2a8e2db`. The `mvSubtreeScale`, `mvLayeredScaleProposal` and `mvTreeScale` results therefore
 apply to v1.4.1 only.
 

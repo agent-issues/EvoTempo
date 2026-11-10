@@ -17,7 +17,8 @@ ranges: expand draws the new parent age above the top of the fossil's age range,
 allowed from any parent age above the fossil's sampled age. This was found on the penguin data and
 fixed upstream after v1.4.1 (`c389174b`). Every fossil here has a stratum interval, so the
 maintainer chose the pinned development build. A first set of 22 v1.4.1 chains (about 2.5 days)
-was superseded; the development-build chains started from their last states. The cluster's
+was superseded. The development-build chains started from the last tree and the scalar parameter
+values of those chains; `hamilton-runs.md` records exactly what was carried over and the commands used. The cluster's
 `revbayes/1.2.5` module is not used.
 
 ## Files
@@ -31,11 +32,14 @@ was superseded; the development-build chains started from their last states. The
 | `launch-hamilton.sh` | One directory per chain under a run root. On `shared` (3-day limit), each chain is followed by resume jobs (`--dependency=afterany`) |
 | `summarise-hamilton.sh`, `summarise.R`, `mcc.Rev` | Pooled post-burn-in trees, MCC trees and the CSVs in `summary/` |
 | `check-diagnostics.R` | Checks that the coda-free ESS, PSRF and HPD in `summarise.R` reproduce coda |
+| `check-fossil-ages.R` | Checks every sampled tree against the fossil age intervals (`summary/fossil-age-check.csv`) |
+| `hamilton-runs.md` | The commands that produced the reported chains: build, per-chain starting states, segments and stopping |
 | `sa-scale-check.Rev` | Prior-only check of RevBayes's tree-scaling move (see **RevBayes up-down move**) |
 | `published.csv`, `published-fossils.csv` | Zhang et al. 2016 Table 5 and Table S1 values used for comparison |
 | `summary/` | Results (below). Pooled tree files and traces are not committed |
 
-Run from this directory: `Rscript prepare-data.R; Rscript start-tree.R`; then, on Hamilton,
+The reported chains were run as recorded in `hamilton-runs.md`. In general, run from this directory:
+`Rscript prepare-data.R; Rscript start-tree.R`; then, on Hamilton,
 `bash launch-hamilton.sh <run root> <config> 1 <n> shared 2` per configuration (n = 8 for `te-*`, 6 for `morph`) and, once the chains
 have run, `bash summarise-hamilton.sh <run root> <burn-in fraction>`.
 
@@ -52,7 +56,7 @@ have run, `bash summarise-hamilton.sh <run root> <burn-in fraction>`.
 | Fossil ages | uniform on the stratum intervals of `../hymenoptera_tips.csv` (`mvFossilTipTimeUniform`) | same intervals |
 | Clock | UCLN: base rate ~ LogNormal(−7.1, 0.5) changes per site (character) per Myr, averaged over partitions by site; log-SD ~ Exponential(mean 0.587405); non-centred branch multipliers exp(σz − σ²/2), z ~ N(0, 1) | IGR, `igrvarpr = exp(37)`; `clockratepr = lognorm(−7.1, 0.5)` |
 | Partition rates | flat Dirichlet on (multiplier × proportion of sites), so that the site-weighted mean multiplier is 1 (`ratepr = variable`) | same |
-| Morphology | Mkv (`coding = "variable"`) + Γ4, one shape ~ Exponential(1); the 43 analysed ordered characters as adjacent-state, equal-rate matrices; 10 characters excluded | Mkv + Γ; same ordered and excluded sets |
+| Morphology | Mkv (`coding = "variable"`) + Γ4, one shape ~ Exponential(1); the 43 analysed ordered characters as adjacent-state, equal-rate matrices; 10 characters excluded | Mkv + Γ; same ordered and excluded sets; the variable-only correction follows a different convention (Difference 7) |
 | DNA | 12S+16S, 18S, CO1 positions 1-2, EF1α positions 1-2, EF1α position 3: GTR + Γ4; 28S: SYM + Γ4 (equal frequencies). Flat Dirichlet exchangeabilities and frequencies; shapes ~ Exponential(1); CO1 position 3 excluded | same partitions and models (GTR + Γ, SYM + Γ; no +I) |
 | MCMC | 8 (`te-*`) or 6 (`morph`) independent chains, no heating | 4 runs × 4 Metropolis-coupled chains, 5 × 10⁷ generations |
 
@@ -72,12 +76,27 @@ have run, `bash summarise-hamilton.sh <run root> <burn-in fraction>`.
    same. The point is that branch rates built element by element let RevBayes recompute the
    likelihood along one path after a single-branch move; a vector expression marks every branch
    as changed, which made the chains about 4× slower.
-5. **No tree-scaling moves** (see below). Node ages move by `mvNodeTimeSlideUniform`, the root by
+5. **No tree-scaling moves** (see **RevBayes up-down move**). Node ages move by `mvNodeTimeSlideUniform`, the root by
    a slide on the root age, and fossils by `mvFossilTipTimeUniform`. Topology moves are `mvFNPR`,
    `mvNarrow` and `mvCollapseExpandFossilBranch`. RevBayes has no Metropolis coupling here, so
    mixing rests on independent chains.
 6. **Random extant sampling only.** `dnFBDP` has no diversified-sampling option, so the published
    comparison is Zhang et al.'s FBD (Rnd) analysis.
+7. **The Mkv correction is applied per missing-data pattern.** RevBayes's `coding = "variable"`
+   conditions each morphological character on being variable given its own pattern of missing
+   cells. MrBayes 3.2.6, which Zhang et al. used, instead adds two fully observed dummy characters
+   (all 0, all 1) to the division and applies one correction for all 343 characters, as if every
+   cell were scored. The two conventions differ here because most fossils are scored for only
+   4–20 % of the characters. The independent review of this baseline (#80) measured the
+   difference on 16 887 `te-shared` posterior samples. The MrBayes-convention log-likelihood is
+   lower by 26.0 ± 3.3 nats. A first-order reweighting puts the effect on the ages under the
+   MrBayes convention at −3.6 ± 1.2 Myr for the root and −3.0 ± 0.9 Myr for crown Hymenoptera.
+   That is towards Zhang et al.'s medians, and is provisional: direct importance reweighting
+   degenerates. The morphological Γ shape (about +0.6) and the morphology rate multiplier (about
+   +0.12) would change much more. The review also confirmed that the ordered-character matrices
+   are scaled to mean rate 1 in both programs. We keep the per-pattern correction, which is the
+   convention of the CET analyses (#65). Whether to add a reproduction run with the MrBayes
+   convention is a pending maintainer decision.
 
 ## Starting tree
 
@@ -98,7 +117,8 @@ move fossils and node ages freely from there.
 
 ## RevBayes up-down move
 
-The models use no tree-scaling move. In RevBayes 1.4.1, `TreeUtilities::rescaleSubtree()`
+The models use no tree-scaling move. In RevBayes 1.4.1 (source lines below are from that release),
+`TreeUtilities::rescaleSubtree()`
 (`src/core/utils/TreeUtilities.cpp:1608-1631`) scales a node and the interior nodes below it. It
 stops at a node with a sampled-ancestor child, leaving that node and its subtree unscaled. The
 Hastings ratios of the moves that call it count nodes in other ways:
@@ -112,7 +132,13 @@ Hastings ratios of the moves that call it count nodes in other ways:
 stationary distributions. The tree prior is `dnFBDP` with λ = 1, μ = 0.8, ψ = 0.6, ρ = 1, and there
 are no data. x ~ Exponential(1) is independent of the tree and is paired with it in the up-down
 variants. Each variant ran 4 chains × 400 000 iterations, sampled every 10, with 10 % burn-in. Cells
-give the pooled mean ± MCSE; full table in `summary/scale-move-check.csv`:
+give the pooled mean ± MCSE; full table in `summary/scale-move-check.csv`.
+
+All of A–K ran on v1.4.1, and the table below is from that build. On the development build
+`a2a8e2db`, only A–D, L and M were run. They reproduce the up-down biases there: in B, x is stuck
+at 0; D − C shifts the root age by z = −20.8; and M − L appears further down. E–K were not run on
+`a2a8e2db`. The `mvSubtreeScale`, `mvLayeredScaleProposal` and `mvTreeScale` results therefore
+apply to v1.4.1 only.
 
 | Variant | Tree | Added move | x (expected 1) | root age | tree length |
 |---|---|---|---|---|---|
@@ -135,7 +161,9 @@ What the variants show:
 - **That convention breaks on origin-conditioned trees.** There the root is a node of the tree
   and cannot be added to the move, and the move is biased (D; root age −21 MCSE).
 - **Sampled ancestors bias up-down (B) and `mvSubtreeScale` (E)**, because nodes are counted that
-  were not scaled. Without them `mvSubtreeScale` (F) and `mvTreeScale` (K) agree with the reference.
+  were not scaled. Without them, `mvSubtreeScale` (F) and `mvTreeScale` (K) agree with the
+  reference. `mvTreeScale` was not tested on a tree with sampled ancestors, so whether it could be
+  used here is unknown.
 - **`mvLayeredScaleProposal` is biased even without sampled ancestors (H).**
 - **With sampled ancestors, up-down is biased even when the root age is a variable of the move.**
   Variants L and M repeat I and J on 4 extant taxa and 6 fossils. The root is constrained to
@@ -159,9 +187,16 @@ What the variants show:
   age-range check stops this, and a root-age prior bounded above the oldest fossil does not
   prevent it. Origin-conditioned trees are not affected.
 
-  The analysis here is safe for two reasons. All 45 fossils lie inside the constrained
-  Holometabola clade, and the root lies outside it. We also checked every fifth sampled tree of
-  every chain: no tree has a fossil outside its age range or a sampled ancestor at the root.
+  The analysis here is safe for two reasons. First, all 45 fossils lie inside the constrained
+  Holometabola clade, and the root lies outside it. Second, `check-fossil-ages.R` checked every
+  logged tree of all 22 chains, burn-in included: 107 719 trees, results in
+  `summary/fossil-age-check.csv`. It found:
+  - no fossil outside its age interval (largest excess 8 × 10⁻⁶ Myr, from print rounding);
+  - no fossil that is a child of the root, and so no sampled ancestor at the root;
+  - extant tips at age 0, to within 8 × 10⁻⁶ Myr;
+  - an oldest root of 660.0 Ma.
+
+  The independent review found the same counts.
 
 The penguin baseline's round-1 and round-2 model (`../../penguins/revbayes/penguins_fbd.Rev`)
 used up-down on an origin-conditioned FBD tree with sampled ancestors.
@@ -187,36 +222,77 @@ not from this check.
 
 ## Results
 
-All chains ran on Hamilton under the development build `a2a8e2db`, on `shared` in 3-day jobs, each
-resumed from its checkpoint. They started from the last states of the superseded v1.4.1 chains.
+All chains ran on Hamilton under the development build `a2a8e2db`, on `shared`, in 3-day jobs, each
+resumed from its checkpoint. They started from the last trees and scalar values of the superseded
+v1.4.1 chains (`hamilton-runs.md`).
 
 | Config | Chains | Iterations per chain | Sampled every | Samples per chain after burn-in (shortest chain) |
 |---|---|---|---|---|
 | `te-shared` | 8 | 247 150–319 950 | 50 | 3708 |
-| `te-separate` | 8 | 273 700–341 350 | 50 | 4106 |
-| `morph` | 6 | 250 000–284 000 | 100 | 1875 |
+| `te-separate` | 8 | 273 700–341 350 | 50 | 4107 |
+| `morph` | 6 | 250 000–284 000 | 100 | 1876 |
 
-`summarise.R` discards the first 25 % of each chain. The `te-*` chains were stopped once all three
-criteria held. All files are in `summary/`: `headline_<config>.txt`, `convergence_<config>.csv`,
-`parameters_<config>.csv`, `published_<config>.csv`, `fossils_<config>.csv` (per fossil: P(sampled
-ancestor), P(in crown Hymenoptera), and Zhang et al.'s Table S1 values), `clades_<config>.csv` and
-`mcc_<config>.nex`. MCC node ages are in Ma, because the extant tips are at 0.
+`summarise.R` discards the first 25 % of each chain. The `te-*` chains were stopped by hand once
+the criteria below held. All files are in `summary/`:
+- `headline_<config>.txt` and `convergence_<config>.csv`;
+- `parameters_<config>.csv` and `published_<config>.csv`;
+- `fossils_<config>.csv`: per fossil, P(sampled ancestor), P(in crown Hymenoptera), and Zhang et
+  al.'s Table S1 values;
+- `clades_<config>.csv`;
+- `mcc_<config>.nex`, the maximum-clade-credibility trees. Node ages are in Ma, because the extant
+  tips are at 0. The `te-*` MCC trees need about 17 GB of memory: the first summary job was
+  killed, and the trees were made by a later job.
+- `fossil-age-check.csv`.
 
 ### Convergence
 
-| Config | ASDSF (max SDSF) | Lowest pooled ESS | Highest PSRF | Lowest per-chain ESS |
-|---|---|---|---|---|
-| `te-shared` | 0.0119 (0.037), 182 clades | 251 (crown Hymenoptera age) | 1.030 (Hymenoptera total-group age) | 20 (crown age) |
-| `te-separate` | 0.0139 (0.067), 179 clades | 289 (crown age) | 1.017 (crown age) | 21 (crown age) |
-| `morph` | 0.0109 (0.033), 145 clades | 1096 (Prior) | 1.008 (Holometabola age) | 154 (Prior) |
+The criteria set at the start were all met: ASDSF < 0.05, PSRF < 1.05 and pooled AR ESS ≥ 200
+for every logged parameter.
 
-All three configurations meet the criteria: ASDSF < 0.05, PSRF < 1.05 and pooled ESS ≥ 200 for
-every logged parameter. In the `te-*` runs the node ages and the clock rate mix slowly along
-the clock-rate–age ridge, because no tree-scaling move is available (see **RevBayes up-down move**).
-Their per-chain ESS is only about 20–60 for the root, Holometabola and Hymenoptera ages and the
-clock rates. The ages and clock rates therefore rest on agreement among the 8 chains (PSRF ≤ 1.03),
-not on long single chains. Their HPD bounds are less precise than the pooled ESS suggests. The
-other parameters mix better: λ and μ have pooled ESS > 1000, and the rest > 2500.
+| Config | ASDSF (max SDSF) | Lowest pooled ESS | Highest PSRF | Highest rank R̂ | Lowest bulk / tail ESS |
+|---|---|---|---|---|---|
+| `te-shared` | 0.0120 (0.037), 182 clades | 250 (crown Hymenoptera age) | 1.030 (Hymenoptera total-group age) | 1.036 (crown age) | 191 (crown age) / 501 (crown age) |
+| `te-separate` | 0.0139 (0.067), 179 clades | 289 (crown age) | 1.017 (crown age) | 1.038 (crown age) | 182 (crown age) / 384 (DNA clock rate) |
+| `morph` | 0.0109 (0.033), 145 clades | 1095 (Prior) | 1.008 (Holometabola age) | 1.007 (Holometabola age) | 796 (Prior) / 1863 (Prior) |
+
+**What the convergence diagnostics mean:**
+- **Pooled ESS and PSRF.** The pooled ESS is the sum of per-chain AR estimates, as in
+  coda::effectiveSize(). PSRF is coda::gelman.diag()'s point estimate.
+- **Rank-normalised diagnostics.** The rank R̂, bulk ESS, tail ESS and MCSEs follow Vehtari et
+  al. (2021, *Bayesian Analysis* 16:667), as in the R package posterior. `summarise.R` implements
+  them, and they reproduce ArviZ 0.23.4 to the printed precision on the `te-shared` crown and
+  root ages. Vehtari et al. recommend R̂ < 1.01 and bulk and tail ESS > 400.
+- **Equal-length samples.** PSRF and the rank-normalised diagnostics need chains of equal length.
+  They therefore use the first 3708 (`te-shared`), 4107 (`te-separate`) or 1876 (`morph`)
+  post-burn-in samples of each chain. The AR ESS, the estimates and the HPDs use every
+  post-burn-in sample.
+
+`morph` meets the stricter criteria as well as ours. The `te-*` configurations meet ours but not
+the stricter ones:
+
+| Config | Parameter | Pooled AR ESS | Min ESS per chain | PSRF | Rank R̂ | Bulk ESS | Tail ESS | MCSE of median / 2.5 % / 97.5 % (Myr) |
+|---|---|---|---|---|---|---|---|---|
+| `te-shared` | root age | 362 | 25 | 1.023 | 1.030 | 232 | 820 | 2.9 / 2.1 / 4.0 |
+| `te-shared` | Holometabola age | 364 | 20 | 1.026 | 1.033 | 214 | 652 | 2.8 / 1.7 / 4.4 |
+| `te-shared` | crown Hymenoptera age | 250 | 20 | 1.030 | 1.036 | 191 | 501 | 2.4 / 1.6 / 4.0 |
+| `te-shared` | Hymenoptera total-group age | 277 | 23 | 1.030 | 1.035 | 193 | 516 | 2.4 / 1.5 / 4.1 |
+| `te-shared` | clock rate | 359 | 28 | 1.019 | 1.026 | 240 | 686 | – |
+| `te-separate` | root age | 392 | 33 | 1.012 | 1.029 | 241 | 563 | 2.3 / 1.4 / 5.6 |
+| `te-separate` | Holometabola age | 378 | 32 | 1.013 | 1.031 | 212 | 471 | 2.1 / 1.3 / 5.9 |
+| `te-separate` | crown Hymenoptera age | 289 | 21 | 1.017 | 1.038 | 182 | 385 | 1.8 / 1.3 / 5.6 |
+| `te-separate` | Hymenoptera total-group age | 308 | 24 | 1.016 | 1.036 | 188 | 408 | 1.8 / 1.3 / 5.3 |
+| `te-separate` | DNA clock rate | 457 | 38 | 1.011 | 1.027 | 250 | 384 | – |
+| `te-separate` | morphology clock rate | 842 | 59 | 1.007 | 1.016 | 446 | 938 | – |
+
+In the `te-*` runs, the node ages and the clock rate mix slowly along the clock-rate–age ridge,
+and the chains use no tree-scaling move (see **RevBayes up-down move**). Each chain gives an
+ESS of only 20–60 for these quantities. Their estimates therefore rest on agreement among the 8
+chains, not on long single chains. The median ages carry a Monte Carlo error of about 2–3 Myr,
+and the HPD bounds 1.3–5.9 Myr. Read the age differences below with that in mind. The prior and
+posterior densities track the ages, with bulk ESS 274–517. All other parameters mix better: λ and
+μ have bulk ESS > 500, and the rest > 1800. Whether errors of 2–3 Myr are small enough for the CET comparator, or the `te-shared`
+chains should be extended, is a maintainer decision (#81). In `morph`, the age medians have
+MCSE ≤ 1.0 Myr.
 
 ### Estimates
 
@@ -224,21 +300,29 @@ Median (95 % HPD).
 
 | Parameter | `te-shared` | `te-separate` | `morph` |
 |---|---|---|---|
-| root (Ma) | 412.1 (340.5–497.1) | 388.4 (324.7–467.5) | 357.1 (315.1–427.9) |
+| root (Ma) | 412.1 (340.5–497.1) | 388.4 (324.7–467.5) | 357.1 (315.0–427.6) |
 | Holometabola (Ma) | 397.4 (330.3–473.1) | 374.2 (313.0–444.2) | 341.1 (302.1–402.7) |
-| crown Hymenoptera (Ma) | 351.4 (299.8–414.3) | 325.3 (278.4–383.0) | 312.4 (264.3–380.5) |
+| crown Hymenoptera (Ma) | 351.4 (299.8–414.3) | 325.3 (278.4–383.0) | 312.4 (264.0–380.1) |
 | net diversification λ − μ (per Myr) | 0.0076 (0.0045–0.0109) | 0.0078 (0.0045–0.0112) | 0.0055 (0.0015–0.0099) |
 | turnover μ/λ | 0.9993 (0.9986–0.9998) | 0.9994 (0.9988–0.9998) | 0.9999 (0.9997–1.0000) |
+| speciation rate λ (per Myr) | 10.9 (5.5–17.6) | 12.2 (6.6–19.6) | 42.5 (22.2–68.3) |
 | sampling proportion s | 2.6e−7 (0.8e−7–5.5e−7) | 2.4e−7 (0.8e−7–5.0e−7) | 5.1e−8 (1.5e−8–1.1e−7) |
-| clock rate (per site per Myr) | 9.55e−4 (7.52e−4–1.17e−3) | DNA 9.95e−4 (7.97e−4–1.21e−3); morphology 1.23e−3 (0.88e−3–1.64e−3) | 1.92e−3 (1.32e−3–2.64e−3) |
-| UCLN log-SD | 0.566 (0.462–0.675) | DNA 0.525 (0.415–0.651); morphology 1.063 (0.881–1.253) | 1.051 (0.862–1.270) |
+| clock rate (per site per Myr) | 9.55e−4 (7.52e−4–1.17e−3) | DNA 9.95e−4 (7.97e−4–1.21e−3); morphology 1.23e−3 (0.88e−3–1.64e−3) | 1.92e−3 (1.33e−3–2.65e−3) |
+| UCLN log-SD | 0.566 (0.462–0.675) | DNA 0.525 (0.415–0.651); morphology 1.063 (0.881–1.253) | 1.051 (0.863–1.270) |
 | sampled ancestors (mean) | 0.033 | 0.030 | 0.013 |
 
-The sampled-ancestor count has median 0 and 95 % HPD 0–0 in every configuration. No fossil has
-P(sampled ancestor) above 0.0032. Across fossils, these probabilities rank like Zhang et al.'s
-Table S1 values for FBD (Rnd): Spearman ρ = 0.95 (`te-shared`), 0.90 (`te-separate`) and 0.75
-(`morph`). Their probabilities are larger (maximum 0.016, *Eoxyela*). Every fossil falls in crown
-Hymenoptera with probability ≥ 0.97 (`te-shared`, `morph`) or ≥ 0.85 (`te-separate`).
+**The FBD rates are extreme.** λ ≈ μ ≈ 11 per Myr in `te-shared` (42 in `morph`), turnover is
+above 0.999, and the fossil-sampling rate ψ = sμ/(1 − s) is about 2.8 × 10⁻⁶ per Myr. This comes
+from the source's settings: extant sampling ρ = 0.0005 with d ~ Exponential(100) asks for a very
+large unsampled diversity and very sparse fossil sampling. A like-for-like CET analysis needs
+priors that allow this regime.
+
+**Sampled ancestors.** The sampled-ancestor count has median 0 and 95 % HPD 0–0 in every
+configuration. No fossil has P(sampled ancestor) above 0.0032. Across fossils, these
+probabilities rank like Zhang et al.'s Table S1 values for FBD (Rnd): Spearman ρ = 0.95
+(`te-shared`), 0.90 (`te-separate`) and 0.75 (`morph`). Their probabilities are larger
+(maximum 0.016, *Eoxyela*). Every fossil falls in crown Hymenoptera with probability ≥ 0.97
+(`te-shared`, `morph`) or ≥ 0.85 (`te-separate`).
 
 ### Comparison with Zhang et al. 2016
 
@@ -253,27 +337,36 @@ Zhang et al. 2016, Table 5 (MrBayes, IGR clock, total evidence), median (95 % HP
 | pcFBD (Div) | 328.2 (315.0–358.9) | 251.7 (237.9–310.9) | 0.02 (0.00–0.07) |
 | Uniform (U) | 345.1 (315.0–402.2) | 306.0 (289.3–341.3) | – |
 
-`te-shared` matches the analysis it reproduces, FBD (Rnd). The medians differ by about 5 Myr for both
-ages, the HPDs nearly coincide, and the proportion of ancestral fossils is 0 in both. The UCLN
-clock therefore gives the same answer as their IGR clock. The other two configurations have no
-published counterpart. With a separate morphological clock, the ages are about 25 Myr younger
-than `te-shared`. With morphology alone, they are younger again, and the root's HPD
-reaches the root-age prior's minimum (315 Ma).
+`te-shared` is consistent with the analysis it reproduces, FBD (Rnd):
+- the medians differ by 5.7 Myr (root) and 4.8 Myr (crown);
+- the proportion of ancestral fossils is 0 in both;
+- the HPD bounds differ by 3–12 Myr.
 
+These differences are of the size expected from the Monte Carlo error of our estimates (about
+2.4–2.9 Myr for the medians and up to 4 Myr for the HPD bounds, above) plus the difference in
+Mkv convention. Under MrBayes's convention, the ages would move about 3–4 Myr towards Zhang et
+al.'s (Difference 7). This agreement does not show that our UCLN clock gives the same answer as
+their IGR clock: the clock models were not compared directly.
+
+The other two configurations have no published counterpart. With a separate morphological clock,
+the ages are about 25 Myr younger than `te-shared`. With morphology alone, they are younger
+again, and the root's HPD reaches the minimum of the root-age prior (315 Ma).
 
 ## Compute
 
-Core-hours on Hamilton (Slurm `CPUTimeRAW`, one core per chain job):
+Core-hours on Hamilton (Slurm `CPUTimeRAW`, one core per chain job). Rows are rounded; the total is
+summed from unrounded values.
 
 | Jobs | Core-hours |
 |---|---|
-| Reported chains, development build: `te-shared` 8 chains (`evotempo-hyme-dev-te-shared-*`) | 1519.9 |
-| Reported chains, development build: `te-separate` 8 chains | 1519.9 |
-| Reported chains, development build: `morph` 6 chains | 432.0 |
+| Reported chains, development build: `te-shared`, 8 chains (`evotempo-hyme-dev-te-shared-*`) | 1519.9 |
+| Reported chains, development build: `te-separate`, 8 chains | 1519.9 |
+| Reported chains, development build: `morph`, 6 chains | 432.0 |
 | Superseded v1.4.1 chains: `te-shared` 632.2, `te-separate` 632.2, `morph` 432.0 (`evotempo-hyme-rb141-*`) | 1696.4 |
 | Build check, both builds (`evotempo-hyme-prior-check`) | 32.6 |
-| Scale-move checks A–M, both builds (`evotempo-revbayes-updown-check*`), and fossil-age check of all chains | 3.6 |
+| Scale-move checks, both builds (`evotempo-revbayes-updown-check*`) | 3.6 |
 | Smoke tests | 0.9 |
-| **Total** | **5205.5** |
+| Final summaries and fossil-age checks (`evotempo-hyme-summary-v2-*`, `evotempo-hyme-fossil-age-check`, `evotempo-fossil-range-check`) | 0.4 |
+| **Total** | **5205.9** |
 
-The summary jobs ran on 4 cores, about 2 core-hours in all, shared with the trilobite baseline.
+Earlier summary jobs, shared with the trilobite baseline, used about 2 more core-hours.

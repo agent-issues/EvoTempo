@@ -5,11 +5,11 @@
 #
 # <run root> holds one directory per chain, <config>_run<rep>/output/.  Run from
 # a copy of this directory (it needs data/, mcc.Rev, summarise.R and the
-# published*.csv files).  Writes ./summary/: pooled post-burn-in tree files
+# published*.csv files).  The te-* MCC step needs about 17 GB.  Writes ./summary/: pooled post-burn-in tree files
 # (large; not committed), MCC trees and the CSVs of summarise.R.
 #SBATCH -p shared
 #SBATCH -c 1
-#SBATCH --mem=8G
+#SBATCH --mem=24G
 #SBATCH --time=0-06:00:00
 
 set +e; set +o pipefail
@@ -22,8 +22,8 @@ CONFIGS=${CONFIGS:-"te-shared te-separate morph"}
 mkdir -p summary flat
 for config in $CONFIGS; do
   ls -d "$ROOT"/${config}_run*/output >/dev/null 2>&1 || continue
-  # flat copies of every chain's log and tree file: drop the last line (may be
-  # incomplete while a chain runs) and any line with the wrong number of
+  # flat copies of every chain's log and tree file: drop the last line if it
+  # is incomplete (no final newline: a chain still running) and any line with the wrong number of
   # fields (a line cut off when a job hit its time limit, followed by the
   # appended output of the job that resumed from the checkpoint); where a
   # resumed segment repeats iterations already logged after the checkpoint,
@@ -34,7 +34,8 @@ for config in $CONFIGS; do
       [ -f "$f" ] || continue
       out=flat/$(basename "$f")
       head -n 1 "$f" > "$out"
-      head -n -1 "$f" | awk -F'\t' 'NR == 1 { nf = NF; next } NF == nf && $1 != "Iteration"' | tac | awk -F'\t' '!seen[$1]++' | tac >> "$out"
+      if [ -n "$(tail -c 1 "$f")" ]; then drop=1; else drop=0; fi
+      head -n -$drop "$f" | awk -F'\t' 'NR == 1 { nf = NF; next } NF == nf && $1 != "Iteration"' | tac | awk -F'\t' '!seen[$1]++' | tac >> "$out"
     done
   done
   # pool post-burn-in trees (one header line per file)

@@ -1,12 +1,13 @@
 ################################################################################
 # Hymenoptera (Ronquist et al. 2012; fossil age intervals and FBD settings of
-# Zhang et al. 2016): tip-dated baselines in RevBayes 1.4.1.
+# Zhang et al. 2016): tip-dated baselines in RevBayes (the reported chains
+# use the development build a2a8e2db; see README.md).
 #
 # Fossilized birth-death process with sampled ancestors, conditioned on the
 # root age (as MrBayes' FBD prior), random sampling of extant taxa with
 # rho = 0.0005, uniform fossil-age uncertainty on the stratum intervals;
 # uncorrelated lognormal (UCLN) relaxed clock; Mkv + Gamma(4) for morphology
-# (44 ordered characters) and GTR + Gamma(4) / SYM + Gamma(4) for DNA.  Priors
+# (43 analysed ordered characters) and GTR + Gamma(4) / SYM + Gamma(4) for DNA.  Priors
 # follow Zhang et al. 2016's constant-rate, random-sampling FBD analysis; see
 # README.md for every difference.
 #
@@ -103,9 +104,11 @@ for (i in 1:n_taxa) {
                                          tip = taxa[i].getName(), weight = 1) )
   }
 }
-# No tree-scaling moves (mvUpDownScale / mvTreeScale / mvSubtreeScale): in
-# RevBayes 1.4.1 they leave subtrees below a sampled ancestor unscaled but
-# count every interior node in the Hastings ratio (see README).
+# No tree-scaling moves.  In prior-only checks (sa-scale-check.Rev; README,
+# "RevBayes up-down move"), mvUpDownScale is biased on FBD trees with sampled
+# ancestors in v1.4.1 and in a2a8e2db; mvSubtreeScale and
+# mvLayeredScaleProposal are biased in v1.4.1 (not run on a2a8e2db);
+# mvTreeScale was tested only on a tree without sampled ancestors.
 
 # Holometabola age: offset exponential, minimum 302 Ma, mean 396 Ma, applied as
 # a calibration density on the FBD tree (MrBayes "calibrate"), via a clamped

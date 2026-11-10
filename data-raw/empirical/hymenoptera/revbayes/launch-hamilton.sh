@@ -9,7 +9,8 @@
 # names: evotempo-<dataset>-<BUILD_TAG>-<config>-<rep> (BUILD_TAG default dev;
 # RB, the rb binary, defaults to the a2a8e2db build in run-hamilton.sh).  Extra sbatch --export
 # variables (N_GEN, SAMPLE_EVERY, BURNIN_GEN, CKP_EVERY) come from the caller's
-# environment.
+# environment, as are RB and START_FROM.  START_FROM is passed to every rep of
+# a call, so a per-chain START_FROM needs one call per rep (hamilton-runs.md).
 set +e; set +o pipefail
 ROOT=$1; CONFIG=$2; FIRST=$3; LAST=$4; PART=${5:-shared}; NRES=${6:-0}
 HERE=$(cd "$(dirname "$0")" && pwd)

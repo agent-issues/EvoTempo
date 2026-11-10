@@ -1,5 +1,6 @@
 ################################################################################
-# Prior-only checks of RevBayes 1.4.1 tree-scaling moves.
+# Prior-only checks of RevBayes tree-scaling moves (variants A-K were run on
+# v1.4.1; A-D, L and M also on the development build a2a8e2db).
 #
 # TreeUtilities::rescaleSubtree() scales a node and the interior nodes below
 # it, but stops at a node with a sampled-ancestor child (that node and its
@@ -26,7 +27,7 @@
 #   M        as L                               mvUpDownScale(x up, tree down, root_time down)
 #
 # x ~ Exp(1) is independent of the tree in every variant (a deterministic
-# node links it into the model graph); it is paired with the tree in B, D, J.
+# node links it into the model graph); it is paired with the tree in B, D, J and M.
 # A driver sets variant, variant_seed and n_gen; output sa-check/<variant>_<seed>.log
 ################################################################################
 seed(variant_seed)

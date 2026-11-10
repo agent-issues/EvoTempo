@@ -1,12 +1,13 @@
 #!/bin/bash
 # One MCMC chain of the hymenoptera RevBayes baseline on Hamilton (Durham HPC).
 #
-#   sbatch -J evotempo-hyme-rb141-<config>-<rep> --export=ALL,CONFIG=<config>,REP=<rep> run-hamilton.sh
+#   sbatch -J evotempo-hyme-dev-<config>-<rep> --export=ALL,CONFIG=<config>,REP=<rep> run-hamilton.sh
 #
 # CONFIG = te-shared | te-separate | morph; REP = replicate (seeds the chain).  Optional:
 #   N_GEN, SAMPLE_EVERY, BURNIN_GEN  chain length, thinning, tuning iterations
 #   START_FROM   output/ directory of an earlier chain: start from its last
-#                tree and scalar parameter values
+#                tree and the scalar values matched below (rates, clock, log-SD,
+#                Gamma shapes); z, er, pi and part_props start afresh
 #   RESUME=true  continue this chain from output/hymenoptera_<CONFIG>_run<REP>.ckp,
 #                appending to its output files
 #   CKP_EVERY    iterations between checkpoints (default 500)

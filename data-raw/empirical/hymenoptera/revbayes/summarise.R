@@ -6,7 +6,9 @@
 # Reads <dir>/<prefix>_<config>_run*.log and .trees (RevBayes), discards the
 # first 25 % of each chain, and writes to ./summary/:
 #   convergence_<config>.csv  per parameter: ESS per chain (min), pooled ESS,
-#                             PSRF, plus the topology ASDSF row
+#                             PSRF, rank-normalised R-hat, bulk and tail ESS,
+#                             MCSE of the mean and of the 2.5 %, 50 % and
+#                             97.5 % quantiles; plus the topology ASDSF row
 #   parameters_<config>.csv   posterior mean, median and 95 % HPD per parameter
 #   published_<config>.csv    estimates vs. the source studies (published.csv)
 #   fossils_<config>.csv      per fossil: P(sampled ancestor), P(in crown group)
@@ -16,7 +18,10 @@
 # estimator (spectral density at zero from an AR fit chosen by AIC); PSRF is
 # coda::gelman.diag()'s point estimate; HPD is the shortest interval holding
 # 95 % of the samples, as coda::HPDinterval().  check-diagnostics.R checks all
-# three against coda.
+# three against coda.  PSRF and the rank-normalised diagnostics (see
+# RankDiagnostics) need chains of equal length, so they use the first n
+# post-burn-in samples of each chain, n = the shortest chain's count; the AR
+# ESS, the estimates and the HPDs use every post-burn-in sample.
 
 args <- commandArgs(trailingOnly = TRUE)
 outDir <- args[1]
@@ -55,6 +60,101 @@ PSRF <- function(chains) {
   sqrt((dfV + 3) / (dfV + 1) * ((n - 1) / n + (1 + 1 / m) * b / (n * w)))
 }
 
+# Rank-normalised diagnostics of Vehtari, Gelman, Simpson, Carpenter & Bürkner
+# (2021, Bayesian Analysis 16:667), as in the R package posterior: split-chain
+# rank R-hat (the larger of the bulk and folded-tail values), bulk and tail ESS,
+# and Monte Carlo standard errors of the mean and of quantiles.  They take a
+# matrix of draws (rows = iterations, columns = chains).
+Autocov <- function(x) {
+  n <- length(x)
+  m <- 2 * nextn(n)
+  y <- c(x - mean(x), rep.int(0, m - n))
+  Re(fft(Mod(fft(y))^2, inverse = TRUE))[seq_len(n)] / (m * n)
+}
+EssRaw <- function(x) {
+  x <- as.matrix(x)
+  nCh <- ncol(x)
+  n <- nrow(x)
+  if (n < 4 || var(as.vector(x)) == 0) return(NA_real_)
+  acov <- vapply(seq_len(nCh), function(j) Autocov(x[, j]), numeric(n))
+  acov <- matrix(acov, nrow = n)
+  meanVar <- mean(acov[1, ]) * n / (n - 1)
+  varPlus <- meanVar * (n - 1) / n
+  if (nCh > 1) varPlus <- varPlus + var(colMeans(x))
+  rho <- rep.int(0, n)
+  t <- 0
+  rhoEven <- 1
+  rho[1] <- rhoEven
+  rhoOdd <- 1 - (meanVar - mean(acov[2, ])) / varPlus
+  rho[2] <- rhoOdd
+  while (t < n - 5 && !is.nan(rhoEven + rhoOdd) && rhoEven + rhoOdd > 0) {
+    t <- t + 2
+    rhoEven <- 1 - (meanVar - mean(acov[t + 1, ])) / varPlus
+    rhoOdd <- 1 - (meanVar - mean(acov[t + 2, ])) / varPlus
+    if (rhoEven + rhoOdd >= 0) {
+      rho[t + 1] <- rhoEven
+      rho[t + 2] <- rhoOdd
+    }
+  }
+  maxT <- t
+  if (rhoEven > 0) rho[maxT + 1] <- rhoEven
+  t <- 0
+  while (t <= maxT - 4) {
+    t <- t + 2
+    if (rho[t + 1] + rho[t + 2] > rho[t - 1] + rho[t]) {
+      rho[t + 1] <- (rho[t - 1] + rho[t]) / 2
+      rho[t + 2] <- rho[t + 1]
+    }
+  }
+  s <- nCh * n
+  tau <- -1 + 2 * sum(rho[seq_len(maxT)]) + rho[maxT + 1]
+  s / max(tau, 1 / log10(s))
+}
+SplitChains <- function(x) {
+  x <- as.matrix(x)
+  n <- nrow(x)
+  half <- n / 2
+  cbind(x[seq_len(floor(half)), , drop = FALSE], x[(ceiling(half) + 1):n, , drop = FALSE])
+}
+ZScale <- function(x) {
+  r <- rank(x, ties.method = "average")
+  z <- qnorm((r - 3 / 8) / (length(x) - 2 * 3 / 8 + 1))
+  dim(z) <- dim(x)
+  z
+}
+RhatBasic <- function(x) {
+  n <- nrow(x)
+  b <- n * var(colMeans(x))
+  w <- mean(apply(x, 2, var))
+  sqrt((b / w + n - 1) / n)
+}
+RankDiagnostics <- function(chains, probs = c(0.025, 0.5, 0.975)) {
+  # chains: list of equal-length numeric vectors
+  x <- do.call(cbind, chains)
+  xs <- SplitChains(x)
+  if (var(as.vector(x)) == 0) return(NULL)
+  rhat <- max(RhatBasic(ZScale(xs)), RhatBasic(ZScale(SplitChains(abs(x - median(x))))))
+  essBulk <- EssRaw(ZScale(xs))
+  EssQ <- function(p) {
+    q <- quantile(x, p, names = FALSE)
+    I <- xs <= q
+    if (all(I) || !any(I)) return(NA_real_)
+    EssRaw(I + 0)
+  }
+  essTail <- min(EssQ(0.05), EssQ(0.95))
+  McseQ <- function(p) {
+    e <- EssQ(p)
+    a <- qbeta(c(0.1586553, 0.8413447), e * p + 1, e * (1 - p) + 1)
+    s <- sort(as.vector(x))
+    S <- length(s)
+    (s[min(ceiling(a[2] * S), S)] - s[max(floor(a[1] * S), 1)]) / 2
+  }
+  out <- data.frame(rhat_rank = rhat, ess_bulk = essBulk, ess_tail = essTail,
+                    mcse_mean = sd(as.vector(x)) / sqrt(EssRaw(xs)))
+  for (p in probs) out[[sprintf("mcse_q%03d", round(1000 * p))]] <- McseQ(p)
+  out
+}
+
 HPD <- function(x, prob = 0.95) {
   x <- sort(x)
   n <- length(x)
@@ -74,12 +174,17 @@ names(logs) <- runNames
 params <- setdiff(Reduce(intersect, lapply(logs, names)), "Iteration")
 params <- params[vapply(params, function(p) var(unlist(lapply(logs, `[[`, p))) > 0, TRUE)]
 
+# PSRF and the rank-normalised diagnostics need equal-length chains: they use the
+# first n post-burn-in samples of every chain, n = the shortest chain's count.
+# ESS per chain and pooled ESS (ess_min_chain, ess_total) use all samples.
+nCommon <- min(vapply(logs, nrow, 0L))
 conv <- do.call(rbind, lapply(params, function(p) {
   chains <- lapply(logs, `[[`, p)
   ess <- vapply(chains, ESS, 0)
+  rank <- RankDiagnostics(lapply(chains, function(x) x[seq_len(nCommon)]))
   data.frame(parameter = p, ess_min_chain = min(ess), ess_total = sum(ess),
              psrf = PSRF(chains), n_chains = length(chains),
-             samples_per_chain = min(lengths(chains)))
+             samples_per_chain = nCommon, rank)
 }))
 
 pooled <- do.call(rbind, logs)
@@ -151,9 +256,12 @@ freqMat <- matrix(freqMat, ncol = length(cladeFreq), dimnames = list(allClades, 
 keep <- apply(freqMat, 1, max) >= 0.1
 sdFreq <- apply(freqMat[keep, , drop = FALSE], 1, sd)
 asdsf <- mean(sdFreq)
-conv <- rbind(conv, data.frame(parameter = "topology (ASDSF, clades >= 0.1)", ess_min_chain = NA,
-                               ess_total = NA, psrf = NA, n_chains = length(trees),
-                               samples_per_chain = min(lengths(trees))))
+topRow <- conv[1, ]
+topRow[1, ] <- NA
+topRow$parameter <- "topology (ASDSF, clades >= 0.1)"
+topRow$n_chains <- length(trees)
+topRow$samples_per_chain <- min(lengths(trees))
+conv <- rbind(conv, topRow)
 conv$asdsf <- NA
 conv$asdsf[nrow(conv)] <- asdsf
 conv$max_sdsf <- NA
@@ -207,6 +315,11 @@ writeLines(c(sprintf("config: %s", clock), sprintf("chains: %s", paste(runNames,
              sprintf("min ESS (pooled): %.0f (%s)", min(conv$ess_total, na.rm = TRUE),
                      conv$parameter[which.min(conv$ess_total)]),
              sprintf("max PSRF: %.4f (%s)", max(conv$psrf, na.rm = TRUE),
-                     conv$parameter[which.max(conv$psrf)])),
+                     conv$parameter[which.max(conv$psrf)]),
+             sprintf("max rank R-hat: %.4f (%s)", max(conv$rhat_rank, na.rm = TRUE),
+                     conv$parameter[which.max(conv$rhat_rank)]),
+             sprintf("min bulk ESS: %.0f (%s); min tail ESS: %.0f (%s)",
+                     min(conv$ess_bulk, na.rm = TRUE), conv$parameter[which.min(conv$ess_bulk)],
+                     min(conv$ess_tail, na.rm = TRUE), conv$parameter[which.min(conv$ess_tail)])),
            sprintf("summary/headline_%s.txt", clock))
 cat(readLines(sprintf("summary/headline_%s.txt", clock)), sep = "\n")

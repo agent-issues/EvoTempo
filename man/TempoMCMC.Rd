@@ -18,6 +18,7 @@ TempoMCMC(
   nState = 2L,
   updateParameters = TRUE,
   minAcceptance = 0.01,
+  agePriors = list(),
   engine = getOption("EvoTempo.engine", "cpp")
 )
 }
@@ -56,6 +57,11 @@ then moves the bins only).}
 \item{minAcceptance}{Numeric giving the burn-in acceptance below which
 \code{tree} and \code{joint} moves are dropped after burn-in (see Details).}
 
+\item{agePriors}{Named list of functions giving log prior densities of
+the root age (\code{root}; with \code{start = "root"}) and of the origin age
+(\code{origin}; with \code{start = "origin"}), needed by the \code{rootAge} and
+\code{originAge} moves.}
+
 \item{engine}{Character string selecting the engine:
 \itemize{
 \item \code{cpp}: compiled C++, with a stiff Radau IIA solver for the backward
@@ -67,15 +73,24 @@ equations and MkPrime kernels for characters;
 \code{TempoMCMC()} returns a list with elements
 \itemize{
 \item \code{samples}: data frame with one column per free parameter, \code{logPost}
-(log augmented density, plus character log-likelihood and log prior),
-\code{rootBin}, \code{meanX} (lineage-time-averaged log-tempo over the tree) and
+(log augmented density, plus character log-likelihood, log prior of the
+parameters and, when \code{rootAge} or \code{originAge} moves it, log prior of the
+start age), \code{rootBin} (the bin at the root), \code{meanX}
+(lineage-time-averaged log-tempo over the tree) and
 tree statistics: \code{nAncestor}, \code{treeLength}, \code{meanNodeAge} (of non-root
 bifurcations), \code{cherries}, \code{oldestFossil}, \code{youngestFossil}, \code{clock}
 (\eqn{\sum_e \int_e e^x dt}) and \code{inverseClock}
-(\eqn{\sum_e \int_e e^{-x} dt});
-\item \code{occupancy}: matrix of time spent in each bin (columns), per sample;
-\item \code{branchX}: matrix of the time-averaged log-tempo on each branch (for
-chains without tree moves);
+(\eqn{\sum_e \int_e e^{-x} dt}), over the branches below the root,
+\code{rootAge}, and with \code{start = "origin"}, \code{originAge} and \code{originBin}
+(the bin at the origin, whose prior is the start-bin prior; \code{rootBin}
+is then the bin at the end of the stem).
+With an origin, \code{meanX} (like \code{occupancy} and \code{branchX}) includes the
+stem, while \code{treeLength}, \code{clock} and \code{inverseClock} do not;
+\item \code{occupancy}: matrix of time spent in each bin (columns), per sample,
+over every branch with a path (with an origin, including the stem);
+\item \code{branchX}: matrix of the time-averaged log-tempo on each branch with a
+path (with an origin, including the stem; for chains without tree
+moves);
 \item \code{acceptance}: acceptance rate of each move after burn-in (zero for
 moves not run);
 \item \code{burninAcceptance}: acceptance rate of each move during burn-in, or
@@ -140,8 +155,9 @@ remain; set \code{minAcceptance = 0} to keep a fixed schedule such as
 Move frequencies change only during burn-in, so the sampling phase is a
 fixed mixture of kernels.
 
-Tree moves (root age fixed): \code{nodeAge} redraws the age of a bifurcation
-uniformly between its children and parent; \code{fossilAge} redraws a fossil's
+Tree moves: \code{nodeAge} redraws the age of a bifurcation
+uniformly between its children and parent (with \code{start = "origin"}, the
+root's too, between its children and the origin); \code{fossilAge} redraws a fossil's
 age within its stratigraphic range (see \code{\link[=TempoTree]{TempoTree()}}); \code{slide} prunes a
 subtree and regrafts it at a uniform height onto a uniformly chosen branch
 crossing that height; \code{saJump} converts a fossil tip to a sampled ancestor
@@ -151,6 +167,24 @@ proposal densities in the Hastings ratio.
 The target is the density of the unoriented labelled tree, i.e. the
 oriented density of \code{\link[=TreeLikelihood]{TreeLikelihood()}} times \eqn{2^{|V|}}, \eqn{|V|} the
 number of bifurcations.
+
+The start age is fixed unless it has a prior in \code{agePriors}, and must then
+have a finite log prior density at the start.
+A sampled ancestor at the root is not supported, with either start.
+With \code{start = "root"}, \code{rootAge} scales the distance between the root and
+its older child by \eqn{e^{u}}, \eqn{u \sim U(-\epsilon/2, \epsilon/2)},
+rebuilds the frozen model at the new root age (its E grid and slices end
+there) and redraws the paths on the two root branches between their
+fixed end bins.
+The survival conditioning is evaluated at the current root age, so the
+target is the root-age prior times the likelihood conditioned on survival
+from that age (spec section 6).
+With \code{start = "origin"}, the stem carries a path from the origin bin
+(drawn from the start-bin prior) to the root, the root carries a
+\eqn{\lambda} factor, survival is that of the single stem lineage, and
+\code{originAge} scales the stem length in the same way, redrawing the stem's
+path.
+Step sizes \eqn{\epsilon} adapt during burn-in.
 
 Characters follow the Mk model on branch lengths
 \eqn{\ell_e = c \int_e e^{\gamma x} dt}, with \eqn{c} the parameter \code{rate}

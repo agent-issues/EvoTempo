@@ -1,0 +1,5 @@
+b0g0_run1: 20 states, 0.8 s; max |own - logPost| = 4.77e-12
+b0g1_run1: 20 states, 0.8 s; max |own - logPost| = 4.55e-12
+b1g0_run1: 20 states, 0.8 s; max |own - logPost| = 4.27e-11
+b1g1_run1: 20 states, 0.8 s; max |own - logPost| = 9.29e-08
+done

@@ -1,0 +1,116 @@
+Provenance of the #69 high-power start-age oracle (section 5 of README.md)
+===========================================================================
+
+Recorded on 2026-11-03 from the Hamilton run directory /nobackup/pjjg18/evotempo-pr43c
+(since deleted; this file, the result CSVs in this folder and ../empirical/penguins/cet/
+smoke-results/ keep what it held). All times are UTC, 3 November 2026.
+
+What ran
+--------
+EvoTempo 589f866 (package code), with an overlay of data-raw/ files:
+  overlay.tar.gz  written 08:10:55, md5 df5b894e137aa61b96d5ec554ed413f3
+It contains data-raw/rung5-age-oracle.R. That copy differs from the committed one only in
+lacking the seed-offset lines (EVOTEMPO_RUNG5_SEED_OFFSET), which were added on Hamilton
+before the replicate runs (they need them); at offset 0 they change nothing. The header of
+the copy that ran, lines 32-37:
+  # Every run also scores its chains against the exact posterior of every other
+  # conditioning (`-cross.csv`).  This is the negative control: the chains must
+  # reject each conditioning that differs from their own in one flag
+  # (joint/marginal, extant/survival, extant/none), with max |z| >= 5 over the
+  # six statistics; at the power design the exact differences are large enough
+  # for that (variant `design`).
+No file in the overlay or in the run directory states a bar for a run against its own
+exact posterior. The overlay's rung-5 README has sections 1-4 only. The own-target bar
+|z| < 3.5 first appears in this folder's README.md in commit dc47aed (2026-11-03 10:40:39).
+
+Slurm accounting (sacct: JobID, JobName, Submit, Start, End, State)
+----------------------------------------------------------------------
+  19334333     evotempo-pr43-oracle-setup     08:22:19  08:22:21  08:23:50  COMPLETED  (build, check-mkv, design mode)
+  19334452_1   evotempo-pr43-oracle-power     08:54:22  08:54:29  09:08:13  COMPLETED  origin extant
+  19334452_2   evotempo-pr43-oracle-power     08:54:22  08:54:29  09:11:01  COMPLETED  origin joint
+  19334452_3   evotempo-pr43-oracle-power     08:54:22  08:54:29  09:11:47  COMPLETED  origin survival
+  19334452_4   evotempo-pr43-oracle-power     08:54:22  08:54:29  09:07:24  COMPLETED  origin survival-joint
+  19334452_5   evotempo-pr43-oracle-power     08:54:22  08:54:29  09:13:26  COMPLETED  origin none
+  19334452_6   evotempo-pr43-oracle-power     08:54:22  08:54:29  09:14:04  COMPLETED  root extant
+  19334452_7   evotempo-pr43-oracle-power     08:54:22  08:54:29  09:11:14  COMPLETED  root joint
+  19334452_8   evotempo-pr43-oracle-power     08:54:22  08:54:29  09:07:03  COMPLETED  root survival
+  19334452_9   evotempo-pr43-oracle-power     08:54:22  08:54:59  09:07:56  COMPLETED  root survival-joint
+  19334452_10  evotempo-pr43-oracle-power     08:54:22  08:54:59  09:08:50  COMPLETED  root none
+  19334616_1   evotempo-pr43-oracle-confirm   09:17:20  09:17:22  09:34:47  COMPLETED  root extant, seed offset 50000
+  19334616_2   evotempo-pr43-oracle-confirm   09:17:20  09:17:22  09:37:18  COMPLETED  root extant, seed offset 60000
+  19334616_3   evotempo-pr43-oracle-confirm   09:17:20  09:17:22  09:30:49  COMPLETED  root none, seed offset 50000
+  19334767_1   evotempo-pr43-oracle-confirm2  09:38:56  09:39:14  09:56:48  COMPLETED  root extant, seed offset 70000
+  19334767_2   evotempo-pr43-oracle-confirm2  09:38:56  09:39:14  09:56:04  COMPLETED  root extant, seed offset 80000
+  19334767_3   evotempo-pr43-oracle-confirm2  09:38:56  09:39:14  09:54:43  COMPLETED  root extant, seed offset 90000
+  19334767_4   evotempo-pr43-oracle-confirm2  09:38:56  09:39:14  09:52:28  COMPLETED  root extant, seed offset 100000
+
+Script file times: oracle.sh 08:10:58, confirm.sh 09:17:20, confirm2.sh 09:38:55.
+
+The job scripts as they ran
+---------------------------
+
+--- oracle.sh ---
+#!/bin/bash
+#SBATCH -p shared
+#SBATCH -c 16
+#SBATCH --mem=16G
+#SBATCH --time=1-00:00:00
+#SBATCH -o /nobackup/pjjg18/evotempo-pr43c/logs/%x-%A_%a.out
+# PR #43 follow-up (#69): high-power start-age oracle, 2 starts x 5
+# conditionings, 32 chains x NITER iterations each, power design.
+set +e; set +o pipefail
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+module purge; module load r/4.5.1 gcc/14.2
+W=/nobackup/pjjg18/evotempo-pr43c
+export R_LIBS=$W/lib:/nobackup/pjjg18/evotempo-dev/lib
+export EVOTEMPO_RUNG5_OUT=$W/results EVOTEMPO_SHA=589f866+overlay
+NITER=${NITER:-60000}
+cases=(origin origin origin origin origin root root root root root)
+vars=(extant joint survival survival-joint none extant joint survival survival-joint none)
+i=$((SLURM_ARRAY_TASK_ID - 1))
+cd $W/src
+/usr/bin/time -v Rscript data-raw/rung5-age-oracle.R ${cases[$i]} $NITER 32 ${vars[$i]} power \
+  > $W/out/oracle-${cases[$i]}-${vars[$i]}.txt 2> $W/out/oracle-${cases[$i]}-${vars[$i]}.err
+echo "exit $?" >> $W/out/oracle-${cases[$i]}-${vars[$i]}.txt
+
+--- confirm.sh ---
+#!/bin/bash
+#SBATCH -p shared
+#SBATCH -c 16
+#SBATCH --mem=16G
+#SBATCH --time=12:00:00
+#SBATCH -o /nobackup/pjjg18/evotempo-pr43c/logs/%x-%A_%a.out
+# #69 confirmation replicates (new seeds) of root-extant (x2) and root-none
+set +e; set +o pipefail
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+module purge; module load r/4.5.1 gcc/14.2
+W=/nobackup/pjjg18/evotempo-pr43c
+export R_LIBS=$W/lib:/nobackup/pjjg18/evotempo-dev/lib
+export EVOTEMPO_RUNG5_OUT=$W/results EVOTEMPO_SHA=589f866+overlay
+vars=(extant extant none); offs=(50000 60000 50000)
+i=$((SLURM_ARRAY_TASK_ID - 1))
+cd $W/src
+EVOTEMPO_RUNG5_SEED_OFFSET=${offs[$i]} Rscript data-raw/rung5-age-oracle.R root 60000 32 ${vars[$i]} power \
+  > $W/out/oracle-root-${vars[$i]}-seed${offs[$i]}.txt 2>&1
+echo "exit $?" >> $W/out/oracle-root-${vars[$i]}-seed${offs[$i]}.txt
+
+--- confirm2.sh ---
+#!/bin/bash
+#SBATCH -p shared
+#SBATCH -c 16
+#SBATCH --mem=16G
+#SBATCH --time=12:00:00
+#SBATCH -o /nobackup/pjjg18/evotempo-pr43c/logs/%x-%A_%a.out
+# #69 further replicates (new seeds) of root-extant (x4)
+set +e; set +o pipefail
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+module purge; module load r/4.5.1 gcc/14.2
+W=/nobackup/pjjg18/evotempo-pr43c
+export R_LIBS=$W/lib:/nobackup/pjjg18/evotempo-dev/lib
+export EVOTEMPO_RUNG5_OUT=$W/results EVOTEMPO_SHA=589f866+overlay
+vars=(extant extant extant extant); offs=(70000 80000 90000 100000)
+i=$((SLURM_ARRAY_TASK_ID - 1))
+cd $W/src
+EVOTEMPO_RUNG5_SEED_OFFSET=${offs[$i]} Rscript data-raw/rung5-age-oracle.R root 60000 32 ${vars[$i]} power \
+  > $W/out/oracle-root-${vars[$i]}-seed${offs[$i]}.txt 2>&1
+echo "exit $?" >> $W/out/oracle-root-${vars[$i]}-seed${offs[$i]}.txt

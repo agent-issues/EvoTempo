@@ -390,9 +390,12 @@ were seen). Results: `bias72/bias72-arms.csv` (per arm), `bias72/bias72-perrun.c
 run) and `bias72/bias72-verdict.csv` (decision rules). The scripts that ran are in
 `bias72/scripts/` (`oracle-gamma.R`, the arm-B variant of `rung5-age-oracle.R`; the Slurm
 array `run-array.sh` with `tasks.txt`; and `extract.R`, `fine-exact.R` and `analyse.R`).
-The per-run chain output (`.rds`) was deleted after extraction, so the pooled arm
-statistics cannot be regenerated from the committed per-run CSV, which has per-run z and
-acceptance but no per-run bias or SE. Artifact IDs in the two `.md` files refer to the
+`analyse.R` regenerates `bias72-arms.csv` and `bias72-verdict.csv` exactly from the
+committed `bias72-perchain.csv`, `bias72-perrun.csv` and `fine-exact.csv`. The chain output
+(`.rds`) was deleted after extraction. The committed `extract.R` still has the acceptance
+bug described in the deviations file (it picks up `nodeAge`); the corrected diagnostic
+column in `bias72-perrun.csv` came from a re-extraction by move name, which is not
+committed and is not used in any pre-registered statistic. Artifact IDs in the two `.md` files refer to the
 project's analysis records, not to repository files.
 
 - Arm A, the unchanged power design (root start, extant conditioning; 40 runs, 1280

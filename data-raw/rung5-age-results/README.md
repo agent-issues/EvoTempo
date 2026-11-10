@@ -364,10 +364,10 @@ That makes six root-extant replicates (192 chains) and one root-none replicate (
 The root-none replicate gave max |z| 0.98.
 
 The six new root-extant replicates are weaker than the first run (largest Stouffer |z|
-1.83). Their pooled (Stouffer) row keeps the first run's sign on every statistic except
-q95, where it is +0.12, i.e. no direction. Individual replicates disagree: seeds 50000,
-80000 and 100000 each go the opposite way on three or more statistics. The inverse-variance
-pooled mean bias (chain mean minus exact mean) is:
+1.83). Their pooled (Stouffer) row keeps the first run's sign on all six statistics, but
+q95 is only +0.12. Individual replicates disagree: against the first run's signs, seeds
+80000 and 100000 go the opposite way on four and three statistics, 50000 on two and 90000
+on one. The inverse-variance pooled mean bias (chain mean minus exact mean) is:
 
 - over the 6 unselected replicates: -0.00104 +- 0.00065 (z -1.60; 95% interval -0.0023 to
   +0.0002);
@@ -378,18 +378,27 @@ it; the 6-run figure is the one to quote. A Holm correction (the criterion of se
 depends on what it is taken over: over all 60 statistics of section 5, root-none's adjusted
 p is 0.145; within one run's 6 statistics it is 0.0145 for root-none and 0.031 for
 root-extant, so both first runs would be flagged; after replication the pooled values are
-0.46 (6 runs) and 0.18 (7 runs). This is a reading after the fact, not a pre-registered
-pass.
+0.46 (6 runs) and 0.18 (7 runs) under a t31 reference (0.40 and 0.14 under N(0, 1), which
+suits a Stouffer sum better). This is a reading after the fact, not a pre-registered pass.
 
-**Settled by a pre-registered test (#72).** The design, replicate counts and pass/fail
-rules were written before any new data; 80 runs x 32 chains x 60 000 iterations at this
-power design, run once at dc47aed. At a root start under extant conditioning (arm A, 40
-runs, 1280 chains) the bias is +0.000070 +- 0.000236 (z 0.30; 99% interval -0.00054 to
-+0.00068), which excludes the -0.00144 above: no bias of the reported size. With the
-root-age prior's lower bound moved away from the posterior mass (arm B, 24 runs) it is
--0.000006 +- 0.000252 (z -0.02), and in the origin-start control (arm C, 16 runs)
-+0.00085 +- 0.00045 (z 1.91); neither is a finding under the pre-registered rules. The
-earlier signal was chance plus selective replication. Per-run results are in #72.
+**Settled by a pre-registered test (#72).** A reviewer wrote the design, replicate counts
+and pass/fail rules before any new data (`bias72/prereg-verify43c.md`), and the test was run
+once at dc47aed: 80 runs x 32 chains x 60 000 iterations in three arms. Deviations from the
+pre-registration are listed in `bias72/deviations-bias72.md`; the main one is that the
+analysis scripts were written by the agent that ran the test (still before any chain data
+were seen). Results: `bias72/bias72-arms.csv` (per arm), `bias72/bias72-perrun.csv` (per
+run) and `bias72/bias72-verdict.csv` (decision rules).
+
+- Arm A, the unchanged power design (root start, extant conditioning; 40 runs, 1280
+  chains): bias +0.000070 +- 0.000236 (z 0.30; 99% interval -0.00054 to +0.00068). This
+  excludes both the 7-run -0.00144 and the 6-run -0.00104 above, so there is no bias of the
+  reported size; a bias up to about 0.0007 in either direction is not excluded.
+- Arm B, the root-age prior changed to a gamma with its lower bound away from the posterior
+  mass (grid to 12; 24 runs): -0.000006 +- 0.000252 (z -0.02).
+- Arm C, an origin-start control (16 runs): +0.00085 +- 0.00045 (z 1.91).
+
+Neither B nor C is a finding under the pre-registered rules. The earlier signal is best
+explained by chance plus selective replication.
 
 **Negative controls** (`-cross.csv`): max |z| over the six statistics when each run's chains
 are scored against each conditioning's exact posterior. The required one-flag alternatives
@@ -439,12 +448,15 @@ themselves are right. Those are checked independently only in part:
 - at beta = 0, `none`, `extant` and `survival` reduce to the closed-form FBD likelihood
   (`tests/testthat/test-TreeLikelihood.R`).
 
-- crown + joint conditioning with rates that vary across bins, against `castor`, in rung 3
-  (`data-raw/rung3-validation.R`, `.PruneTree(..., "extant", joint = TRUE, "root")`).
+- crown + joint conditioning with rates that vary across bins, against independent code
+  (`castor`), not simulation, in rung 3 (`data-raw/rung3-validation.R`,
+  `.PruneTree(..., "extant", joint = TRUE, "root")`): a 12-tip ultrametric tree without
+  fossils (psi = 0, rho = 0.7), K = 5, z in [-1.5, 1.5], 20 parameter points, and skipped at
+  the default grid.
 
-Survival conditioning, and joint conditioning from an origin start, with rates that vary
-across bins have no check against simulation. Further limits: fixed parameters, one small
-tree, no characters, K = 16.
+Survival conditioning, and joint conditioning (crown or origin start), with rates that
+vary across bins have no check against simulation. Further limits: fixed parameters, one
+small tree, no characters, K = 16.
 
 ## Conditioning choice
 

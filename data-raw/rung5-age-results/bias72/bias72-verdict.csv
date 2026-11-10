@@ -1,0 +1,8 @@
+"rule","applies","outcome","stat"
+"1 primary (arm A)",TRUE,"NO BIAS OF THE REPORTED SIZE","z_A 0.298; b_A 0.000070 +- 0.000236; 99% CI (-0.000537, 0.000678)"
+"2a bound (A vs B)",FALSE,"localisation inconclusive","z_B -0.024; zDiff (r_A - r_B) 0.201"
+"2b start type (C)",FALSE,"root-start specific","z_C 1.913"
+"3 secondary flags",TRUE,"none",""
+"4 arm B own",TRUE,"no finding","z_B -0.024"
+"4 arm C own",TRUE,"no finding","z_C 1.913"
+"5 completion",TRUE,"A 40/40; B 24/24; C 16/16",""

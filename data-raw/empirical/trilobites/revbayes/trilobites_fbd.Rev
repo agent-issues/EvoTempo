@@ -61,8 +61,10 @@ psi := sampling_prop * mu / abs(1 - sampling_prop)
 # no sampling at the end of the window
 rho <- 0.0
 
-# origin: BEAST2 origin ~ U(0, 1000) above the youngest tip (486.0 Ma, i.e.
-# 0.6 Myr in window time)
+# origin: U(0, 1000) above the youngest tip (486.0 Ma, i.e. 0.6 Myr in window
+# time). This is not the source's: the BEAST2 SABD/BDSS analyses fix the origin at
+# 150 Myr above the youngest tip (636 Ma); their U(0, 1000) prior acts on an unused
+# parameter (README, Differences).
 origin_time ~ dnUniform(0.6, 1000.6)
 moves.append( mvSlide(origin_time, delta = 5, tune = true, weight = 3) )
 

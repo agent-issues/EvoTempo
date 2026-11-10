@@ -12,7 +12,7 @@
 ## Independent oracle (`oracle/`)
 
 The independent reviewer of PR #78 ran this oracle on 10 November 2026; their report is
-verify78-report.md. The comparison criteria were pre-registered (`prereg-verify78.md`) before any
+summarised in the PR #78 review comment and issue #84. The comparison criteria were pre-registered (`prereg-verify78.md`) before any
 production run.
 
 - **Oracle A:** BEAST 2.4.8 with SA 1.1.7, prior only. It uses the same 107 fixed tip ages,

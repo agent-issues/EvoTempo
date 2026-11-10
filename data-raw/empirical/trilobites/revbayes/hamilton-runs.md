@@ -7,7 +7,7 @@ an exported `RB` and a per-chain `START_FROM`. An exact rerun is not possible: t
 directories gave are committed in `start-states/`.
 
 `W=/nobackup/pjjg18/evotempo-baselines-rb141`; `T=$W/src-tri/data-raw/empirical/trilobites/revbayes`
-(a clone of this branch, at `88bf486` for the v1.4.1 launch and `ec3794f` for the reported chains, with `data/`
+(a clone of this branch, at `88bf486` for the v1.4.1 launch and `aad8f23` for the reported chains (the clone's reflog shows HEAD at aad8f23 from 2 Nov 18:32 to 3 Nov 08:17; all six chains started 2 Nov 18:44–19:20; the model file is identical, md5 e3ba8720, to the one at a3ad184), with `data/`
 written by `Rscript prepare-data.R; Rscript start-tree.R`).
 
 ## 1. Superseded v1.4.1 chains (31 October – 3 November 2026)

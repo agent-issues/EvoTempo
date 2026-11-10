@@ -1,8 +1,8 @@
-# Hymenoptera: conventional tip-dating baselines in RevBayes 1.4.1
+# Hymenoptera: conventional tip-dating baselines in RevBayes
 
 UCLN + FBD comparator for the CET analyses of the Hymenoptera data (Ronquist et al. 2012; fossil
-age intervals and FBD settings of Zhang et al. 2016; inputs in `..`). Three configurations, each
-run as six independent chains:
+age intervals and FBD settings of Zhang et al. 2016; inputs in `..`). Three configurations, run as
+independent chains (8 for each `te-*` configuration, 6 for `morph`):
 
 | Config | Data | Clock |
 |---|---|---|
@@ -36,7 +36,7 @@ was superseded; the development-build chains started from their last states. The
 | `summary/` | Results (below). Pooled tree files and traces are not committed |
 
 Run from this directory: `Rscript prepare-data.R; Rscript start-tree.R`; then, on Hamilton,
-`bash launch-hamilton.sh <run root> <config> 1 6 shared 2` per configuration and, once the chains
+`bash launch-hamilton.sh <run root> <config> 1 <n> shared 2` per configuration (n = 8 for `te-*`, 6 for `morph`) and, once the chains
 have run, `bash summarise-hamilton.sh <run root> <burn-in fraction>`.
 
 ## Model and priors
@@ -54,7 +54,7 @@ have run, `bash summarise-hamilton.sh <run root> <burn-in fraction>`.
 | Partition rates | flat Dirichlet on (multiplier × proportion of sites), so that the site-weighted mean multiplier is 1 (`ratepr = variable`) | same |
 | Morphology | Mkv (`coding = "variable"`) + Γ4, one shape ~ Exponential(1); the 43 analysed ordered characters as adjacent-state, equal-rate matrices; 10 characters excluded | Mkv + Γ; same ordered and excluded sets |
 | DNA | 12S+16S, 18S, CO1 positions 1-2, EF1α positions 1-2, EF1α position 3: GTR + Γ4; 28S: SYM + Γ4 (equal frequencies). Flat Dirichlet exchangeabilities and frequencies; shapes ~ Exponential(1); CO1 position 3 excluded | same partitions and models (GTR + Γ, SYM + Γ; no +I) |
-| MCMC | six independent chains per configuration, no heating | 4 runs × 4 Metropolis-coupled chains, 5 × 10⁷ generations |
+| MCMC | 8 (`te-*`) or 6 (`morph`) independent chains, no heating | 4 runs × 4 Metropolis-coupled chains, 5 × 10⁷ generations |
 
 ### Differences from the source analysis
 
@@ -187,8 +187,93 @@ not from this check.
 
 ## Results
 
-{{RESULTS}}
+All chains ran on Hamilton under the development build `a2a8e2db`, on `shared` in 3-day jobs, each
+resumed from its checkpoint. They started from the last states of the superseded v1.4.1 chains.
+
+| Config | Chains | Iterations per chain | Sampled every | Samples per chain after burn-in (shortest chain) |
+|---|---|---|---|---|
+| `te-shared` | 8 | 247 150–319 950 | 50 | 3708 |
+| `te-separate` | 8 | 273 700–341 350 | 50 | 4106 |
+| `morph` | 6 | 250 000–284 000 | 100 | 1875 |
+
+`summarise.R` discards the first 25 % of each chain. The `te-*` chains were stopped once all three
+criteria held. All files are in `summary/`: `headline_<config>.txt`, `convergence_<config>.csv`,
+`parameters_<config>.csv`, `published_<config>.csv`, `fossils_<config>.csv` (per fossil: P(sampled
+ancestor), P(in crown Hymenoptera), and Zhang et al.'s Table S1 values), `clades_<config>.csv` and
+`mcc_<config>.nex`. MCC node ages are in Ma, because the extant tips are at 0.
+
+### Convergence
+
+| Config | ASDSF (max SDSF) | Lowest pooled ESS | Highest PSRF | Lowest per-chain ESS |
+|---|---|---|---|---|
+| `te-shared` | 0.0119 (0.037), 182 clades | 251 (crown Hymenoptera age) | 1.030 (Hymenoptera total-group age) | 20 (crown age) |
+| `te-separate` | 0.0139 (0.067), 179 clades | 289 (crown age) | 1.017 (crown age) | 21 (crown age) |
+| `morph` | 0.0109 (0.033), 145 clades | 1096 (Prior) | 1.008 (Holometabola age) | 154 (Prior) |
+
+All three configurations meet the criteria: ASDSF < 0.05, PSRF < 1.05 and pooled ESS ≥ 200 for
+every logged parameter. In the `te-*` runs the node ages and the clock rate mix slowly along
+the clock-rate–age ridge, because no tree-scaling move is available (see **RevBayes up-down move**).
+Their per-chain ESS is only about 20–60 for the root, Holometabola and Hymenoptera ages and the
+clock rates. The ages and clock rates therefore rest on agreement among the 8 chains (PSRF ≤ 1.03),
+not on long single chains. Their HPD bounds are less precise than the pooled ESS suggests. The
+other parameters mix better: λ and μ have pooled ESS > 1000, and the rest > 2500.
+
+### Estimates
+
+Median (95 % HPD).
+
+| Parameter | `te-shared` | `te-separate` | `morph` |
+|---|---|---|---|
+| root (Ma) | 412.1 (340.5–497.1) | 388.4 (324.7–467.5) | 357.1 (315.1–427.9) |
+| Holometabola (Ma) | 397.4 (330.3–473.1) | 374.2 (313.0–444.2) | 341.1 (302.1–402.7) |
+| crown Hymenoptera (Ma) | 351.4 (299.8–414.3) | 325.3 (278.4–383.0) | 312.4 (264.3–380.5) |
+| net diversification λ − μ (per Myr) | 0.0076 (0.0045–0.0109) | 0.0078 (0.0045–0.0112) | 0.0055 (0.0015–0.0099) |
+| turnover μ/λ | 0.9993 (0.9986–0.9998) | 0.9994 (0.9988–0.9998) | 0.9999 (0.9997–1.0000) |
+| sampling proportion s | 2.6e−7 (0.8e−7–5.5e−7) | 2.4e−7 (0.8e−7–5.0e−7) | 5.1e−8 (1.5e−8–1.1e−7) |
+| clock rate (per site per Myr) | 9.55e−4 (7.52e−4–1.17e−3) | DNA 9.95e−4 (7.97e−4–1.21e−3); morphology 1.23e−3 (0.88e−3–1.64e−3) | 1.92e−3 (1.32e−3–2.64e−3) |
+| UCLN log-SD | 0.566 (0.462–0.675) | DNA 0.525 (0.415–0.651); morphology 1.063 (0.881–1.253) | 1.051 (0.862–1.270) |
+| sampled ancestors (mean) | 0.033 | 0.030 | 0.013 |
+
+The sampled-ancestor count has median 0 and 95 % HPD 0–0 in every configuration. No fossil has
+P(sampled ancestor) above 0.0032. Across fossils, these probabilities rank like Zhang et al.'s
+Table S1 values for FBD (Rnd): Spearman ρ = 0.95 (`te-shared`), 0.90 (`te-separate`) and 0.75
+(`morph`). Their probabilities are larger (maximum 0.016, *Eoxyela*). Every fossil falls in crown
+Hymenoptera with probability ≥ 0.97 (`te-shared`, `morph`) or ≥ 0.85 (`te-separate`).
+
+### Comparison with Zhang et al. 2016
+
+Zhang et al. 2016, Table 5 (MrBayes, IGR clock, total evidence), median (95 % HPD) in Ma:
+
+| Analysis | Root | Crown Hymenoptera | Proportion of fossils that are ancestors |
+|---|---|---|---|
+| **This analysis, `te-shared`** (FBD, random sampling, UCLN) | **412.1 (340.5–497.1)** | **351.4 (299.8–414.3)** | **0.00 (0.00–0.00)** |
+| FBD (Rnd): the matching analysis | 406.4 (328.1–500.3) | 346.6 (291.9–426.5) | 0.00 (0.00–0.02) |
+| FBD (Div) | 322.7 (315.1–342.6) | 279.4 (255.1–304.3) | 0.02 (0.00–0.07) |
+| pcFBD (Rnd) | 369.6 (315.6–433.3) | 325.6 (282.5–374.9) | 0.33 (0.20–0.47) |
+| pcFBD (Div) | 328.2 (315.0–358.9) | 251.7 (237.9–310.9) | 0.02 (0.00–0.07) |
+| Uniform (U) | 345.1 (315.0–402.2) | 306.0 (289.3–341.3) | – |
+
+`te-shared` matches the analysis it reproduces, FBD (Rnd). The medians differ by about 5 Myr for both
+ages, the HPDs nearly coincide, and the proportion of ancestral fossils is 0 in both. The UCLN
+clock therefore gives the same answer as their IGR clock. The other two configurations have no
+published counterpart. With a separate morphological clock, the ages are about 25 Myr younger
+than `te-shared`. With morphology alone, they are younger again, and the root's HPD
+reaches the root-age prior's minimum (315 Ma).
+
 
 ## Compute
 
-{{COMPUTE}}
+Core-hours on Hamilton (Slurm `CPUTimeRAW`, one core per chain job):
+
+| Jobs | Core-hours |
+|---|---|
+| Reported chains, development build: `te-shared` 8 chains (`evotempo-hyme-dev-te-shared-*`) | 1519.9 |
+| Reported chains, development build: `te-separate` 8 chains | 1519.9 |
+| Reported chains, development build: `morph` 6 chains | 432.0 |
+| Superseded v1.4.1 chains: `te-shared` 632.2, `te-separate` 632.2, `morph` 432.0 (`evotempo-hyme-rb141-*`) | 1696.4 |
+| Build check, both builds (`evotempo-hyme-prior-check`) | 32.6 |
+| Scale-move checks A–M, both builds (`evotempo-revbayes-updown-check*`), and fossil-age check of all chains | 3.6 |
+| Smoke tests | 0.9 |
+| **Total** | **5205.5** |
+
+The summary jobs ran on 4 cores, about 2 core-hours in all, shared with the trilobite baseline.

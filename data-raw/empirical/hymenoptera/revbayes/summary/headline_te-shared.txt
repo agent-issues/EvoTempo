@@ -1,0 +1,7 @@
+config: te-shared
+chains: run1 run2 run3 run4 run5 run6 run7 run8
+samples per chain after burn-in: 3708
+ASDSF (clades >= 0.1 in any chain): 0.0119 over 182 clades; max SDSF 0.0374
+min ESS (per chain): 20 (hym_crown_age)
+min ESS (pooled): 251 (hym_crown_age)
+max PSRF: 1.0301 (hym_total_age)

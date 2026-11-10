@@ -1,0 +1,7 @@
+config: morph
+chains: run1 run2 run3 run4 run5 run6
+samples per chain after burn-in: 2919
+ASDSF (clades >= 0.1 in any chain): 0.0079 over 186 clades; max SDSF 0.0208
+min ESS (per chain): 452 (mu)
+min ESS (pooled): 6542 (mu)
+max PSRF: 1.0098 (lambda)

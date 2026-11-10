@@ -1,4 +1,4 @@
-# Cambrian trilobites: conventional tip-dating baseline in RevBayes 1.4.1
+# Cambrian trilobites: conventional tip-dating baseline in RevBayes
 
 UCLN + FBD comparator for the CET analyses of the Paterson, Edgecombe & Lee 2019 trilobite data
 (inputs in `..`). The data are 107 fossil species with 106 analysed discrete characters, so there
@@ -63,8 +63,9 @@ and is an ordinary ψ-sample.
 3. **One relative rate for all Mkv partitions.** The partitions share one rate; the source scales
    partition rates. K is the highest observed state + 1, so character 76 (states 0-1 and 3-8) has
    K = 9, as in the BEAST 1.8 9-state partition.
-4. **No tree-scaling moves.** RevBayes 1.4.1's `mvUpDownScale` with a tree has a wrong Hastings
-   ratio; see `../../hymenoptera/revbayes/README.md` (**RevBayes up-down move**). Node ages move by
+4. **No tree-scaling moves.** In both v1.4.1 and the development build, `mvUpDownScale`,
+   `mvSubtreeScale` and `mvLayeredScaleProposal` give biased results on FBD trees with sampled
+   ancestors; see `../../hymenoptera/revbayes/README.md` (**RevBayes up-down move**). Node ages move by
    `mvNodeTimeSlideUniform` and `mvRootTimeSlideUniform`; topology by `mvFNPR`, `mvNarrow` and
    `mvCollapseExpandFossilBranch`. There is no Metropolis coupling.
 
@@ -107,8 +108,87 @@ but the v1.4.1 results are not reported.
 
 ## Results
 
-{{RESULTS}}
+Six chains, run on Hamilton (`long` partition, one 7-day job each, development build `a2a8e2db`).
+They started from the last states of the superseded v1.4.1 chains and ran 778 400–849 400
+iterations, sampled every 200. `summarise.R` discards the first 25 % of each chain; the shortest
+chain keeps 2919 samples. All files are in
+`summary/`: `headline_morph.txt`, `convergence_morph.csv`, `parameters_morph.csv`,
+`published_morph.csv`, `fossils_morph.csv` (per-fossil sampled-ancestor probability),
+`clades_morph.csv` (clade frequencies per chain) and `mcc_morph.nex`.
+
+### Convergence
+
+The criteria were met: ASDSF < 0.05, PSRF < 1.05 and pooled ESS ≥ 200 for every logged parameter.
+
+| Quantity | min ESS per chain | pooled ESS | PSRF |
+|---|---|---|---|
+| Posterior | 1419 | 9384 | 1.000 |
+| root age | 1373 | 9280 | 1.000 |
+| ingroup age | 1365 | 8729 | 1.000 |
+| sampled ancestors | 2115 | 14347 | 1.000 |
+| sampling proportion | 1396 | 11887 | 1.000 |
+| clock rate | 1465 | 9524 | 1.000 |
+| UCLN CV | 2141 | 14433 | 1.000 |
+| λ, μ (lowest ESS) | 452 | 6542 | 1.010 |
+
+Topology: ASDSF 0.0079 over 186 clades with frequency ≥ 0.1 in any chain (max SDSF 0.021).
+
+### Estimates
+
+Median (95 % HPD); ages in Ma.
+
+| Parameter | This analysis |
+|---|---|
+| root (first split) | 528.53 (524.53–533.57) |
+| ingroup crown | 527.52 (523.78–531.94) |
+| origin | 531.05 (525.28–539.62) |
+| sampled ancestors | 3 (0–7); mean 2.92 |
+| sampling proportion s | 0.0026 (< 0.0001–0.0132) |
+| net diversification λ − μ (per Myr) | 0.031 (0.003–0.068) |
+| turnover μ/λ | 0.992 (0.972–1.000) |
+| clock rate (substitutions per character per Myr) | 0.0236 (0.0165–0.0321) |
+| UCLN coefficient of variation | 0.79 (0.49–1.13) |
+| Γ shape | 0.52 (0.37–0.70) |
+
+No fossil is a sampled ancestor with probability above 0.3. The highest are
+*Kuetsingocephalus qiannanensis* (0.28), *Myopsolenites altus* (0.23) and *Xingrenaspis
+xingrenensis* (0.23).
+
+### Comparison with the published analyses
+
+Published values are the median heights in the source's consensus trees plus 486.0 Ma (the
+youngest tip), with 95 % HPD (`published.csv`).
+
+| Analysis (Paterson et al. 2019) | Root | Ingroup |
+|---|---|---|
+| **This analysis** (FBD + SA, UCLN, discrete only) | **528.53 (524.53–533.57)** | **527.52 (523.78–531.94)** |
+| BEAST 1.8 UCLN, discrete + meristic + continuous | 529.50 (525.59–534.30) | 528.73 (524.99–533.13) |
+| BEAST 1.8 epoch clock, all data (their Fig. 1) | 535.23 (530.02–541.30) | 534.40 (529.40–539.95) |
+| BEAST 1.8 strict clock, all data | 537.58 (532.26–543.78) | 536.69 (531.88–542.82) |
+| BEAST2 FBD + SA, strict clock, discrete only | 541.42 (534.26–548.33) | 539.92 (533.81–546.74) |
+| BEAST2 BDSS, strict clock, discrete only | 540.87 (534.53–547.89) | 539.26 (533.73–545.88) |
+
+The ages agree with the source's one relaxed-clock analysis (BEAST 1.8 UCLN): the medians differ by
+about 1 Myr and the HPDs overlap almost entirely. They are 7–13 Myr younger than the strict-clock
+and epoch-clock analyses. The clock model, not the tree prior, accounts for the difference.
+Our tree prior is that of the BEAST2 FBD + SA analysis, yet our ages match the BEAST 1.8 UCLN
+analysis, which has no sampled ancestors. Among the strict-clock analyses, swapping FBD + SA for
+BDSS moves the root by only 0.5 Myr.
+
+`mcc_morph.nex` is the maximum-clade-credibility tree with RevBayes' node annotations. The tree
+files store branch lengths only, so its node ages are in Myr before 486.0 Ma (the youngest tip).
+Add 486.0 for ages in Ma.
 
 ## Compute
 
-{{COMPUTE}}
+Core-hours on Hamilton (Slurm `CPUTimeRAW`, one core per chain job):
+
+| Jobs | Core-hours |
+|---|---|
+| Reported chains: 6 × 7 days, development build (`evotempo-tril-dev-morph-*`) | 1008.0 |
+| Superseded v1.4.1 chains (`evotempo-tril-rb141-morph-*`) | 476.9 |
+| Build check, both builds (`evotempo-tril-prior-check`) | 30.2 |
+| Smoke test | 0.1 |
+| **Total** | **1515.2** |
+
+The summary jobs ran on 4 cores, about 2 core-hours in all, shared with the Hymenoptera baseline.

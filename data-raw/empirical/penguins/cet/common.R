@@ -252,7 +252,58 @@ LoadPenguins <- function(startTree = file.path(cetDir, "data", "start-tree.nwk")
 
 # ---- Model, priors, moves -------------------------------------------------------
 cells <- data.frame(beta = c(0, 0, 1, 1), gamma = c(0, 1, 0, 1))
-CellLabel <- function(beta, gamma) sprintf("b%sg%s", format(beta), format(gamma))
+# A number as it appears in chain labels and cross.csv column names: plain
+# decimal notation (never scientific, which ParseLabel() cannot read), with
+# the fewest significant digits that read back as exactly `x` (#75)
+FormatValue <- function(x) {
+  stopifnot(length(x) == 1L, is.finite(x), x >= 0)
+  for (d in 1:17) {
+    s <- format(x, scientific = FALSE, digits = d, trim = TRUE)
+    if (as.numeric(s) == x) return(s)
+  }
+  stop("cannot write ", x, " in plain decimal notation")
+}
+CellLabel <- function(beta, gamma) sprintf("b%sg%s", FormatValue(beta), FormatValue(gamma))
+
+# Chain labels (run-chain.R): b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>.
+# ParseLabel() stops on a label it cannot read (#75); before, it returned NULL,
+# and Chains() dropped the directory without a message.
+ParseLabel <- function(label) {
+  m <- regmatches(label, regexec(
+    "^b([0-9.]+)g([0-9.]+)(_mkv(allTips|none))?(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
+  out <- if (length(m)) {
+    data.frame(label = label, beta = as.numeric(m[2]), gamma = as.numeric(m[3]),
+               mkv = if (nzchar(m[5])) m[5] else "pattern",
+               power = if (nzchar(m[7])) as.numeric(m[7]) else 1, rep = as.integer(m[8]))
+  }
+  if (is.null(out) || anyNA(out[, c("beta", "gamma", "power", "rep")])) {
+    stop(sprintf(paste("cannot parse chain label '%s': expected",
+                       "b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>",
+                       "with numbers in plain decimal notation"), label))
+  }
+  out
+}
+# Chain directories under `root`: every subdirectory holding run-chain.R
+# output (seg*_samples.csv, checkpoint.rds or progress.txt) must have a
+# readable label; other subdirectories (e.g. summary/) are ignored.  Only
+# chains with at least one complete segment are returned.
+Chains <- function(root) {
+  dirs <- list.dirs(root, recursive = FALSE)
+  isChain <- vapply(dirs, function(d) {
+    length(Sys.glob(file.path(d, "seg*_samples.csv"))) > 0L ||
+      file.exists(file.path(d, "checkpoint.rds")) || file.exists(file.path(d, "progress.txt"))
+  }, TRUE)
+  out <- do.call(rbind, lapply(dirs[isChain], function(d) {
+    p <- ParseLabel(basename(d))
+    if (!length(Sys.glob(file.path(d, "seg*_samples.csv")))) return(NULL)
+    cbind(p, dir = d)
+  }))
+  if (is.null(out)) {
+    out <- data.frame(label = character(), beta = numeric(), gamma = numeric(),
+                      mkv = character(), power = numeric(), rep = integer(), dir = character())
+  }
+  out
+}
 
 CetModel <- function(beta, gamma,
                      nBin = as.integer(Sys.getenv("CET_NBIN", "26")),

@@ -31,6 +31,7 @@ tree from the round-2 total-evidence RevBayes baseline (see **Starting tree**).
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume) |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`) |
+| `check-labels.R` | Checks of chain labels (plain decimal notation, unparseable labels stop), of the Mkv-variant filter of `combine`'s stepping-stone (#75), and of `combine` on incomplete ladders and edges (#88) |
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
 | `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66) |
 | `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
@@ -215,7 +216,18 @@ it is not 1.  The checkpoint records the variant, power, beta and gamma, and
 `run-chain.R` stops rather than resume a checkpoint of another target.
 `bayes-factors.R eval` takes the variant from the chain's label (and checks it
 against the checkpoint), and `combine` bridges only chains of the variant
-given by `CET_MKV`.  In `seg*_samples.csv`, `logPrior` is the log prior of the
+given by `CET_MKV`. Its character-power stepping-stone also uses only chains of
+that variant (#75; before, it pooled the charLL of every variant's power chains).
+Numbers in labels are written in plain decimal notation, with the fewest
+digits that read back exactly (`FormatValue()` in `common.R`; e.g. `_t0.0001`,
+not `_t1e-04`), and a directory holding chain output whose label
+`ParseLabel()` cannot read stops `eval` and `combine` instead of being
+skipped (#75).  `combine` also stops, naming the missing rung, when a cell's
+power ladder does not run from t = 0 to t = 1 (the t = 1 rung is the cell's
+power-1 chains, which must be under the same root), and leaves out a bridge
+edge that has no chains at one of its end points, saying which (#88).
+`check-labels.R` checks all of these.
+In `seg*_samples.csv`, `logPrior` is the log prior of the
 parameters (as in `cross.csv`), and `logOriginPrior` is that of the origin
 age; the chain's `logPost` includes both.  Before #74 the samples' `logPrior`
 included the origin term (-log 160), unlike `cross.csv`.

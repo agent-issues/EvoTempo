@@ -54,23 +54,7 @@ source("data-raw/empirical/penguins/cet/common.R")
 args <- commandArgs(trailingOnly = TRUE)
 burn <- as.numeric(Sys.getenv("CET_BF_BURN", "0.25"))
 
-# Chain labels (run-chain.R): b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>
-ParseLabel <- function(label) {
-  m <- regmatches(label, regexec(
-    "^b([0-9.]+)g([0-9.]+)(_mkv(allTips|none))?(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
-  if (!length(m)) return(NULL)
-  data.frame(label = label, beta = as.numeric(m[2]), gamma = as.numeric(m[3]),
-             mkv = if (nzchar(m[5])) m[5] else "pattern",
-             power = if (nzchar(m[7])) as.numeric(m[7]) else 1, rep = as.integer(m[8]))
-}
-Chains <- function(root) {
-  dirs <- list.dirs(root, recursive = FALSE)
-  do.call(rbind, lapply(dirs, function(d) {
-    p <- ParseLabel(basename(d))
-    if (is.null(p) || !length(Sys.glob(file.path(d, "seg*_samples.csv")))) return(NULL)
-    cbind(p, dir = d)
-  }))
-}
+# ParseLabel() and Chains() are in common.R (shared with run-chain.R, #75)
 LoadSamples <- function(dir) {
   smp <- do.call(rbind, lapply(sort(Sys.glob(file.path(dir, "seg*_samples.csv"))), utils::read.csv))
   keep <- seq_len(nrow(smp)) > floor(burn * nrow(smp))
@@ -142,8 +126,8 @@ if (args[[1]] == "eval") {
     la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
     own <- LogAugAt(st, me$beta, me$gamma) + me$power * CharLLAt(st, me$gamma, dat$characters) +
       lp + la
-    c(sample = i, setNames(aug, paste0("aug_b", format(betas))),
-      setNames(chr, paste0("chr_g", format(gammas))), logPrior = lp,
+    c(sample = i, setNames(aug, paste0("aug_b", vapply(betas, FormatValue, ""))),
+      setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))), logPrior = lp,
       check = own - s$samples$logPost[i])
   }))
   utils::write.csv(out, file.path(dir, "cross.csv"), row.names = FALSE)
@@ -194,7 +178,7 @@ ch <- ch[ch$mkv == .cet$mkv & file.exists(file.path(ch$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
 LogQ <- function(x, beta, gamma) {
-  x[[paste0("aug_b", format(beta))]] + x[[paste0("chr_g", format(gamma))]] + x$logPrior
+  x[[paste0("aug_b", FormatValue(beta))]] + x[[paste0("chr_g", FormatValue(gamma))]] + x$logPrior
 }
 # Bridge between model points A and B (beta, gamma), pooling replicates (or
 # replicate `rep` only)
@@ -217,6 +201,7 @@ Edge <- function(a, b) {
   v <- pts[other, along]
   v <- sort(unique(v[v >= min(a[along], b[along]) & v <= max(a[along], b[along])]))
   if (a[along] > b[along]) v <- rev(v)
+  if (length(v) < 2L) return(NULL)  # an end point has no chains
   P <- function(val) if (along == 1) c(val, a[2]) else c(a[1], val)
   steps <- lapply(seq_len(length(v) - 1L), function(k) Bridge(P(v[k]), P(v[k + 1])))
   if (any(vapply(steps, is.null, TRUE)) || !length(steps)) return(NULL)
@@ -236,8 +221,12 @@ Edge <- function(a, b) {
 }
 edges <- rbind(Edge(c(0, 0), c(1, 0)), Edge(c(0, 1), c(1, 1)),
                Edge(c(0, 0), c(0, 1)), Edge(c(1, 0), c(1, 1)))
-print(edges, row.names = FALSE)
-utils::write.csv(edges, file.path(root, "bayes-factors.csv"), row.names = FALSE)
+if (is.null(edges)) {
+  cat("No bridge edge has chains with cross.csv at both ends\n")
+} else {
+  print(edges, row.names = FALSE)
+  utils::write.csv(edges, file.path(root, "bayes-factors.csv"), row.names = FALSE)
+}
 if (!is.null(edges) && nrow(edges) == 4) {
   e <- setNames(edges$logBF, paste(edges$from, edges$to))
   se <- edges$se
@@ -252,8 +241,11 @@ if (!is.null(edges) && nrow(edges) == 4) {
   utils::write.csv(res, file.path(root, "model-probabilities.csv"), row.names = FALSE)
   writeLines(sprintf("closure %.4f se %.4f", closure, sqrt(sum(se^2))), file.path(root, "closure.txt"))
 }
-# Character-power stepping-stone per cell, if power chains exist
+# Character-power stepping-stone per cell, if power chains exist.  Only chains
+# of the Mkv variant CET_MKV (default "pattern"), as for the bridges above:
+# pooling the charLL of chains of two variants mixes two targets (#75)
 ch <- Chains(root)
+ch <- ch[ch$mkv == .cet$mkv, ]
 pw <- unique(ch[, c("beta", "gamma")])
 for (i in seq_len(nrow(pw))) {
   sel <- ch$beta == pw$beta[i] & ch$gamma == pw$gamma[i]
@@ -266,6 +258,7 @@ for (i in seq_len(nrow(pw))) {
     }))
   })
   ss <- SteppingStone(ladder, logL)
-  cat(sprintf("%s: log p(characters | tip ages) = %.3f (SE %.3f), %d rungs\n",
-              CellLabel(pw$beta[i], pw$gamma[i]), ss$logR, ss$se, length(ladder)))
+  cat(sprintf("%s (mkv %s): log p(characters | tip ages) = %.3f (SE %.3f), %d rungs, %d chains\n",
+              CellLabel(pw$beta[i], pw$gamma[i]), .cet$mkv, ss$logR, ss$se, length(ladder),
+              sum(sel)))
 }

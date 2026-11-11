@@ -54,13 +54,22 @@ if (grepl("^[0-9]+$", cellArg)) {
   gamma <- cells$gamma[cell]
 } else {
   cell <- 0L
-  beta <- as.numeric(sub("^b([0-9.]+)g.*$", "\\1", cellArg))
-  gamma <- as.numeric(sub("^b[0-9.]+g([0-9.]+)$", "\\1", cellArg))
+  # Plain decimal notation only: "b1e-04g1" would give beta NA (#75)
+  if (!grepl("^b[0-9.]+g[0-9.]+$", cellArg)) {
+    stop("cannot parse cell label '", cellArg, "': use b<beta>g<gamma> in plain decimal notation")
+  }
+  beta <- suppressWarnings(as.numeric(sub("^b([0-9.]+)g.*$", "\\1", cellArg)))
+  gamma <- suppressWarnings(as.numeric(sub("^b[0-9.]+g([0-9.]+)$", "\\1", cellArg)))
+  if (anyNA(c(beta, gamma))) stop("cannot parse cell label '", cellArg, "'")
 }
 mkv <- .cet$mkv
 label <- paste0(CellLabel(beta, gamma), MkvSuffix(mkv))
 power <- EnvNum("CET_POWER", 1)
-if (power != 1) label <- sprintf("%s_t%s", label, format(power))
+# FormatValue(): plain decimal notation that reads back as exactly `power`, so
+# that bayes-factors.R's ParseLabel() recovers it (#75)
+if (power != 1) label <- sprintf("%s_t%s", label, FormatValue(power))
+parsed <- ParseLabel(sprintf("%s_run%d", label, rep))
+stopifnot(parsed$beta == beta, parsed$gamma == gamma, parsed$power == power, parsed$mkv == mkv)
 outDir <- file.path(Sys.getenv("CET_OUT", "cet-runs"), sprintf("%s_run%d", label, rep))
 dir.create(outDir, recursive = TRUE, showWarnings = FALSE)
 nIter <- EnvNum("CET_NITER", 100000)

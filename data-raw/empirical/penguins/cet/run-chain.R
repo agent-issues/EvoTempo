@@ -82,7 +82,28 @@ saveStates <- Sys.getenv("CET_STATES", "true") == "true"
 stopifnot(seg %% thin == 0, nIter %% seg == 0)
 .cet$power <- power
 
-dat <- LoadPenguins(Sys.getenv("CET_START_TREE", file.path(cetDir, "data", "start-tree.nwk")))
+# Start tree (#89 review, R89-5).  Production chain k = 4 (rep - 1) + cell
+# (cells 1-4) starts from its own draw from the round-4 posterior,
+# data/start-trees/start-tree-<kk>.nwk (draw-start-trees.R, then prepare.R),
+# when data/start-trees/draws.csv lists k; other chains (cell labels such as
+# b0.5g1, replicates beyond the draws) start from the reference tree
+# data/start-tree.nwk.  CET_START_TREE overrides both.  The tree and its md5
+# go into the checkpoint, and a resumed chain must use the same file: the
+# character rows follow the start tree's tip order (LoadPenguins()).
+chainK <- if (cell > 0L) 4L * (rep - 1L) + cell else NA_integer_
+startTree <- Sys.getenv("CET_START_TREE", "")
+if (!nzchar(startTree)) {
+  drawsFile <- file.path(cetDir, "data", "start-trees", "draws.csv")
+  own <- file.path(cetDir, "data", "start-trees", sprintf("start-tree-%02d.nwk", chainK))
+  if (!is.na(chainK) && file.exists(drawsFile) && chainK %in% utils::read.csv(drawsFile)$k) {
+    if (!file.exists(own)) stop("draws.csv lists chain ", chainK, " but ", own, " is missing")
+    startTree <- own
+  } else {
+    startTree <- file.path(cetDir, "data", "start-tree.nwk")
+  }
+}
+startTreeMd5 <- unname(tools::md5sum(startTree))
+dat <- LoadPenguins(startTree)
 model <- CetModel(beta, gamma)
 priors <- CetPriors()
 moves <- CetMoves(dat$tree, dat$characters, model)
@@ -101,13 +122,31 @@ if (file.exists(ckpFile)) {
                  ckpFile, ckpMkv, format(ckp$power), format(ckp$beta), format(ckp$gamma),
                  mkv, format(power), format(beta), format(gamma)))
   }
+  if (!is.null(ckp$startTree) &&
+      (!identical(ckp$startTree, startTree) || !identical(ckp$startTreeMd5, startTreeMd5))) {
+    stop(sprintf("%s started from %s (md5 %s); this run would load %s (md5 %s)", ckpFile,
+                 ckp$startTree, ckp$startTreeMd5, startTree, startTreeMd5))
+  }
+  if (!identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
+    stop("the checkpoint's tip order differs from the character rows of ", startTree)
+  }
   Progress("%s resuming after segment %d", format(Sys.time()), ckp$segment)
 } else {
   set.seed(EnvNum("CET_SEED", 1000 * cell + rep))
   ckp <- NULL
+  # Dispersed starting parameters, seeded by chain (production chain k) or by
+  # replicate (other labels); redrawn while the start log posterior is not finite
+  startIndex <- if (is.na(chainK)) rep else chainK
+  startPar <- CetStart(startIndex, dat$tree, model, dat$characters, priors, nSlice)
+  startInfo <- attributes(startPar)[c("attempts", "logPost")]
+  startPar <- as.list(stats::setNames(unlist(startPar), names(startPar)))
   Progress("%s start %s rep %d (beta %g, gamma %g, power %g, mkv %s): nIter %d, burnin %d, thin %d, seg %d; moves %s",
            format(Sys.time()), label, rep, beta, gamma, power, mkv, nIter, burnin, thin, seg,
            paste(names(moves), moves, sep = "=", collapse = " "))
+  Progress("%s start tree %s (md5 %s); start parameters (CetStart(%d), %d draw(s), start logPost %.2f): %s",
+           format(Sys.time()), startTree, startTreeMd5, startIndex, startInfo$attempts,
+           startInfo$logPost, paste(names(startPar), signif(unlist(startPar), 5), sep = "=",
+                                    collapse = " "))
 }
 nSeg <- nIter %/% seg
 first <- if (is.null(ckp)) 1L else ckp$segment + 1L
@@ -116,7 +155,7 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   .cet$injected <- FALSE
   tSeg <- proc.time()[["elapsed"]]
   if (is.null(ckp)) {
-    run <- TempoMCMC(dat$tree, model, CetStart(rep), priors, nIter = seg, burnin = burnin,
+    run <- TempoMCMC(dat$tree, model, startPar, priors, nIter = seg, burnin = burnin,
                      thin = thin, nSlice = nSlice, moves = moves,
                      characters = dat$characters, agePriors = CetAgePriors())
   } else {
@@ -153,7 +192,9 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),
                      append = file.exists(accFile))
   ckp <- list(segment = k, captured = .cet$captured, label = label, beta = beta, gamma = gamma,
-              power = power, mkv = mkv, rep = rep, thin = thin, seg = seg)
+              power = power, mkv = mkv, rep = rep, thin = thin, seg = seg,
+              startTree = startTree, startTreeMd5 = startTreeMd5,
+              start = if (is.null(ckp)) list(par = startPar, info = startInfo) else ckp$start)
   tmp <- paste0(ckpFile, ".tmp")
   saveRDS(ckp, tmp)
   file.rename(tmp, ckpFile)

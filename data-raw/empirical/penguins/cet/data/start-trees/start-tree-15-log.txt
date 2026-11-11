@@ -1,0 +1,2 @@
+source: /nobackup/pjjg18/evotempo-penguin-cet/start-trees-r4draws/start-tree-15.nex
+root age 62.1446, origin 66.3667, sampled ancestors 11

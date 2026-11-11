@@ -1,0 +1,25 @@
+# check-smoke.R on EvoTempo main 48e6bf7 with the round-4 start tree (smoke.sh, Slurm 19428287, test partition, 2026-11-11)
+ cell segment   secs iterations secsPerIteration finalLogPost finalCharLL
+ b0g0       1 42.298        140        0.3021286    -2197.695   -1636.861
+ b0g0       2 30.803        100        0.3080300    -2087.068   -1641.188
+ b0g1       1 49.987        140        0.3570500    -2009.561   -1641.762
+ b0g1       2 35.235        100        0.3523500    -2004.880   -1634.152
+ b1g0       1 43.684        140        0.3120286    -2299.018   -1643.563
+ b1g0       2 31.260        100        0.3126000    -1987.210   -1638.871
+ b1g1       1 49.879        140        0.3562786    -2170.847   -1617.123
+ b1g1       2 35.875        100        0.3587500    -2142.640   -1619.988
+       move rate.b0g0 rate.b0g1 rate.b1g0 rate.b1g1
+       tree     1.000     0.000    0.8700     0.000
+       node     1.000     0.988    1.0000     0.752
+        tip     1.000     0.995    0.9950     0.917
+     branch     1.000     0.996    1.0000     0.921
+      joint     0.435     0.000    0.4733     0.000
+      shift     0.530     0.700    0.5600     0.490
+    nodeAge     0.483     0.518    0.4440     0.430
+  fossilAge     0.624     0.642    0.6811     0.610
+      slide     0.050     0.040    0.0333     0.020
+     saJump     0.325     0.333    0.2925     0.285
+    rootAge     0.000     0.000    0.0000     0.000
+  originAge     0.710     0.670    0.7200     0.610
+ parameters     0.310     0.413    0.3700     0.245
+Resume check: max |difference| over 10 samples x 23 columns = 0; trees identical: TRUE

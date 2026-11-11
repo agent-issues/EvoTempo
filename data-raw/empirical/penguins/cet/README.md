@@ -14,19 +14,22 @@ Staging (user decision, 2026-10-30):
 
 Stages 2-3 need engine work; see the design issue linked under **Engine gaps**.
 
-The full CET runs are **not** launched by this PR.  They need PRs #42 and #43
-merged (this branch is stacked on #43) and, for the headline, the starting
-tree from the round-2 total-evidence RevBayes baseline (see **Starting tree**).
+The production runs (stage 1) were launched on 2026-11-11 from main 48e6bf7,
+starting from a sample of the round-4 total-evidence RevBayes posterior (see
+**Starting tree** and **Production runs**).
 
 ## Files
 
 | File | Role |
 |---|---|
-| `prepare.R` | Converts `../penguins_morph.nex`, `../penguins_tips.csv`, `../penguins_constraints.csv` (empty) and a RevBayes MCC tree into `data/` and `revbayes/data/` |
+| `select-start-tree.R` | Picks the starting tree: the post-burn-in RevBayes sample closest, by quartet distance, to the quartet consensus of the pooled samples |
+| `prepare.R` | Converts `../penguins_morph.nex`, `../penguins_tips.csv`, `../penguins_constraints.csv` (empty) and a dated RevBayes tree (the sample chosen by `select-start-tree.R`) into `data/` and `revbayes/data/` |
 | `data/characters.csv`, `data/partitions.csv` | 55 taxa x 201 characters (0-based states, empty = unknown); number of states K per character |
 | `data/start-tree.nwk`, `data/start-tree-log.txt` | Starting time tree with the origin as root edge; every age `prepare.R` changed |
+| `data/start-tree-selection.txt`, `data/quartet-consensus.nwk` | Record of the starting-tree choice (chain, iteration, distances) and the quartet consensus it was measured against |
+| `data/start-tree-round1.nwk` | The earlier starting tree (from the round-1 MCC tree); `check-mkv.R`'s RevBayes oracle was computed on it |
 | `common.R` | Model, priors, moves, data loading, and the two namespace rebindings (partitioned Mkv likelihood with one correction per missing-data pattern; per-sample recording and exact resume) |
-| `check-mkv.R` | Fixed-tree check of the partitioned Mkv likelihood against RevBayes `coding = "variable"`, and its cost (#65) |
+| `check-mkv.R` | Fixed-tree check of the partitioned Mkv likelihood against RevBayes `coding = "variable"` on `data/start-tree-round1.nwk`, and its cost (#65) |
 | `run-chain.R` | One chain of one cell, in checkpointed segments |
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume) |
@@ -121,7 +124,8 @@ moved the fixed-tree clock MLE from 0.0181 (per pattern) to 0.0211, against
 0.0222 with no correction (verifier, #65).  `.cet$mkv = "allTips"` keeps
 that variant for comparison.
 
-`check-mkv.R` checks the likelihood on the committed start tree at three
+`check-mkv.R` checks the likelihood on the round-1 start tree
+(`data/start-tree-round1.nwk`, the start tree when the oracle was computed) at three
 strict-clock rates (`smoke-results/mkv-check.csv`, both engines):
 
 | Rate | Per pattern (this pipeline) | RevBayes `coding = "variable"` | Difference | All tips observed (before #65) | Correction, per pattern | Correction, all tips |
@@ -162,25 +166,48 @@ implementation in the package (#47) would remove most of the extra cost.
 
 The total-evidence baseline found that random FBD starting trees trap the
 chains (crown 3-7 Ma, crown fossils outside the crown), so every chain starts
-from the RevBayes total-evidence MCC tree:
+from a tree of the RevBayes total-evidence posterior.  No MCC tree is used:
 
-    Rscript data-raw/empirical/penguins/cet/prepare.R <mcc.nex> <origin age>
+    Rscript data-raw/empirical/penguins/cet/select-start-tree.R <run root> <out dir> [burn-in] [clock]
+    Rscript data-raw/empirical/penguins/cet/prepare.R <out dir>/start-tree-sample.nex $(cat <out dir>/start-tree-origin.txt)
+
+`select-start-tree.R` pools the post-burn-in samples of every chain, computes
+their quartet consensus with `ConsTree::Quartet()` (default settings; at most
+100 tips), and takes the sample whose topology is closest to it by the
+symmetric quartet distance 2d + r1 + r2 (`Quartet::QuartetStatus()`; the
+quantity `Quartet()` minimises), together with that sample's origin age.
+
+The committed tree (`data/start-tree-selection.txt`) comes from the converged
+**round-4 shared-clock** baseline (RevBayes development a2a8e2db,
+`/nobackup/pjjg18/evotempo-penguins-rbdev-r4/shared_run13..16`; ASDSF 0.010):
+burn-in 25% (iteration >= 37 500 of 150 000), 7504 pooled samples (1876 per
+chain), 55 tips, Q = 341 055 quartets per tree.  The consensus resolves 43 of
+52 splits.  Distances to it range from 10 347 to 95 871 (median 31 857).  The
+closest sample, the only one at the minimum, is **shared_run14, iteration
+97 140**, at distance 10 347 (0.0152 of 2Q); the next closest are at 11 307
+and 11 395.  It is typical of the posterior: crown 11.76 Ma (pooled median
+11.95), origin 63.142 Ma (median 64.09), 16 sampled ancestors (median 15).
+ConsTree 1.0.1 (ms609/ConsTree 6124244), Quartet 1.4.0.
 
 `prepare.R` strips annotations, puts extant tips at 0, reads zero-length
 fossil tips as sampled ancestors, clamps fossil (and sampled-ancestor node)
 ages into their intervals, makes parents at least 0.01 Myr older than their
 children, turns a sampled ancestor that cannot stay one (e.g. at the root,
 which the samplers do not allow) into a fossil tip, and adds the origin as
-root edge.  The committed `data/start-tree.nwk` comes from the **round-1**
-MCC tree (`/nobackup/pjjg18/evotempo-penguins-rb1.4.1/summary_round1/mcc_shared.nex`,
-shared clock; origin = posterior median 64.39 Ma): root 60.99 Ma,
-27 sampled ancestors, one change (*Waimanu manneringi*, a sampled ancestor at
-the root, became a fossil tip at 60.98 Ma).  Before the production runs,
-rerun `prepare.R` on the round-2 MCC tree once the baseline sub-agent has
-summarised round 2.  Fallback for testing without a baseline: the BEAST2 XML
-starting tree of the baseline (`../revbayes/data/start_tree.nwk` on branch
-`penguins-revbayes`), or any dated tree with these 55 tips, through the same
-`prepare.R` path.
+root edge.  On the round-4 sample it changed **nothing**
+(`data/start-tree-log.txt`): root 63.0588 Ma, origin 63.1419 Ma (root edge
+0.0831 Myr), 16 sampled ancestors, and no age outside its interval or closer
+than 0.01 Myr to a child.  It rewrote `data/start-tree.nwk`,
+`data/start-tree-log.txt`, `revbayes/data/start_tree.nwk` and
+`revbayes/data/start_origin.txt` (63.14191).  The character files and
+`revbayes/data/morph_K.nex` / `taxa.tsv` it regenerates were byte-identical.
+Ages are as RevBayes printed them (6 decimals per branch).
+
+The earlier starting tree, from the **round-1** MCC tree (v1.4.1, shared
+clock; origin = posterior median 64.39 Ma; root 60.99 Ma, 27 sampled
+ancestors; *Waimanu manneringi* turned from a root sampled ancestor into a
+fossil tip), is kept as `data/start-tree-round1.nwk` for `check-mkv.R`.  The
+smoke and pilot results quoted below ran from it unless stated otherwise.
 
 ## Moves and chain mechanics
 
@@ -188,7 +215,12 @@ starting tree of the baseline (`../revbayes/data/start_tree.nwk` on branch
 21 `branch`, 1 `shift`; with gamma = 0: 1 `tree`, 2 `node`, 2 `tip`,
 2 `branch`, 1 `joint`, 1 `shift`) plus tree moves in proportion to the tree:
 `nodeAge` 7 (0.25 x bifurcations), `fossilAge` 9 (0.25 x fossils), `slide` 5,
-`saJump` 4, `originAge` 1; `CET_TREE_MOVES` scales them.
+`saJump` 4, `originAge` 1; `CET_TREE_MOVES` scales them.  These counts are
+for the round-1 tree (27 sampled ancestors).  On the round-4 tree (16 sampled
+ancestors, so more bifurcations) they are, with gamma = 1, 14 `node`, 10 `tip`,
+23 `branch`, 1 `shift`, and, for every cell, `nodeAge` 10, `fossilAge` 9,
+`slide` 6, `saJump` 4, `originAge` 1 (gamma = 0 path moves unchanged;
+`progress.txt` of each chain).
 
 `TempoMCMC()` returns neither per-sample trees nor a way to continue a chain,
 so `common.R` rebinds `.TreeStats()` (called by `TempoMCMC()` at every stored
@@ -224,7 +256,10 @@ included the origin term (-log 160), unlike `cross.csv`.
 
     W=/nobackup/pjjg18/evotempo-penguin-cet     # src/ = checkout, lib-<sha>/ = EvoTempo build
     cd $W/src
-    Rscript data-raw/empirical/penguins/cet/prepare.R <round-2 mcc.nex> <origin>
+    Rscript data-raw/empirical/penguins/cet/select-start-tree.R \
+      /nobackup/pjjg18/evotempo-penguins-rbdev-r4 $W/start-tree 0.25 shared
+    Rscript data-raw/empirical/penguins/cet/prepare.R $W/start-tree/start-tree-sample.nex \
+      $(cat $W/start-tree/start-tree-origin.txt)
     sbatch -J evotempo-penguin-cet-smoke --array=1-5 data-raw/empirical/penguins/cet/smoke.sh
     Rscript data-raw/empirical/penguins/cet/check-smoke.R $W
     sbatch -J evotempo-penguin-cet --array=1-16 \
@@ -345,6 +380,44 @@ Wall time: one 3-day job slot per chain suffices (about 17 h per chain at
 0.305 s per iteration); peak memory in the pre-#65 pilot was 178-181 MB per
 chain.
 
+## Production runs (stage 1, launched 2026-11-11)
+
+- Code: EvoTempo main **48e6bf7** (checkout `$W/src`, built into `$W/lib-48e6bf7`;
+  `$W/out/build-sha.txt`), with this branch's start tree (`prepare.R` output as
+  committed here); `$W = /nobackup/pjjg18/evotempo-penguin-cet`.
+- Checks at 48e6bf7: `check-mkv.R` passed (round-1 tree; per-pattern lnL
+  minus RevBayes `variable` -6.5e-5, 1.4e-5, -4.2e-5 at rates 0.005, 0.017,
+  0.05, both engines).  `smoke.sh` (Slurm 19428287, `test`, from the round-4
+  tree) and `check-smoke.R` (`smoke-results/check-smoke-48e6bf7.txt`): 0.30-0.36
+  s per iteration, exact resume (maximum difference 0 over 10 samples x 23
+  columns, trees identical), no non-finite value in any sample column, peak
+  memory 169-171 MB.
+- Array: Slurm **19428297** (`evotempo-penguin-cet`, tasks 1-16 = 4 cells x 4
+  replicates), `CET_NITER=200000, CET_THIN=100, CET_SEG=10000`, burn-in 2000,
+  `CET_MKV` default (`pattern`), s ~ Gamma(0.5396, scale 0.3819) on (0, 3],
+  origin U(0, 160).  Submitted through `$W/jobs/run-array-wrap.sh`, which adds
+  the batch header Hamilton jobs need (`set +e; set +o pipefail; source
+  /etc/profile || true; module purge || true; module load r/4.5.1`) and then
+  sources `run-array.sh` with the same `#SBATCH` settings.  To continue the
+  chains, resubmit the same command:
+
+      sbatch -J evotempo-penguin-cet --array=1-16 \
+        --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 $W/jobs/run-array-wrap.sh
+
+- Segment 1 (2000 burn-in + 10 000 iterations; all 16 chains done at about
+  11:20 GMT): 0.289-0.414 s per iteration (means: (0, 0) 0.310, (0, 1) 0.369,
+  (1, 0) 0.303, (1, 1) 0.363), i.e. about 302 core-hours and 16-23 h per chain
+  for 202 000 iterations.  No non-finite values.  Acceptance ranges over the four
+  replicates: `slide` 2.8-4.2%, `saJump` 26-32%, `nodeAge` 41-51%,
+  `fossilAge` 59-66%, `originAge` 22-39%, `shift` 35-61%, parameter sweep
+  25-36%, `joint` (gamma = 0) 28-36%, `tree` 100% in (0, 0) and 79-82% in (1, 0).
+  In b1g1_run4, logPost reached +82 at the end of segment 1 (others about
+  -2000), with an ordinary charLL (-1607).  Within each chain logPost rises
+  with theta (b1g1_run4: about -2080 at theta 0.05, -1005 at 0.85, +82 at
+  1.22), as expected for a density on the variable-dimension path space, so
+  this is a theta excursion, not a numerical fault.  Watch theta mixing in
+  the (beta, 1) cells.
+
 ## Morphology-only RevBayes comparator
 
 No morphology-only baseline existed (the total-evidence baseline runs shared
@@ -425,4 +498,4 @@ would replace them.
 - Independent priors on lambda, mu, psi instead of the (d, turnover, sampling
   proportion) prior; s and the clocks keep the source priors (s bounded at 3).
 - No DNA (stage 1 by design).
-- Starting tree from the round-1 MCC tree, pending round 2.
+- Starting tree: one sample of the round-4 total-evidence posterior (shared clock), not a summary tree.

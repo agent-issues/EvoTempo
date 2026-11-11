@@ -4,10 +4,12 @@
 #   Rscript data-raw/empirical/penguins/cet/check-mkv.R [out.csv]
 #
 # Run from the package root with EvoTempo installed (or CET_LOAD_ALL=1 for
-# pkgload::load_all()).  On the committed start tree (data/start-tree.nwk,
-# whose branch lengths equal those of revbayes/data/start_tree.nwk bar the
-# origin stem, which MkLikelihood() ignores) with a strict clock, branch
-# length = rate x duration, at rates 0.005, 0.017 and 0.05:
+# pkgload::load_all()).  On the round-1 start tree (data/start-tree-round1.nwk,
+# the start tree until the round-4 tree replaced it; its branch lengths equal
+# those of the revbayes/data/start_tree.nwk of that time bar the origin stem,
+# which MkLikelihood() ignores, and the oracle below was computed on it) with
+# a strict clock, branch length = rate x duration, at rates 0.005, 0.017 and
+# 0.05:
 # 1. PartitionedMk() with the per-pattern correction (the default) must equal
 #    RevBayes's dnPhyloCTMC(type = "Standard", coding = "variable") lnL summed
 #    over the six K-partitions.  Oracle: an independent verifier's RevBayes
@@ -32,7 +34,8 @@ args <- commandArgs(trailingOnly = TRUE)
 outFile <- if (length(args)) args[[1]] else file.path(cetDir, "smoke-results", "mkv-check.csv")
 nRep <- as.integer(Sys.getenv("CET_MKV_REPS", "200"))
 
-dat <- LoadPenguins()
+# The oracle values are for this tree, not for the current start tree
+dat <- LoadPenguins(file.path(cetDir, "data", "start-tree-round1.nwk"))
 tt <- dat$tree
 chars <- dat$characters
 pat <- attr(chars, "mkv")

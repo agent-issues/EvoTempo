@@ -1,0 +1,73 @@
+################################################################################
+# Trilobite CET pipeline: RevBayes oracle values for check-mkv.R.
+#
+# Run (check-oracle.sh does all of this) from a scratch copy of
+# ../../revbayes/ in which `Rscript prepare-data.R` has written data/ (the
+# comparator's own per-partition matrices, data/taxa.tsv, data/partitions.Rev),
+# with oracle/ holding the files that `check-mkv.R write` produced:
+#   oracle/mkv-tree-<r>.nwk  the CET start tree (cet/data/start-tree-1.nwk)
+#                            with branch lengths rate_r x duration (expected
+#                            changes; zero-length sampled-ancestor tips), r = 1-3
+#   oracle/fbd-tree.nwk      the same tree in time units (Myr)
+#   oracle/fbd-params.Rev    vectors lam_v, mu_v, psi_v, ori_v (origin in Myr
+#                            before 485.4 Ma)
+# Writes oracle/revbayes-oracle.tsv:
+#   mkv  <r>  <partition>  lnL of dnPhyloCTMC(Q, type = "Standard",
+#        coding = "variable") with the comparator's Q (fnJC(k), or
+#        fnOrderedRateMatrix(maxState = k) for o4/o5), no site-rate variation
+#   fbd  <j>  tree         lnProbability of the tree under
+#        dnFBDP(originAge, lambda, mu, psi, rho = 0, condition = "sampling"),
+#        time 0 = 485.4 Ma, as the comparator's tree prior
+################################################################################
+setOption("outputPrecision", "14")
+source("data/partitions.Rev")
+n_morph = morph_names.size()
+for (i in 1:n_morph) {
+  morpho[i] <- readDiscreteCharacterData("data/morph_" + morph_names[i] + ".nex")
+}
+out = "oracle/revbayes-oracle.tsv"
+write("kind", "case", "partition", "lnL", filename = out, separator = "\t")
+
+for (r in 1:3) {
+  mtree <- readTrees("oracle/mkv-tree-" + r + ".nwk", treetype = "non-clock")[1]
+  for (i in 1:n_morph) {
+    k = morph_k[i]
+    if (morph_ordered[i]) {
+      q <- fnOrderedRateMatrix(maxState = k)
+    } else {
+      q <- fnJC(k)
+    }
+    ctmc ~ dnPhyloCTMC(tree = mtree, Q = q, type = "Standard", coding = "variable")
+    ctmc.clamp(morpho[i])
+    write("mkv", r, morph_names[i], ctmc.lnProbability(), filename = out, append = TRUE,
+          separator = "\t")
+  }
+}
+print(fnOrderedRateMatrix(maxState = 4))
+print(fnOrderedRateMatrix(maxState = 5))
+
+taxa = readTaxonData("data/taxa.tsv")
+ftree <- readTrees("oracle/fbd-tree.nwk", treetype = "clock")[1]
+# readTrees() puts the youngest tip at age 0 (comparator, README); shift it
+ftree.offset(youngest_tip_age)
+source("oracle/fbd-params.Rev")
+lam ~ dnUniform(0, 1000)
+mu ~ dnUniform(0, 1000)
+psi ~ dnUniform(0, 1000)
+ori ~ dnUniform(0, 5000)
+lam.setValue(lam_v[1])
+mu.setValue(mu_v[1])
+psi.setValue(psi_v[1])
+ori.setValue(ori_v[1])
+fbd ~ dnFBDP(originAge = ori, lambda = lam, mu = mu, psi = psi, rho = 0.0, taxa = taxa,
+             condition = "sampling")
+fbd.clamp(ftree)
+print("sampled ancestors in the oracle tree: " + ftree.numSampledAncestors())
+for (j in 1:lam_v.size()) {
+  lam.setValue(lam_v[j])
+  mu.setValue(mu_v[j])
+  psi.setValue(psi_v[j])
+  ori.setValue(ori_v[j])
+  write("fbd", j, "tree", fbd.lnProbability(), filename = out, append = TRUE, separator = "\t")
+}
+q()

@@ -1,0 +1,5 @@
+CET b0g0: 1 chains, 225 samples; root 531.93 [529.05, 534.84], ingroup 531.08 [528.71, 533.68], origin 535.35 [530.55, 544.56] Ma; min ESS 4 (charLL); max R-hat -Inf (-); ASDSF NA
+CET b0g1: 1 chains, 225 samples; root 527.50 [524.06, 531.93], ingroup 526.54 [523.58, 530.60], origin 530.51 [525.17, 539.63] Ma; min ESS 4 (mu); max R-hat -Inf (-); ASDSF NA
+CET b1g0: 1 chains, 225 samples; root 530.94 [527.68, 536.16], ingroup 530.04 [527.33, 534.37], origin 534.82 [528.66, 547.29] Ma; min ESS 4 (charLL); max R-hat -Inf (-); ASDSF NA
+CET b1g1: 1 chains, 225 samples; root 522.45 [520.55, 525.14], ingroup 521.22 [519.85, 523.28], origin 525.21 [521.27, 536.10] Ma; min ESS 5 (ingroupMa); max R-hat -Inf (-); ASDSF NA
+RevBayes morph UCLN: 6 chains, 18438 samples; root 528.76 [524.82, 534.09], ingroup 527.71 [524.14, 532.39], origin 531.69 [525.97, 541.12] Ma; min ESS 4370 (mu); max R-hat 1.001 (lambda); ASDSF 0.008

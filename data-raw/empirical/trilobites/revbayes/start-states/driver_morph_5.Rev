@@ -1,0 +1,11 @@
+config = "morph"
+rep = 5
+n_gen = 3000000
+sample_every = 200
+burnin_gen = 2000
+resume = false
+checkpoint_every = 500
+start_tree_file = "out/start_tree_morph_5.nwk"
+start_values_file = "out/start_values_morph_5.Rev"
+source("trilobites_fbd.Rev")
+q()

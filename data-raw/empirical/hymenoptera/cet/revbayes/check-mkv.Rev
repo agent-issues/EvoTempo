@@ -1,0 +1,59 @@
+################################################################################
+# Hymenoptera CET pipeline: fixed-tree RevBayes oracle for check-mkv.R.
+#
+# Morphology log-likelihood of each partition of the comparator
+# (../../revbayes/hymenoptera_fbd.Rev: unordered fnJC(K) and ordered
+# fnOrderedRateMatrix(maxState = K), dnPhyloCTMC(type = "Standard")) on the
+# CET start tree with a strict clock (branch length = rate x duration), at
+# three rates, for
+#   coding 1: coding = "variable", no site-rate variation  (CET mkv = "pattern")
+#   coding 2: coding = "all", no site-rate variation       (CET mkv = "none")
+#   coding 3: coding = "variable", Gamma(4) site rates with alpha = 1.10 (the
+#             comparator's posterior mean): the comparator's character model,
+#             to measure what CET's lack of site-rate variation changes
+# Run (RevBayes development build; see run-check-mkv.sh) from a directory
+# holding data/ (written by ../../revbayes/prepare-data.R) and
+# start_tree.nwk (../data/start-tree.nwk).  print() gives 7 significant
+# digits, so each value is printed as floor(lnL) and lnL - floor(lnL).
+################################################################################
+source("data/partitions.Rev")
+n_morph = morph_names.size()
+for (i in 1:n_morph) {
+  morpho[i] <- readDiscreteCharacterData("data/morph_" + morph_names[i] + ".nex")
+  print("PART " + i + " " + morph_names[i])
+}
+tree <- readTrees("start_tree.nwk", treetype = "clock")[1]
+print("ROOTAGE")
+print(tree.rootAge())
+rates <- v(0.0007, 0.002, 0.006)
+alpha <- 1.10
+for (r in 1:rates.size()) {
+  for (i in 1:n_morph) {
+    if (morph_ordered[i]) {
+      q <- fnOrderedRateMatrix(maxState = morph_k[i])
+    } else {
+      q <- fnJC(morph_k[i])
+    }
+    for (cd in 1:3) {
+      if (cd == 1) {
+        x ~ dnPhyloCTMC(tree = tree, Q = q, branchRates = rates[r], type = "Standard",
+                        coding = "variable")
+      }
+      if (cd == 2) {
+        x ~ dnPhyloCTMC(tree = tree, Q = q, branchRates = rates[r], type = "Standard",
+                        coding = "all")
+      }
+      if (cd == 3) {
+        x ~ dnPhyloCTMC(tree = tree, Q = q, branchRates = rates[r],
+                        siteRates = fnDiscretizeGamma(alpha, alpha, 4), type = "Standard",
+                        coding = "variable")
+      }
+      x.clamp(morpho[i])
+      lnp = x.lnProbability()
+      print("RESULT " + r + " " + i + " " + cd)
+      print(floor(lnp))
+      print(lnp - floor(lnp))
+    }
+  }
+}
+q()

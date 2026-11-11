@@ -172,7 +172,34 @@ SteppingStone <- function(ladder, logL) {
 }
 
 root <- args[[2]]
-ch <- Chains(root)
+stopifnot("combine: <run root> does not exist" = dir.exists(root))
+# Every cell with character-power chains of this variant must have a complete
+# ladder, t = 0 to t = 1, before anything is combined.  The t = 1 rung is the
+# cell's ordinary chains: without them under this root, the stepping-stone
+# would estimate log Z(t_max) / Z(0) and report it as the marginal (#88)
+LadderProblems <- function(ch) {
+  pw <- unique(ch[ch$power != 1, c("beta", "gamma")])
+  unlist(lapply(seq_len(nrow(pw)), function(i) {
+    sel <- ch$beta == pw$beta[i] & ch$gamma == pw$gamma[i]
+    ladder <- sort(unique(ch$power[sel]))
+    missing <- c(if (ladder[1] != 0) "t = 0", if (ladder[length(ladder)] != 1) "t = 1")
+    few <- length(ladder) < 3L
+    if (!length(missing) && !few) return(NULL)
+    sprintf("cell %s (mkv %s): power ladder %s %s", CellLabel(pw$beta[i], pw$gamma[i]), .cet$mkv,
+            paste(vapply(ladder, FormatValue, ""), collapse = ", "),
+            paste(c(if (length(missing)) paste("lacks", paste(missing, collapse = " and ")),
+                    if (few) "has fewer than 3 rungs"), collapse = " and "))
+  }))
+}
+chAll <- Chains(root)
+problems <- LadderProblems(chAll[chAll$mkv == .cet$mkv, ])
+if (length(problems)) {
+  stop("combine: incomplete character-power ladder(s); no marginal is reported.\n  ",
+       paste(problems, collapse = "\n  "),
+       "\n  The t = 1 rung is the cell's chains at power 1 (production chains) under the same root.",
+       call. = FALSE)
+}
+ch <- chAll
 # Bridge only chains of one Mkv variant: CET_MKV, default "pattern" (#74)
 ch <- ch[ch$mkv == .cet$mkv & file.exists(file.path(ch$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
@@ -201,7 +228,15 @@ Edge <- function(a, b) {
   v <- pts[other, along]
   v <- sort(unique(v[v >= min(a[along], b[along]) & v <= max(a[along], b[along])]))
   if (a[along] > b[along]) v <- rev(v)
-  if (length(v) < 2L) return(NULL)  # an end point has no chains
+  # The path must run from a to b: both end points need chains (#88)
+  if (length(v) < 2L || v[1] != a[along] || v[length(v)] != b[along]) {
+    cat(sprintf("Edge %s -> %s: no chains with cross.csv at %s; edge left out\n",
+                CellLabel(a[1], a[2]), CellLabel(b[1], b[2]),
+                paste(c(if (!length(v) || v[1] != a[along]) CellLabel(a[1], a[2]),
+                        if (!length(v) || v[length(v)] != b[along]) CellLabel(b[1], b[2])),
+                      collapse = " and ")))
+    return(NULL)
+  }
   P <- function(val) if (along == 1) c(val, a[2]) else c(a[1], val)
   steps <- lapply(seq_len(length(v) - 1L), function(k) Bridge(P(v[k]), P(v[k + 1])))
   if (any(vapply(steps, is.null, TRUE)) || !length(steps)) return(NULL)
@@ -243,14 +278,14 @@ if (!is.null(edges) && nrow(edges) == 4) {
 }
 # Character-power stepping-stone per cell, if power chains exist.  Only chains
 # of the Mkv variant CET_MKV (default "pattern"), as for the bridges above:
-# pooling the charLL of chains of two variants mixes two targets (#75)
-ch <- Chains(root)
-ch <- ch[ch$mkv == .cet$mkv, ]
-pw <- unique(ch[, c("beta", "gamma")])
+# pooling the charLL of chains of two variants mixes two targets (#75).
+# Ladders were checked to run from t = 0 to t = 1 at the start of combine.
+ch <- chAll[chAll$mkv == .cet$mkv, ]
+pw <- unique(ch[ch$power != 1, c("beta", "gamma")])
 for (i in seq_len(nrow(pw))) {
   sel <- ch$beta == pw$beta[i] & ch$gamma == pw$gamma[i]
   ladder <- sort(unique(ch$power[sel]))
-  if (length(ladder) < 3 || ladder[1] != 0) next
+  stopifnot(ladder[1] == 0, ladder[length(ladder)] == 1, length(ladder) >= 3L)
   logL <- lapply(ladder, function(t) {
     unlist(lapply(ch$dir[sel & ch$power == t], function(d) {
       s <- LoadSamples(d)

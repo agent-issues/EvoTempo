@@ -1,4 +1,9 @@
-HEAD 408b0c76a31f971c8275c0f06dcb61314e1a2ad5
+check-labels.R: bf-combine-75 f64df1d2c14743d43cc9b06a101dbe88473b473d with this commit's bayes-factors.R, check-labels.R, README.md
+0baa458c2bea6e3a061b32bfe2a4d4c7  bayes-factors.R
+5a3411d8913bb3258225a64796713289  check-labels.R
+8996041266219a2840e22a3ab70b316b  README.md
+EvoTempo installed from main 48e6bf7 (/nobackup/pjjg18/evotempo-penguin-cet/lib-48e6bf7); 2026-11-11 12:40 UTC cn031.ham8.dur.ac.uk
+
 33-point ladder: 31 powers in (0, 1); format() wrote 2 in scientific notation (9.612435e-06, 9.688727e-05)
 ok   33-point ladder: FormatValue() never writes scientific notation
 ok   33-point ladder: ParseLabel() reads every power back exactly
@@ -25,8 +30,21 @@ combine, CET_MKV=allTips: b1g1 (mkv allTips): log p(characters | tip ages) = -16
 ok   combine (CET_MKV=allTips) reports that variant's stepping-stone estimate
 ok   combine (CET_MKV=allTips) does not pool the two variants
 ok   combine (CET_MKV=allTips) names its variant and uses 4 rungs x 2 chains
+F1b (power ladder 0, 0.0001, 0.3 only), exit 1: Error: combine: incomplete character-power ladder(s); no marginal is reported. /   cell b1g1 (mkv pattern): power ladder 0, 0.0001, 0.3 lacks t = 1
+ok   F1b: combine stops when the ladder lacks t = 1
+ok   F1b: combine prints no marginal
+ok   F1b: combine names the cell and the missing rung t = 1
+F1a (allTips 0, 0.0001, 0.3 beside a complete pattern ladder): allTips exit 1 (  cell b1g1 (mkv allTips): power ladder 0, 0.0001, 0.3 lacks t = 1); pattern exit 0 (b1g1 (mkv pattern): log p(characters | tip ages) = -1723.607 (SE 0.104), 4 rungs, 8 chains)
+ok   F1a: CET_MKV=allTips stops, naming the missing t = 1, with no marginal
+ok   F1a: CET_MKV=pattern still reports its complete 4-rung ladder
+F2a (b0g0, b0g1, b1g0, rung b0.5g1, no b1g1), exit 0: Edge b0g1 -> b1g1: no chains with cross.csv at b1g1; edge left out / Edge b1g0 -> b1g1: no chains with cross.csv at b1g1; edge left out; edges b0g0->b1g0 -4.005 (2 points), b0g0->b0g1 -1.996 (2 points)
+ok   F2a: no b0g1 -> b1g1 edge without b1g1 chains (before: the b0g1 -> b0.5g1 bridge, -2)
+ok   F2a: combine says which end point of b0g1 -> b1g1 is missing
+ok   F2a: the two complete edges are reported (about -4 and -2)
+F2b (rungs b0.25g1, b0.75g1 only), exit 0: Edge b0g1 -> b1g1: no chains with cross.csv at b0g1 and b1g1; edge left out / Edge b0g0 -> b0g1: no chains with cross.csv at b0g1; edge left out / Edge b1g0 -> b1g1: no chains with cross.csv at b1g1; edge left out
+ok   F2b: no b0g1 -> b1g1 edge from the interior rungs alone (before: -2.0)
+ok   F2b: combine names both missing end points
+nonexistent root, exit 1: Error: combine: <run root> does not exist
+ok   combine stops on a run root that does not exist
 check-labels.R: all checks passed
 exit 0
-b1g1_mkvallTips_t1e-04_run1 -> NULL (dropped) 
-b1g1_t9.688727e-05_run1 -> NULL (dropped) 
-b1g1_t0.0001_run1 -> parsed 

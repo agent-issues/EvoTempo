@@ -10,7 +10,8 @@
 # pooled samples; common.R, RhatEss()), not PSRF.  Writes
 # convergence.csv (per analysis and quantity: mean, 95% interval, R-hat, ESS,
 # and for CET the mean and interval reweighted to the comparator's joint
-# (d, nu, s) prior with the weights' Kish ESS), clades.csv (frequency of each
+# (d, nu, s) prior with the weights' MkPrime bulk ESS, which accounts for
+# autocorrelation, and their iid Kish ESS), clades.csv (frequency of each
 # clade with frequency >= 0.05, sd over chains), sampled-ancestors.csv and
 # headline.txt (root, ingroup and origin ages in Ma, worst R-hat and ESS,
 # ASDSF over clades >= 0.1).  No summary tree is made: ConsTree is not
@@ -65,6 +66,7 @@ Analysis <- function(name, chains) {
   conv <- RhatEss(vals)
   pooled <- do.call(rbind, vals)
   lw <- if (!is.null(chains[[1]]$logW)) unlist(lapply(chains, `[[`, "logW")) else NULL
+  we <- if (is.null(lw)) c(mkprime = NA, kish = NA) else WeightEss(lapply(chains, `[[`, "logW"))
   conv <- do.call(rbind, lapply(cols, function(p) {
     x <- pooled[, p]
     r <- conv[conv$quantity == p, ]
@@ -73,10 +75,7 @@ Analysis <- function(name, chains) {
                q025 = unname(stats::quantile(x, 0.025)), q975 = unname(stats::quantile(x, 0.975)),
                rhat = if (nrow(r)) r$rhat else NA, ess = if (nrow(r)) r$ess else NA,
                meanJointPrior = wq[1], q025JointPrior = wq[2], q975JointPrior = wq[3],
-               weightEss = if (is.null(lw)) NA else {
-                 w <- exp(lw[is.finite(lw)] - max(lw[is.finite(lw)]))
-                 sum(w)^2 / sum(w^2)
-               })
+               weightEss = we[["mkprime"]], weightKish = we[["kish"]])
   }))
   freq <- lapply(chains, function(ch) {
     pp <- prop.part(ch$trees)

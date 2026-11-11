@@ -8,11 +8,12 @@
 # EvoTempo installed (or CET_LOAD_ALL=1 for pkgload::load_all()).  Environment:
 #   CET_OUT          output root (default cet-runs); the chain writes
 #                    <CET_OUT>/<label>_run<rep>/
-#   CET_START_TREE   starting tree (default cet/data/start-tree-<rep>.nwk, the
-#                    best post-burn-in sample of RevBayes chain <rep>; reps
-#                    above 6 reuse them cyclically); the starting parameter
-#                    values come from the same RevBayes sample
-#                    (start-values.csv), whatever CET_START_TREE says
+#   CET_START_TREE   starting tree (default cet/data/start-tree-<kk>.nwk, draw
+#                    k = 4 (rep - 1) + cell of prepare.R, a random sample from
+#                    the pooled RevBayes posterior; a ladder rung or power chain
+#                    uses draw <rep>); the starting parameter values come from
+#                    the same RevBayes sample (start-values.csv), whatever
+#                    CET_START_TREE says
 #   CET_NITER        sampling iterations in total (default 100000)
 #   CET_BURNIN       burn-in iterations, with step-size adaptation (default 2000)
 #   CET_THIN         thinning (default 50)
@@ -76,7 +77,8 @@ saveStates <- Sys.getenv("CET_STATES", "true") == "true"
 stopifnot(seg %% thin == 0, nIter %% seg == 0)
 .cet$power <- power
 
-startTree <- Sys.getenv("CET_START_TREE", StartTreeFile(rep))
+startIndex <- StartIndex(cell, rep)
+startTree <- normalizePath(Sys.getenv("CET_START_TREE", StartTreeFile(startIndex)), mustWork = TRUE)
 dat <- LoadTrilobites(startTree)
 model <- CetModel(beta, gamma)
 priors <- CetPriors()
@@ -96,14 +98,20 @@ if (file.exists(ckpFile)) {
                        collapse = ", "),
                  paste(names(target), vapply(target, format, ""), collapse = ", ")))
   }
+  # The characters must be in the tip order of the chain's tree (review of #91, F1)
+  if (!identical(ckp$startTree, startTree) ||
+      !identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
+    stop(sprintf("%s was started from %s; this run loads %s (tip orders differ)", ckpFile,
+                 format(ckp$startTree), startTree))
+  }
   Progress("%s resuming after segment %d", format(Sys.time()), ckp$segment)
 } else {
   set.seed(EnvNum("CET_SEED", 1000 * cell + rep))
   ckp <- NULL
   Progress(paste("%s start %s rep %d (beta %g, gamma %g, power %g, mkv %s, grid %d bins z +-%g):",
-                 "start tree %s; nIter %d, burnin %d, thin %d, seg %d; moves %s"),
+                 "start tree %s (draw %d); nIter %d, burnin %d, thin %d, seg %d; moves %s"),
            format(Sys.time()), label, rep, beta, gamma, power, mkv, grid$nBin, grid$zMax,
-           basename(startTree), nIter, burnin, thin, seg,
+           startTree, startIndex, nIter, burnin, thin, seg,
            paste(names(moves), moves, sep = "=", collapse = " "))
 }
 nSeg <- nIter %/% seg
@@ -113,8 +121,9 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   .cet$injected <- FALSE
   .cet$constraintRejections <- list()
   tSeg <- proc.time()[["elapsed"]]
+  stopifnot(identical(rownames(dat$characters), dat$tree$tipLabel))
   if (is.null(ckp)) {
-    run <- TempoMCMC(dat$tree, model, CetStart(rep), priors, nIter = seg, burnin = burnin,
+    run <- TempoMCMC(dat$tree, model, CetStart(startIndex), priors, nIter = seg, burnin = burnin,
                      thin = thin, nSlice = nSlice, moves = moves,
                      characters = dat$characters, agePriors = CetAgePriors())
   } else {
@@ -152,7 +161,7 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),
                      append = file.exists(accFile))
   ckp <- c(list(segment = k, captured = .cet$captured, label = label, rep = rep,
-                startTree = basename(startTree)), target)
+                startIndex = startIndex, startTree = startTree), target)
   tmp <- paste0(ckpFile, ".tmp")
   saveRDS(ckp, tmp)
   file.rename(tmp, ckpFile)

@@ -418,8 +418,33 @@ TempoNewick <- function(tt, digits = 6) {
 }
 
 # ---- Data -------------------------------------------------------------------------
-StartTreeFile <- function(rep) {
-  file.path(cetDir, "data", sprintf("start-tree-%d.nwk", (rep - 1L) %% 6L + 1L))
+# Production chain k = 4 (rep - 1) + cell (cells 1-4 = b0g0, b0g1, b1g0, b1g1;
+# run-array.sh task k) starts from draw k of prepare.R; a ladder rung or power
+# chain (cell 0) uses draw <rep>.  Indices above the number of draws wrap.
+StartIndex <- function(cell, rep, nDraw = nrow(read.csv(file.path(cetDir, "data", "start-values.csv")))) {
+  k <- if (cell >= 1L) 4L * (rep - 1L) + cell else rep
+  (k - 1L) %% nDraw + 1L
+}
+StartTreeFile <- function(k) file.path(cetDir, "data", sprintf("start-tree-%02d.nwk", k))
+
+# Character matrix (with the "cet" model attribute) with rows in the tip order
+# `tipLabel`: every consumer must use the tip order of the tree it scores
+# (bayes-factors.R eval uses each chain's own; review of #91, F1)
+LoadCharacters <- function(tipLabel) {
+  chars <- read.csv(file.path(cetDir, "data", "characters.csv"), check.names = FALSE,
+                    colClasses = "character")
+  parts <- read.csv(file.path(cetDir, "data", "partitions.csv"))
+  stopifnot(setequal(chars$taxon, tipLabel), !anyDuplicated(tipLabel))
+  cells <- as.matrix(chars[match(tipLabel, chars$taxon), -1])
+  cells[is.na(cells)] <- ""
+  rownames(cells) <- tipLabel
+  stopifnot(identical(colnames(cells), paste0("c", parts$char)),
+            identical(rownames(cells), tipLabel))
+  x <- matrix(NA_integer_, nrow(cells), ncol(cells), dimnames = dimnames(cells))
+  single <- cells != "" & !grepl("/", cells)
+  x[single] <- as.integer(cells[single])
+  attr(x, "cet") <- BuildCharacters(cells, parts)
+  list(characters = x, cells = cells, parts = parts)
 }
 
 LoadTrilobites <- function(startTree = StartTreeFile(1L)) {
@@ -444,24 +469,14 @@ LoadTrilobites <- function(startTree = StartTreeFile(1L)) {
   age[parent[sa]] <- tipAge[sa]
   # Point ages: each range is the age itself, so no move changes a tip age
   tt <- TempoTree(tr, ages = age, tipType = tipType, ranges = cbind(tipAge, tipAge))
-  chars <- read.csv(file.path(cetDir, "data", "characters.csv"), check.names = FALSE,
-                    colClasses = "character")
-  parts <- read.csv(file.path(cetDir, "data", "partitions.csv"))
-  cells <- as.matrix(chars[match(tr$tip.label, chars$taxon), -1])
-  cells[is.na(cells)] <- ""
-  rownames(cells) <- tr$tip.label
-  stopifnot(identical(colnames(cells), paste0("c", parts$char)))
-  cm <- BuildCharacters(cells, parts)
-  x <- matrix(NA_integer_, nTip, ncol(cells), dimnames = dimnames(cells))
-  single <- cells != "" & !grepl("/", cells)
-  x[single] <- as.integer(cells[single])
-  attr(x, "cet") <- cm
+  ch <- LoadCharacters(tt$tipLabel)
   cons <- read.csv(file.path(triDir, "trilobites_constraints.csv"))
   ingroupTaxa <- strsplit(cons$taxa[cons$constraint == "Ingroup_node"], " ")[[1]]
-  ingroup <- tr$tip.label %in% ingroupTaxa
+  ingroup <- tt$tipLabel %in% ingroupTaxa
   stopifnot(sum(ingroup) == 104, IngroupMonophyletic(tt, ingroup))
   .cet$ingroup <- ingroup
-  list(tree = tt, characters = x, cells = cells, parts = parts, tips = info, ingroup = ingroup)
+  list(tree = tt, characters = ch$characters, cells = ch$cells, parts = ch$parts, tips = info,
+       ingroup = ingroup)
 }
 
 # ---- Model, priors, moves -------------------------------------------------------------
@@ -585,23 +600,36 @@ CetPriors <- function() {
 CetAgePriors <- function() {
   list(origin = function(a) if (a > 0.6 && a < 1000.6) -log(1000) else -Inf)
 }
-# Starting values: the RevBayes sample whose tree starts the replicate
+# Starting values: the RevBayes sample whose tree starts chain k
 # (prepare.R, start-values.csv): lambda, mu, psi, rate = clock_morph,
 # s = ucld_sd; theta 0.05 (no counterpart)
-CetStart <- function(rep) {
+CetStart <- function(k) {
   sv <- read.csv(file.path(cetDir, "data", "start-values.csv"))
-  r <- sv[sv$rep == (rep - 1L) %% 6L + 1L, ]
+  r <- sv[sv$k == k, ]
+  stopifnot(nrow(r) == 1)
   list(lambda = r$lambda, mu = r$mu, psi = r$psi, theta = 0.05,
        s = min(r$ucld_sd, 2.5), rate = r$clock_morph)
 }
-# TempoMoves() plus tree moves in proportion to the tree; no fossilAge (point
-# ages), CET_TREE_MOVES scales the tree moves
+# Move counts per iteration, the same for every chain whatever its start tree
+# (review of #91, F7): the counts of TempoMoves() and of the tree moves for a
+# 107-tip tree WITHOUT sampled ancestors (106 internal nodes, 106
+# bifurcations, 212 branches with paths): with gamma != 0, node 27, tip 27,
+# branch 53, shift 1; with gamma = 0, TempoMoves()'s fixed schedule (tree 1,
+# node 2, tip 2, branch 2, joint 1, shift 1); plus nodeAge 27 (0.25 x
+# bifurcations), slide 16 (0.15 x), saJump 11 (0.1 x tips) and originAge 1;
+# no fossilAge (point ages).  CET_TREE_MOVES scales the tree moves.
 CetMoves <- function(tt, characters, model,
                      scale = as.numeric(Sys.getenv("CET_TREE_MOVES", "1"))) {
-  nBif <- sum(!tt$sampled)
-  c(TempoMoves(tt, characters, model),
-    nodeAge = ceiling(scale * 0.25 * nBif), slide = ceiling(scale * 0.15 * nBif),
-    saJump = ceiling(scale * 0.1 * tt$nTip), originAge = 1)
+  nTip <- tt$nTip
+  nBif <- nTip - 1L
+  path <- c(if (model[["gamma"]] != 0 && NCOL(characters) > 0) {
+    c(node = ceiling(0.25 * (nTip - 1L)), tip = ceiling(0.25 * nTip),
+      branch = ceiling(0.25 * (2L * nTip - 2L)), shift = 1)
+  } else {
+    TempoMoves(tt, NULL, model)
+  })
+  c(path, nodeAge = ceiling(scale * 0.25 * nBif), slide = ceiling(scale * 0.15 * nBif),
+    saJump = ceiling(scale * 0.1 * nTip), originAge = 1)
 }
 
 # ---- Utilities ---------------------------------------------------------------------
@@ -626,6 +654,23 @@ RhatEss <- function(chains) {
   q <- names(d$ess)
   data.frame(quantity = q, ess = unname(d$ess),
              rhat = if (is.null(d$rhat)) NA_real_ else unname(d$rhat[q]))
+}
+# Effective sample size of importance weights given on the log scale, one
+# vector per chain: MkPrime's bulk ESS (rank-normalised split chains, which
+# accounts for autocorrelation) of the normalised weights, tail-equalised over
+# chains (review of #91, F3); and the iid Kish ESS, sum(w)^2 / sum(w^2)
+WeightEss <- function(lwByChain) {
+  lw <- unlist(lwByChain)
+  fin <- is.finite(lw)
+  if (!any(fin)) return(c(mkprime = 0, kish = 0))
+  m <- max(lw[fin])
+  w <- lapply(lwByChain, function(x) ifelse(is.finite(x), exp(x - m), 0))
+  n <- min(lengths(w))
+  mat <- vapply(w, function(x) utils::tail(x, n), numeric(n))
+  if (n == 1L) mat <- matrix(mat, nrow = 1)
+  wa <- unlist(w)
+  c(mkprime = if (n >= 4 && stats::var(as.vector(mat)) > 0) MkPrime:::.EssBulk(mat) else NA_real_,
+    kish = sum(wa)^2 / sum(wa^2))
 }
 # ESS of one sequence (MkPrime, as above)
 Ess <- function(x) {

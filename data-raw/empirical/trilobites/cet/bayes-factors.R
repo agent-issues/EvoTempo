@@ -20,13 +20,20 @@
 # Differences from the penguin script:
 # - `eval` refuses a chain whose checkpoint is missing or records no Mkv
 #   variant, or records a grid other than this job's CET_NBIN / CET_ZMAX, and
-#   stops when a state's recomputed log posterior differs from the chain's by
-#   more than CET_BF_TOL (default 1e-6) (#76);
+#   stops when a state's recomputed log posterior, or its recomputed character
+#   log-likelihood (which the power-0 check cannot see), differs from the
+#   chain's by more than CET_BF_TOL (default 1e-6) (#76; review of #91, A4);
+# - `eval` scores the characters in the chain's own tip order
+#   (states[[1]]$tree$tipLabel; every chain has its own start tree), and
+#   writes cross.csv only after the check passes (temporary file, then
+#   rename); `combine` refuses any cross.csv whose recorded checks exceed
+#   CET_BF_TOL (review of #91, F1, A1, A2);
 # - cross.csv has logJointW, the log importance weight from the CET priors to
 #   the comparator's joint (d, nu, s) prior on (lambda, mu, psi)
 #   (JointPriorLogWeight()); `combine` reports each edge reweighted to that
 #   prior, log BF' = log BF + log E_B[w] - log E_A[w] (self-normalised), with
-#   the weights' ESS per cell (README, "Priors").
+#   the weights' ESS per cell: MkPrime's bulk ESS (autocorrelation-aware) and
+#   the iid Kish ESS (README, "Priors"; review of #91, F3).
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -100,11 +107,15 @@ if (args[[1]] == "eval") {
   gammas <- if (nzchar(Sys.getenv("CET_BF_GAMMAS"))) {
     as.numeric(strsplit(Sys.getenv("CET_BF_GAMMAS"), ",")[[1]])
   } else sort(unique(all$gamma))
-  dat <- LoadTrilobites()
   priors <- CetPriors()
   s <- LoadSamples(dir)
   states <- LoadStates(dir)
   stopifnot(length(states) == nrow(s$samples))
+  # Characters in the chain's own tip order (tree moves keep tip indices)
+  tipLabel <- states[[1]]$tree$tipLabel
+  stopifnot(all(vapply(states, function(st) identical(st$tree$tipLabel, tipLabel), TRUE)))
+  dat <- LoadCharacters(tipLabel)
+  stopifnot(identical(rownames(dat$characters), tipLabel))
   idx <- which(s$keep)
   t0 <- proc.time()[["elapsed"]]
   out <- do.call(rbind, lapply(idx, function(i) {
@@ -115,17 +126,26 @@ if (args[[1]] == "eval") {
     # The chain's logPost includes the origin age prior (constant on its
     # support, so it cancels in the Bayes factors and is not in logPrior)
     la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
-    own <- LogAugAt(st, me$beta, me$gamma) + me$power * CharLLAt(st, me$gamma, dat$characters) +
-      lp + la
+    ownChar <- CharLLAt(st, me$gamma, dat$characters)
+    own <- LogAugAt(st, me$beta, me$gamma) + me$power * ownChar + lp + la
     c(sample = i, setNames(aug, paste0("aug_b", format(betas))),
       setNames(chr, paste0("chr_g", format(gammas))), logPrior = lp,
-      logJointW = JointPriorLogWeight(st$par, priors), check = own - s$samples$logPost[i])
+      logJointW = JointPriorLogWeight(st$par, priors), check = own - s$samples$logPost[i],
+      checkChar = ownChar - s$samples$charLL[i])
   }))
-  utils::write.csv(out, file.path(dir, "cross.csv"), row.names = FALSE)
-  worst <- max(abs(out[, "check"]))
-  cat(sprintf("%s: %d states, %.1f s; max |own - logPost| = %.3g\n", basename(dir), nrow(out),
-              proc.time()[["elapsed"]] - t0, worst))
-  if (!(worst <= tol)) stop(sprintf("recomputed log posterior differs from the chain's by %.3g > %g", worst, tol))
+  worst <- max(abs(out[, c("check", "checkChar")]))
+  cat(sprintf("%s: %d states, %.1f s; max |own - logPost| = %.3g, max |own - charLL| = %.3g\n",
+              basename(dir), nrow(out), proc.time()[["elapsed"]] - t0, max(abs(out[, "check"])),
+              max(abs(out[, "checkChar"]))))
+  crossFile <- file.path(dir, "cross.csv")
+  if (!(worst <= tol)) {
+    unlink(crossFile)
+    stop(sprintf("recomputed log posterior or charLL differs from the chain's by %.3g > %g; no cross.csv written",
+                 worst, tol))
+  }
+  tmp <- tempfile("cross-", tmpdir = dir, fileext = ".csv")
+  utils::write.csv(out, tmp, row.names = FALSE)
+  stopifnot(file.rename(tmp, crossFile))
   quit(save = "no")
 }
 
@@ -161,19 +181,20 @@ SteppingStone <- function(ladder, logL) {
   inc[2, !is.finite(inc[2, ])] <- 0
   list(logR = sum(inc[1, ]), se = sqrt(sum(inc[2, ])))
 }
-# Kish effective sample size of importance weights given on the log scale
-KishEss <- function(lw) {
-  lw <- lw[is.finite(lw)]
-  if (!length(lw)) return(0)
-  w <- exp(lw - max(lw))
-  sum(w)^2 / sum(w^2)
-}
-
 root <- args[[2]]
 ch <- Chains(root)
 ch <- ch[ch$mkv == .cet$mkv & file.exists(file.path(ch$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
+# Refuse any cross.csv that did not pass eval's checks (review of #91, A2)
+bad <- vapply(cross, function(x) {
+  cols <- intersect(c("check", "checkChar"), names(x))
+  length(cols) < 2 || !all(abs(as.matrix(x[, cols])) <= tol)
+}, TRUE)
+if (any(bad)) {
+  stop("cross.csv fails eval's checks (or predates checkChar) for: ",
+       paste(ch$label[bad], collapse = ", "), "; rerun eval on those chains")
+}
 LogQ <- function(x, beta, gamma) {
   x[[paste0("aug_b", format(beta))]] + x[[paste0("chr_g", format(gamma))]] + x$logPrior
 }
@@ -205,6 +226,12 @@ Edge <- function(a, b) {
   }, 0)
   wa <- Draws(a)$logJointW
   wb <- Draws(b)$logJointW
+  WByChain <- function(p) {
+    sel <- ch$power == 1 & ch$beta == p[1] & ch$gamma == p[2]
+    lapply(cross[ch$label[sel]], `[[`, "logJointW")
+  }
+  ea <- WeightEss(WByChain(a))
+  eb <- WeightEss(WByChain(b))
   logBF <- sum(vapply(steps, `[[`, 0, "logBF"))
   data.frame(from = CellLabel(a[1], a[2]), to = CellLabel(b[1], b[2]), points = length(v),
              logBF = logBF,
@@ -214,7 +241,8 @@ Edge <- function(a, b) {
              maxOneSidedGap = max(vapply(steps, function(s) abs(s$logBFfrom0 - s$logBFfrom1), 0)),
              nInfinite = sum(vapply(steps, `[[`, 0, "nInfinite")),
              logBFjointPrior = logBF + LogMeanExp(wb) - LogMeanExp(wa),
-             weightEssFrom = KishEss(wa), weightEssTo = KishEss(wb),
+             weightEssFrom = ea[["mkprime"]], weightEssTo = eb[["mkprime"]],
+             weightKishFrom = ea[["kish"]], weightKishTo = eb[["kish"]],
              perReplicate = paste(format(perRep, digits = 5), collapse = " "))
 }
 edges <- rbind(Edge(c(0, 0), c(1, 0)), Edge(c(0, 1), c(1, 1)),

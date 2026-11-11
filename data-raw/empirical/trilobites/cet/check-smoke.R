@@ -5,8 +5,11 @@
 # Reports seconds per iteration per cell and segment, acceptance rates (and
 # tree proposals rejected by the ingroup constraint), and whether the resumed
 # chain (two segments) equals the uninterrupted one (one segment); stops if it
-# does not.  Writes timing.csv, acceptance.csv and resume.txt to [out dir]
-# (default <W>/smoke).
+# does not.  Then runs `bayes-factors.R eval` on every smoke chain, including
+# the replicate-2 chains (smoke.sh tasks 6-7, whose start trees have other tip
+# orders), and stops unless every eval exits 0 and writes cross.csv (review of
+# #91, A3).  Run from the package root.  Writes timing.csv, acceptance.csv,
+# resume.txt and eval.txt to [out dir] (default <W>/smoke).
 args <- commandArgs(trailingOnly = TRUE)
 W <- if (length(args)) args[[1]] else "/nobackup/pjjg18/evotempo-trilobite-cet"
 outDir <- if (length(args) > 1) args[[2]] else file.path(W, "smoke")
@@ -51,3 +54,21 @@ msg <- sprintf("Resume check: max |difference| over %d samples x %d columns = %g
 cat(msg, "\n")
 writeLines(msg, file.path(outDir, "resume.txt"))
 if (!(diff == 0 && identical(ta, tb))) stop("resumed chain differs from the uninterrupted one")
+
+# eval on every smoke chain (the start-tree path of bayes-factors.R)
+dirs <- sort(Sys.glob(file.path(W, "smoke", paste0("b*", sfx, "_run*"))))
+stopifnot(any(grepl("_run2$", dirs)))
+ev <- do.call(rbind, lapply(dirs, function(d) {
+  unlink(file.path(d, "cross.csv"))
+  out <- suppressWarnings(system2("Rscript", c("data-raw/empirical/trilobites/cet/bayes-factors.R",
+                                               "eval", d), stdout = TRUE, stderr = TRUE))
+  status <- attr(out, "status")
+  data.frame(chain = basename(d), exit = if (is.null(status)) 0L else status,
+             crossWritten = file.exists(file.path(d, "cross.csv")),
+             startTree = sub("^.*start tree (\\S+) \\(draw ([0-9]+)\\).*$", "draw \\2",
+                             grep("start tree", readLines(file.path(d, "progress.txt")), value = TRUE)[1]),
+             message = utils::tail(grep("states", out, value = TRUE), 1))
+}))
+print(ev, row.names = FALSE)
+writeLines(c(msg, utils::capture.output(print(ev, row.names = FALSE))), file.path(outDir, "eval.txt"))
+if (any(ev$exit != 0 | !ev$crossWritten)) stop("bayes-factors.R eval failed on a smoke chain")

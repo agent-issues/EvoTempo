@@ -1,6 +1,6 @@
 # Trilobite CET pipeline: fixed-tree checks of the character likelihood and of
 # the tree density's conditioning against RevBayes, on the start tree
-# (data/start-tree-1.nwk).
+# (data/start-tree-01.nwk).
 #
 #   Rscript data-raw/empirical/trilobites/cet/check-mkv.R write <oracle dir>
 #   (run RevBayes: revbayes/check-oracle.sh does both steps and this one)
@@ -25,9 +25,17 @@
 #    under CetModel(0, 0) (rho = 0, condition = "survival", start = "origin",
 #    ages before 485.4 Ma) must differ from RevBayes dnFBDP(rho = 0,
 #    condition = "sampling") by a constant over the grid of parameters and
-#    origins (the two use different labelling conventions, which give a
-#    constant): spread (max - min of the difference) <= 1e-6 (relative to
-#    max |lnL| 1e-8 when larger), with both engines.  (FBDTreeLikelihood(),
+#    origins: spread (max - min of the difference) <= 1e-6 (relative to
+#    max |lnL| 1e-8 when larger), with both engines.  The offset is known
+#    exactly (review of #91, F2): RevBayes - TreeLikelihood() =
+#    -ln(n!) + nBif ln 2, with n = 107 tips and nBif the bifurcations (internal
+#    nodes without a sampled ancestor, the root included under an origin), so
+#    it is a constant only for a given tree (nBif changes with the number of
+#    sampled ancestors); each point's residual from it must be <= the same
+#    tolerance.  TempoMCMC() adds nBif ln 2 in every tree-move ratio
+#    (.TreeMove()), so the sampled tree density is RevBayes's + ln(n!), the
+#    same constant for every tree; the samples' logPost does not include
+#    nBif ln 2.  (FBDTreeLikelihood(),
 #    the closed form, gives NaN here: with rho = 0 and no extant tip it adds
 #    0 x log(0); TreeLikelihood() is unaffected.)  Negative controls, which
 #    must FAIL that
@@ -180,10 +188,18 @@ Spread <- function(x) diff(range(x))
 spread <- c(cet = Spread(fbd$revbayes - fbd$cet), cetR = Spread(fbd$revbayes - fbd$cetR),
             controlNone = Spread(fbd$revbayes - fbd$controlNone),
             controlYoungestTip = Spread(fbd$revbayes - fbd$controlYoungestTip))
+nBif <- sum(!tt$sampled)
+offset <- -lgamma(tt$nTip + 1) + nBif * log(2)
+fbd$expectedOffset <- offset
+fbd$residual <- fbd$revbayes - fbd$cet - offset
 print(fbd, digits = 12, row.names = FALSE)
-cat("constant RevBayes - CET:", format(mean(fbd$revbayes - fbd$cet), digits = 12), "\n")
+cat(sprintf("RevBayes - CET: mean %.12g; -ln(%d!) + %d ln 2 = %.12g; max |residual| %.3g\n",
+            mean(fbd$revbayes - fbd$cet), tt$nTip, nBif, offset, max(abs(fbd$residual))))
 print(spread, digits = 4)
 tol <- max(1e-6, 1e-8 * max(abs(fbd$revbayes)))
+if (max(abs(fbd$residual)) > tol || max(abs(fbd$revbayes - fbd$cetR - offset)) > tol) {
+  fail <- c(fail, "RevBayes - CET differs from -ln(n!) + nBif ln 2")
+}
 if (spread[["cet"]] > tol || spread[["cetR"]] > tol) {
   fail <- c(fail, "beta = 0 tree density is not RevBayes's dnFBDP up to a constant")
 }

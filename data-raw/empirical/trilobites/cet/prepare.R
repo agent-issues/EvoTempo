@@ -1,6 +1,7 @@
 # Trilobite CET pipeline: data conversion and starting trees.
 #
-#   Rscript data-raw/empirical/trilobites/cet/prepare.R <RevBayes output dir> [burn-in fraction]
+#   Rscript data-raw/empirical/trilobites/cet/prepare.R <RevBayes output dir> \
+#     [n = 16] [seed = 20261111] [burn-in fraction = 0.25]
 #
 # Run from the package root.  <RevBayes output dir> holds the six chains of the
 # merged RevBayes baseline (../revbayes, #78): trilobites_morph_run<k>.log and
@@ -17,17 +18,24 @@
 #                 + 1, as ../revbayes/prepare-data.R), ordered (45 and 47), the
 #                 RevBayes partition name (u<K> or o<K>) and the number of
 #                 ambiguous cells.
-# start-tree-<k>.nwk, start-values.csv, start-tree-log.txt
-#                 one starting state per RevBayes chain k = 1..6 (rule below).
+# start-tree-<kk>.nwk, start-values.csv, start-tree-log.txt
+#                 one starting state per production chain, kk = 01..n.
 #
-# Starting-state rule: in each RevBayes chain, drop the first `burn-in
-# fraction` (default 0.25, as ../revbayes/summarise.R) of the logged samples
-# and take the sample with the highest logged Posterior; its tree (from the
-# .trees file, same iteration) and scalar values start CET replicate k.  The
-# tree's tip ages are reset to the exact point ages (the Newick is printed to
-# 6 decimals), internal ages are recomputed from the tips, zero-length fossil
-# tips become sampled ancestors whose node takes the fossil's exact age, and
-# the origin (RevBayes origin_time) becomes the root edge.
+# Starting-state rule (review of #91, F6; as the penguin pipeline's
+# draw-start-trees.R, branch penguin-start-tree-r4, 511cd4e): pool the
+# post-burn-in samples of the six RevBayes chains (each chain without its first
+# `burn-in fraction` of logged samples, as ../revbayes/summarise.R), and draw n
+# of them uniformly at random without replacement (set.seed(seed);
+# sample.int()).  Draw k starts production chain k = 4 (rep - 1) + cell (cells
+# in the order b0g0, b0g1, b1g0, b1g1), i.e. Slurm array task k of
+# run-array.sh, with its tree and scalar values (lambda, mu, psi, clock_morph,
+# ucld_sd, origin_time).  Random draws from the posterior, unlike the earlier
+# maximum-Posterior starts (3.0-4.5 sd above their chain's mean posterior, five
+# of six in the youngest 8% of root ages), let between-chain diagnostics detect
+# a missed mode.  Each tree's tip ages are reset to the exact point ages (the
+# Newick is printed to 6 decimals), internal ages are recomputed from the tips,
+# zero-length fossil tips become sampled ancestors whose node takes the
+# fossil's exact age, and the origin (origin_time) becomes the root edge.
 suppressMessages(library(ape))
 triDir <- "data-raw/empirical/trilobites"
 cetDir <- file.path(triDir, "cet")
@@ -36,7 +44,9 @@ dir.create(dataDir, showWarnings = FALSE)
 windowEnd <- 485.4
 args <- commandArgs(trailingOnly = TRUE)
 rbDir <- if (length(args)) args[[1]] else "/nobackup/pjjg18/evotempo-trilobite-cet/rbposterior"
-burnFrac <- if (length(args) > 1) as.numeric(args[[2]]) else 0.25
+nDraw <- if (length(args) > 1) as.integer(args[[2]]) else 16L
+seed <- if (length(args) > 2) as.integer(args[[3]]) else 20261111L
+burnFrac <- if (length(args) > 3) as.numeric(args[[4]]) else 0.25
 logLines <- character()
 Log <- function(...) {
   logLines <<- c(logLines, sprintf(...))
@@ -103,17 +113,29 @@ cons <- read.csv(file.path(triDir, "trilobites_constraints.csv"))
 ingroup <- strsplit(cons$taxa[cons$constraint == "Ingroup_node"], " ")[[1]]
 stopifnot(length(ingroup) == 104)
 StripAnnotations <- function(x) gsub("\\[&[^]]*\\]", "", x)
-starts <- list()
-for (k in 1:6) {
+pool <- do.call(rbind, lapply(1:6, function(k) {
   lg <- read.delim(file.path(rbDir, sprintf("trilobites_morph_run%d.log", k)))
-  keep <- seq_len(nrow(lg)) > floor(burnFrac * nrow(lg))
-  best <- which(keep)[which.max(lg$Posterior[keep])]
-  it <- lg$Iteration[best]
-  trLines <- readLines(file.path(rbDir, sprintf("trilobites_morph_run%d.trees", k)))
-  hit <- grep(sprintf("^%d\t", it), trLines)
-  stopifnot(length(hit) == 1)
-  nwk <- StripAnnotations(sub("^.*\t", "", trLines[hit]))
-  tr <- read.tree(text = nwk)
+  tr <- read.delim(file.path(rbDir, sprintf("trilobites_morph_run%d.trees", k)),
+                   stringsAsFactors = FALSE, quote = "", comment.char = "")
+  m <- min(nrow(lg), nrow(tr))
+  lg <- lg[seq_len(m), ]
+  tr <- tr[seq_len(m), ]
+  stopifnot(identical(as.numeric(lg$Iteration), as.numeric(tr$Iteration)))
+  keep <- seq_len(m) > floor(burnFrac * m)
+  data.frame(chain = sprintf("trilobites_morph_run%d", k), lg[keep, ],
+             newick = tr[[ncol(tr)]][keep], stringsAsFactors = FALSE)
+}))
+stopifnot(nDraw <= nrow(pool))
+set.seed(seed)
+pick <- sample.int(nrow(pool), nDraw)
+stopifnot(!anyDuplicated(pick))
+Log("Starting states: %d pooled post-burn-in samples from 6 RevBayes chains (first %g of each dropped); seed %d; %d draws without replacement",
+    nrow(pool), burnFrac, seed, nDraw)
+cellNames <- c("b0g0", "b0g1", "b1g0", "b1g1")
+starts <- list()
+for (k in seq_len(nDraw)) {
+  s <- pool[pick[k], ]
+  tr <- read.tree(text = StripAnnotations(s$newick))
   stopifnot(setequal(tr$tip.label, tips$taxon), is.binary(tr), is.rooted(tr))
   nTip <- Ntip(tr)
   tipAge <- tips$min_age[match(tr$tip.label, tips$taxon)] - windowEnd
@@ -150,25 +172,31 @@ for (k in 1:6) {
   }
   tr$edge.length <- age[tr$edge[, 1]] - age[tr$edge[, 2]]
   tr$edge.length[tr$edge[, 2] %in% sa] <- 0
-  stem <- lg$origin_time[best] - age[nTip + 1L]
-  stopifnot(stem > 0, abs(lg$root_age[best] - windowEnd - age[nTip + 1L]) < 1e-3)
+  stem <- s$origin_time - age[nTip + 1L]
+  stopifnot(stem > 0, abs(s$root_age - windowEnd - age[nTip + 1L]) < 1e-3)
   tr$root.edge <- stem
   stopifnot(is.monophyletic(tr, ingroup))
-  write.tree(tr, file.path(dataDir, sprintf("start-tree-%d.nwk", k)), digits = 10)
-  starts[[k]] <- data.frame(rep = k, chain = sprintf("trilobites_morph_run%d", k),
-                            nSamples = nrow(lg), firstKept = which(keep)[1], iteration = it,
-                            posterior = lg$Posterior[best], likelihood = lg$Likelihood[best],
-                            lambda = lg$lambda[best], mu = lg$mu[best], psi = lg$psi[best],
-                            clock_morph = lg$clock_morph[best], ucld_sd = lg$ucld_sd[best],
-                            ucld_cv = lg$ucld_cv[best], alpha_morph = lg$alpha_morph[best],
-                            origin_time = lg$origin_time[best], root_age = lg$root_age[best],
-                            num_samp_anc = lg$num_samp_anc[best])
-  Log(paste("Chain %d: %d samples, kept from row %d; best Posterior %.3f at iteration %d;",
-            "root %.4f Ma, origin %.4f Ma, %d sampled ancestors (%s); max tip-implied age spread %.2g Myr;",
-            "max SA node shift %.2g; %d parent ages raised to child + 1e-6"),
-      k, nrow(lg), which(keep)[1], lg$Posterior[best], it, age[nTip + 1L] + windowEnd,
-      lg$origin_time[best] + windowEnd, length(sa), paste(tr$tip.label[sa], collapse = ", "),
-      roundErr, if (length(sa)) max(saShift) else 0, changed)
+  write.tree(tr, file.path(dataDir, sprintf("start-tree-%02d.nwk", k)), digits = 10)
+  starts[[k]] <- data.frame(k = k, cell = cellNames[(k - 1L) %% 4L + 1L], rep = (k - 1L) %/% 4L + 1L,
+                            chain = s$chain, iteration = s$Iteration,
+                            posterior = s$Posterior, likelihood = s$Likelihood,
+                            lambda = s$lambda, mu = s$mu, psi = s$psi,
+                            clock_morph = s$clock_morph, ucld_sd = s$ucld_sd,
+                            ucld_cv = s$ucld_cv, alpha_morph = s$alpha_morph,
+                            origin_time = s$origin_time, root_age = s$root_age,
+                            num_samp_anc = s$num_samp_anc)
+  Log(paste("Draw %02d (%s rep %d): %s iteration %d, Posterior %.3f; root %.4f Ma, origin %.4f Ma,",
+            "%d sampled ancestors (%s); max tip-implied age spread %.2g Myr; max SA node shift %.2g;",
+            "%d parent ages raised to child + 1e-6"),
+      k, cellNames[(k - 1L) %% 4L + 1L], (k - 1L) %/% 4L + 1L, s$chain, as.integer(s$Iteration),
+      s$Posterior, age[nTip + 1L] + windowEnd, s$origin_time + windowEnd, length(sa),
+      paste(tr$tip.label[sa], collapse = ", "), roundErr, if (length(sa)) max(saShift) else 0,
+      changed)
 }
-write.csv(do.call(rbind, starts), file.path(dataDir, "start-values.csv"), row.names = FALSE)
+sv <- do.call(rbind, starts)
+# Where the draws sit in the pooled posterior (percentiles), for the README
+Pct <- function(x, ref) round(100 * vapply(x, function(v) mean(ref <= v), 0), 1)
+sv$posteriorPercentile <- Pct(sv$posterior, pool$Posterior)
+sv$rootPercentile <- Pct(sv$root_age, pool$root_age)
+write.csv(sv, file.path(dataDir, "start-values.csv"), row.names = FALSE)
 writeLines(logLines, file.path(dataDir, "start-tree-log.txt"))

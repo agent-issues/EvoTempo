@@ -81,7 +81,7 @@ The shape is the argument \code{alpha} of \code{\link[=MkLikelihood]{MkLikelihoo
 \code{\link[=TempoMCMC]{TempoMCMC()}} (\code{start$alpha}, with prior \code{charPriors$alpha}).
 }
 \examples{
-cells <- matrix(c("0", "1", "2", "{01}", "1", "?", "0", "1", "1"), 3)
+cells <- matrix(c("0", "1", "2", "{01}", "1", "0", "0", "1", "?"), 3)
 mk <- MkCharacters(cells, ordered = c(TRUE, FALSE, FALSE),
                    coding = "variable", nRateCat = 4)
 mk$nState

@@ -154,7 +154,7 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 #' sequences with variable rates over sites: approximate methods. Journal of
 #' Molecular Evolution 39:306--314. \doi{10.1007/BF00160154}
 #' @examples
-#' cells <- matrix(c("0", "1", "2", "{01}", "1", "?", "0", "1", "1"), 3)
+#' cells <- matrix(c("0", "1", "2", "{01}", "1", "0", "0", "1", "?"), 3)
 #' mk <- MkCharacters(cells, ordered = c(TRUE, FALSE, FALSE),
 #'                    coding = "variable", nRateCat = 4)
 #' mk$nState

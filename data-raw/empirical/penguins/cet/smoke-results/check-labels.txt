@@ -1,0 +1,32 @@
+HEAD 408b0c76a31f971c8275c0f06dcb61314e1a2ad5
+33-point ladder: 31 powers in (0, 1); format() wrote 2 in scientific notation (9.612435e-06, 9.688727e-05)
+ok   33-point ladder: FormatValue() never writes scientific notation
+ok   33-point ladder: ParseLabel() reads every power back exactly
+17-point ladder: 15 powers in (0, 1); format() wrote 1 in scientific notation (9.688727e-05)
+ok   17-point ladder: FormatValue() never writes scientific notation
+ok   17-point ladder: ParseLabel() reads every power back exactly
+#75 examples and others: 8 powers in (0, 1); format() wrote 6 in scientific notation (1e-05, 5e-05, 1e-04, 2e-04, 5e-04, 1e-10)
+ok   #75 examples and others: FormatValue() never writes scientific notation
+ok   #75 examples and others: ParseLabel() reads every power back exactly
+ok   CellLabel(1e-04, 1) is b0.0001g1
+ok   ParseLabel() reads a ladder-rung cell label
+ok   FormatValue() keeps the existing labels (b0g0 ... b1g1, 0.5)
+ok   production labels unchanged (CellLabel(0, 1) = b0g1)
+ok   ParseLabel() stops on b1g1_t1e-04_run1
+ok   ParseLabel() stops on b1e-04g1_run1
+ok   Chains() ignores summary/ and keeps b1g1_run1
+ok   Chains() stops on a chain directory it cannot parse
+synthetic ladder: expected pattern -1716.924, allTips -1679.912; both variants pooled -1681.301
+combine, CET_MKV=pattern: b1g1 (mkv pattern): log p(characters | tip ages) = -1716.924 (SE 0.733), 4 rungs, 8 chains
+ok   combine (CET_MKV=pattern) reports that variant's stepping-stone estimate
+ok   combine (CET_MKV=pattern) does not pool the two variants
+ok   combine (CET_MKV=pattern) names its variant and uses 4 rungs x 2 chains
+combine, CET_MKV=allTips: b1g1 (mkv allTips): log p(characters | tip ages) = -1679.912 (SE 0.434), 4 rungs, 8 chains
+ok   combine (CET_MKV=allTips) reports that variant's stepping-stone estimate
+ok   combine (CET_MKV=allTips) does not pool the two variants
+ok   combine (CET_MKV=allTips) names its variant and uses 4 rungs x 2 chains
+check-labels.R: all checks passed
+exit 0
+b1g1_mkvallTips_t1e-04_run1 -> NULL (dropped) 
+b1g1_t9.688727e-05_run1 -> NULL (dropped) 
+b1g1_t0.0001_run1 -> parsed 

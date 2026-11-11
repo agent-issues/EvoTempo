@@ -14,7 +14,9 @@
 #    RevBayes's dnPhyloCTMC(type = "Standard", coding = "variable") lnL summed
 #    over the six K-partitions.  Oracle: an independent verifier's RevBayes
 #    runs (v1.4.1 and a2a8e2db, identical), per partition to 7 significant
-#    digits, on revbayes/data/start_tree.nwk (issue #65).  Tolerance 1e-3.
+#    digits, on the round-1 tree: revbayes/data/start_tree.nwk as at main
+#    48e6bf7, which has the branch lengths of data/start-tree-round1.nwk
+#    (that file now holds the round-4 tree; issue #65).  Tolerance 1e-3.
 # 2. The earlier all-tips-observed variant (.cet$mkv = "allTips") must still
 #    give the values that the verifier reproduced for it.
 # 3. ConstantPatternLogLik() must equal MkLikelihood() on each pattern's

@@ -34,6 +34,7 @@ starting from a sample of the round-4 total-evidence RevBayes posterior (see
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume) |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`) |
+| `check-labels.R` | Checks of chain labels (plain decimal notation, unparseable labels stop), of the Mkv-variant filter of `combine`'s stepping-stone (#75), and of `combine` on incomplete ladders and edges (#88) |
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
 | `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66) |
 | `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
@@ -247,7 +248,18 @@ it is not 1.  The checkpoint records the variant, power, beta and gamma, and
 `run-chain.R` stops rather than resume a checkpoint of another target.
 `bayes-factors.R eval` takes the variant from the chain's label (and checks it
 against the checkpoint), and `combine` bridges only chains of the variant
-given by `CET_MKV`.  In `seg*_samples.csv`, `logPrior` is the log prior of the
+given by `CET_MKV`. Its character-power stepping-stone also uses only chains of
+that variant (#75; before, it pooled the charLL of every variant's power chains).
+Numbers in labels are written in plain decimal notation, with the fewest
+digits that read back exactly (`FormatValue()` in `common.R`; e.g. `_t0.0001`,
+not `_t1e-04`), and a directory holding chain output whose label
+`ParseLabel()` cannot read stops `eval` and `combine` instead of being
+skipped (#75).  `combine` also stops, naming the missing rung, when a cell's
+power ladder does not run from t = 0 to t = 1 (the t = 1 rung is the cell's
+power-1 chains, which must be under the same root), and leaves out a bridge
+edge that has no chains at one of its end points, saying which (#88).
+`check-labels.R` checks all of these.
+In `seg*_samples.csv`, `logPrior` is the log prior of the
 parameters (as in `cross.csv`), and `logOriginPrior` is that of the origin
 age; the chain's `logPost` includes both.  Before #74 the samples' `logPrior`
 included the origin term (-log 160), unlike `cross.csv`.
@@ -373,7 +385,7 @@ of 0.19 s that was 10.6 h per chain; at 0.19 s x 1.603 = 0.305 s it is
 | `bayes-factors.R eval` (about 0.05 s per state for all four model points: 20 states took 0.8 s in `smoke-results/bf-eval.txt`, 1.1 s in a rerun) | < 2 |
 | Ladder rungs, if needed: 4 chains x 16.9 h per rung, up to 3 per edge, 4 edges | 0-810 (0-510 before #65) |
 | Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 it.) | ~135 (85 before #65) |
-| RevBayes comparator (first runs biased by `mvUpDownScale` and by v1.4.1's `mvCollapseExpandFossilBranch`, to be rerun on a2a8e2db): UCLN 4 x 300 000 it. at ~0.43 s (first hour; 0.23 s in the smoke), strict 4 x 300 000 at ~0.05 s | ~145 + ~17 |
+| RevBayes comparator (first runs biased by `mvUpDownScale` and by v1.4.1's `mvCollapseExpandFossilBranch`; rerun on development fd807d10, Slurm 19429797-19429804): UCLN 4 x 300 000 it. at ~0.43 s (first hour; 0.23 s in the smoke), strict 4 x 300 000 at ~0.05 s | ~145 + ~17 |
 | RevBayes `powerPosterior` (UCLN, 32 powers x 10 000 it.) | ~20 per run |
 
 Wall time: one 3-day job slot per chain suffices (about 17 h per chain at
@@ -412,11 +424,33 @@ chain.
   `fossilAge` 59-66%, `originAge` 22-39%, `shift` 35-61%, parameter sweep
   25-36%, `joint` (gamma = 0) 28-36%, `tree` 100% in (0, 0) and 79-82% in (1, 0).
   In b1g1_run4, logPost reached +82 at the end of segment 1 (others about
-  -2000), with an ordinary charLL (-1607).  Within each chain logPost rises
-  with theta (b1g1_run4: about -2080 at theta 0.05, -1005 at 0.85, +82 at
-  1.22), as expected for a density on the variable-dimension path space, so
-  this is a theta excursion, not a numerical fault.  Watch theta mixing in
-  the (beta, 1) cells.
+  -2000), at theta = 1.22, with an ordinary charLL (-1607) and logPrior
+  (-10.5).  The #89 review traced this to the tempo-path terms of
+  `.LogAugmented()` (`R/Paths.R`).  Write N_kj for the number of k -> j jumps
+  and T_k for the time in bin k.  The jump and holding terms are
+  A = sum_kj N_kj log Q_kj + sum_k T_k Q_kk, and under the CTMC
+  (E[N_kj] = Q_kj E[T_k]) they have expectation
+  E[A] = L sum_k p_k sum_{j != k} Q_kj (log Q_kj - 1), with L the total path
+  length and p the occupation law.  Q is proportional to theta, so A grows
+  roughly like N (log theta + 0.81) ~ theta log theta.  It changes sign near
+  theta = 0.44.  Going from theta of about 0.16 (typical in b1g1) to 1.22
+  predicts about +2160 nats; the chain shows +2160 to +2240 in logPost, and
+  +2179 in `.LogAugmented()`.  These magnitudes use the reviewers' jump
+  counts and are provisional: the state-level recomputation was held.
+  Further evidence that the target is right:
+  - the C++ engine, the R engine and the logged CSV agree at that state;
+  - in b0g0, theta and s recover their priors (KS p = 0.49 and 0.73);
+  - the chain is not stuck (theta 0.095 -> 1.632 -> 0.30).
+  **logPost is therefore not comparable across theta, or between cells.**  It
+  is not a fit statistic, and convergence summaries should not use it (#94).
+  Theta mixes slowly in the gamma = 1 cells, which have no `tree` or `joint`
+  move (#95).
+- Restart decided (#89 review, R89-5): all 16 chains above start from the same
+  tree, with parameter jitter exp(N(0, 0.2^2)) and none for replicate 1,
+  which weakens every between-chain diagnostic.  Production is to be
+  restarted with a distinct round-4 posterior sample per chain and wider
+  jitter.  **Not yet done:** the step that draws the dispersed start trees
+  was held by a safety-approval check, so array 19428297 is still running.
 
 ## Morphology-only RevBayes comparator
 
@@ -448,7 +482,18 @@ reasons.
    build the Hymenoptera and trilobite baselines use) and writes the binary
    and its `rb --version` to `out/rb_version_<CLOCK>_<REP>*.txt` (#66).
 
-No rerun has been launched yet, so no comparator results exist.
+**Rerun (launched 2026-11-11).**  The comparator is rerunning on RevBayes
+development **fd807d10** (1.5.0-preview; `/nobackup/pjjg18/revbayes-dev-fd807d10`),
+the project's current build, rather than a2a8e2db.  Outputs are in
+`/nobackup/pjjg18/evotempo-penguin-cet/rbmorph-fd807d10/{ucln,strict}_run1..4`,
+from Slurm jobs 19429797-19429800 (`evotempo-penguin-rbmorph-ucln-1..4`) and
+19429801-19429804 (`evotempo-penguin-rbmorph-strict-1..4`).  At 14:28 GMT
+ucln-1 was running and the other seven were pending.  No comparator results
+exist yet.  **CET cell (0, 0) is not interpreted until the strict comparator
+agrees with it.**  The strict clock is the RevBayes counterpart of (0, 0), and
+CET's b0g0 currently gives lambda of about 0.49 < mu of about 0.55
+(provisional, early segments).  A disagreement there would be a tree-prior
+question affecting all four cells.
 
 **Data-free check of the comparator's tree moves** (`revbayes/prior-check/`).
 On a2a8e2db, the total-evidence baseline script

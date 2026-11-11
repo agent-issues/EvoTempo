@@ -108,6 +108,8 @@ first <- if (is.null(ckp)) 1L else ckp$segment + 1L
 for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   .cet$records <- list()
   .cet$injected <- FALSE
+  .cet$blockTry[] <- 0
+  .cet$blockAcc[] <- 0
   tSeg <- proc.time()[["elapsed"]]
   if (is.null(ckp)) {
     run <- TempoMCMC(dat$tree, model, CetStart(rep), priors, nIter = seg, burnin = burnin,
@@ -142,7 +144,11 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   if (saveStates) {
     saveRDS(lapply(rec, `[[`, "state"), file.path(outDir, paste0(tag, "_states.rds")))
   }
-  acc <- data.frame(segment = k, move = names(run$acceptance), rate = unname(run$acceptance),
+  # FBD block moves (common.R) run in the shift slot; their acceptance is
+  # reported as moves fbdBlock_<coordinate>
+  acc <- data.frame(segment = k,
+                    move = c(names(run$acceptance), paste0("fbdBlock_", blockNames)),
+                    rate = c(unname(run$acceptance), .cet$blockAcc / pmax(.cet$blockTry, 1)),
                     secs = secs, burnin = if (is.null(ckp)) burnin else 0)
   accFile <- file.path(outDir, "acceptance.csv")
   utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),

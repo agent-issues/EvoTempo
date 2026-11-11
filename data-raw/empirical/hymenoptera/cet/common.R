@@ -116,7 +116,12 @@ BuildPartitions <- function(cells, partitions) {
     K <- partitions$nState[cols[1]]
     ordered <- partitions$ordered[cols[1]]
     x <- cells[, cols, drop = FALSE]
-    observed <- nzchar(x)
+    # A cell is scored unless unknown or an ambiguity set covering all K
+    # states (in a binary character, {01}): RevBayes treats both as gaps for
+    # the Mkv masks (check-mkv.R: counting {01} as scored made u2 differ by
+    # up to 6.8e-3 while every K >= 3 partition matched to 1e-10)
+    full <- matrix(nchar(gsub("[^0-9]", "", x)) == K & grepl("^\\{", x), nrow(x))
+    observed <- matrix(nzchar(x), nrow(x)) & !full
     key <- apply(observed, 2, function(o) paste(which(o), collapse = ","))
     first <- !duplicated(key)
     maskObs <- observed[, first, drop = FALSE]

@@ -37,7 +37,7 @@ outFile <- if (length(args) >= 2) args[[2]] else file.path(cetDir, "smoke-result
 nRep <- as.integer(Sys.getenv("CET_MKV_REPS", "200"))
 
 # ---- RevBayes values ----
-rb <- readLines(rbFile)
+rb <- gsub("\"", "", trimws(readLines(rbFile)))
 at <- grep("^RESULT ", rb)
 stopifnot(length(at) == 3 * 9 * 3)
 num <- function(s) as.numeric(trimws(s))

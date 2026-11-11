@@ -23,10 +23,12 @@ starting from a sample of the round-4 total-evidence RevBayes posterior (see
 | File | Role |
 |---|---|
 | `select-start-tree.R` | Picks the starting tree: the post-burn-in RevBayes sample closest, by quartet distance, to the quartet consensus of the pooled samples |
+| `draw-start-trees.R` | Draws the 16 production start trees: seeded draws without replacement from the same post-burn-in pool, draw k for chain k = 4 (rep - 1) + cell |
 | `prepare.R` | Converts `../penguins_morph.nex`, `../penguins_tips.csv`, `../penguins_constraints.csv` (empty) and a dated RevBayes tree (the sample chosen by `select-start-tree.R`) into `data/` and `revbayes/data/` |
 | `data/characters.csv`, `data/partitions.csv` | 55 taxa x 201 characters (0-based states, empty = unknown); number of states K per character |
 | `data/start-tree.nwk`, `data/start-tree-log.txt` | Starting time tree with the origin as root edge; every age `prepare.R` changed |
 | `data/start-tree-selection.txt`, `data/quartet-consensus.nwk` | Record of the starting-tree choice (chain, iteration, distances) and the quartet consensus it was measured against |
+| `data/start-trees/` | The 16 production start trees: `start-tree-<kk>.nex` (RevBayes samples), `start-tree-<kk>.nwk` and `-log.txt` (after `prepare.R`), `draws.csv` (chain, iteration and ages of each draw) |
 | `data/start-tree-round1.nwk` | The earlier starting tree (from the round-1 MCC tree); `check-mkv.R`'s RevBayes oracle was computed on it |
 | `common.R` | Model, priors, moves, data loading, and the two namespace rebindings (partitioned Mkv likelihood with one correction per missing-data pattern; per-sample recording and exact resume) |
 | `check-mkv.R` | Fixed-tree check of the partitioned Mkv likelihood against RevBayes `coding = "variable"` on `data/start-tree-round1.nwk`, and its cost (#65) |
@@ -203,6 +205,60 @@ than 0.01 Myr to a child.  It rewrote `data/start-tree.nwk`,
 `revbayes/data/start_origin.txt` (63.14191).  The character files and
 `revbayes/data/morph_K.nex` / `taxa.tsv` it regenerates were byte-identical.
 Ages are as RevBayes printed them (6 decimals per branch).
+
+**Production start trees (dispersed).** The quartet-nearest tree above is the
+reference start tree, used by the smoke run and `check-smoke.R`.  The
+production chains do not start from it.  Starting 16 chains from one tree
+weakens every between-chain diagnostic (#89 review, R89-5), so each chain
+starts from its own posterior sample:
+
+    Rscript data-raw/empirical/penguins/cet/draw-start-trees.R <run root> <out dir> [n = 16] [seed = 20261111]
+    Rscript data-raw/empirical/penguins/cet/prepare.R <out dir>/start-tree-<kk>.nex $(cat <out dir>/start-tree-<kk>-origin.txt) <prepared out>
+
+`draw-start-trees.R` pools the same 7504 round-4 samples as
+`select-start-tree.R` (25% burn-in, `shared_run13..16`).  It then draws 16 of
+them uniformly without replacement (`set.seed(20261111); sample.int`).  Draw k
+goes to chain k = 4 (rep - 1) + cell, with cells in the order b0g0, b0g1, b1g0,
+b1g1, which is task k of `run-array.sh`.
+
+`prepare.R` turned *W. manneringi* from a root sampled ancestor into a fossil
+tip 0.01 Myr below the root in 8 draws (k = 1, 2, 3, 4, 8, 9, 10, 14).  In
+k = 6 it raised one node by 0.0046 Myr; the other 7 draws were unchanged.
+
+Ages are in Ma.  The start logPost is after `CetStart()` (below).
+
+| k | cell | rep | chain | iteration | origin | root | crown | SAs (RevBayes) | `prepare.R` change | start logPost |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | b0g0 | 1 | shared_run16 | 56820 | 66.884 | 60.759 | 11.498 | 12 | W. manneringi root SA -> fossil tip | -2679.1 |
+| 2 | b0g1 | 1 | shared_run16 | 50280 | 63.313 | 61.054 | 11.308 | 15 | W. manneringi root SA -> fossil tip | -2289.2 |
+| 3 | b1g0 | 1 | shared_run15 | 134760 | 61.627 | 60.751 | 11.630 | 15 | W. manneringi root SA -> fossil tip | -2180.2 |
+| 4 | b1g1 | 1 | shared_run13 | 46980 | 62.298 | 61.113 | 11.515 | 15 | W. manneringi root SA -> fossil tip | -2286.0 |
+| 5 | b0g0 | 2 | shared_run15 | 141960 | 64.165 | 63.207 | 11.731 | 10 | none | -2724.1 |
+| 6 | b0g1 | 2 | shared_run15 | 92280 | 63.951 | 61.790 | 11.512 | 21 | node 108: 39.6504 -> 39.6550 | -2214.4 |
+| 7 | b1g0 | 2 | shared_run16 | 78060 | 64.848 | 63.490 | 12.097 | 21 | none | -2413.4 |
+| 8 | b1g1 | 2 | shared_run16 | 103260 | 61.525 | 61.112 | 11.650 | 11 | W. manneringi root SA -> fossil tip | -2365.1 |
+| 9 | b0g0 | 3 | shared_run13 | 42060 | 71.654 | 61.173 | 11.380 | 20 | W. manneringi root SA -> fossil tip | -2175.3 |
+| 10 | b0g1 | 3 | shared_run13 | 134040 | 73.624 | 60.925 | 13.292 | 20 | W. manneringi root SA -> fossil tip | -2290.5 |
+| 11 | b1g0 | 3 | shared_run14 | 65340 | 72.174 | 66.177 | 11.150 | 15 | none | -2845.2 |
+| 12 | b1g1 | 3 | shared_run13 | 111900 | 84.975 | 61.263 | 12.346 | 9 | none | -2425.6 |
+| 13 | b0g0 | 4 | shared_run13 | 137460 | 64.936 | 63.538 | 12.313 | 15 | none | -1989.7 |
+| 14 | b0g1 | 4 | shared_run15 | 84240 | 63.487 | 60.698 | 12.188 | 12 | W. manneringi root SA -> fossil tip | -2525.9 |
+| 15 | b1g0 | 4 | shared_run15 | 67980 | 66.367 | 62.145 | 12.319 | 11 | none | -2007.2 |
+| 16 | b1g1 | 4 | shared_run13 | 74760 | 69.613 | 69.607 | 12.941 | 15 | none | -2243.3 |
+
+The draws span origin 61.5-85.0 Ma, root 60.7-69.6 Ma, crown 11.15-13.29 Ma
+and 9-21 sampled ancestors, against a single tree before.  `data/start-trees/`
+holds every file; their md5s are recorded in each chain's checkpoint.
+
+**Start parameters (`CetStart()`).**
+- Each chain jitters the RevBayes-derived starting parameters by
+  exp(N(0, 1)), including replicate 1, with seed 9000 + k.  It redraws while the
+  start logPost is not finite.
+- All 16 chains were finite at the first draw (logPost -2845 to -1990).
+- `run-chain.R` records the start-tree file, its md5 and the start parameters
+  in the checkpoint.  A resume stops if the file or its tip order differs.
+- `bayes-factors.R eval` loads each chain's own start tree, checks its md5, and
+  stops unless every state's tip labels equal the character rows.
 
 The earlier starting tree, from the **round-1** MCC tree (v1.4.1, shared
 clock; origin = posterior median 64.39 Ma; root 60.99 Ma, 27 sampled
@@ -394,7 +450,10 @@ chain.
 
 ## Production runs (stage 1, launched 2026-11-11)
 
-- Code: EvoTempo main **48e6bf7** (checkout `$W/src`, built into `$W/lib-48e6bf7`;
+The first launch is recorded first, then the dispersed-start restart that
+replaced it.
+
+- Code (first launch): EvoTempo main **48e6bf7** (checkout `$W/src`, built into `$W/lib-48e6bf7`;
   `$W/out/build-sha.txt`), with this branch's start tree (`prepare.R` output as
   committed here); `$W = /nobackup/pjjg18/evotempo-penguin-cet`.
 - Checks at 48e6bf7: `check-mkv.R` passed (round-1 tree; per-pattern lnL
@@ -404,17 +463,13 @@ chain.
   s per iteration, exact resume (maximum difference 0 over 10 samples x 23
   columns, trees identical), no non-finite value in any sample column, peak
   memory 169-171 MB.
-- Array: Slurm **19428297** (`evotempo-penguin-cet`, tasks 1-16 = 4 cells x 4
+- First-launch array: Slurm **19428297** (`evotempo-penguin-cet`, tasks 1-16 = 4 cells x 4
   replicates), `CET_NITER=200000, CET_THIN=100, CET_SEG=10000`, burn-in 2000,
   `CET_MKV` default (`pattern`), s ~ Gamma(0.5396, scale 0.3819) on (0, 3],
   origin U(0, 160).  Submitted through `$W/jobs/run-array-wrap.sh`, which adds
   the batch header Hamilton jobs need (`set +e; set +o pipefail; source
   /etc/profile || true; module purge || true; module load r/4.5.1`) and then
-  sources `run-array.sh` with the same `#SBATCH` settings.  To continue the
-  chains, resubmit the same command:
-
-      sbatch -J evotempo-penguin-cet --array=1-16 \
-        --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 $W/jobs/run-array-wrap.sh
+  sources `run-array.sh` with the same `#SBATCH` settings.
 
 - Segment 1 (2000 burn-in + 10 000 iterations; all 16 chains done at about
   11:20 GMT): 0.289-0.414 s per iteration (means: (0, 0) 0.310, (0, 1) 0.369,
@@ -445,12 +500,39 @@ chain.
   is not a fit statistic, and convergence summaries should not use it (#94).
   Theta mixes slowly in the gamma = 1 cells, which have no `tree` or `joint`
   move (#95).
-- Restart decided (#89 review, R89-5): all 16 chains above start from the same
-  tree, with parameter jitter exp(N(0, 0.2^2)) and none for replicate 1,
-  which weakens every between-chain diagnostic.  Production is to be
-  restarted with a distinct round-4 posterior sample per chain and wider
-  jitter.  **Not yet done:** the step that draws the dispersed start trees
-  was held by a safety-approval check, so array 19428297 is still running.
+- **First launch, cancelled.** Array 19428297 started all 16 chains from the
+  same tree, with jitter exp(N(0, 0.2^2)) and none for replicate 1 (R89-5).  It
+  was cancelled at 4-7 of 20 segments.  Its runs and logs are kept in
+  `$W/archive-19428297-common-start` (39 MB, without the saved-state files).
+  The segment-1 figures above are from this launch.
+- **Production: Slurm 19431480** (`evotempo-penguin-cet-dispersed`, tasks 1-16,
+  launched about 15:37 GMT on 2026-11-11), with the dispersed start trees and
+  `CetStart()` jitter described under "Starting tree".
+  - Code: checkout of this branch at **921253b**, i.e. main fb24ed6's scripts
+    (merged in 5ce1e31) plus this branch's fixes.  The package is unchanged from
+    48e6bf7, so the build in `$W/lib-48e6bf7` is used.
+  - Settings as above: `CET_NITER=200000, CET_THIN=100, CET_SEG=10000`,
+    burn-in 2000, `CET_MKV=pattern`.
+- **Smoke check of the restart** (cell (1, 1), chain k = 4; Slurm 19431233 tasks
+  4-5 and test job 19431304):
+  - 0.338-0.339 s per iteration; peak memory about 174 MB.
+  - Segmented and uninterrupted runs are identical (maximum difference 0 over
+    10 samples x 23 columns, trees identical), with no non-finite values.
+  - A resume in a new process completed segment 3 at 0.327 s per iteration.
+  - Resuming with a different start tree stops with an error.
+  - `eval` on this chain: all 30 states pass the tip-label check, and the
+    maximum |recomputed - logged logPost| is 5.1e-9.
+- **Segment 1 of 19431480:** all 16 chains done, no non-finite values.
+  - Speed: 0.288-0.417 s per iteration (cell means (0, 0) 0.306, (0, 1) 0.351,
+    (1, 0) 0.308, (1, 1) 0.389).  That is about 304 core-hours, and 16-23 h per
+    chain.
+  - Acceptance: `slide` 2.8-4.2%, `saJump` 25-31%, `nodeAge` 43-52%, parameter
+    sweep 19-41%.
+- To continue the chains, resubmit:
+
+      sbatch -J evotempo-penguin-cet-dispersed --array=1-16 \
+        --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 $W/jobs/run-array-wrap.sh
+
 
 ## Morphology-only RevBayes comparator
 

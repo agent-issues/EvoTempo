@@ -1,0 +1,13 @@
+################################################################################
+# Maximum clade credibility tree of the pooled post-burn-in trees of one
+# configuration.  Not run directly: summarise-hamilton.sh writes the pooled
+# tree file summary/pooled_<config>.trees (burn-in already removed) and sets
+# config.
+################################################################################
+
+trace = readTreeTrace("summary/pooled_" + config + ".trees", treetype = "clock", burnin = 0.0)
+# node ages: mean age of each MCC clade over the trees that contain it, with
+# 95 % HPD; sampled ancestors are annotated with their posterior probability.
+# positiveBranchLengths: a tip whose mean age exceeds its parent's mean age is
+# drawn with a zero-length branch instead of a negative one.
+mccTree(trace, file = "summary/mcc_" + config + ".nex", positiveBranchLengths = true)

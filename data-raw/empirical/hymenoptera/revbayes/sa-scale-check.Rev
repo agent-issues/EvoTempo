@@ -1,0 +1,107 @@
+################################################################################
+# Prior-only checks of RevBayes tree-scaling moves (variants A-K were run on
+# v1.4.1; A-D, L and M also on the development build a2a8e2db).
+#
+# TreeUtilities::rescaleSubtree() scales a node and the interior nodes below
+# it, but stops at a node with a sampled-ancestor child (that node and its
+# subtree are left unscaled).  The Hastings ratios of the moves that call it
+# count nodes differently.  Each variant adds one move to a reference move set
+# (node-time slides, FNPR, narrow exchange, plus collapse/expand and root-time
+# slide on origin-conditioned trees) on a tree with no data, and compares the
+# stationary distribution with the reference.
+#
+#   variant  tree                               added move
+#   A        4 extant + 6 fossils, origin       none (reference)
+#   B        as A                               mvUpDownScale(x up, tree down)
+#   C        10 extant, origin                  none (reference)
+#   D        as C                               mvUpDownScale(x up, tree down)
+#   E        as A                               mvSubtreeScale(tree)
+#   F        as C                               mvSubtreeScale(tree)
+#   G        as A                               mvLayeredScaleProposal(tree)
+#   H        as C                               mvLayeredScaleProposal(tree)
+#   I        10 extant, stochastic root age     none (reference for J)
+#   J        as I                               mvUpDownScale(x up, tree down, root_time down)
+#   K        as C                               mvTreeScale(tree) (count should be right)
+#   L        4 extant + 6 fossils, stochastic root age,  none (reference for M)
+#            root constrained to e1 | rest
+#   M        as L                               mvUpDownScale(x up, tree down, root_time down)
+#
+# x ~ Exp(1) is independent of the tree in every variant (a deterministic
+# node links it into the model graph); it is paired with the tree in B, D, J and M.
+# A driver sets variant, variant_seed and n_gen; output sa-check/<variant>_<seed>.log
+################################################################################
+seed(variant_seed)
+fossils = (variant == "A" || variant == "B" || variant == "E" || variant == "G" || variant == "L" || variant == "M")
+rooted = (variant == "I" || variant == "J" || variant == "L" || variant == "M")
+if (fossils) {
+  for (i in 1:4) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
+  fossil_ages = v(0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
+  for (i in 1:6) taxa_list[4 + i] = taxon("f" + i, fossil_ages[i], fossil_ages[i])
+} else {
+  for (i in 1:10) taxa_list[i] = taxon("e" + i, 0.0, 0.0)
+}
+moves = VectorMoves()
+if (rooted) {
+  if (fossils) {
+    # The root is constrained (below) to split extant e1 from the rest, so no
+    # fossil can be a child of the root. Without that, mvCollapseExpandFossilBranch
+    # can collapse a root-child fossil: it sets the age of the root node to the age of the fossil
+    # (CollapseExpandFossilBranchProposal.cpp:169-192, treating root_time as an
+    # origin) and later root_time moves drag the fossil age with the root (no
+    # age-range check; both builds), so the root runs away. The Hymenoptera
+    # analysis is protected in the same way: every fossil is inside the
+    # constrained Holometabola clade.
+    root_time ~ dnExponential(1, offset = 3)
+  } else {
+    root_time ~ dnExponential(0.5)
+  }
+  root_time.setValue(4.0)
+  fbd_dist = dnFBDP(rootAge = root_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
+                    taxa = taxa_list, condition = "survival")
+  if (fossils) {
+    ingroup = clade("e2", "e3", "e4", "f1", "f2", "f3", "f4", "f5", "f6")
+    # dnConstrainedTopology cannot simulate its own start tree here (rb exits
+    # silently), so start from a fixed tree that satisfies the constraint.
+    start_nwk = "(e1:4.0,(f6:0.1,(f5:0.1,(f4:0.1,(f3:0.1,(f2:0.1,(f1:0.1,(e2:0.2,(e3:0.1,e4:0.1):0.1):0.4):0.5):0.5):0.5):0.5):0.5):0.9);"
+    write(start_nwk, filename = "sa-check/" + variant + "_" + variant_seed + "_start.nwk")
+    start_tree = readTrees("sa-check/" + variant + "_" + variant_seed + "_start.nwk")[1]
+    tree ~ dnConstrainedTopology(fbd_dist, constraints = v(ingroup), initialTree = start_tree)
+  } else {
+    tree ~ dnFBDP(rootAge = root_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
+                  taxa = taxa_list, condition = "survival")
+  }
+  moves.append( mvSlide(root_time, delta = 0.5, weight = 3) )
+  if (fossils) moves.append( mvCollapseExpandFossilBranch(tree, root_time, weight = 5) )
+} else {
+  origin_time <- 6.0
+  tree ~ dnFBDP(originAge = origin_time, lambda = 1.0, mu = 0.8, psi = 0.6, rho = 1.0,
+                taxa = taxa_list, condition = "survival")
+  moves.append( mvCollapseExpandFossilBranch(tree, origin_time, weight = 5) )
+  moves.append( mvRootTimeSlideUniform(tree, origin_time, weight = 3) )
+}
+x ~ dnExponential(1)
+moves.append( mvNodeTimeSlideUniform(tree, weight = 10) )
+moves.append( mvFNPR(tree, weight = 5) )
+moves.append( mvNarrow(tree, weight = 5) )
+moves.append( mvScale(x, lambda = 0.5, weight = 1) )
+if (variant == "B" || variant == "D" || variant == "J" || variant == "M") {
+  ud = mvUpDownScale(lambda = 0.5, weight = 10)
+  ud.addVariable(x, up = true)
+  ud.addVariable(tree, up = false)
+  if (variant == "J" || variant == "M") ud.addVariable(root_time, up = false)
+  moves.append( ud )
+}
+if (variant == "E" || variant == "F") moves.append( mvSubtreeScale(tree, weight = 10) )
+if (variant == "G" || variant == "H") moves.append( mvLayeredScaleProposal(tree, lambda = 0.5, weight = 10) )
+if (variant == "K") moves.append( mvTreeScale(tree, delta = 0.5, weight = 10) )
+root_age := tree.rootAge()
+num_sa := tree.numSampledAncestors()
+tree_length := tree.treeLength()
+# x is independent of the tree; this deterministic node only puts it in the model graph
+link := x + root_age
+monitors = VectorMonitors()
+monitors.append( mnModel(filename = "sa-check/" + variant + "_" + variant_seed + ".log", printgen = 10) )
+mymcmc = mcmc(model(tree), monitors, moves, moveschedule = "random")
+mymcmc.run(generations = n_gen)
+mymcmc.operatorSummary()
+q()

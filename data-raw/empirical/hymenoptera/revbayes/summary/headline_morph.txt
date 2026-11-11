@@ -1,0 +1,9 @@
+config: morph
+chains: run1 run2 run3 run4 run5 run6
+samples per chain after burn-in: 1876
+ASDSF (clades >= 0.1 in any chain): 0.0109 over 145 clades; max SDSF 0.0329
+min ESS (per chain): 154 (Prior)
+min ESS (pooled): 1095 (Prior)
+max PSRF: 1.0081 (holo_age)
+max rank R-hat: 1.0065 (holo_age)
+min bulk ESS: 796 (Prior); min tail ESS: 1863 (Prior)

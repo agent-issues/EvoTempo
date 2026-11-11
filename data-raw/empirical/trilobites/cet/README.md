@@ -83,7 +83,16 @@ was checked here before being relied on:
    the origin prior, which limits the power.  **Replicate 2** (decided after replicate 1; same design
    and criteria, new seeds, 64 chains and 16 000 simulated trees per conditioning; Slurm 19430059)
    is queued: the cluster is full until about 21:00 on 11 November, and its result will be added
-   to this PR.  The exact beta = 0 check (item 1) does not depend on it.
+   to this PR as a separate commit.  The exact beta = 0 check (item 1) does not depend on it.
+
+   **Decision rule for replicate 2** (written at 15:40 GMT on 11 November, while Slurm 19430059
+   was still PENDING and before any of its output existed; review of #91, F5):
+   - replicate 2 is judged **on its own**, against the same bars as replicate 1 (own target: every
+     |z| < 3.5; power: each negative control max |z| >= 5); it is not pooled with replicate 1;
+   - if either own-target run has a statistic with |z| >= 3.5, the window check **fails**, and
+     production does not start until the cause is found;
+   - if both own-target runs pass but a negative control misses the power bar, the result is
+     reported as **limited power** for the survival conditioning, which does not block production.
 
 **Engine findings** (not used by `TempoMCMC()`, whose target is `.LogAugmented()` and whose frozen
 messages use eigendecomposed slice exponentials): `FBDTreeLikelihood()` returns NaN with rho = 0

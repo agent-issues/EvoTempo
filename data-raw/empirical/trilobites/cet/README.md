@@ -91,9 +91,15 @@ was checked here before being relied on:
    replicate 1 therefore shows no discrepancy for the all-fossil, rho = 0 tree density and moves, but
    lacks full power for the conditioning.  The stem's survival varies only from 0.339 to 0.481 over
    the origin prior, which limits the power.  **Replicate 2** (decided after replicate 1; same design
-   and criteria, new seeds, 64 chains and 16 000 simulated trees per conditioning; Slurm 19430059)
-   is queued: the cluster is full until about 21:00 on 11 November, and its result will be added
-   to this PR as a separate commit.  The exact beta = 0 check (item 1) does not depend on it.
+   and criteria, new seeds (`CET_WINDOW_SEED=100000`), 64 chains and 16 000 simulated trees per
+   conditioning; Slurm 19430059, 21.0 allocated core-hours; `window-check/window-verdict-seed100000.csv`,
+   `window-check-seed100000.csv`, `window-log-seed100000.txt`): both own-target runs pass (max |z|
+   2.76 for survival at meanNodeAge q50, 2.02 for none at treeLength q95; bar 3.5), and both negative
+   controls clear the power bar (`none` chains against `survival` simulations 8.67, originAge mean;
+   `survival` chains against `none` simulations 7.76, originAge q25).  Under the rule below, which
+   was fixed before the result existed, the window check **passes** with full power for the
+   conditioning, and it does not block production.  The `.rds` outputs (41 MB of raw draws) stay
+   in the Hamilton work directory.  The exact beta = 0 check (item 1) does not depend on this.
 
    **Decision rule for replicate 2** (written at 15:25 GMT on 11 November (commit 8c6959a), while Slurm 19430059
    was still PENDING and before any of its output existed; review of #91, F5):

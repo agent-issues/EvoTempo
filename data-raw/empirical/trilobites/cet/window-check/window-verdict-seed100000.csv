@@ -1,0 +1,5 @@
+"mcmc","simulation","tests","maxAbsZ","at","role","criterion","pass"
+"none","none",56,2.01805871170599,"treeLength q95","own target","max |z| < 3.5",TRUE
+"none","survival",56,8.66747888683752,"originAge mean","negative control","max |z| >= 5",TRUE
+"survival","none",56,7.7553826722364,"originAge q25","negative control","max |z| >= 5",TRUE
+"survival","survival",56,2.76331116707171,"meanNodeAge q50","own target","max |z| < 3.5",TRUE

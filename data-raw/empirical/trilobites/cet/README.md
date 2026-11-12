@@ -117,7 +117,14 @@ was checked here before being relied on:
    survival, trees of 3-12 fossil samples (a data-only selection, which keeps ranks uniform), then
    `TempoMCMC()` with free parameters and origin from an independent prior draw (2000 burn-in +
    19 800 iterations thinned to 99 draws); rank uniformity for lambda, mu, psi, theta, s and the
-   origin age by chi-square over 10 bins, Holm-adjusted p >= 0.01 to pass.  **Pending:** Slurm 19431496 (queued on `shared`; about 2.5 h on 16 cores once it starts); its result will be added in a separate commit.  A trial of 8 replicates x 990 iterations (Slurm 19431323) ran end to end.
+   origin age by chi-square over 10 bins, Holm-adjusted p >= 0.01 to pass.  **Result: PASS** (Slurm 19431496; 200
+   replicates, 0 failed; 48.7 allocated core-hours; `sbc-check/sbc-summary.csv`, `sbc-ranks.csv`,
+   `sbc-log.txt`).  Raw chi-square p: lambda 0.941, mu 0.994, psi 0.485, theta 0.350, s 0.177,
+   origin age 0.392 (Holm-adjusted 1 for all; bar 0.01).  Mean normalised ranks 0.494-0.509;
+   median ESS of the 99 thinned draws 94.3-98.0 per quantity.  Simulated trees had 5.4 samples on
+   average (3-12) and 1.83 sampled ancestors, so this checks the samplers and the free-parameter
+   moves at rho = 0, not behaviour on a 107-tip tree; 200 replicates over 10 bins detect only
+   gross miscalibration.  A trial of 8 replicates x 990 iterations (Slurm 19431323) ran end to end.
 
 **Engine findings** (not used by `TempoMCMC()`, whose target is `.LogAugmented()` and whose frozen
 messages use eigendecomposed slice exponentials): `FBDTreeLikelihood()` returns NaN with rho = 0
@@ -341,7 +348,7 @@ resolved (user decision, 2026-11-11), so the length is to be revisited after the
 | `bayes-factors.R eval` | < 5 |
 | Ladder rungs, if a Bayes-factor edge needs them: 4 chains x ~37 h per rung, up to 3 per edge, 4 edges | 0-1760 |
 | Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 iterations) | ~290 |
-| Checks run for this PR (oracle, window checks, smoke, pilot, prior check) | 12.8 in the first round (Slurm CPU time of every job); the fix round adds about 1 (smoke, oracle, guards) plus the SBC-lite (~40) and window replicate 2 (~20) |
+| Checks run for this PR (oracle, window checks, smoke, pilot, prior check) | 12.8 in the first round (Slurm CPU time of every job); the fix round adds about 1 (smoke, oracle, guards) plus the SBC-lite (48.7) and window replicate 2 (21.0), both as allocated core-hours (elapsed x 16 cores) |
 
 Disk: about 20 KB per stored state (`seg*_states.rds`), so about 40 MB per chain and 0.65 GB for 16
 chains; remove them once `eval` has run.

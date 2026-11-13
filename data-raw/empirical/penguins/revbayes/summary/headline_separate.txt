@@ -1,0 +1,7 @@
+clock: separate
+chains: run13 run14 run15 run16
+samples per chain after burn-in: 2750
+ASDSF (clades >= 0.1 in any chain): 0.0162 over 114 clades; max SDSF 0.1430
+min ESS (per chain): 42 (node_5)
+max PSRF: 1.0785 (alpha_dna[1])
+P(Spheniscus muizoni is a sampled ancestor of the four extant Spheniscus): 0.641

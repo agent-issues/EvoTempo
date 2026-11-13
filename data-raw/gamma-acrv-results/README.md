@@ -78,20 +78,57 @@ Alpha acceptance is 0.22-0.40 per chain (`alpha-oracle-gamma*-chains.csv`).
 
 ### 3. SBC-lite
 
-Not run yet (see Status).
+`gamma-acrv-sbc.R` is set up as rung 6 (`rung6-sbc.R`): prior draws, exact dCET simulation on a K = 16 grid, a fixed true tree with 15-40 tips, and a start from an independent prior draw. On top of that:
+- alpha ~ LogNormal(0, 0.5);
+- 45 variable characters (30 binary, 15 three-state), each with a Gamma category drawn uniformly, redrawn until variable, scored with `MkCharacters(coding = "variable", nRateCat = 4)`;
+- every parameter and alpha free;
+- moves `tree = 1, node = 3, tip = 3, branch = 3, shift = 1`, with 600 burn-in;
+- ranks on 50 equally spaced draws, and a chi-square test with 10 bins, Holm-adjusted over the quantities of a cell.
+
+All runs are on Hamilton under `/nobackup/pjjg18/evotempo-gamma97/val-fbbf149/scratch/`. Per-replicate ranks and test tables are there, archived in `val-fbbf149/diag/sbcres.tgz`; they are not committed here (see Status).
+
+**3000 iterations, both cells** (100 replicates per cell; Slurm 19448196):
+- **Cell (1, 0):** every quantity passes. The smallest raw p is 0.063 (psi); theta p is 0.40, alpha p 0.62.
+- **Cell (1, 1):** theta fails (chi^2 28.8, p 0.0007, Holm 0.013, mean rank 0.537). s gives p 0.049, alpha p 0.66.
+- **Mixing:** median theta ESS over the 50 draws is 13 in cell (1, 1) and 33 in cell (1, 0).
+
+**Is the theta failure caused by the Gamma code?** I ran matched arms in cell (1, 1). They share seeds, so they have the same trees and parameter draws and differ only in the characters. The plain arm uses main's character path: 45 binary characters as a matrix, with no `MkCharacters()` and no Mkv.
+
+| arm (cell 1, 1) | iterations | replicates | theta chi^2 p | Holm p (min over quantities) | theta mean rank (z) | median theta ESS |
+|---|---|---|---|---|---|---|
+| Gamma, Mkv | 3000 | 100 | 0.0007 | 0.013 (theta) | 0.537 (1.26) | 13 (of 50 draws) |
+| no Gamma, Mkv | 3000 | 100 | 0.0016 | 0.013 (theta) | 0.577 (2.62) | 15 |
+| main's path, no Mkv | 20 000 | 200 | 0.067 | 0.535 (theta) | 0.550 (2.40) | 54 |
+| no Gamma, Mkv | 20 000 | 200 | 0.187 | 1.00 | 0.547 (2.26) | 51 |
+| Gamma, Mkv | 20 000 | 200 | 0.163 | 0.092 (alpha) | 0.548 (2.31) | 58 |
+
+Slurm 19448622-4 and 19449104-6 ran the arms; 19449529 summarised them. ESS is Geyer's estimate over the whole chain unless marked. z is the mean rank's distance from 1/2 in units of 0.294 / sqrt(n).
+
+- **3000 iterations is too short for theta at gamma = 1.** Rung 6 full (#21) needed a median of 40 000 iterations and ESS >= 50 to pass this cell.
+- **At 20 000 iterations no arm fails after Holm adjustment.** Theta's mean rank is about 0.55 in all three arms, including main's path. Split by theta ESS, the shift is at least as large among replicates with ESS >= 50:
+  - main's path: mean rank 0.557, KS p 0.017, n = 108;
+  - Mkv without Gamma: 0.565, KS p 0.080, n = 101;
+  - Mkv with Gamma: 0.568, KS p 0.029, n = 121;
+  - ESS < 50: 0.517-0.540.
+- **Conclusion.** The theta shift does not come from #97 (neither the Gamma categories nor the Mkv path). It is reported against main as #106 (related to #95), with candidate causes and checks. The arms share their truths, so the three agreeing means are one experiment (z about 2.3).
+- **The new parameter alpha is calibrated.** Ranks are centred (mean rank 0.497; 3000-iteration arm p 0.66), and it mixes well (median ESS 3322 per 20 000 iterations). With 200 replicates its histogram is uneven (chi^2 21.6, p 0.010, bins 13-35) but passes after Holm adjustment (p 0.092). The exact oracle (validation 2) checks its move directly. mu (p 0.047, Holm 0.38) is the only other raw p below 0.05 in the 20 000-iteration arms.
 
 ## Status
 
-The Hamilton job script that runs validations 1-3 was held by a safety-approval check on 2026-11-11, and has not been run. To run them on Hamilton, from a checkout of this branch with `LIB` set to its installed library:
+Validations 1 and 2 pass. Validation 3 passes for every quantity in cell (1, 0), and for every quantity after Holm adjustment in cell (1, 1) at 20 000 iterations. Theta's upward rank shift in cell (1, 1) is also on main's path (#106).
+
+The lead ran the validation jobs on Hamilton at fbbf149. The script fixes in e743555 and f92e1f6 change only `data-raw/` (sampled ancestor without phytools, the Hymenoptera partition rows, SBC options), so the package is the one tested above. To rerun, from a checkout of this branch with `LIB` set to its installed library:
 
 ```bash
 LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh rb <scratch>
 LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh hymenoptera <scratch>
-LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh oracle <scratch> 0   # sbatch -c 16
-LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh oracle <scratch> 1   # sbatch -c 16
-LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh sbc <scratch> <task> 25   # array 1-25, -c 8
+LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh oracle <scratch> 0   # -c 16
+LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh oracle <scratch> 1   # -c 16
+LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh sbc <scratch> <task> <nTask>   # array; SBC_CELLS, SBC_NCAT, SBC_ITER, SBC_REPS
 LIB=<lib> bash data-raw/gamma-acrv-hamilton.sh sbc-summary <scratch>
 ```
+
+The SBC tables were not copied into the repository: a safety-approval check held that step. They are in `val-fbbf149/diag/sbcres.tgz` on Hamilton. The `sbc-summary.txt` and `ranks.csv` of the first 3000-iteration run (both cells) were written into the Hamilton checkout but are not committed either.
 
 ## Incremental pruning (#44)
 

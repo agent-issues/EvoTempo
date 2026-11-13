@@ -4,8 +4,10 @@
 #   sbatch -J evotempo-trilobite-cet --array=1-16 run-array.sh
 #
 # Task t runs cell (t - 1) %% 4 + 1 (cells (0,0), (0,1), (1,0), (1,1)),
-# replicate (t - 1) %/% 4 + 1, which starts from RevBayes chain <replicate>'s
-# best post-burn-in sample (prepare.R).  Each task runs run-chain.R, which
+# replicate (t - 1) %/% 4 + 1, as chain k = t, which starts from draw k of
+# prepare.R: one of 16 seeded random draws without replacement from the pooled
+# post-burn-in RevBayes posterior (start-tree-<kk>.nwk and its row of
+# start-values.csv; README, "Starting trees").  Each task runs run-chain.R, which
 # writes a checkpoint after every segment and stops cleanly after CET_HOURS
 # (default 70); resubmitting the same array continues every unfinished chain
 # from its checkpoint (finished chains exit at once).  Settings pass through
@@ -13,7 +15,10 @@
 #   sbatch -J evotempo-trilobite-cet --array=1-16 \
 #     --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 run-array.sh
 # Ladder rungs and power-posterior chains: set CET_CELL (a label such as
-# b0.5g1) and/or CET_POWER, and use --array=1-<reps>.  Logs:
+# b0.5g1) and/or CET_POWER, and use --array=1-<reps>; add a row for them to
+# the launch record $CET_OUT/launch.csv (cell,reps[,power]; README, "Running on
+# Hamilton"), or bayes-factors.R combine stops on chains it does not expect
+# (#101).  Logs:
 # $W/out/run-<label>-<rep>.txt, with the Mkv variant and power in the label.
 #SBATCH -p shared
 #SBATCH -c 1

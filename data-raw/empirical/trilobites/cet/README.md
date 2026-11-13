@@ -23,6 +23,8 @@ penguin pipeline (`../../penguins/cet/`); the differences are listed in each sec
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R`, `check-pilot.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume, `bayes-factors.R eval` on every smoke chain including two replicate-2 chains); pilot summary for the cost projection |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`), also reweighted to the comparator's joint FBD prior |
+| `check-labels.R` | Label and `combine` checks on synthetic chains, no MCMC (#100, #101): plain-decimal labels, rung columns, the expected chain set and its opt-out |
+| `check-combine.sh`, `check-combine.R` | `eval` and `combine` on tiny real chains with a ladder rung (b0.5g0) present, `combine` stopping on a missing `cross.csv`, and the md5 resume guard (#100-#102) |
 | `summarise.R` | Convergence (MkPrime R-hat and ESS), parameters, ages in Ma, clade and sampled-ancestor frequencies; CET and RevBayes side by side |
 | `smoke-results/`, `window-check/`, `sbc-check/` | Outputs quoted below |
 
@@ -124,7 +126,9 @@ was checked here before being relied on:
    median ESS of the 99 thinned draws 94.3-98.0 per quantity.  Simulated trees had 5.4 samples on
    average (3-12) and 1.83 sampled ancestors, so this checks the samplers and the free-parameter
    moves at rho = 0, not behaviour on a 107-tip tree; 200 replicates over 10 bins detect only
-   gross miscalibration.  A trial of 8 replicates x 990 iterations (Slurm 19431323) ran end to end.
+   gross miscalibration.  Its parameters (lambda about 0.5, mu about 0.4) are also far from the
+   trilobite regime (the comparator's lambda about 3-13 with turnover about 0.99), so it says
+   nothing about mixing or calibration at high turnover (#91 delta review; #102).  A trial of 8 replicates x 990 iterations (Slurm 19431323) ran end to end.
 
 **Engine findings** (not used by `TempoMCMC()`, whose target is `.LogAugmented()` and whose frozen
 messages use eigendecomposed slice exponentials): `FBDTreeLikelihood()` returns NaN with rho = 0
@@ -213,8 +217,8 @@ The R pruners alone took 18.4 ms per evaluation (about 3.4 s per MCMC iteration)
 - **s.** As the penguin pipeline: the tempo SD takes the comparator's UCLN log-SD prior, so tempo
   variation and UCLN rate variation start from the same prior.  The bound 3 is numerical (the
   penguin pilot's s = 86.8 overflow); the mass above it is exp(-270).
-- **Starting values** (`CetStart()`): the RevBayes sample whose tree starts the replicate:
-  lambda, mu, psi, rate = clock_morph, s = ucld_sd; theta 0.05.
+- **Starting values** (`CetStart()`): the RevBayes sample whose tree starts chain k (draw k of
+  `prepare.R`; **Starting trees**): lambda, mu, psi, rate = clock_morph, s = ucld_sd; theta 0.05.
 
 ## Ingroup constraint
 
@@ -281,9 +285,12 @@ schedule (1 `tree`, 2 `node`, 2 `tip`, 2 `branch`, 1 `joint`, 1 `shift`); plus `
 106 bifurcations), `slide` 16, `saJump` 11 (0.1 x tips) and `originAge` 1; no `fossilAge` (point ages).
 Per-sample trees, states and exact resume work as in the penguin pipeline (rebound `.TreeStats()`).
 The checkpoint records the grid (`CET_NBIN`, `CET_ZMAX`), thinning, segment length, beta, gamma,
-power, Mkv variant, start-draw index and the full path of the start tree; a run with any of them
-different, or whose tree has another tip order than the loaded characters, stops (#76; review of
-#91, F1).  `bayes-factors.R eval` (review of #91, F1 and A1-A4):
+power, Mkv variant, start-draw index and the start tree (its md5, its path relative to `cet/`,
+and the full path); a run with any of them different, from a start tree with another md5, or whose
+tree has another tip order than the loaded characters, stops (#76; review of #91, F1).  The resume
+guard compares the md5, not the absolute path, so resubmitting from another checkout of the same
+commit continues the chain (#102); checkpoints written before #102 have no md5 and are compared by
+absolute path.  `bayes-factors.R eval` (review of #91, F1 and A1-A4):
 - scores the characters in the chain's own tip order (`states[[1]]$tree$tipLabel`, the same for
   every state of a chain, asserted), not in start tree 01's;
 - refuses a chain without a checkpoint, without a recorded variant or with another grid;
@@ -292,7 +299,22 @@ different, or whose tree has another tip order than the loaded characters, stops
   whose log posterior does not contain the characters (A4);
 - writes `cross.csv` only after the checks pass (temporary file, then rename; a failed eval removes
   any old `cross.csv`), and `combine` refuses any `cross.csv` whose recorded checks exceed the
-  tolerance or that has no `checkChar` column (A2).
+  tolerance or that has no `checkChar` column (A2);
+- names its columns with `FormatValue()` (plain decimal, one number at a time): `format()` on the
+  vector c(0, 0.5, 1) gave `aug_b0.0`, `aug_b0.5`, `aug_b1.0`, which `combine` could not find, so
+  any ladder rung made it crash (#100; the penguin pipeline's #75 fix).  Chain labels use the same
+  function, and `ParseLabel()` / `Chains()` (now in `common.R`) stop on a label they cannot read.
+
+`combine` checks the chains it finds against the expected set (#101): the launch record
+`<run root>/launch.csv` (one row per launched group of chains: `cell`, `reps`, optional `power`
+and `mkv`; see `ExpectedChains()` in `common.R`), or, if there is none, the production launch of
+4 cells x 4 replicates at power 1 (`CET_BF_REPS` changes the 4).  It stops, and reports no Bayes
+factor, if an expected chain has no complete segment, if an expected power-1 chain has no
+`cross.csv` (its eval failed or was not run), or if it finds a chain that the record does not
+list.  Before, a chain without `cross.csv` dropped out silently (#91 delta review, N2: b0g0 -> b0g1
+moved from 7.13 to 7.54 nats, exit 0).  The only opt-out is explicit and per chain:
+`CET_BF_ALLOW_MISSING=b0g0_run3,...`, which `combine` echoes as "Left out on request".  The
+character-power stepping-stone now uses only chains of the `CET_MKV` variant (as penguin #75).
 Before these fixes, eval on a replicate-2 chain scored tree-01 character rows against another tip
 order (3 of 107 positions shared): the self-check stopped it, but only after it had written a
 `cross.csv` that `combine` would have used (gamma edges wrong by up to 114 nats per state).
@@ -363,9 +385,11 @@ chains; remove them once `eval` has run.
     Rscript data-raw/empirical/trilobites/cet/check-smoke.R $W     # also runs eval on every smoke chain
     sbatch -J evotempo-trilobite-cet --array=1-16 \
       --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 data-raw/empirical/trilobites/cet/run-array.sh
+    # launch record (only needed beyond the 4 x 4 production chains; one row per launched group):
+    printf 'cell,reps\nb0g0,4\nb0g1,4\nb1g0,4\nb1g1,4\n' > $W/runs/launch.csv   # + e.g. b0.5g0,4 per rung
     # per chain, then once:
     Rscript data-raw/empirical/trilobites/cet/bayes-factors.R eval $W/runs/b1g1_run1   # must exit 0
-    Rscript data-raw/empirical/trilobites/cet/bayes-factors.R combine $W/runs        # refuses failed evals
+    Rscript data-raw/empirical/trilobites/cet/bayes-factors.R combine $W/runs        # refuses failed evals and missing chains
     Rscript data-raw/empirical/trilobites/cet/summarise.R $W/runs $W/rbposterior $W/runs/summary
 
 `common.R` compiles `prune.cpp` at start (about 20 s per job).  The Bayes-factor procedure is the

@@ -33,7 +33,17 @@
 #   (JointPriorLogWeight()); `combine` reports each edge reweighted to that
 #   prior, log BF' = log BF + log E_B[w] - log E_A[w] (self-normalised), with
 #   the weights' ESS per cell: MkPrime's bulk ESS (autocorrelation-aware) and
-#   the iid Kish ESS (README, "Priors"; review of #91, F3).
+#   the iid Kish ESS (README, "Priors"; review of #91, F3);
+# - column names and chain labels write numbers with FormatValue() (common.R):
+#   format() on the vector c(0, 0.5, 1) gave aug_b0.0 / aug_b0.5 / aug_b1.0,
+#   which combine could not find, so any ladder rung crashed it (#100);
+#   ParseLabel() and Chains() are in common.R and stop on a label they cannot
+#   read (as the penguin pipeline, #75);
+# - combine checks the chains it finds against the expected set (launch
+#   record <run root>/launch.csv, or the production default of 4 cells x 4
+#   replicates; common.R, ExpectedChains()) and stops if any expected chain has
+#   no complete segment or no cross.csv, or if a chain is not in the record;
+#   CET_BF_ALLOW_MISSING (chain labels) is the only, explicit, opt-out (#101).
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -44,23 +54,7 @@ args <- commandArgs(trailingOnly = TRUE)
 burn <- as.numeric(Sys.getenv("CET_BF_BURN", "0.25"))
 tol <- as.numeric(Sys.getenv("CET_BF_TOL", "1e-6"))
 
-# Chain labels (run-chain.R): b<beta>g<gamma>[_mkvnone][_t<power>]_run<rep>
-ParseLabel <- function(label) {
-  m <- regmatches(label, regexec(
-    "^b([0-9.]+)g([0-9.]+)(_mkv(none))?(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
-  if (!length(m)) return(NULL)
-  data.frame(label = label, beta = as.numeric(m[2]), gamma = as.numeric(m[3]),
-             mkv = if (nzchar(m[5])) m[5] else "pattern",
-             power = if (nzchar(m[7])) as.numeric(m[7]) else 1, rep = as.integer(m[8]))
-}
-Chains <- function(root) {
-  dirs <- list.dirs(root, recursive = FALSE)
-  do.call(rbind, lapply(dirs, function(d) {
-    p <- ParseLabel(basename(d))
-    if (is.null(p) || !length(Sys.glob(file.path(d, "seg*_samples.csv")))) return(NULL)
-    cbind(p, dir = d)
-  }))
-}
+# ParseLabel(), Chains(), FormatValue() and the expected chain set are in common.R
 LoadSamples <- function(dir) {
   smp <- do.call(rbind, lapply(sort(Sys.glob(file.path(dir, "seg*_samples.csv"))), utils::read.csv))
   keep <- seq_len(nrow(smp)) > floor(burn * nrow(smp))
@@ -86,7 +80,6 @@ CharLLAt <- function(state, gamma, characters) {
 if (args[[1]] == "eval") {
   dir <- args[[2]]
   me <- ParseLabel(basename(dir))
-  if (is.null(me)) stop("not a chain directory of run-chain.R: ", dir)
   ckpFile <- file.path(dir, "checkpoint.rds")
   if (!file.exists(ckpFile)) stop("no checkpoint in ", dir, ": cannot verify the chain's target")
   ckp <- readRDS(ckpFile)
@@ -128,8 +121,8 @@ if (args[[1]] == "eval") {
     la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
     ownChar <- CharLLAt(st, me$gamma, dat$characters)
     own <- LogAugAt(st, me$beta, me$gamma) + me$power * ownChar + lp + la
-    c(sample = i, setNames(aug, paste0("aug_b", format(betas))),
-      setNames(chr, paste0("chr_g", format(gammas))), logPrior = lp,
+    c(sample = i, setNames(aug, paste0("aug_b", vapply(betas, FormatValue, ""))),
+      setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))), logPrior = lp,
       logJointW = JointPriorLogWeight(st$par, priors), check = own - s$samples$logPost[i],
       checkChar = ownChar - s$samples$charLL[i])
   }))
@@ -182,8 +175,13 @@ SteppingStone <- function(ladder, logL) {
   list(logR = sum(inc[1, ]), se = sqrt(sum(inc[2, ])))
 }
 root <- args[[2]]
-ch <- Chains(root)
-ch <- ch[ch$mkv == .cet$mkv & file.exists(file.path(ch$dir, "cross.csv")), ]
+stopifnot("combine: <run root> does not exist" = dir.exists(root))
+chAll <- Chains(root)
+# Every expected chain must be present with a cross.csv, unless named in
+# CET_BF_ALLOW_MISSING (#101); only then are chains without one dropped
+leftOut <- CheckChainSet(root, chAll)
+ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut &
+              file.exists(file.path(chAll$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
 # Refuse any cross.csv that did not pass eval's checks (review of #91, A2)
@@ -196,7 +194,13 @@ if (any(bad)) {
        paste(ch$label[bad], collapse = ", "), "; rerun eval on those chains")
 }
 LogQ <- function(x, beta, gamma) {
-  x[[paste0("aug_b", format(beta))]] + x[[paste0("chr_g", format(gamma))]] + x$logPrior
+  a <- paste0("aug_b", FormatValue(beta))
+  g <- paste0("chr_g", FormatValue(gamma))
+  if (!all(c(a, g) %in% names(x))) {
+    stop(sprintf("cross.csv has no column %s; rerun eval on every chain after adding a rung",
+                 paste(setdiff(c(a, g), names(x)), collapse = " or ")), call. = FALSE)
+  }
+  x[[a]] + x[[g]] + x$logPrior
 }
 Draws <- function(p, rep = NULL) {
   sel <- ch$power == 1 & ch$beta == p[1] & ch$gamma == p[2] & (is.null(rep) | ch$rep %in% rep)
@@ -216,6 +220,13 @@ Edge <- function(a, b) {
   v <- pts[other, along]
   v <- sort(unique(v[v >= min(a[along], b[along]) & v <= max(a[along], b[along])]))
   if (a[along] > b[along]) v <- rev(v)
+  # The path must run from a to b: both end points need chains (penguin #88);
+  # possible here only if CET_BF_ALLOW_MISSING left out a whole cell
+  if (length(v) < 2L || v[1] != a[along] || v[length(v)] != b[along]) {
+    cat(sprintf("Edge %s -> %s: no chains with cross.csv at an end point; edge left out\n",
+                CellLabel(a[1], a[2]), CellLabel(b[1], b[2])))
+    return(NULL)
+  }
   P <- function(val) if (along == 1) c(val, a[2]) else c(a[1], val)
   steps <- lapply(seq_len(length(v) - 1L), function(k) Bridge(P(v[k]), P(v[k + 1])))
   if (any(vapply(steps, is.null, TRUE)) || !length(steps)) return(NULL)
@@ -247,8 +258,12 @@ Edge <- function(a, b) {
 }
 edges <- rbind(Edge(c(0, 0), c(1, 0)), Edge(c(0, 1), c(1, 1)),
                Edge(c(0, 0), c(0, 1)), Edge(c(1, 0), c(1, 1)))
-print(edges, row.names = FALSE)
-utils::write.csv(edges, file.path(root, "bayes-factors.csv"), row.names = FALSE)
+if (is.null(edges)) {
+  cat("No bridge edge has chains with cross.csv at both ends\n")
+} else {
+  print(edges, row.names = FALSE)
+  utils::write.csv(edges, file.path(root, "bayes-factors.csv"), row.names = FALSE)
+}
 if (!is.null(edges) && nrow(edges) == 4) {
   e <- setNames(edges$logBF, paste(edges$from, edges$to))
   se <- edges$se
@@ -262,7 +277,7 @@ if (!is.null(edges) && nrow(edges) == 4) {
   utils::write.csv(res, file.path(root, "model-probabilities.csv"), row.names = FALSE)
   writeLines(sprintf("closure %.4f se %.4f", closure, sqrt(sum(se^2))), file.path(root, "closure.txt"))
 }
-ch <- Chains(root)
+ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut, ]
 pw <- unique(ch[, c("beta", "gamma")])
 for (i in seq_len(nrow(pw))) {
   sel <- ch$beta == pw$beta[i] & ch$gamma == pw$gamma[i]

@@ -23,7 +23,9 @@
 # Options (environment): SBC_CELLS, cells to run (default "1,2");
 # SBC_NCAT, Gamma categories (default 4; 1 = no rate variation: characters
 # simulated at rate 1, nRateCat = 1, alpha not estimated, a matched control
-# with the same trees, since the prior draw is the same).  The chain keeps
+# with the same trees, since the prior draw is the same; 0 = main's plain
+# path: 45 binary characters as an integer matrix, no Mkv, so constant
+# characters are kept).  The chain keeps
 # every iteration; ranks use draws thin, 2 thin, ..., nIter (thin = nIter /
 # 50), and ESS (Geyer) is reported on the whole chain (`ess`) and on the 50
 # draws (`essDraws`).
@@ -166,10 +168,14 @@ Replicate <- function(g) {
     nTip <- sum(attr(tree, "tipType") != "ancestor")
     if (nTip >= tipRange[1] && nTip <= tipRange[2]) break
   }
-  chars <- cbind(SimulateGammaCharacters(tree, 30, 2L, truth$alpha),
-                 SimulateGammaCharacters(tree, 15, 3L, truth$alpha))
-  nState <- rep(c(2L, 3L), c(30, 15))
-  mk <- MkCharacters(chars, nState = nState, coding = "variable", nRateCat = nCat)
+  if (nCat == 0) {
+    mk <- SimulateCharacters(tree, 45, 2L)
+  } else {
+    chars <- cbind(SimulateGammaCharacters(tree, 30, 2L, truth$alpha),
+                   SimulateGammaCharacters(tree, 15, 3L, truth$alpha))
+    nState <- rep(c(2L, 3L), c(30, 15))
+    mk <- MkCharacters(chars, nState = nState, coding = "variable", nRateCat = nCat)
+  }
   clockTrue <- sum(attr(ReconstructedTree(history, gamma = 1, rate = 1),
                         "characterLength"))
   tree$root.edge <- NULL
@@ -178,7 +184,7 @@ Replicate <- function(g) {
   run <- TempoMCMC(tt, model, PriorDraw(), priors, nIter = nIter, burnin = burnin,
                    thin = 1, nSlice = 16,
                    moves = c(tree = 1, node = 3, tip = 3, branch = 3, shift = 1),
-                   characters = mk,
+                   characters = mk, nState = 2L,
                    charPriors = if (nCat > 1) list(alpha = alphaPrior) else list(),
                    minAcceptance = 0)
   full <- run$samples
@@ -189,7 +195,7 @@ Replicate <- function(g) {
   }
   truthAll <- c(unlist(truth), rootBin = k, clock = clockTrue)
   ranks <- vapply(statNames, function(p) {
-    if (p == "alpha" && nCat == 1) NA_real_ else rankOf(post[[p]], truthAll[[p]])
+    if (p == "alpha" && nCat <= 1) NA_real_ else rankOf(post[[p]], truthAll[[p]])
   }, 0)
   out <- list(g = g, cell = ci, truth = truthAll, ranks = ranks, nTip = nTip,
               nAncestor = sum(attr(tree, "tipType") == "ancestor"),

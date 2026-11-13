@@ -1,0 +1,18 @@
+post1: ../post1/screen.txt:Total calculation time: 85341.707 seconds
+post1: ../post1/time.txt:	Elapsed (wall clock) time (h:mm:ss or m:ss): 23:42:25
+post1: ../post1/time.txt:	Exit status: 0
+post2: ../post2/screen.txt:Total calculation time: 94060.895 seconds
+post2: ../post2/time.txt:	Elapsed (wall clock) time (h:mm:ss or m:ss): 26:07:44
+post2: ../post2/time.txt:	Exit status: 0
+post3: ../post3/screen.txt:Total calculation time: 85058.097 seconds
+post3: ../post3/time.txt:	Elapsed (wall clock) time (h:mm:ss or m:ss): 23:37:41
+post3: ../post3/time.txt:	Exit status: 0
+post4: ../post4/screen.txt:Total calculation time: 83108.135 seconds
+post4: ../post4/time.txt:	Elapsed (wall clock) time (h:mm:ss or m:ss): 23:07:15
+post4: ../post4/time.txt:	Exit status: 0
+post5: ../post5/screen.txt:Total calculation time: 79754.205 seconds
+post5: ../post5/time.txt:	Elapsed (wall clock) time (h:mm:ss or m:ss): 22:09:18
+post5: ../post5/time.txt:	Exit status: 0
+post6: ../post6/screen.txt:Total calculation time: 100851.697 seconds
+post6: ../post6/time.txt:	Elapsed (wall clock) time (h:mm:ss or m:ss): 28:00:58
+post6: ../post6/time.txt:	Exit status: 0

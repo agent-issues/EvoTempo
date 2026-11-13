@@ -1,0 +1,5 @@
+Chains: separate_run13 separate_run14 separate_run15 separate_run16 
+Samples per chain after burn-in: 2751 ; iterations 54960-219960, 54960-219960, 54960-219960, 54960-219960 
+separate: max R-hat 1.0310 (node_4); min bulk ESS 243 (node_4); min tail ESS 566 (node_3)
+Quartet consensus of 4000 trees: 41 splits (of 52 possible), 109 s
+Consensus written; ASDSF over consensus splits: 0.0162 

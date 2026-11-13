@@ -1,0 +1,23 @@
+	Command being timed: "/nobackup/pjjg18/revbayes-1.4.1/projects/cmake/build/rb out/driver_shared_11.Rev"
+	User time (seconds): 247526.22
+	System time (seconds): 90.58
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 69:25:48
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 230480
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 1165353
+	Minor (reclaiming a frame) page faults: 3007302
+	Voluntary context switches: 1569141
+	Involuntary context switches: 615581
+	Swaps: 0
+	File system inputs: 3077416
+	File system outputs: 176696
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

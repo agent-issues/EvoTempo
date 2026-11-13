@@ -1,0 +1,22 @@
+"parameter","fig5_node","description","pub_mean","pub_hpd95_lower","pub_hpd95_upper","pub_source","rb_mean","rb_median","rb_hpd95_lower","rb_hpd95_upper"
+"crown_age",1,"crown Spheniscidae (all 19 extant)",12.66,9.91,15.75,"SM Table 4 (common-ancestor ages, extant tree)",12.0042252222667,11.870925,10.40516,14.0345
+"node_2",2,"Megadyptes + Eudyptes + Eudyptula + Spheniscus",11.19,7.92,12.97,"SM Table 4 (common-ancestor ages, extant tree)",11.9974923172,11.86633,10.37163,14.01408
+"node_3",3,"Eudyptula + Spheniscus",10.34,7.14,11.98,"SM Table 4 (common-ancestor ages, extant tree)",11.8849887313333,11.774075,10.03577,14.10705
+"node_4",4,"Aptenodytes + Pygoscelis",9.83,5.84,14.04,"SM Table 4 (common-ancestor ages, extant tree)",6.82864707066667,6.834191,4.277695,9.399776
+"node_5",5,"Pygoscelis",6.12,3.3,9.04,"SM Table 4 (common-ancestor ages, extant tree)",3.7305485564,3.668297,1.770083,5.744268
+"node_6",6,"Megadyptes + Eudyptes",5.08,3.27,6.86,"SM Table 4 (common-ancestor ages, extant tree)",4.46172445853333,4.245935,2.199759,7.375043
+"node_7",7,"P. antarctica + P. papua",3.47,1.68,5.27,"SM Table 4 (common-ancestor ages, extant tree)",1.94696211737333,1.867846,0.6471738,3.393627
+"node_8",8,"Eudyptes",2.42,1.49,3.33,"SM Table 4 (common-ancestor ages, extant tree)",2.08601537753333,1.9890135,1.108248,3.383181
+"node_9",9,"E. chrysocome, filholi, moseleyi, chrysolophus, schlegeli",2.2,1.11,2.85,"SM Table 4 (common-ancestor ages, extant tree)",1.64676432426667,1.5724625,0.7651528,2.726909
+"node_10",10,"E. pachyrhynchus, robustus, sclateri",2.1,1.05,2.6,"SM Table 4 (common-ancestor ages, extant tree)",1.98944264585333,1.9063475,0.7556792,3.278797
+"node_11",11,"Spheniscus",1.65,0.99,2.32,"SM Table 4 (common-ancestor ages, extant tree)",1.47227239481333,1.354358,0.557524,2.629664
+"node_12",12,"Aptenodytes",1.63,0.74,2.49,"SM Table 4 (common-ancestor ages, extant tree)",1.29897631145333,1.1627795,0.2432111,2.642022
+"node_13",13,"S. humboldti + S. mendiculus",1.06,0.63,1.88,"SM Table 4 (common-ancestor ages, extant tree)",0.941765773253333,0.85923355,0.2265903,1.785107
+"node_14",14,"S. demersus + S. magellanicus",1.06,0.54,1.6,"SM Table 4 (common-ancestor ages, extant tree)",0.860027687613333,0.7733684,0.2194268,1.717636
+"node_15",15,"E. chrysocome, filholi, moseleyi",0.77,0.35,1.23,"SM Table 4 (common-ancestor ages, extant tree)",0.6174466798,0.5652321,0.1882519,1.144621
+"node_16",16,"E. pachyrhynchus + E. robustus",0.76,0.38,1.16,"SM Table 4 (common-ancestor ages, extant tree)",0.595209779990667,0.5388754,0.1632689,1.157686
+"node_17",17,"E. chrysolophus + E. schlegeli",0.44,0.19,0.71,"SM Table 4 (common-ancestor ages, extant tree)",0.35900694388,0.30864725,0.0516551,0.7694023
+"node_18",18,"E. chrysocome + E. filholi",0.32,0.09,0.58,"SM Table 4 (common-ancestor ages, extant tree)",0.247370314958667,0.2129427,0.03779891,0.5397606
+"diversification",NA,"net diversification d = lambda - mu",0.039,0.002,0.089,"main text, Results",0.0533598437982667,0.04892396,0.003141157,0.1105697
+"turnover",NA,"turnover nu = mu / lambda",0.88,0.72,1,"main text, Results",0.729405467,0.74548635,0.4487304,0.9804107
+"sampling_prop",NA,"sampling proportion s = psi / (mu + psi)",0.23,0.06,0.43,"main text, Results",0.503758368013333,0.503216,0.2659824,0.7386453

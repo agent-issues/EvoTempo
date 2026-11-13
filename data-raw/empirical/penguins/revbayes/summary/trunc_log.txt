@@ -1,0 +1,13 @@
+run16 stopped at 220020
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run13/output/penguins_separate_run13.log 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run13/output/penguins_separate_run13.trees 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run13/output/penguins_separate_run13_rates.trees 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run14/output/penguins_separate_run14.log 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run14/output/penguins_separate_run14.trees 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run14/output/penguins_separate_run14_rates.trees 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run15/output/penguins_separate_run15.log 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run15/output/penguins_separate_run15.trees 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run15/output/penguins_separate_run15_rates.trees 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run16/output/penguins_separate_run16.log 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run16/output/penguins_separate_run16.trees 219960
+/nobackup/pjjg18/evotempo-penguins-rbdev-r4/separate_run16/output/penguins_separate_run16_rates.trees 219960

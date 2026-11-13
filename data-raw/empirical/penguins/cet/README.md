@@ -14,9 +14,10 @@ Staging (user decision, 2026-10-30):
 
 Stages 2-3 need engine work; see the design issue linked under **Engine gaps**.
 
-The production runs (stage 1) were launched on 2026-11-11 from main 48e6bf7,
-starting from a sample of the round-4 total-evidence RevBayes posterior (see
-**Starting tree** and **Production runs**).
+The production runs (stage 1) were launched on 2026-11-11.  The package code
+is main 48e6bf7, and the scripts are this branch at 921253b.  Each of the 16
+chains starts from its own random sample of the round-4 total-evidence RevBayes
+posterior (see **Starting tree** and **Production runs**).
 
 ## Files
 
@@ -526,8 +527,8 @@ replaced it.
   - Speed: 0.288-0.417 s per iteration (cell means (0, 0) 0.306, (0, 1) 0.351,
     (1, 0) 0.308, (1, 1) 0.389).  That is about 304 core-hours, and 16-23 h per
     chain.
-  - Acceptance: `slide` 2.8-4.2%, `saJump` 25-31%, `nodeAge` 43-52%, parameter
-    sweep 19-41%.
+  - Acceptance: `slide` 2.8-4.2%, `saJump` 25-31%, `nodeAge` 42.5-51.5%, parameter
+    sweep 18.5-40.8%.
 - To continue the chains, resubmit:
 
       sbatch -J evotempo-penguin-cet-dispersed --array=1-16 \
@@ -625,4 +626,5 @@ would replace them.
 - Independent priors on lambda, mu, psi instead of the (d, turnover, sampling
   proportion) prior; s and the clocks keep the source priors (s bounded at 3).
 - No DNA (stage 1 by design).
-- Starting tree: one sample of the round-4 total-evidence posterior (shared clock), not a summary tree.
+- Starting trees: each production chain starts from its own random sample of
+  the round-4 total-evidence posterior (shared clock), not from a summary tree.

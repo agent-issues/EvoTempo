@@ -66,6 +66,26 @@ ReadTimeTree <- function(file) {
   list(phylo = tr, tree = TempoTree(tr, ages = age, tipType = tipType))
 }
 
+# Insert a sampled ancestor (a tip on a zero-length branch) on edge `edge`,
+# at distance `pos` above its child node (ape only)
+AddSampledAncestor <- function(tr, edge, pos, label) {
+  n <- Ntip(tr)
+  m <- tr$Nnode
+  e <- tr$edge
+  e[e > n] <- e[e > n] + 1L  # internal nodes move up by one
+  newTip <- n + 1L
+  newNode <- n + 1L + m + 1L
+  child <- e[edge, 2]
+  len <- tr$edge.length
+  e[edge, 2] <- newNode
+  len[edge] <- len[edge] - pos
+  tr$edge <- rbind(e, c(newNode, child), c(newNode, newTip))
+  tr$edge.length <- c(len, pos, 0)
+  tr$tip.label <- c(tr$tip.label, label)
+  tr$Nnode <- m + 1L
+  reorder(tr, "cladewise")
+}
+
 CetLogLik <- function(tt, cells, cols, K, ordered, rate, alpha, coding = "variable",
                       engine = "cpp") {
   nCat <- if (is.na(alpha)) 1L else 4L
@@ -89,8 +109,7 @@ if (mode == "prepare") {
   tr$tip.label[tr$edge[fossils, 2]] <- sprintf("f%d", 1:4)
   internal <- which(tr$edge[, 2] > 24)
   host <- internal[which.max(tr$edge.length[internal])]
-  tr <- bind.tip(tr, "sa1", edge.length = 0, where = tr$edge[host, 2],
-                 position = 0.4 * tr$edge.length[host])
+  tr <- AddSampledAncestor(tr, host, 0.4 * tr$edge.length[host], "sa1")
   write.tree(tr, file.path(dir, "tree.nwk"), digits = 12)
   tt <- ReadTimeTree(file.path(dir, "tree.nwk"))
   tr <- tt$phylo
@@ -238,7 +257,10 @@ if (mode == "hymenoptera") {
   rows <- list()
   for (ri in seq_along(hymRates)) for (pi in names(rbNames)) {
     lab <- rbNames[[pi]]
-    cols <- parts$column[parts$partition == lab]
+    # Rows of partitions.csv index the analysed characters (columns of
+    # characters.csv); `column` is the position in the source matrix
+    cols <- which(parts$partition == lab)
+    stopifnot(ncol(cells) == nrow(parts))
     K <- parts$nState[cols[1]]
     ord <- parts$ordered[cols[1]]
     for (cd in 1:3) {

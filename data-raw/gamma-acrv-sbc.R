@@ -20,12 +20,21 @@
 # Replicates g = task, task + nTask, ...; cell = (g - 1) %% 2 + 1;
 # seed 97000 + g.  `summary` writes ranks.csv and a chi-square test (10 bins)
 # per statistic and cell.
+# Options (environment): SBC_CELLS, cells to run (default "1,2");
+# SBC_NCAT, Gamma categories (default 4; 1 = no rate variation: characters
+# simulated at rate 1, nRateCat = 1, alpha not estimated, a matched control
+# with the same trees, since the prior draw is the same).  The chain keeps
+# every iteration; ranks use draws thin, 2 thin, ..., nIter (thin = nIter /
+# 50), and ESS (Geyer) is reported on the whole chain (`ess`) and on the 50
+# draws (`essDraws`).
 suppressMessages(library(EvoTempo))
 ns <- asNamespace("EvoTempo")
 args <- commandArgs(TRUE)
 cells <- data.frame(beta = c(1, 1), gamma = c(0, 1))
 nDraw <- 50L
 statNames <- c("lambda", "mu", "psi", "theta", "s", "rate", "alpha", "rootBin", "clock")
+nCat <- as.integer(Sys.getenv("SBC_NCAT", "4"))
+cellsRun <- as.integer(strsplit(Sys.getenv("SBC_CELLS", "1,2"), ",")[[1]])
 
 if (args[[1]] == "summary") {
   outDir <- args[[2]]
@@ -33,14 +42,16 @@ if (args[[1]] == "summary") {
   reps <- lapply(files, readRDS)
   ranks <- do.call(rbind, lapply(reps, function(r) {
     data.frame(g = r$g, cell = r$cell, beta = cells$beta[r$cell], gamma = cells$gamma[r$cell],
-               nTip = r$nTip, t(r$ranks), essAlpha = r$ess[["alpha"]],
-               essMin = min(r$ess), minutes = r$runtime)
+               nTip = r$nTip, t(r$ranks), nIter = if (is.null(r$nIter)) NA else r$nIter,
+               essTheta = r$ess[["theta"]], essS = r$ess[["s"]],
+               essAlpha = if ("alpha" %in% names(r$ess)) r$ess[["alpha"]] else NA,
+               essMin = min(r$ess, na.rm = TRUE), minutes = r$runtime)
   }))
   ranks <- ranks[order(ranks$g), ]
   write.csv(ranks, file.path(outDir, "ranks.csv"), row.names = FALSE)
   tests <- do.call(rbind, lapply(seq_len(nrow(cells)), function(ci) {
     sub <- ranks[ranks$cell == ci, ]
-    do.call(rbind, lapply(statNames, function(p) {
+    do.call(rbind, lapply(statNames[colSums(!is.na(sub[statNames])) > 0], function(p) {
       bins <- cut(sub[[p]], seq(-0.5, nDraw + 0.5, length.out = 11))
       counts <- table(bins)
       chi <- suppressWarnings(stats::chisq.test(counts))
@@ -53,9 +64,15 @@ if (args[[1]] == "summary") {
   tests$pHolm <- stats::p.adjust(tests$p, "holm")
   print(tests, digits = 3, row.names = FALSE)
   write.csv(tests, file.path(outDir, "sbc-tests.csv"), row.names = FALSE)
-  cat(sprintf("%d replicates; min Holm p %.3f; median ESS(alpha) %.0f; %.1f core-h\n",
-              nrow(ranks), min(tests$pHolm), stats::median(ranks$essAlpha),
+  cat(sprintf("%d replicates; min Holm p %.3f; median ESS (whole chain) theta %.0f, s %.0f, alpha %.0f; %.1f core-h\n",
+              nrow(ranks), min(tests$pHolm), stats::median(ranks$essTheta),
+              stats::median(ranks$essS), stats::median(ranks$essAlpha, na.rm = TRUE),
               sum(ranks$minutes) / 60))
+  for (ci in unique(ranks$cell)) {
+    sub <- ranks[ranks$cell == ci, ]
+    cat(sprintf("cell %d: ESS theta quantiles (5, 25, 50, 75, 95%%): %s\n", ci,
+                paste(round(stats::quantile(sub$essTheta, c(.05, .25, .5, .75, .95))), collapse = " ")))
+  }
   quit(save = "no")
 }
 
@@ -101,7 +118,7 @@ Join <- function(h1, h2, x0) {
 Ess <- function(x) {
   n <- length(x)
   if (stats::var(x) == 0) return(NA_real_)
-  ac <- stats::acf(x, lag.max = n - 1, plot = FALSE)$acf[, 1, 1]
+  ac <- stats::acf(x, lag.max = min(n - 1, 4000), plot = FALSE)$acf[, 1, 1]
   m <- floor((length(ac) - 1) / 2)
   gam <- ac[2 * seq_len(m) - 1] + ac[2 * seq_len(m)]
   k <- which(gam <= 0)[1]
@@ -112,7 +129,7 @@ Ess <- function(x) {
 
 # Variable characters with a Gamma category each, on per-edge lengths
 SimulateGammaCharacters <- function(tree, nChar, nState, alpha) {
-  rates <- GammaRates(alpha, 4)
+  rates <- if (nCat > 1) GammaRates(alpha, nCat) else rep(1, 4)
   out <- vapply(seq_len(nChar), function(j) {
     repeat {
       r <- rates[sample.int(4, 1)]
@@ -152,34 +169,41 @@ Replicate <- function(g) {
   chars <- cbind(SimulateGammaCharacters(tree, 30, 2L, truth$alpha),
                  SimulateGammaCharacters(tree, 15, 3L, truth$alpha))
   nState <- rep(c(2L, 3L), c(30, 15))
-  mk <- MkCharacters(chars, nState = nState, coding = "variable", nRateCat = 4)
+  mk <- MkCharacters(chars, nState = nState, coding = "variable", nRateCat = nCat)
   clockTrue <- sum(attr(ReconstructedTree(history, gamma = 1, rate = 1),
                         "characterLength"))
   tree$root.edge <- NULL
   tt <- TempoTree(tree, present = crown)
   t0 <- Sys.time()
   run <- TempoMCMC(tt, model, PriorDraw(), priors, nIter = nIter, burnin = burnin,
-                   thin = thin, nSlice = 16,
+                   thin = 1, nSlice = 16,
                    moves = c(tree = 1, node = 3, tip = 3, branch = 3, shift = 1),
-                   characters = mk, charPriors = list(alpha = alphaPrior),
+                   characters = mk,
+                   charPriors = if (nCat > 1) list(alpha = alphaPrior) else list(),
                    minAcceptance = 0)
-  post <- run$samples
+  full <- run$samples
+  post <- full[seq(thin, nIter, by = thin), ]
+  essNames <- c(names(meanlog), if (nCat > 1) "alpha", "clock")
   rankOf <- function(draws, value) {
     sum(draws < value) + sample.int(sum(draws == value) + 1L, 1L) - 1L
   }
   truthAll <- c(unlist(truth), rootBin = k, clock = clockTrue)
-  ranks <- vapply(statNames, function(p) rankOf(post[[p]], truthAll[[p]]), 0)
+  ranks <- vapply(statNames, function(p) {
+    if (p == "alpha" && nCat == 1) NA_real_ else rankOf(post[[p]], truthAll[[p]])
+  }, 0)
   out <- list(g = g, cell = ci, truth = truthAll, ranks = ranks, nTip = nTip,
               nAncestor = sum(attr(tree, "tipType") == "ancestor"),
-              acceptance = run$acceptance,
-              ess = vapply(post[c(names(meanlog), "alpha", "clock")], Ess, 0),
-              posteriorMean = colMeans(post[c(names(meanlog), "alpha", "clock")]),
+              nIter = nrow(full), nCat = nCat, acceptance = run$acceptance,
+              ess = vapply(full[essNames], Ess, 0),
+              essDraws = vapply(post[essNames], Ess, 0),
+              posteriorMean = colMeans(post[essNames]),
               runtime = as.numeric(difftime(Sys.time(), t0, units = "mins")))
   saveRDS(out, file.path(outDir, "replicates", sprintf("g%03d.rds", g)))
   out
 }
 
 gs <- seq(task, 2L * nRep, by = nTask)
+gs <- gs[((gs - 1L) %% nrow(cells) + 1L) %in% cellsRun]
 gs <- gs[!file.exists(file.path(outDir, "replicates", sprintf("g%03d.rds", gs)))]
 invisible(parallel::mclapply(gs, function(g) {
   tryCatch(Replicate(g), error = function(e) {

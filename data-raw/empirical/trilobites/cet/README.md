@@ -23,8 +23,8 @@ penguin pipeline (`../../penguins/cet/`); the differences are listed in each sec
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R`, `check-pilot.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume, `bayes-factors.R eval` on every smoke chain including two replicate-2 chains); pilot summary for the cost projection |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`), also reweighted to the comparator's joint FBD prior |
-| `check-labels.R` | Label and `combine` checks on synthetic chains, no MCMC (#100, #101): plain-decimal labels, rung columns, the expected chain set and its opt-out |
-| `check-combine.sh`, `check-combine.R` | `eval` and `combine` on tiny real chains with a ladder rung (b0.5g0) present, `combine` stopping on a missing `cross.csv`, and the md5 resume guard (#100-#102) |
+| `check-labels.R` | Label and `combine` checks on synthetic chains, no MCMC (#100, #101): plain-decimal labels, rung columns, the expected chain set and its opt-out (`smoke-results/check-labels.txt`: 22/22 pass, Slurm 19449477) |
+| `check-combine.sh`, `check-combine.R` | `eval` and `combine` on tiny real chains with a ladder rung (b0.5g0) present, `combine` stopping on a missing `cross.csv`, the old (pre-#100) script reproducing both faults, and the md5 resume guard (#100-#102) (`smoke-results/check-combine.txt`: 15/15 pass; chains 19449431, eval 19449432, check 19449479) |
 | `summarise.R` | Convergence (MkPrime R-hat and ESS), parameters, ages in Ma, clade and sampled-ancestor frequencies; CET and RevBayes side by side |
 | `smoke-results/`, `window-check/`, `sbc-check/` | Outputs quoted below |
 

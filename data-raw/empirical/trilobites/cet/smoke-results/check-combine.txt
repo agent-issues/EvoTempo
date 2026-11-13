@@ -1,0 +1,38 @@
+eval results:
+  b0g0_run1    exit 0, cross.csv TRUE, 3 states, max |check| 3.64e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b0g1_run1    exit 0, cross.csv TRUE, 3 states, max |check| 3.64e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b1g0_run1    exit 0, cross.csv TRUE, 3 states, max |check| 4.55e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b1g1_run1    exit 0, cross.csv TRUE, 3 states, max |check| 4.55e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b0.5g0_run1  exit 0, cross.csv TRUE, 3 states, max |check| 3.18e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b0g0_run2    exit 0, cross.csv TRUE, 3 states, max |check| 5e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b0g1_run2    exit 0, cross.csv TRUE, 3 states, max |check| 5e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b1g0_run2    exit 0, cross.csv TRUE, 3 states, max |check| 4.55e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b1g1_run2    exit 0, cross.csv TRUE, 3 states, max |check| 5e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+  b0.5g0_run2  exit 0, cross.csv TRUE, 3 states, max |check| 4.09e-12, columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1
+ok   eval exited 0 and wrote cross.csv on all 10 chains
+ok   every cross.csv has the columns aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1 (#100)
+ok   every cross.csv's checks are within 1e-06
+combine, rung present, exit 0: Expected chains (mkv pattern): 10 (/nobackup/pjjg18/evotempo-fix100/check-combine/runs/launch.csv); found 10; missing 0; not in the launch record 0
+  edges: b0g0->b1g0 0.3773 (3 points), b0g1->b1g1 4.4890 (2 points), b0g0->b0g1 -0.1626 (2 points), b1g0->b1g1 14.0409 (2 points)
+ok   combine with the rung present exits 0 with 4 finite edges (#100; before: crash)
+ok   b0g0 -> b1g0 is bridged through the rung b0.5g0 (3 points)
+b0g1_run2/cross.csv moved away, exit 1: Expected chains (mkv pattern): 10 (/nobackup/pjjg18/evotempo-fix100/check-combine/runs/launch.csv); found 10; missing 1; not in the launch record 0 / Error: combine: the chain set does not match the launch record; no Bayes factor is reported. /   no cross.csv (eval failed or was not run): b0g1_run2
+ok   combine stops on a missing cross.csv, names b0g1_run2, writes no bayes-factors.csv (#101)
+... with CET_BF_ALLOW_MISSING=b0g1_run2, exit 0: Left out on request (CET_BF_ALLOW_MISSING): b0g1_run2; edges b0g0->b1g0 0.3773 (3 points), b0g1->b1g1 5.0329 (2 points), b0g0->b0g1 -0.5817 (2 points), b1g0->b1g1 14.0409 (2 points)
+ok   explicit opt-out: exit 0, b0g1_run2 reported as left out
+no launch.csv (production default), exit 1: Expected chains (mkv pattern): 16 (no launch.csv: production default, 4 cells x 4 replicates); found 10; missing 8; not in the launch record 2 / Error: combine: the chain set does not match the launch record; no Bayes factor is reported. /   no complete segment (chain directory missing or empty): b0g0_run3, b0g0_run4, b0g1_run3, b0g1_run4, b1g0_run3, b1g0_run4, b1g1_run3, b1g1_run4 /   found but not in the launch record (add to <run root>/launch.csv): b0.5g0_run1, b0.5g0_run2
+ok   without launch.csv: stops, run3/run4 of the 4 x 4 default missing and the rung not listed
+old eval columns: aug_b0.0 aug_b0.5 aug_b1.0
+ok   old eval named the columns aug_b0.0 / aug_b0.5 / aug_b1.0 (the #100 fault)
+old combine, rung present, exit 1: Error in if (abs(log(r) - log(rOld)) < 1e-12) break :  /   missing value where TRUE/FALSE needed
+ok   old combine fails with the rung present (reproduces #100)
+old combine, 4 cells x 2: complete exit 0, b0g0->b0g1 -0.1626; without b0g0_run1/cross.csv exit 0, 0.5305
+ok   old combine drops the chain silently: exit 0, b0g0 -> b0g1 changes (reproduces #101)
+new combine on the same root, exit 1: Expected chains (mkv pattern): 8 (/nobackup/pjjg18/evotempo-fix100/check-combine/norung/launch.csv); found 8; missing 1; not in the launch record 0 / Error: combine: the chain set does not match the launch record; no Bayes factor is reported. /   no cross.csv (eval failed or was not run): b0g0_run1
+ok   new combine stops on the same root and names b0g0_run1
+b0g0_run1 checkpoint: startTreeRel data/start-tree-01.nwk, md5 0e540902f8d915c3a70f8b4522de4e53
+ok   the checkpoint records the start tree relative to cet/ and its md5
+resume with a copy of start-tree-01 at /nobackup/pjjg18/evotempo-fix100/check-combine/tree-copy: exit 0; progress: 2026-11-13 13:52:37 resuming after segment 1 
+ok   same tree (same md5) at another absolute path: the chain resumes (#102; before: stop)
+resume with start-tree-02: exit 1: Error: /nobackup/pjjg18/evotempo-fix100/check-combine/runs/b0g0_run1/checkpoint.rds was started from data/start-tree-01.nwk (md5 0e540902f8d915c3a70f8b4522de4e53); this run loads data/start-tree-02.nwk (md5 afd0c227bb39c5b23890e9be729715cc): a different start tree
+ok   another start tree (other md5): the resume stops

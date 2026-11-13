@@ -43,8 +43,19 @@
 # `eval` writes <chain dir>/cross.csv: for every recorded state (after
 # dropping CET_BF_BURN, default 0.25, of each chain) the log augmented density
 # at each beta and the character log-likelihood at each gamma that occur among
-# the chains under the same root (CET_BF_BETAS / CET_BF_GAMMAS override), and a
-# check that the chain's own values reproduce its logPost.
+# the chains under the same root (CET_BF_BETAS / CET_BF_GAMMAS override), and
+# two checks per state: `check`, the recomputed log posterior minus the chain's
+# logPost, and `checkChar`, the recomputed character log-likelihood minus the
+# chain's charLL (which the power-0 check cannot see).  It writes cross.csv
+# only when both are within CET_BF_TOL (default 1e-4) for every state
+# (temporary file, then rename), and otherwise removes any earlier cross.csv
+# and stops; `combine` refuses any cross.csv whose checks exceed CET_BF_TOL or
+# that has no checkChar column (written before #104).  This ports the
+# trilobite pipeline's A2 (review of #91).  The default tolerance is wider
+# than the trilobite 1e-6: on the penguin production chains (200 000
+# iterations) the recomputed log posterior differs from the chain's by up to
+# 1.1e-5, about 5e-9 relative, which is drift in the chain's running value; a
+# wrong target differs by nats (#104).
 #
 # `combine` checks the chains it finds against the expected set: the launch
 # record <run root>/launch.csv (cell, reps, optional power and mkv; one row per
@@ -61,6 +72,8 @@ if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
 source("data-raw/empirical/penguins/cet/common.R")
 args <- commandArgs(trailingOnly = TRUE)
 burn <- as.numeric(Sys.getenv("CET_BF_BURN", "0.25"))
+tol <- as.numeric(Sys.getenv("CET_BF_TOL", "1e-4"))
+stopifnot("CET_BF_TOL must be a positive number" = isTRUE(tol > 0))
 
 # ParseLabel() and Chains() are in common.R (shared with run-chain.R, #75)
 LoadSamples <- function(dir) {
@@ -141,15 +154,29 @@ if (args[[1]] == "eval") {
     # is a constant on its support, so this check cannot tell at which age
     # TempoMCMC() evaluated it.
     la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
-    own <- LogAugAt(st, me$beta, me$gamma) + me$power * CharLLAt(st, me$gamma, dat$characters) +
-      lp + la
+    # charLL in seg*_samples.csv is the unpowered character log-likelihood
+    # (common.R, RecordingStats())
+    ownChar <- CharLLAt(st, me$gamma, dat$characters)
+    own <- LogAugAt(st, me$beta, me$gamma) + me$power * ownChar + lp + la
     c(sample = i, setNames(aug, paste0("aug_b", vapply(betas, FormatValue, ""))),
       setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))), logPrior = lp,
-      check = own - s$samples$logPost[i])
+      check = own - s$samples$logPost[i], checkChar = ownChar - s$samples$charLL[i])
   }))
-  utils::write.csv(out, file.path(dir, "cross.csv"), row.names = FALSE)
-  cat(sprintf("%s: %d states, %.1f s; max |own - logPost| = %.3g\n", basename(dir), nrow(out),
-              proc.time()[["elapsed"]] - t0, max(abs(out[, "check"]))))
+  worst <- max(abs(out[, c("check", "checkChar")]))
+  cat(sprintf("%s: %d states, %.1f s; max |own - logPost| = %.3g, max |own - charLL| = %.3g\n",
+              basename(dir), nrow(out), proc.time()[["elapsed"]] - t0, max(abs(out[, "check"])),
+              max(abs(out[, "checkChar"]))))
+  # Write cross.csv only after the checks pass, so that a failed eval cannot
+  # leave a file that combine would use (#104; trilobite A2)
+  crossFile <- file.path(dir, "cross.csv")
+  if (!isTRUE(worst <= tol)) {
+    unlink(crossFile)
+    stop(sprintf("recomputed log posterior or charLL differs from the chain's by %.3g > CET_BF_TOL = %g; no cross.csv written",
+                 worst, tol))
+  }
+  tmp <- tempfile("cross-", tmpdir = dir, fileext = ".csv")
+  utils::write.csv(out, tmp, row.names = FALSE)
+  stopifnot(file.rename(tmp, crossFile))
   quit(save = "no")
 }
 
@@ -227,6 +254,17 @@ ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut &
               file.exists(file.path(chAll$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
+# Refuse any cross.csv that did not pass eval's checks, or that predates them
+# (no checkChar column) (#104; trilobite A2)
+badCross <- vapply(cross, function(x) {
+  cols <- intersect(c("check", "checkChar"), names(x))
+  length(cols) < 2L || !all(is.finite(as.matrix(x[, cols]))) || !all(abs(as.matrix(x[, cols])) <= tol)
+}, TRUE)
+if (any(badCross)) {
+  stop("cross.csv fails eval's checks (|check| or |checkChar| > CET_BF_TOL = ", tol,
+       ", or no checkChar column) for: ", paste(ch$label[badCross], collapse = ", "),
+       "; rerun eval on those chains", call. = FALSE)
+}
 LogQ <- function(x, beta, gamma) {
   x[[paste0("aug_b", FormatValue(beta))]] + x[[paste0("chr_g", FormatValue(gamma))]] + x$logPrior
 }

@@ -32,8 +32,15 @@
 #    CET_BF_ALLOW_MISSING naming it, exit 0 and the chain is reported as left
 #    out; a chain not in the record, an expected chain with no directory, and
 #    the production default (4 x 4) against 4 x 2 chains all stop.
+# 8. eval's checks reach combine (#104): with 4 cells x 2 replicates, combine
+#    exits 0; a cross.csv with |check| > CET_BF_TOL (1e-4) in one state, or with
+#    no checkChar column (written before #104), stops combine, naming the
+#    chain and writing no bayes-factors.csv; CET_BF_TOL = 0.01 accepts the
+#    first.  eval's side (no cross.csv unless the checks pass) needs a real
+#    chain: check-eval.sh.
 # Since #101 every synthetic root of checks 3-5 carries a launch.csv, and its
-# power-1 chains a cross.csv, as combine now requires.
+# power-1 chains a cross.csv, as combine now requires; since #104 a cross.csv
+# has check and checkChar columns.
 # Stops with an error if a check fails.
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
@@ -124,7 +131,7 @@ for (mkv in c("pattern", "allTips")) {
       utils::write.csv(data.frame(logPost = charLL, charLL = charLL, iteration = seq_len(nSmp)),
                        file.path(d, "seg0001_samples.csv"), row.names = FALSE)
       # A power-1 chain must have a cross.csv (#101); no bridge uses this one
-      if (t == 1) utils::write.csv(data.frame(sample = 1, check = 0), file.path(d, "cross.csv"),
+      if (t == 1) utils::write.csv(data.frame(sample = 1, check = 0, checkChar = 0), file.path(d, "cross.csv"),
                                    row.names = FALSE)
       truth[[length(truth) + 1L]] <- data.frame(mkv = mkv, power = t, rep = rep,
                                                 charLL = charLL[-seq_len(floor(burn * nSmp))])
@@ -189,6 +196,7 @@ MakeChain <- function(root, label, rep, charLL = -1700, cross = FALSE,
     for (g in gammas) x[[paste0("chr_g", FormatValue(g))]] <- -2 * g + 0.05 * g * z2
     x$logPrior <- 0
     x$check <- 0
+    x$checkChar <- 0
     utils::write.csv(x, file.path(d, "cross.csv"), row.names = FALSE)
   }
 }
@@ -330,6 +338,38 @@ Check(res$status != 0L && any(grepl("production default", res$out)) &&
         any(grepl("no complete segment.*b0g0_run3", res$out)),
       "#101: without launch.csv the production default (4 x 4) applies; run3/run4 missing")
 unlink(root7, recursive = TRUE)
+
+# ---- 8. eval's checks reach combine (#104) ---------------------------------------
+root8 <- tempfile("checks")
+for (lab in cells4) for (rep in 1:2) MakeChain(root8, lab, rep, cross = TRUE)
+Launch(root8, cells4)
+res <- CombineEnv(root8)
+Check(res$status == 0L && !is.null(res$edges) && nrow(res$edges) == 4L,
+      "#104: cross.csv files that pass their checks, combine exits 0 with 4 edges")
+f <- file.path(root8, "b0g1_run1", "cross.csv")
+good <- utils::read.csv(f, check.names = FALSE)
+bad <- good
+bad$check[7] <- 1e-3
+utils::write.csv(bad, f, row.names = FALSE)
+res <- CombineEnv(root8)
+Say("#104 one state with |check| = 1e-3, exit %d: %s", res$status,
+    paste(grep("fails eval", res$out, value = TRUE), collapse = " / "))
+Check(res$status != 0L && any(grepl("fails eval's checks.*b0g1_run1", res$out)) && is.null(res$edges),
+      "#104: |check| > CET_BF_TOL stops combine, naming b0g1_run1 (before: used)")
+res <- CombineEnv(root8, "CET_BF_TOL=0.01")
+Check(res$status == 0L && !is.null(res$edges) && nrow(res$edges) == 4L,
+      "#104: CET_BF_TOL = 0.01 accepts |check| = 1e-3")
+utils::write.csv(good, f, row.names = FALSE)
+g <- file.path(root8, "b1g1_run2", "cross.csv")
+old <- utils::read.csv(g, check.names = FALSE)
+old$checkChar <- NULL
+utils::write.csv(old, g, row.names = FALSE)
+res <- CombineEnv(root8)
+Say("#104 b1g1_run2 cross.csv without checkChar, exit %d: %s", res$status,
+    paste(grep("fails eval", res$out, value = TRUE), collapse = " / "))
+Check(res$status != 0L && any(grepl("no checkChar column.*b1g1_run2", res$out)) && is.null(res$edges),
+      "#104: a cross.csv from before #104 (no checkChar) stops combine, naming b1g1_run2")
+unlink(root8, recursive = TRUE)
 
 if (!is.null(outFile)) writeLines(lines, outFile)
 if (length(fail)) stop("check-labels.R FAILED: ", paste(fail, collapse = "; "))

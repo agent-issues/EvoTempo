@@ -1,0 +1,52 @@
+Survival of the stem at origin age 3 / 6.5 / 10: 0.3387 / 0.4577 / 0.4813
+simulated 16000 trees (survival) in 1.619006 mins
+simulated 16000 trees (none) in 1.642034 mins
+ran 64 chains (survival) in 38.23498 mins
+ran 64 chains (none) in 37.10596 mins
+     mcmc simulation tests maxAbsZ              at             role
+     none       none    56    2.02  treeLength q95       own target
+     none   survival    56    8.67  originAge mean negative control
+ survival       none    56    7.76   originAge q25 negative control
+ survival   survival    56    2.76 meanNodeAge q50       own target
+     criterion pass
+ max |z| < 3.5 TRUE
+  max |z| >= 5 TRUE
+  max |z| >= 5 TRUE
+ max |z| < 3.5 TRUE
+$survival
+     tree      node       tip    branch   nodeAge fossilAge     slide    saJump 
+    0.999     1.000     1.000     1.000     0.667     0.708     0.477     0.275 
+originAge 
+    0.302 
+
+$none
+     tree      node       tip    branch   nodeAge fossilAge     slide    saJump 
+    0.999     1.000     1.000     1.000     0.665     0.706     0.476     0.275 
+originAge 
+    0.311 
+
+check-window.R: own-target max |z| 2.02 / 2.76; negative-control min of max |z| 7.76
+	Command being timed: "Rscript data-raw/empirical/trilobites/cet/check-window.R 40000 64 16000"
+	User time (seconds): 3.58
+	System time (seconds): 0.26
+	Percent of CPU this job got: 0%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:18:41
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 214472
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 9
+	Minor (reclaiming a frame) page faults: 66104
+	Voluntary context switches: 735
+	Involuntary context switches: 19
+	Swaps: 0
+	File system inputs: 1176
+	File system outputs: 84592
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+exit 0

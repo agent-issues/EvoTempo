@@ -1,0 +1,32 @@
+== 1. eval with CET_BF_TOL=1e-13 on b0g0_run2 (its residual is 1.6e-9): must fail, no cross.csv
+b0g0_run2: 15 states, 0.2 s; max |own - logPost| = 1.57e-09, max |own - charLL| = 5e-12
+Error: recomputed log posterior or charLL differs from the chain's by 1.57e-09 > 1e-13; no cross.csv written
+Execution halted
+exit 1; cross.csv exists: no
+== 2. combine on the clean smoke chains: must run
+ from   to points      logBF        se seReplicates    minEss maxOneSidedGap
+ b0g0 b1g0      2 -0.2114398 0.3960375           NA  6.381199      0.6823591
+ b0g1 b1g1      2  5.6693632 0.9561581           NA 15.252162      3.5354258
+ b0g0 b0g1      2  2.5033735 0.9412282           NA 13.601785      6.5352871
+ b1g0 b1g1      2 50.8998975        NA           NA        NA     63.9982284
+ nInfinite logBFjointPrior weightEssFrom weightEssTo weightKishFrom
+         0      -0.2877771      40.52042    16.04579       23.86049
+         0       5.5230952      16.04579    22.87084       13.53993
+         0       2.7936785      40.52042    16.04579       23.86049
+         0      51.1202718      16.04579    22.87084       12.27314
+ weightKishTo      perReplicate
+     12.27314 -0.81737       NA
+     28.04947     4.9762     NA
+     13.53993     1.3879     NA
+     28.04947     33.097     NA
+Square closure: 42.516 nats (SE NA)
+ cell       logZ posteriorProbability
+ b0g0  0.0000000         1.653690e-13
+ b1g0 -0.2114398         1.338526e-13
+ b0g1  2.5033735         2.021414e-12
+ b1g1 29.4305972         1.000000e+00
+exit 0
+== 3. combine after corrupting b0g0_run1/cross.csv (check column + 1): must refuse
+Error: cross.csv fails eval's checks (or predates checkChar) for: b0g0_run1; rerun eval on those chains
+Execution halted
+exit 1

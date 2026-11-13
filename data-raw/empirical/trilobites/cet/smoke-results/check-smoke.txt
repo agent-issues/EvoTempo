@@ -1,0 +1,53 @@
+ cell segment   secs iterations secsPerIteration finalLogPost finalCharLL
+ b0g0       1 68.866        140        0.4919000    -3668.286   -2569.230
+ b0g0       2 47.057        100        0.4705700    -4058.701   -2566.834
+ b0g1       1 85.866        140        0.6133286    -3696.426   -2585.515
+ b0g1       2 58.082        100        0.5808200    -3602.846   -2559.031
+ b1g0       1 68.255        140        0.4875357    -3521.271   -2601.559
+ b1g0       2 48.730        100        0.4873000    -3611.489   -2576.106
+ b1g1       1 86.588        140        0.6184857    -3626.892   -2595.419
+ b1g1       2 58.975        100        0.5897500    -3987.971   -2578.596
+ finalOriginMa
+      530.2537
+      532.3383
+      526.9672
+      531.5606
+      536.0724
+      535.9812
+      528.8103
+      528.6839
+       move rate.b0g0 rate.b0g1 rate.b1g0 rate.b1g1
+       tree    1.0000    0.0000    1.0000    0.0000
+       node    1.0000    0.9278    1.0000    0.8744
+        tip    1.0000    0.9422    1.0000    0.8941
+     branch    1.0000    0.9734    1.0000    0.9479
+      joint    0.3600    0.0000    0.3267    0.0000
+      shift    0.4600    0.6000    0.5200    0.4200
+    nodeAge    0.5407    0.5415    0.5611    0.5233
+  fossilAge    0.0000    0.0000    0.0000    0.0000
+      slide    0.0138    0.0244    0.0294    0.0250
+     saJump    0.0545    0.0409    0.0664    0.0409
+    rootAge    0.0000    0.0000    0.0000    0.0000
+  originAge    0.7100    0.7400    0.7800    0.6400
+ parameters    0.2417    0.1833    0.2667    0.1917
+ cell  move constraintRejections
+ b0g0 slide                  558
+ b0g1 slide                  479
+ b1g0 slide                  601
+ b1g1 slide                  479
+Resume check: max |difference| over 10 samples x 23 columns = 0; trees identical: TRUE 
+     chain exit crossWritten startTree
+ b0g0_run1    0         TRUE    draw 1
+ b0g0_run2    0         TRUE    draw 5
+ b0g1_run1    0         TRUE    draw 2
+ b1g0_run1    0         TRUE    draw 3
+ b1g1_run1    0         TRUE    draw 4
+ b1g1_run2    0         TRUE    draw 8
+                                                                                    message
+ b0g0_run1: 15 states, 0.3 s; max |own - logPost| = 4.55e-12, max |own - charLL| = 4.55e-12
+    b0g0_run2: 15 states, 0.2 s; max |own - logPost| = 1.57e-09, max |own - charLL| = 5e-12
+    b0g1_run1: 15 states, 0.2 s; max |own - logPost| = 4.55e-12, max |own - charLL| = 5e-12
+    b1g0_run1: 15 states, 0.2 s; max |own - logPost| = 5.14e-11, max |own - charLL| = 5e-12
+    b1g1_run1: 15 states, 0.2 s; max |own - logPost| = 5e-12, max |own - charLL| = 4.55e-12
+    b1g1_run2: 15 states, 0.3 s; max |own - logPost| = 6.02e-10, max |own - charLL| = 5e-12
+exit 0

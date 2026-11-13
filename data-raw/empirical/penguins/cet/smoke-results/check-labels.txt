@@ -1,3 +1,8 @@
+check-labels.R: trilobite-followups-100 029a790dd47b50b4c10d2d390cdd80ca89f8645a with this commit's bayes-factors.R, check-labels.R
+fa525efbc39af2aea572f6d285674dc5  bayes-factors.R
+1d69edb18618b982d8b21e83b740df72  check-labels.R
+EvoTempo installed from 48e6bf7 (package code unchanged since); 2026-11-13 14:09 UTC cn027.ham8.dur.ac.uk
+
 33-point ladder: 31 powers in (0, 1); format() wrote 2 in scientific notation (9.612435e-06, 9.688727e-05)
 ok   33-point ladder: FormatValue() never writes scientific notation
 ok   33-point ladder: ParseLabel() reads every power back exactly
@@ -40,14 +45,22 @@ ok   F2b: no b0g1 -> b1g1 edge from the interior rungs alone (before: -2.0)
 ok   F2b: combine names both missing end points
 nonexistent root, exit 1: Error: combine: <run root> does not exist
 ok   combine stops on a run root that does not exist
-#101 4 cells x 2 with launch.csv, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 0; not in the launch record 0
+#101 4 cells x 2 with launch.csv, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449540/RtmpiC2CBF/set15cef67a3ef41a/launch.csv); found 8; missing 0; not in the launch record 0
 ok   #101: complete chain set, combine exits 0 with 4 edges
-#101 b1g0_run2/cross.csv removed, exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 1; not in the launch record 0 /   no cross.csv (eval failed or was not run): b1g0_run2
+#101 b1g0_run2/cross.csv removed, exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19449540/RtmpiC2CBF/set15cef67a3ef41a/launch.csv); found 8; missing 1; not in the launch record 0 /   no cross.csv (eval failed or was not run): b1g0_run2
 ok   #101: a missing cross.csv stops combine, naming b1g0_run2 (before: exit 0, dropped)
-#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 1; not in the launch record 0 / Left out on request (CET_BF_ALLOW_MISSING): b1g0_run2
+#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449540/RtmpiC2CBF/set15cef67a3ef41a/launch.csv); found 8; missing 1; not in the launch record 0 / Left out on request (CET_BF_ALLOW_MISSING): b1g0_run2
 ok   #101: explicit opt-out, exit 0 and b1g0_run2 reported as left out
 ok   #101: an opt-out naming an unexpected chain stops
 ok   #101: a chain not in the launch record stops combine
 ok   #101: an expected chain with no directory stops combine
 #101 no launch.csv, 4 x 2 chains, exit 1: Expected chains (mkv pattern): 16 (no launch.csv: production default, 4 cells x 4 replicates); found 8; missing 8; not in the launch record 0 /   no complete segment (chain directory missing or empty): b0g0_run3, b0g0_run4, b0g1_run3, b0g1_run4, b1g0_run3, b1g0_run4, b1g1_run3, b1g1_run4
 ok   #101: without launch.csv the production default (4 x 4) applies; run3/run4 missing
+ok   #104: cross.csv files that pass their checks, combine exits 0 with 4 edges
+#104 one state with |check| = 1e-3, exit 1: Error: cross.csv fails eval's checks (|check| or |checkChar| > CET_BF_TOL = 1e-04, or no checkChar column) for: b0g1_run1; rerun eval on those chains
+ok   #104: |check| > CET_BF_TOL stops combine, naming b0g1_run1 (before: used)
+ok   #104: CET_BF_TOL = 0.01 accepts |check| = 1e-3
+#104 b1g1_run2 cross.csv without checkChar, exit 1: Error: cross.csv fails eval's checks (|check| or |checkChar| > CET_BF_TOL = 1e-04, or no checkChar column) for: b1g1_run2; rerun eval on those chains
+ok   #104: a cross.csv from before #104 (no checkChar) stops combine, naming b1g1_run2
+check-labels.R: all checks passed
+exit 0

@@ -299,7 +299,7 @@ res <- CombineEnv(root7)
 Say("#101 4 cells x 2 with launch.csv, exit %d: %s", res$status, Problems(res))
 Check(res$status == 0L && !is.null(res$edges) && nrow(res$edges) == 4L,
       "#101: complete chain set, combine exits 0 with 4 edges")
-file.rename(file.path(root7, "b1g0_run2", "cross.csv"), file.path(root7, "b1g0_run2", "cross.bak"))
+invisible(file.rename(file.path(root7, "b1g0_run2", "cross.csv"), file.path(root7, "b1g0_run2", "cross.bak")))
 res <- CombineEnv(root7)
 Say("#101 b1g0_run2/cross.csv removed, exit %d: %s", res$status, Problems(res))
 Check(res$status != 0L && any(grepl("no cross.csv.*b1g0_run2", res$out)) && is.null(res$edges),
@@ -312,7 +312,7 @@ Check(res$status == 0L && any(grepl("Left out on request.*b1g0_run2", res$out)) 
 res <- CombineEnv(root7, "CET_BF_ALLOW_MISSING=b1g0_run7")
 Check(res$status != 0L && any(grepl("not expected: b1g0_run7", res$out)),
       "#101: an opt-out naming an unexpected chain stops")
-file.rename(file.path(root7, "b1g0_run2", "cross.bak"), file.path(root7, "b1g0_run2", "cross.csv"))
+invisible(file.rename(file.path(root7, "b1g0_run2", "cross.bak"), file.path(root7, "b1g0_run2", "cross.csv")))
 MakeChain(root7, "b1g0.5", 1, cross = TRUE, gammas = c(0, 0.5, 1))
 res <- CombineEnv(root7)
 Check(res$status != 0L && any(grepl("not in the launch record.*b1g0.5_run1", res$out)),

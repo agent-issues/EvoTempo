@@ -172,7 +172,7 @@ Check(full$status == 0L && !is.null(full$edges) && nrow(full$edges) == 4L,
 Check(any(grepl("Expected chains \\(mkv pattern\\): 8 .*launch.csv.*found 8; missing 0", full$out)),
       "combine reports the expected set (8, from launch.csv) and that none is missing")
 
-file.rename(file.path(root4, "b0g0_run1", "cross.csv"), file.path(root4, "b0g0_run1", "cross.bak"))
+invisible(file.rename(file.path(root4, "b0g0_run1", "cross.csv"), file.path(root4, "b0g0_run1", "cross.bak")))
 res <- Combine(root4)
 Say("b0g0_run1/cross.csv removed: exit %d: %s", res$status, Show(res))
 Check(res$status != 0L && any(grepl("no cross.csv.*b0g0_run1", res$out)) && is.null(res$edges),
@@ -185,7 +185,7 @@ Check(res$status == 0L && any(grepl("Left out on request \\(CET_BF_ALLOW_MISSING
 res <- Combine(root4, "CET_BF_ALLOW_MISSING=b0g0_run9")
 Check(res$status != 0L && any(grepl("not expected: b0g0_run9", res$out)),
       "opt-out naming an unexpected chain (b0g0_run9) stops")
-file.rename(file.path(root4, "b0g0_run1", "cross.bak"), file.path(root4, "b0g0_run1", "cross.csv"))
+invisible(file.rename(file.path(root4, "b0g0_run1", "cross.bak"), file.path(root4, "b0g0_run1", "cross.csv")))
 
 unlink(file.path(root4, "b1g1_run2"), recursive = TRUE)
 res <- Combine(root4)

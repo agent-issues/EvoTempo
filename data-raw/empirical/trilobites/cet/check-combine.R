@@ -111,7 +111,7 @@ Check(!is.null(e) && any(e$from == "b0g0" & e$to == "b1g0" & e$points == 3L),
 
 # ---- 3. a missing cross.csv --------------------------------------------------------
 gone <- file.path(runs, "b0g1_run2", "cross.csv")
-file.rename(gone, paste0(gone, ".bak"))
+invisible(file.rename(gone, paste0(gone, ".bak")))
 res <- Combine(runs)
 Say("b0g1_run2/cross.csv moved away, exit %d: %s", res$status, Show(res))
 Check(res$status != 0L && any(grepl("no cross.csv.*b0g1_run2", res$out)) && is.null(res$edges),
@@ -122,15 +122,15 @@ Say("... with CET_BF_ALLOW_MISSING=b0g1_run2, exit %d: %s; edges %s", res$status
 Check(res$status == 0L && any(grepl("Left out on request.*b0g1_run2", res$out)) &&
         !is.null(res$edges) && nrow(res$edges) == 4L,
       "explicit opt-out: exit 0, b0g1_run2 reported as left out")
-file.rename(paste0(gone, ".bak"), gone)
-file.rename(file.path(runs, "launch.csv"), file.path(runs, "launch.bak"))
+invisible(file.rename(paste0(gone, ".bak"), gone))
+invisible(file.rename(file.path(runs, "launch.csv"), file.path(runs, "launch.bak")))
 res <- Combine(runs)
 Say("no launch.csv (production default), exit %d: %s", res$status, Show(res))
 Check(res$status != 0L && any(grepl("production default", res$out)) &&
         any(grepl("no complete segment.*b0g0_run3", res$out)) &&
         any(grepl("not in the launch record.*b0.5g0_run1", res$out)),
       "without launch.csv: stops, run3/run4 of the 4 x 4 default missing and the rung not listed")
-file.rename(file.path(runs, "launch.bak"), file.path(runs, "launch.csv"))
+invisible(file.rename(file.path(runs, "launch.bak"), file.path(runs, "launch.csv")))
 
 # ---- 4. The old script, for comparison --------------------------------------------
 if (!is.null(oldBF)) {
@@ -176,7 +176,7 @@ Check(identical(ckp$startTreeRel, "data/start-tree-01.nwk") &&
       "the checkpoint records the start tree relative to cet/ and its md5")
 copyDir <- file.path(root, "tree-copy")
 dir.create(copyDir, showWarnings = FALSE)
-file.copy(StartTreeFile(1L), copyDir, overwrite = TRUE)
+invisible(file.copy(StartTreeFile(1L), copyDir, overwrite = TRUE))
 env <- c("CET_NITER=40", "CET_BURNIN=10", "CET_THIN=10", "CET_SEG=40", paste0("CET_OUT=", runs))
 runChain <- file.path(cetDir, "run-chain.R")
 res <- Run(runChain, c("1", "1"), c(env, paste0("CET_START_TREE=", file.path(copyDir, "start-tree-01.nwk"))))

@@ -87,3 +87,15 @@
   stops on a start age outside the support of its prior, and
   `TempoMCMC()` and `SampleTempoPaths()` on a sampled ancestor at the root
   ([#55](https://github.com/agent-issues/EvoTempo/issues/55)).
+- `MkCharacters()` prepares empirical character matrices for `MkLikelihood()`
+  and `TempoMCMC()`: a number of states per character, ordered characters
+  (RevBayes `fnOrderedRateMatrix()`), ambiguity sets such as `{01}`, the Mkv
+  correction per missing-data mask (`coding = "variable"`, as RevBayes
+  `dnPhyloCTMC(coding = "variable")`), and discrete Gamma rates among
+  characters (`nRateCat`; `GammaRates()`, as RevBayes `fnDiscretizeGamma()`).
+  The C++ engine scores them with MkPrime `Pruner`s.  In `TempoMCMC()` the
+  Gamma shape is `start$alpha`, free with a prior in the new argument
+  `charPriors` and its own move, and is logged as the `alpha` column of
+  `samples`.  Chains on plain character matrices are unchanged
+  ([#97](https://github.com/agent-issues/EvoTempo/issues/97),
+  [#47](https://github.com/agent-issues/EvoTempo/issues/47)).

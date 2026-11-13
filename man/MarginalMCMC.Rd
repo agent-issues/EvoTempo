@@ -76,6 +76,8 @@ MarginalMCMC(tree, DCETModel(nBin = 11, zRange = c(-2, 2)),
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=GammaRates]{GammaRates()}},
+\code{\link[=MkCharacters]{MkCharacters()}},
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoEngine]{TempoEngine()}},

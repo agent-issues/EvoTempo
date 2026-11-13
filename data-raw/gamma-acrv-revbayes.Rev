@@ -1,0 +1,43 @@
+################################################################################
+# Validation 1 of #97 (data-raw/gamma-acrv-revbayes.R): RevBayes oracle for
+# the fixed-tree character log-likelihood with discrete Gamma rates.
+# Run from the directory written by `gamma-acrv-revbayes.R prepare`.  For
+# each clock rate r, partition i (fnJC(K) or fnOrderedRateMatrix(maxState = K))
+# and shape index a (1-3: Gamma(4) at alphas[a]; 4: no site-rate
+# variation), prints "RESULT r i a", floor(lnL) and lnL - floor(lnL), all with
+# coding = "variable".
+################################################################################
+source("partitions.Rev")
+for (i in 1:n_part) {
+  morpho[i] <- readDiscreteCharacterData("part_" + i + ".nex")
+}
+tree <- readTrees("tree.nwk", treetype = "clock")[1]
+print("ROOTAGE")
+print(tree.rootAge())
+rates <- v(0.1, 0.5, 2.0)
+alphas <- v(0.3, 1.1, 5.0)
+for (r in 1:rates.size()) {
+  for (i in 1:n_part) {
+    if (part_ordered[i]) {
+      q <- fnOrderedRateMatrix(maxState = part_k[i])
+    } else {
+      q <- fnJC(part_k[i])
+    }
+    for (a in 1:4) {
+      if (a <= 3) {
+        x ~ dnPhyloCTMC(tree = tree, Q = q, branchRates = rates[r],
+                        siteRates = fnDiscretizeGamma(alphas[a], alphas[a], 4),
+                        type = "Standard", coding = "variable")
+      } else {
+        x ~ dnPhyloCTMC(tree = tree, Q = q, branchRates = rates[r],
+                        type = "Standard", coding = "variable")
+      }
+      x.clamp(morpho[i])
+      lnp = x.lnProbability()
+      print("RESULT " + r + " " + i + " " + a)
+      print(floor(lnp))
+      print(lnp - floor(lnp))
+    }
+  }
+}
+q()

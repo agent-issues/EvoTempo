@@ -30,7 +30,9 @@ priors$theta(0.1)
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=GammaRates]{GammaRates()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkCharacters]{MkCharacters()}},
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoEngine]{TempoEngine()}},

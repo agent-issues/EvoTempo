@@ -1,0 +1,6 @@
+        run identical nSample
+ cpp_gamma0      TRUE      30
+ cpp_gamma1      TRUE      30
+   R_gamma0      TRUE      30
+   R_gamma1      TRUE      30
+ALL IDENTICAL

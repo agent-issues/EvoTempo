@@ -1,9 +1,3 @@
-check-labels.R: bf-combine-75 f64df1d2c14743d43cc9b06a101dbe88473b473d with this commit's bayes-factors.R, check-labels.R, README.md
-0baa458c2bea6e3a061b32bfe2a4d4c7  bayes-factors.R
-5a3411d8913bb3258225a64796713289  check-labels.R
-8996041266219a2840e22a3ab70b316b  README.md
-EvoTempo installed from main 48e6bf7 (/nobackup/pjjg18/evotempo-penguin-cet/lib-48e6bf7); 2026-11-11 12:40 UTC cn031.ham8.dur.ac.uk
-
 33-point ladder: 31 powers in (0, 1); format() wrote 2 in scientific notation (9.612435e-06, 9.688727e-05)
 ok   33-point ladder: FormatValue() never writes scientific notation
 ok   33-point ladder: ParseLabel() reads every power back exactly
@@ -37,7 +31,7 @@ ok   F1b: combine names the cell and the missing rung t = 1
 F1a (allTips 0, 0.0001, 0.3 beside a complete pattern ladder): allTips exit 1 (  cell b1g1 (mkv allTips): power ladder 0, 0.0001, 0.3 lacks t = 1); pattern exit 0 (b1g1 (mkv pattern): log p(characters | tip ages) = -1723.607 (SE 0.104), 4 rungs, 8 chains)
 ok   F1a: CET_MKV=allTips stops, naming the missing t = 1, with no marginal
 ok   F1a: CET_MKV=pattern still reports its complete 4-rung ladder
-F2a (b0g0, b0g1, b1g0, rung b0.5g1, no b1g1), exit 0: Edge b0g1 -> b1g1: no chains with cross.csv at b1g1; edge left out / Edge b1g0 -> b1g1: no chains with cross.csv at b1g1; edge left out; edges b0g0->b1g0 -4.005 (2 points), b0g0->b0g1 -1.996 (2 points)
+F2a (b0g0, b0g1, b1g0, rung b0.5g1, no b1g1), exit 0: Edge b0g1 -> b1g1: no chains with cross.csv at b1g1; edge left out / Edge b1g0 -> b1g1: no chains with cross.csv at b1g1; edge left out; edges b0g0->b1g0 -3.999 (2 points), b0g0->b0g1 -2.001 (2 points)
 ok   F2a: no b0g1 -> b1g1 edge without b1g1 chains (before: the b0g1 -> b0.5g1 bridge, -2)
 ok   F2a: combine says which end point of b0g1 -> b1g1 is missing
 ok   F2a: the two complete edges are reported (about -4 and -2)
@@ -46,5 +40,14 @@ ok   F2b: no b0g1 -> b1g1 edge from the interior rungs alone (before: -2.0)
 ok   F2b: combine names both missing end points
 nonexistent root, exit 1: Error: combine: <run root> does not exist
 ok   combine stops on a run root that does not exist
-check-labels.R: all checks passed
-exit 0
+#101 4 cells x 2 with launch.csv, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 0; not in the launch record 0
+ok   #101: complete chain set, combine exits 0 with 4 edges
+#101 b1g0_run2/cross.csv removed, exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 1; not in the launch record 0 /   no cross.csv (eval failed or was not run): b1g0_run2
+ok   #101: a missing cross.csv stops combine, naming b1g0_run2 (before: exit 0, dropped)
+#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 1; not in the launch record 0 / Left out on request (CET_BF_ALLOW_MISSING): b1g0_run2
+ok   #101: explicit opt-out, exit 0 and b1g0_run2 reported as left out
+ok   #101: an opt-out naming an unexpected chain stops
+ok   #101: a chain not in the launch record stops combine
+ok   #101: an expected chain with no directory stops combine
+#101 no launch.csv, 4 x 2 chains, exit 1: Expected chains (mkv pattern): 16 (no launch.csv: production default, 4 cells x 4 replicates); found 8; missing 8; not in the launch record 0 /   no complete segment (chain directory missing or empty): b0g0_run3, b0g0_run4, b0g1_run3, b0g1_run4, b1g0_run3, b1g0_run4, b1g1_run3, b1g1_run4
+ok   #101: without launch.csv the production default (4 x 4) applies; run3/run4 missing

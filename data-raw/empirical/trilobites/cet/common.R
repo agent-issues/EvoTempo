@@ -481,7 +481,163 @@ LoadTrilobites <- function(startTree = StartTreeFile(1L)) {
 
 # ---- Model, priors, moves -------------------------------------------------------------
 cellTable <- data.frame(beta = c(0, 0, 1, 1), gamma = c(0, 1, 0, 1))
-CellLabel <- function(beta, gamma) sprintf("b%sg%s", format(beta), format(gamma))
+# A number as it appears in chain labels and cross.csv column names: plain
+# decimal notation (never scientific, which ParseLabel() cannot read), with
+# the fewest significant digits that read back as exactly `x`.  One number at
+# a time: format() on a vector pads to a common width, so c(0, 0.5, 1) became
+# "0.0", "0.5", "1.0" and the cross.csv columns of a ladder rung no longer
+# matched the names combine looked up (#100; as the penguin pipeline, #75)
+FormatValue <- function(x) {
+  stopifnot(length(x) == 1L, is.finite(x), x >= 0)
+  for (d in 1:17) {
+    s <- format(x, scientific = FALSE, digits = d, trim = TRUE)
+    if (as.numeric(s) == x) return(s)
+  }
+  stop("cannot write ", x, " in plain decimal notation")
+}
+CellLabel <- function(beta, gamma) sprintf("b%sg%s", FormatValue(beta), FormatValue(gamma))
+
+# Chain labels (run-chain.R): b<beta>g<gamma>[_mkvnone][_t<power>]_run<rep>.
+# ParseLabel() stops on a label it cannot read; Chains() used to drop such a
+# directory without a message (#100; penguin #75).
+ParseLabel <- function(label) {
+  m <- regmatches(label, regexec(
+    "^b([0-9.]+)g([0-9.]+)(_mkv(none))?(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
+  out <- if (length(m)) {
+    data.frame(label = label, beta = as.numeric(m[2]), gamma = as.numeric(m[3]),
+               mkv = if (nzchar(m[5])) m[5] else "pattern",
+               power = if (nzchar(m[7])) as.numeric(m[7]) else 1, rep = as.integer(m[8]))
+  }
+  if (is.null(out) || anyNA(out[, c("beta", "gamma", "power", "rep")])) {
+    stop(sprintf(paste("cannot parse chain label '%s': expected",
+                       "b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>",
+                       "with numbers in plain decimal notation"), label))
+  }
+  out
+}
+# Chain directories under `root`: every subdirectory holding run-chain.R
+# output (seg*_samples.csv, checkpoint.rds or progress.txt) must have a
+# readable label; other subdirectories (e.g. summary/) are ignored.  Only
+# chains with at least one complete segment are returned.
+Chains <- function(root) {
+  dirs <- list.dirs(root, recursive = FALSE)
+  isChain <- vapply(dirs, function(d) {
+    length(Sys.glob(file.path(d, "seg*_samples.csv"))) > 0L ||
+      file.exists(file.path(d, "checkpoint.rds")) || file.exists(file.path(d, "progress.txt"))
+  }, TRUE)
+  out <- do.call(rbind, lapply(dirs[isChain], function(d) {
+    p <- ParseLabel(basename(d))
+    if (!length(Sys.glob(file.path(d, "seg*_samples.csv")))) return(NULL)
+    cbind(p, dir = d)
+  }))
+  if (is.null(out)) {
+    out <- data.frame(label = character(), beta = numeric(), gamma = numeric(),
+                      mkv = character(), power = numeric(), rep = integer(), dir = character())
+  }
+  out
+}
+
+# ---- Expected chain set (#101) ----------------------------------------------------
+# `bayes-factors.R combine` must use every chain that was launched, not just the
+# chains it happens to find with a cross.csv: eval writes cross.csv only after
+# its checks pass, so a chain whose eval failed (or was never run) used to drop
+# out of the Bayes factors without a message (#91 delta review, N2: removing one
+# cross.csv moved the b0g0 -> b0g1 log BF from 7.13 to 7.54, exit 0).
+#
+# The expected set comes from the launch record <run root>/launch.csv, one row
+# per launched group of chains (cells x replicates x rungs):
+#   cell   the (beta, gamma) label as run-chain.R writes it: b0g0, b1g1, b0.5g0
+#   reps   number of replicates; the group is runs 1..reps
+#   power  character power (optional; default 1)
+#   mkv    Mkv variant (optional; default "pattern")
+# For example, the production launch (run-array.sh --array=1-16) plus one rung
+# of 4 replicates (CET_CELL=b0.5g0, --array=1-4):
+#   cell,reps
+#   b0g0,4
+#   b0g1,4
+#   b1g0,4
+#   b1g1,4
+#   b0.5g0,4
+# Without launch.csv the expected set is the production launch alone: the four
+# cells x CET_BF_REPS (default 4) replicates at power 1.
+ExpectedChains <- function(root, mkv = .cet$mkv) {
+  f <- file.path(root, "launch.csv")
+  if (file.exists(f)) {
+    L <- utils::read.csv(f, colClasses = "character", strip.white = TRUE)
+    if (!all(c("cell", "reps") %in% names(L)) || !nrow(L)) {
+      stop(f, " needs columns cell and reps (optional: power, mkv) and at least one row")
+    }
+    source <- f
+  } else {
+    L <- data.frame(cell = mapply(CellLabel, cellTable$beta, cellTable$gamma),
+                    reps = Sys.getenv("CET_BF_REPS", "4"))
+    source <- sprintf("no launch.csv: production default, 4 cells x %s replicates", L$reps[1])
+  }
+  if (is.null(L$power)) L$power <- "1"
+  if (is.null(L$mkv)) L$mkv <- "pattern"
+  L$power[is.na(L$power) | !nzchar(L$power)] <- "1"
+  L$mkv[is.na(L$mkv) | !nzchar(L$mkv)] <- "pattern"
+  out <- do.call(rbind, lapply(seq_len(nrow(L)), function(i) {
+    reps <- suppressWarnings(as.integer(L$reps[i]))
+    power <- suppressWarnings(as.numeric(L$power[i]))
+    if (is.na(reps) || reps < 1L || is.na(power)) {
+      stop(sprintf("%s row %d: reps must be a positive integer and power a number", source, i))
+    }
+    cell <- ParseLabel(paste0(L$cell[i], "_run1"))
+    label <- paste0(CellLabel(cell$beta, cell$gamma), MkvSuffix(L$mkv[i]),
+                    if (power != 1) paste0("_t", FormatValue(power)), "_run", seq_len(reps))
+    do.call(rbind, lapply(label, ParseLabel))
+  }))
+  out <- out[out$mkv == mkv, ]
+  if (anyDuplicated(ChainKey(out))) stop(source, " lists a chain twice")
+  attr(out, "source") <- source
+  out
+}
+ChainKey <- function(x) {
+  if (!nrow(x)) return(character())
+  paste(vapply(x$beta, FormatValue, ""), vapply(x$gamma, FormatValue, ""), x$mkv,
+        vapply(x$power, FormatValue, ""), x$rep)
+}
+# Compare the chains found under `root` (Chains(), one Mkv variant) with the
+# expected set.  Stops if any expected chain has no complete segment, if any
+# expected chain at power 1 (the chains the bridges use) has no cross.csv, or
+# if a chain is found that the launch record does not list.  The only opt-out
+# is explicit and per chain: CET_BF_ALLOW_MISSING, a comma-separated list of
+# chain labels (e.g. b0g0_run3) that combine may leave out; each must be in the
+# expected set.  Returns the labels left out under that opt-out.
+CheckChainSet <- function(root, found, mkv = .cet$mkv,
+                          allow = strsplit(Sys.getenv("CET_BF_ALLOW_MISSING"), ",")[[1]]) {
+  allow <- trimws(allow[nzchar(trimws(allow))])
+  expected <- ExpectedChains(root, mkv)
+  found <- found[found$mkv == mkv, ]
+  fKey <- ChainKey(found)
+  eKey <- ChainKey(expected)
+  hasCross <- file.exists(file.path(found$dir, "cross.csv"))
+  absent <- expected$label[!eKey %in% fKey]
+  noCross <- found$label[fKey %in% eKey & found$power == 1 & !hasCross]
+  unknown <- found$label[!fKey %in% eKey]
+  missing <- c(absent, noCross)
+  badAllow <- setdiff(allow, expected$label)
+  cat(sprintf("Expected chains (mkv %s): %d (%s); found %d; missing %d; not in the launch record %d\n",
+              mkv, nrow(expected), attr(expected, "source"), nrow(found), length(missing),
+              length(unknown)))
+  List <- function(what, x) if (length(x)) paste0(what, ": ", paste(x, collapse = ", "))
+  problems <- c(
+    List("no complete segment (chain directory missing or empty)", setdiff(absent, allow)),
+    List("no cross.csv (eval failed or was not run)", setdiff(noCross, allow)),
+    List("found but not in the launch record (add to <run root>/launch.csv)", unknown),
+    List("CET_BF_ALLOW_MISSING names chains that are not expected", badAllow))
+  if (length(problems)) {
+    stop("combine: the chain set does not match the launch record; no Bayes factor is reported.\n  ",
+         paste(problems, collapse = "\n  "),
+         "\n  To leave a chain out on purpose, name it in CET_BF_ALLOW_MISSING.", call. = FALSE)
+  }
+  leftOut <- intersect(missing, allow)
+  if (length(leftOut)) {
+    cat(sprintf("Left out on request (CET_BF_ALLOW_MISSING): %s\n", paste(leftOut, collapse = ", ")))
+  }
+  leftOut
+}
 GridSettings <- function() {
   list(nBin = as.integer(Sys.getenv("CET_NBIN", "26")),
        zMax = as.numeric(Sys.getenv("CET_ZMAX", "5")))

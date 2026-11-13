@@ -34,7 +34,9 @@
 #                    bayes-factors.R
 # The checkpoint records the target (beta, gamma, power, Mkv variant, grid) and
 # the thinning and segment length, and a run with any of them different stops
-# rather than continue it (#74, #76).
+# rather than continue it (#74, #76).  It also records the start tree (md5,
+# and path relative to cet/), and a resume from a tree with another md5 or tip
+# order stops; the checkout path does not matter (#102).
 # Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples plus charLL;
 # logPrior, the log prior of the parameters; logOriginPrior, that of the origin
 # age, which TempoMCMC()'s logPost also includes; the iteration), seg<k>_trees.nwk
@@ -63,7 +65,7 @@ if (grepl("^[0-9]+$", cellArg)) {
 mkv <- .cet$mkv
 label <- paste0(CellLabel(beta, gamma), MkvSuffix(mkv))
 power <- EnvNum("CET_POWER", 1)
-if (power != 1) label <- sprintf("%s_t%s", label, format(power))
+if (power != 1) label <- sprintf("%s_t%s", label, FormatValue(power))
 outDir <- file.path(Sys.getenv("CET_OUT", "cet-runs"), sprintf("%s_run%d", label, rep))
 dir.create(outDir, recursive = TRUE, showWarnings = FALSE)
 nIter <- EnvNum("CET_NITER", 100000)
@@ -79,6 +81,14 @@ stopifnot(seg %% thin == 0, nIter %% seg == 0)
 
 startIndex <- StartIndex(cell, rep)
 startTree <- normalizePath(Sys.getenv("CET_START_TREE", StartTreeFile(startIndex)), mustWork = TRUE)
+# The checkpoint identifies the start tree by its content (md5) and by its path
+# relative to cet/ when it lies there, so a resubmission from another checkout
+# of the same commit resumes, and a different tree stops (#102)
+startTreeMd5 <- unname(tools::md5sum(startTree))
+startTreeRel <- local({
+  base <- paste0(normalizePath(cetDir, mustWork = TRUE), "/")
+  if (startsWith(startTree, base)) substring(startTree, nchar(base) + 1L) else startTree
+})
 dat <- LoadTrilobites(startTree)
 model <- CetModel(beta, gamma)
 priors <- CetPriors()
@@ -98,11 +108,17 @@ if (file.exists(ckpFile)) {
                        collapse = ", "),
                  paste(names(target), vapply(target, format, ""), collapse = ", ")))
   }
-  # The characters must be in the tip order of the chain's tree (review of #91, F1)
-  if (!identical(ckp$startTree, startTree) ||
-      !identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
-    stop(sprintf("%s was started from %s; this run loads %s (tip orders differ)", ckpFile,
-                 format(ckp$startTree), startTree))
+  # The characters must be in the tip order of the chain's tree (review of #91,
+  # F1).  Same start tree = same md5 (#102; checkpoints written before #102
+  # carry no md5 and fall back to the absolute path)
+  sameTree <- if (is.null(ckp$startTreeMd5)) {
+    identical(ckp$startTree, startTree)
+  } else identical(ckp$startTreeMd5, startTreeMd5)
+  if (!sameTree || !identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
+    stop(sprintf("%s was started from %s (md5 %s); this run loads %s (md5 %s)%s", ckpFile,
+                 format(ckp$startTreeRel %||% ckp$startTree), format(ckp$startTreeMd5),
+                 startTreeRel, startTreeMd5,
+                 if (sameTree) ": tip orders differ" else ": a different start tree"))
   }
   Progress("%s resuming after segment %d", format(Sys.time()), ckp$segment)
 } else {
@@ -161,7 +177,8 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),
                      append = file.exists(accFile))
   ckp <- c(list(segment = k, captured = .cet$captured, label = label, rep = rep,
-                startIndex = startIndex, startTree = startTree), target)
+                startIndex = startIndex, startTree = startTree, startTreeRel = startTreeRel,
+                startTreeMd5 = startTreeMd5), target)
   tmp <- paste0(ckpFile, ".tmp")
   saveRDS(ckp, tmp)
   file.rename(tmp, ckpFile)

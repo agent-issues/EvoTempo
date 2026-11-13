@@ -45,6 +45,14 @@
 # at each beta and the character log-likelihood at each gamma that occur among
 # the chains under the same root (CET_BF_BETAS / CET_BF_GAMMAS override), and a
 # check that the chain's own values reproduce its logPost.
+#
+# `combine` checks the chains it finds against the expected set: the launch
+# record <run root>/launch.csv (cell, reps, optional power and mkv; one row per
+# launched group, e.g. each ladder rung), or without one the production launch
+# of 4 cells x CET_BF_REPS (default 4) replicates.  It stops if an expected
+# chain has no complete segment, if an expected power-1 chain has no cross.csv,
+# or if it finds a chain the record does not list; CET_BF_ALLOW_MISSING (chain
+# labels) is the only, explicit, opt-out (#101).
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -208,9 +216,15 @@ if (length(problems)) {
        "\n  The t = 1 rung is the cell's chains at power 1 (production chains) under the same root.",
        call. = FALSE)
 }
-ch <- chAll
+# Every expected chain (launch record <run root>/launch.csv, or the production
+# default of 4 cells x 4 replicates; common.R, ExpectedChains()) must be present,
+# and every expected power-1 chain must have a cross.csv, unless named in
+# CET_BF_ALLOW_MISSING; a chain not in the record also stops combine.  Before,
+# a chain without cross.csv was dropped from the bridges without a message (#101)
+leftOut <- CheckChainSet(root, chAll)
 # Bridge only chains of one Mkv variant: CET_MKV, default "pattern" (#74)
-ch <- ch[ch$mkv == .cet$mkv & file.exists(file.path(ch$dir, "cross.csv")), ]
+ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut &
+              file.exists(file.path(chAll$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
 LogQ <- function(x, beta, gamma) {
@@ -289,7 +303,7 @@ if (!is.null(edges) && nrow(edges) == 4) {
 # of the Mkv variant CET_MKV (default "pattern"), as for the bridges above:
 # pooling the charLL of chains of two variants mixes two targets (#75).
 # Ladders were checked to run from t = 0 to t = 1 at the start of combine.
-ch <- chAll[chAll$mkv == .cet$mkv, ]
+ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut, ]
 pw <- unique(ch[ch$power != 1, c("beta", "gamma")])
 for (i in seq_len(nrow(pw))) {
   sel <- ch$beta == pw$beta[i] & ch$gamma == pw$gamma[i]

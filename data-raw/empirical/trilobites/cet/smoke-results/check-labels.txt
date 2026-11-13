@@ -1,0 +1,30 @@
+ok   (the #100 fault) format(c(0, 0.5, 1)) pads to aug_b0.0 / aug_b0.5 / aug_b1.0
+ok   FormatValue() one at a time gives aug_b0 / aug_b0.5 / aug_b1
+ok   FormatValue() writes 18 powers without scientific notation; ParseLabel() reads them back exactly
+ok   production labels unchanged (b0g0, b0g1, b1g0, b1g1)
+ok   ParseLabel() reads a ladder-rung label (b0.5g0_t0.0001_run3)
+ok   ParseLabel() stops on b1g1_t1e-04_run1
+ok   ParseLabel() stops on an unknown Mkv variant
+ok   Chains() ignores summary/ and keeps b1g1_run1
+ok   Chains() stops on a chain directory it cannot parse
+rung b0.5g0 present, exit 0: Expected chains (mkv pattern): 10 (/local/slurm.19449477/RtmpyvOrxa/rungc04261d069b87/launch.csv); found 10; missing 0; not in the launch record 0; edges b0g0->b1g0 -4.005 (3 points), b0g1->b1g1 -4.002 (2 points), b0g0->b0g1 -2.010 (2 points), b1g0->b1g1 -1.998 (2 points)
+ok   combine with a rung present exits 0 and reports all 4 edges
+ok   b0g0 -> b1g0 runs through the rung (3 points), log BF about -4
+rung present, old column names (aug_b0.0 ...), exit 1: Error: cross.csv has no column aug_b0; rerun eval on every chain after adding a rung
+ok   old-style columns: combine stops, names the missing column aug_b0, writes no bayes-factors.csv
+4 cells x 2, launch.csv: exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449477/RtmpyvOrxa/setc042667af7ebb/launch.csv); found 8; missing 0; not in the launch record 0
+ok   complete chain set: combine exits 0 with 4 edges
+ok   combine reports the expected set (8, from launch.csv) and that none is missing
+b0g0_run1/cross.csv removed: exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19449477/RtmpyvOrxa/setc042667af7ebb/launch.csv); found 8; missing 1; not in the launch record 0 / Error: combine: the chain set does not match the launch record; no Bayes factor is reported. /   no cross.csv (eval failed or was not run): b0g0_run1
+ok   missing cross.csv: combine stops, names b0g0_run1, writes no bayes-factors.csv (before: exit 0)
+... with CET_BF_ALLOW_MISSING=b0g0_run1: exit 0: Left out on request (CET_BF_ALLOW_MISSING): b0g0_run1
+ok   explicit opt-out: exit 0, says b0g0_run1 was left out
+ok   opt-out naming an unexpected chain (b0g0_run9) stops
+b1g1_run2 directory removed: exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19449477/RtmpyvOrxa/setc042667af7ebb/launch.csv); found 7; missing 1; not in the launch record 0 / Error: combine: the chain set does not match the launch record; no Bayes factor is reported. /   no complete segment (chain directory missing or empty): b1g1_run2
+ok   an expected chain with no directory: combine stops and names it
+extra chain b0.5g0_run1 not in launch.csv: exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19449477/RtmpyvOrxa/setc042667af7ebb/launch.csv); found 9; missing 0; not in the launch record 1 / Error: combine: the chain set does not match the launch record; no Bayes factor is reported. /   found but not in the launch record (add to <run root>/launch.csv): b0.5g0_run1
+ok   a chain not in the launch record: combine stops and names it
+no launch.csv (default 4 x 4) with 4 x 2 chains: exit 1: Expected chains (mkv pattern): 16 (no launch.csv: production default, 4 cells x 4 replicates); found 8; missing 8; not in the launch record 0 / Error: combine: the chain set does not match the launch record; no Bayes factor is reported. /   no complete segment (chain directory missing or empty): b0g0_run3, b0g0_run4, b0g1_run3, b0g1_run4, b1g0_run3, b1g0_run4, b1g1_run3, b1g1_run4
+ok   without launch.csv the production default (4 x 4) applies, and run3/run4 are missing
+ok   CET_BF_REPS=2 sets the default to 4 x 2: exit 0
+ok   combine stops on a run root that does not exist

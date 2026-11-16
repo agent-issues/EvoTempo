@@ -33,7 +33,7 @@ new combine on the same root, exit 1: Expected chains (mkv pattern): 8 (/nobacku
 ok   new combine stops on the same root and names b0g0_run1
 b0g0_run1 checkpoint: startTreeRel data/start-tree-01.nwk, md5 0e540902f8d915c3a70f8b4522de4e53
 ok   the checkpoint records the start tree relative to cet/ and its md5
-resume with a copy of start-tree-01 at /nobackup/pjjg18/evotempo-fix100b/check-combine/tree-copy: exit 0; progress: 2026-11-16 09:05:32 resuming after segment 1 
+resume with a copy of start-tree-01 at /nobackup/pjjg18/evotempo-fix100b/check-combine/tree-copy: exit 0; progress: 2026-11-16 09:35:59 resuming after segment 1 
 ok   same tree (same md5) at another absolute path: the chain resumes (#102; before: stop)
 resume with start-tree-02: exit 1: Error: /nobackup/pjjg18/evotempo-fix100b/check-combine/runs/b0g0_run1/checkpoint.rds was started from data/start-tree-01.nwk (md5 0e540902f8d915c3a70f8b4522de4e53); this run loads data/start-tree-02.nwk (md5 afd0c227bb39c5b23890e9be729715cc): a different start tree
 ok   another start tree (other md5): the resume stops

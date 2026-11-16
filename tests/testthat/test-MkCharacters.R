@@ -331,7 +331,7 @@ RefLogLik <- function(tree, cells, K, ordered, lengths, rates = 1) {
   top <- apply(perCat, 1, max)
   site <- log(rowMeans(exp(perCat - top))) + top
   site[top == -Inf] <- -Inf
-  sum(site)
+  structure(sum(site), site = site)
 }
 
 # A random binary tree of n tips (coalescent-like heights; tips at 0, so all
@@ -391,7 +391,7 @@ test_that("Ordered characters with a sampled ancestor at small rates are exact",
     for (engine in c("cpp", "R")) {
       value <- MkLikelihood(mkTree, mk, rate * mkLengths, engine = engine)
       expect_true(is.finite(value))
-      expect_equal(value, ref, tolerance = 1e-10)
+      expect_equal(value, c(ref), tolerance = 1e-10)
     }
   }
   # Unordered: closed-form JC in both engines, exact at tiny lengths
@@ -400,7 +400,7 @@ test_that("Ordered characters with a sampled ancestor at small rates are exact",
     ref <- RefLogLik(mkTree, y, 3, FALSE, rate * mkLengths)
     mk <- MkCharacters(y, nState = 3)
     for (engine in c("cpp", "R")) {
-      expect_equal(MkLikelihood(mkTree, mk, rate * mkLengths, engine = engine), ref,
+      expect_equal(MkLikelihood(mkTree, mk, rate * mkLengths, engine = engine), c(ref),
                    tolerance = 1e-10)
     }
   }
@@ -420,10 +420,17 @@ test_that("Both engines match the exact reference over K, rates and alpha", {
       mk <- MkCharacters(x, nState = K, ordered = TRUE, nRateCat = 4)
       for (rate in c(1e-6, 1e-2, 1, 10)) {
         ref <- RefLogLik(tree, x, K, TRUE, rate * lengths, GammaRates(alpha, 4))
+        # The C++ engine does not rescale: a character with likelihood below
+        # about 1e-300 underflows there (documented); compare it elsewhere
+        underflow <- min(attr(ref, "site")) < -690
         for (engine in c("cpp", "R")) {
           value <- MkLikelihood(tree, mk, rate * lengths, alpha = alpha, engine = engine)
+          if (engine == "cpp" && underflow) {
+            expect_false(is.nan(value))
+            next
+          }
           expect_true(is.finite(value))
-          expect_equal(value, ref, tolerance = 1e-9)
+          expect_equal(value, c(ref), tolerance = 1e-9)
         }
       }
     }

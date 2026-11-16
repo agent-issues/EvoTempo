@@ -19,7 +19,12 @@ mean 1.
 \description{
 Rate multipliers of \code{nCat} equiprobable categories of a Gamma distribution
 with shape and rate \code{alpha} (mean 1), each the mean rate within its
-category (Yang 1994), as RevBayes \code{fnDiscretizeGamma(alpha, alpha, nCat)}.
+category (Yang 1994): the discretisation that RevBayes
+\code{fnDiscretizeGamma(alpha, alpha, nCat)} approximates.
+The cut points here come from R's \code{qgamma()}; RevBayes's chi-square
+quantile (AS 91, relative tolerance 5e-7) moves its rates by up to a few
+times \eqn{10^{-8}} at some shapes (e.g. 0.8 and 1.1), which changes
+log-likelihoods by up to about \eqn{10^{-6}}.
 }
 \examples{
 GammaRates(0.5)

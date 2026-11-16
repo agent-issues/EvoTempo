@@ -53,7 +53,8 @@ iteration (see Details); unnamed moves are not used.  Defaults to
 \item{nState}{Integer giving the number of character states.}
 
 \item{updateParameters}{Logical; if \code{FALSE}, hold parameters fixed (\code{shift}
-then moves the bins only).}
+then moves the bins only), including a free \code{alpha}, whose acceptance is
+then 0.}
 
 \item{minAcceptance}{Numeric giving the burn-in acceptance below which
 \code{tree} and \code{joint} moves are dropped after burn-in (see Details).}
@@ -66,7 +67,8 @@ the root age (\code{root}; with \code{start = "root"}) and of the origin age
 \item{charPriors}{Named list of functions giving log prior densities of
 parameters of the character model: \code{alpha}, the shape of the Gamma rates
 among characters (for \code{\link[=MkCharacters]{MkCharacters()}} with \code{nRateCat > 1}), which is
-then free; without it, \code{alpha} stays at \code{start$alpha}.}
+then free; without it (or with \code{charPriors = NULL}), \code{alpha} stays at
+\code{start$alpha}.}
 
 \item{engine}{Character string selecting the engine:
 \itemize{
@@ -79,7 +81,8 @@ equations and MkPrime kernels for characters;
 \code{TempoMCMC()} returns a list with elements
 \itemize{
 \item \code{samples}: data frame with one column per free parameter, then, with
-Gamma rates among characters, \code{alpha}, then \code{logPost}
+Gamma rates among characters, \code{alpha} (so the later columns move by
+one; index them by name), then \code{logPost}
 (log augmented density, plus character log-likelihood, log prior of the
 parameters, of a free \code{alpha}, and, when \code{rootAge} or \code{originAge} moves
 it, log prior of the start age), \code{rootBin} (the bin at the root), \code{meanX}

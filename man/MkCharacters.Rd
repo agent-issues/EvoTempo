@@ -16,13 +16,15 @@ MkCharacters(
 \item{characters}{Matrix with one row per tip (in the order of the tree's
 tips) and one column per character: either integer states \code{0} to
 \eqn{K - 1}, with \code{NA} where unknown, or character cells holding a state
-(\code{"0"} to \code{"9"}), a set of states (such as \code{"{01}"} or \code{"(012)"}), or
-\code{"?"}, \code{"-"}, \code{""} or \code{NA} where unknown.}
+(\code{"0"}, \code{"12"}), a set of states (such as \code{"{01}"}, \code{"(012)"} or \code{"0/12"}),
+or \code{"?"}, \code{"-"}, \code{""} or \code{NA} where unknown.}
 
 \item{nState}{Integer giving the number of states \eqn{K} of each
 character: one value, or one per character.
 By default, one more than the largest state of the character, and at
-least 2.}
+least 2; RevBayes instead takes \eqn{K} from the matrix's symbols, so give
+\code{nState} to match it (a message says so when ordered characters take the
+default).}
 
 \item{ordered}{Logical, one value or one per character: whether the
 character is ordered.}
@@ -35,11 +37,11 @@ character is ordered.}
 }
 \value{
 \code{MkCharacters()} returns an object of class \code{MkCharacters}: a
-list with elements \code{nTip}, \code{nChar}, \code{nState} and \code{ordered} (per
-character), \code{coding}, \code{nRateCat} and \code{partitions}, one per combination of
-ordering and number of states, each holding the tip partial likelihoods
-of its characters, followed by those of the constant patterns of its
-missing-data masks if \code{coding = "variable"}.
+list with elements \code{nTip}, \code{tipLabel} (the row names, or \code{NULL}), \code{nChar},
+\code{nState} and \code{ordered} (per character), \code{coding}, \code{nRateCat} and
+\code{partitions}, one per combination of ordering and number of states, each
+holding the tip partial likelihoods of its characters, followed by those of
+the constant patterns of its missing-data masks if \code{coding = "variable"}.
 }
 \description{
 Prepares a matrix of discrete characters for \code{\link[=MkLikelihood]{MkLikelihood()}} and
@@ -55,6 +57,9 @@ Ordered characters change only between adjacent states, at equal rates
 Both rate matrices are scaled to one expected change per unit of branch
 length, and both give a uniform distribution at the root.
 A two-state ordered character is unordered.
+Unordered transition probabilities are computed in closed form; ordered ones
+by uniformization with repeated squaring, which sums only non-negative terms
+and so keeps small probabilities accurate, with \eqn{P(0) = I} exactly.
 
 A cell holds one state, a set of states, whose likelihood is the sum over
 its states, or is unknown.
@@ -69,20 +74,31 @@ mask (the set of tips with a scored cell) share one correction,
 \eqn{-n_m \log(1 - P_m)}, where \eqn{P_m} is the probability that every
 scored tip of mask \eqn{m} has the same state, averaged over rate
 categories, and \eqn{n_m} the number of characters with that mask.
+The conditioning is exact only for characters without partial sets: as in
+RevBayes, a character such as \verb{0, 0, \{01\}} is kept although some of the
+histories it sums over are constant.
 A character whose scored cells all hold the same state or set cannot be
 variable, and is an error (RevBayes excludes it).
 
 With \code{nRateCat} \eqn{> 1}, the branch lengths of each character are
 multiplied by a rate \eqn{r_c}, and its likelihood is the mean over the
 \code{nRateCat} equiprobable categories \eqn{c}, whose rates are those of
-\code{\link[=GammaRates]{GammaRates()}} (a Gamma distribution with shape and rate \eqn{\alpha}, as
-RevBayes \code{fnDiscretizeGamma(alpha, alpha, nRateCat)}).
+\code{\link[=GammaRates]{GammaRates()}} (a Gamma distribution with shape and rate \eqn{\alpha}).
 The shape is the argument \code{alpha} of \code{\link[=MkLikelihood]{MkLikelihood()}}, and a parameter of
 \code{\link[=TempoMCMC]{TempoMCMC()}} (\code{start$alpha}, with prior \code{charPriors$alpha}).
+
+The row names of \code{characters}, if any (other than \verb{1, 2, ...}), are kept
+and must equal the tip labels of the tree that the characters are scored
+on.
+
+A character's likelihood is computed without rescaling in the C++ engine,
+so a single character with likelihood below about \eqn{10^{-308}} (log
+likelihood below about -709; reachable with many tips at very low rates)
+gives \code{-Inf} there, but not in the R engine.
 }
 \examples{
 cells <- matrix(c("0", "1", "2", "{01}", "1", "0", "0", "1", "?"), 3)
-mk <- MkCharacters(cells, ordered = c(TRUE, FALSE, FALSE),
+mk <- MkCharacters(cells, nState = c(3, 2, 2), ordered = c(TRUE, FALSE, FALSE),
                    coding = "variable", nRateCat = 4)
 mk$nState
 }

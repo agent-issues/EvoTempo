@@ -26,7 +26,8 @@
 # Not run directly: run-hamilton.sh writes a driver that sets clock_model, rep,
 # n_gen, sample_every, burnin_gen, checkpoint_every, resume and optionally
 # ml = true (stepping-stone marginal likelihood instead of the MCMC; cats,
-# ml_gen), then sources this file from this directory.
+# ml_gen; ml_mode, ml_stone, ml_preburn, ml_alpha, ml_monitor, ml_sample_every
+# for one stone per Slurm task), then sources this file from this directory.
 ################################################################################
 
 seed(rep * 7919 + 202)
@@ -119,14 +120,51 @@ mymodel = model(fbd_tree)
 if (!exists("ml")) { ml = false }
 if (ml) {
   # Stepping-stone: log p(characters | tip ages, model), the same quantity as
-  # the CET character-power ladder (README, Bayes factors)
-  pow_p = powerPosterior(mymodel, moves, monitors, out_stem + "_pp.out", cats = cats,
+  # the CET character-power ladder (README, "Common-footing marginal
+  # likelihoods").  Only the clamped character nodes are raised to the power;
+  # the FBD tree (with its tip-age intervals), clock and FBD parameters stay at
+  # their prior, so the estimate does not depend on the tree density's
+  # normalising constants.
+  # cats powers ((cats - k) / (cats - 1))^(1 / ml_alpha), k = 1..cats: stone 1
+  # has power 1, stone cats power 0 (RevBayes writes 1.2e-302).
+  # ml_mode = "all"       every stone in this process, then the estimate
+  #                       (the original behaviour);
+  #           "stone"     one stone, ml_stone in 1..cats, for a Slurm array;
+  #           "summarize" merge the stone files and write the estimates.
+  if (!exists("ml_mode")) { ml_mode = "all" }
+  if (!exists("ml_alpha")) { ml_alpha = 0.2 }
+  pp_file = out_stem + "_pp.out"
+  if (ml_mode == "stone") {
+    # A seed per stone, so that the stones of one replicate are not run on the
+    # same random-number stream
+    seed(rep * 7919 + 202 + 100003 * ml_stone)
+    if (ml_monitor) {
+      # Parameter and tree samples of this stone (the power-0 stone samples the
+      # prior: sampled ancestor at the root, prior check against CET).
+      # RevBayes appends _stone_<k> to these file names.
+      monitors.append( mnModel(filename = out_stem + ".log", printgen = ml_sample_every,
+                               exclude = ["z_mult", "branch_mult", "morph_branch_rates"]) )
+      monitors.append( mnFile(filename = out_stem + ".trees", printgen = ml_sample_every, fbd_tree) )
+    }
+  }
+  pow_p = powerPosterior(mymodel, moves, monitors, pp_file, cats = cats, alpha = ml_alpha,
                          sampleFreq = 10)
-  pow_p.burnin(generations = burnin_gen, tuningInterval = 100)
-  pow_p.run(generations = ml_gen)
-  ss = steppingStoneSampler(file = out_stem + "_pp.out", powerColumnName = "power",
+  if (ml_mode == "stone") {
+    pow_p.runOneStone(index = ml_stone, generations = ml_gen, burninFraction = 0.25,
+                      preburninGenerations = ml_preburn, tuningInterval = 100)
+    q()
+  }
+  if (ml_mode == "all") {
+    pow_p.burnin(generations = burnin_gen, tuningInterval = 100)
+    pow_p.run(generations = ml_gen)
+  } else {
+    pow_p.summarize()
+  }
+  ss = steppingStoneSampler(file = pp_file, powerColumnName = "power",
                             likelihoodColumnName = "likelihood")
-  write("stepping-stone", ss.marginal(), filename = out_stem + "_ml.txt")
+  ps = pathSampler(file = pp_file, powerColumnName = "power",
+                   likelihoodColumnName = "likelihood")
+  write("stepping-stone", ss.marginal(), "path-sampling", ps.marginal(), filename = out_stem + "_ml.txt")
   q()
 }
 monitors.append( mnModel(filename = out_stem + ".log", printgen = sample_every, append = resume,

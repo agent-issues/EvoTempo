@@ -41,6 +41,8 @@ posterior (see **Starting tree** and **Production runs**).
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
 | `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66) |
 | `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
+| `stage1-results.R`, `stage1-figures.R` | Stage-1 summaries and figures ("Stage-1 results") |
+| `stage1-results/` | Stage-1 result tables, consensus trees, figures and Bayes-factor outputs |
 | `smoke-results/` | Smoke and pilot outputs quoted below |
 
 ## Data conversion (`prepare.R`)
@@ -533,6 +535,186 @@ replaced it.
 
       sbatch -J evotempo-penguin-cet-dispersed --array=1-16 \
         --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 $W/jobs/run-array-wrap.sh
+
+
+## Stage-1 results (400 000 iterations; 2026-11-16)
+
+**Status: provisional.** The Bayes factors below were computed with the code of
+#105 (`penguin-eval-check-104`, 1df5aee, stacked on #103).  Neither PR is merged.
+Rerun `combine` once both are on main, and report the Bayes factors as final only then.
+
+### Runs
+
+- **Extension to 400 000 iterations: Slurm 19448311** (`evotempo-penguin-cet-dispersed-ext400k`,
+  tasks 1-16).  The 16 production chains of 19431480 (200 000 iterations) were
+  continued from segment 21 with `CET_NITER=400000` (other settings as above).
+  Each task took about 24 h; peak memory was 169 MB.
+  - Reason: at 200 000 iterations (1500 post-burn-in draws per chain), cells (0, 1) and (1, 1)
+    failed the flags.  (0, 1): treeLength R-hat 1.015, bulk ESS 262; charLL bulk ESS 289.
+    (1, 1): theta bulk ESS 358.  ASDSF was about 0.03 in every cell, against 0.005 for RevBayes.
+- **gamma rungs: Slurm 19448246-19448251** (`evotempo-penguin-cet-rung-b<beta>g<gamma>`).
+  - Cells: gamma = 0.25, 0.5 and 0.75 at beta = 0 and at beta = 1, 4 replicates
+    each, 200 000 iterations at power 1, wrapper `$W/jobs/rung-wrap.sh`.
+  - Seeds: `CET_SEED` = 510000 + rep, 520000 + rep and 530000 + rep for (0, 0.25), (0, 0.5)
+    and (0, 0.75); 610000 + rep, 620000 + rep and 630000 + rep at beta = 1.
+  - Start tree: that of the gamma = 1 production chain with the same beta and
+    replicate (`start-tree-<k>`, k = 4 (rep - 1) + 2 for beta = 0, + 4 for beta = 1).
+  - Timing: about 23-27 h per chain.
+  - Why rungs: at 200 000 iterations, the gamma edges (0, 0) -> (0, 1) and
+    (1, 0) -> (1, 1) had one-sided gaps of 19.7 and 16.7 nats, so the
+    overlap rule under "Bayes factors" required intermediate rungs.
+  - The launch record (`stage1-results/launch.csv`, copied to `$W/runs/launch.csv`) lists all
+    10 groups x 4 replicates; `combine` (#103) checks the chain set against it.
+- Earlier `cross.csv` and Bayes-factor outputs, written on 2026-11-13 while
+  these chains were still running, were deleted before evaluation
+  (`stage1-results/gate.txt`).  The gate checks that no chain job is still
+  queued, and that each `progress.txt` ends in `complete` with all segment files present.
+
+### Convergence
+
+`stage1-results.R` (Slurm 19449555, 53 min, 1.7 GB).
+- Burn-in is the first 25% of each chain's recorded samples: 3000 draws per CET
+  chain and 4501 per RevBayes chain are kept.
+- R-hat, bulk ESS and tail ESS (MkPrime's rank-normalised split versions) are
+  computed for lambda, mu, psi, theta, s, rate, origin, crown and root age, nSA,
+  charLL, treeLength and (UCLN) ucldSd.  logPost is not used (see above).
+- Flags: R-hat > 1.01 or bulk ESS < 400.
+- ASDSF is over rooted clades with frequency >= 0.1 in some chain.
+- The last column gives, over the 18 baseline clades (`node_2` ... `node_18`), the
+  largest range across replicates of the per-chain probability that the clade is
+  monophyletic among extant taxa.
+
+| analysis | chains x draws | max R-hat (parameter) | min bulk ESS (parameter) | min tail ESS | flagged | ASDSF (max SDSF) | max per-chain spread in a baseline clade's probability |
+|---|---|---|---|---|---|---|---|
+| (0, 0) | 4 x 3000 | 1.0090 (charLL) | 400 (charLL) | 1820 | charLL (bulkESS<400) | 0.0231 (0.098) | 0.204 |
+| (0, 1) | 4 x 3000 | 1.0045 (treeLength) | 735 (treeLength) | 1756 | none | 0.0252 (0.133) | 0.302 |
+| (1, 0) | 4 x 3000 | 1.0086 (charLL) | 1000 (treeLength) | 2781 | none | 0.0219 (0.090) | 0.196 |
+| (1, 1) | 4 x 3000 | 1.0102 (charLL) | 703 (theta) | 1284 | charLL (R-hat>1.01) | 0.0236 (0.104) | 0.236 |
+| RevBayes strict | 4 x 4501 | 1.0003 (nSA) | 11144 (treeLength) | 14427 | none | 0.0056 (0.014) | 0.022 |
+| RevBayes UCLN | 4 x 4501 | 1.0002 (rate) | 9716 (treeLength) | 13374 | none | 0.0052 (0.014) | 0.018 |
+
+- Scalar parameters: two flags remain, both on charLL and both at the threshold
+  (0, 0) charLL bulk ESS 399.99; (1, 1) charLL R-hat 1.0102.  Every other parameter passes in
+  every cell, including the (0, 1) treeLength and (1, 1) theta flagged at 200 000 iterations.
+- **Topology is not converged.**  ASDSF has fallen to 0.022-0.025, but the
+  replicates still disagree on extant clades.  For example, P(node_18) ranges
+  0.007-0.309 over the (0, 1) replicates, P(node_10) ranges 0.41-0.64 in
+  (1, 1), and P(node_9) ranges 0.75-0.95 in (0, 0).  For RevBayes, no baseline
+  clade differs by more than 0.022 between replicates.  Clade probabilities
+  from the CET cells are therefore not yet reliable to better than about
+  +-0.15.  Crown-age medians agree within 0.17 Myr between replicates.
+- Two causes are possible.  The CET topology moves (slide, saJump, and in the
+  gamma = 0 cells `tree`/`joint`) mix more slowly per iteration than the
+  RevBayes moves.  And, unlike RevBayes, CET records 3000 rather than 4501 post-burn-in
+  draws per chain, at a thinning of 100.
+- Consistency (`consistency-checks.csv`): for every CET chain, root and origin ages read from the trees
+  match the logged values to 6e-6.  Tree-based nSA is used for both programs,
+  because RevBayes' `num_samp_anc` omits a sampled ancestor that is a child of the root.
+
+### Posterior estimates
+
+Pooled post-burn-in draws: median [2.5%, 97.5%].  Units are Myr for ages and
+per Myr for rates.  `rate` is CET's clock-rate parameter and RevBayes'
+`clock_morph`.  Under rate variation (gamma = 1, UCLN) it is the location
+of a rate distribution, so it is not directly comparable with the strict-clock value.
+
+| parameter | (0, 0) | (0, 1) | (1, 0) | (1, 1) | RevBayes strict | RevBayes UCLN |
+|---|---|---|---|---|---|---|
+| crownAge | 12.32 [10.70, 14.49] | 13.17 [11.21, 15.79] | 12.32 [10.68, 14.50] | 13.30 [11.21, 16.23] | 12.27 [10.64, 14.34] | 13.00 [11.09, 15.92] |
+| rootAge | 62.13 [60.78, 67.04] | 62.04 [60.75, 66.95] | 62.18 [60.77, 67.16] | 62.21 [60.77, 69.05] | 61.58 [60.57, 66.44] | 61.39 [60.55, 65.35] |
+| originAge | 64.89 [61.45, 75.38] | 64.71 [61.41, 75.62] | 64.96 [61.51, 75.86] | 65.19 [61.43, 79.19] | 64.41 [61.13, 75.01] | 64.01 [61.05, 74.13] |
+| lambda | 0.502 [0.263, 1.01] | 0.443 [0.228, 0.914] | 0.517 [0.259, 1.16] | 0.562 [0.212, 1.38] | 0.488 [0.252, 0.991] | 0.476 [0.244, 1.01] |
+| mu | 0.564 [0.266, 1.12] | 0.494 [0.215, 1.04] | 0.575 [0.254, 1.30] | 0.561 [0.185, 1.44] | 0.546 [0.245, 1.10] | 0.535 [0.234, 1.13] |
+| turnover | 1.11 [0.832, 1.39] | 1.11 [0.786, 1.41] | 1.10 [0.829, 1.38] | 0.988 [0.790, 1.20] | 1.11 [0.815, 1.40] | 1.11 [0.802, 1.41] |
+| diversification | -0.0600 [-0.200, 0.0692] | -0.0496 [-0.193, 0.0777] | -0.0563 [-0.213, 0.0725] | 0.0064 [-0.143, 0.102] | -0.0578 [-0.197, 0.0733] | -0.0567 [-0.203, 0.0757] |
+| psi | 0.0648 [0.0327, 0.117] | 0.0712 [0.0363, 0.128] | 0.0647 [0.0326, 0.118] | 0.0668 [0.0341, 0.123] | 0.0671 [0.0339, 0.125] | 0.0702 [0.0346, 0.130] |
+| samplingProportion | 0.103 [0.0327, 0.274] | 0.126 [0.0396, 0.334] | 0.101 [0.0289, 0.285] | 0.107 [0.0288, 0.337] | 0.110 [0.0341, 0.302] | 0.116 [0.0343, 0.323] |
+| rate | 0.0200 [0.0162, 0.0248] | 0.0192 [0.0089, 0.0385] | 0.0200 [0.0161, 0.0246] | 0.0222 [0.0094, 0.0405] | 0.0202 [0.0163, 0.0250] | 0.0225 [0.0166, 0.0321] |
+| theta | 0.0497 [0.0073, 0.338] | 0.0976 [0.0213, 0.383] | 0.0538 [0.0077, 0.374] | 0.145 [0.0175, 0.669] | – | – |
+| s | 0.104 [0.0004, 0.999] | 0.830 [0.461, 1.43] | 0.0661 [0.0002, 0.474] | 0.741 [0.434, 1.33] | – | – |
+| ucldSd | – | – | – | – | – | 0.649 [0.409, 0.966] |
+| nSA | 13.00 [7.00, 20.00] | 14.00 [8.00, 21.00] | 13.00 [7.00, 20.00] | 13.00 [7.00, 20.00] | 14.00 [7.00, 21.00] | 14.00 [7.00, 21.00] |
+| charLL | -1636 [-1650, -1625] | -1611 [-1627, -1597] | -1636 [-1649, -1625] | -1611 [-1627, -1598] | -1636 [-1650, -1625] | -1606 [-1621, -1592] |
+
+- **(0, 0) against RevBayes strict.**  This compares the two programs on the
+  same data, priors and clock model.  They agree on every quantity within
+  Monte Carlo error: lambda 0.502 vs 0.488, mu 0.564 vs 0.546, psi 0.065 vs
+  0.067, rate 0.0200 vs 0.0202, crown age 12.32 vs 12.27, nSA 13 vs 14, charLL
+  -1636 in both (`stage1-results/figures/fig-b0g0-strict.png` shows the per-chain ECDFs).
+  - **lambda < mu** (turnover 1.11, diversification -0.06) is therefore shared by the
+    strict-clock FBD comparator.  It comes from the data and the FBD priors, not
+    from CET.  P(lambda > mu) over the pooled draws: (0, 0) 0.188,
+    (0, 1) 0.244, (1, 0) 0.208, RevBayes strict 0.206 and UCLN 0.212.
+    (1, 1) is the exception at 0.552.
+- **Root age.**  CET's root is 0.5 Myr older than RevBayes' (62.1 vs 61.6
+  strict).  RevBayes places a sampled ancestor at the root in 31.5% (strict)
+  and 41.6% (UCLN) of draws; EvoTempo's samplers exclude this (`.NoRootAncestor`), so CET has 0%.
+  Given no root sampled ancestor, the mean root age is 62.60 in (0, 0) and
+  62.65 in RevBayes strict, so the root-age gap is accounted for by this
+  difference in tree space.
+- **gamma = 1 cells against UCLN.**
+  - Crown age 13.17 / 13.30 against 13.00.
+  - charLL -1611 against -1606.
+  - Rate dispersion s 0.83 / 0.74 against UCLN ucldSd 0.65 (different parameterisations).
+  - P(*Spheniscus muizoni* is a sampled ancestor of extant *Spheniscus*):
+    0.59 in both gamma = 1 cells and 0.57 in UCLN, against 0.41 in (0, 0) and
+    0.41 in strict.
+- **theta and s.**  In the gamma = 0 cells, theta and s stay close to their
+  priors (s median 0.10 / 0.07).  With gamma = 1, s is well away from 0
+  (0.83 / 0.74) and theta moves upwards (median 0.098 / 0.145 against 0.050 / 0.054).
+- **beta.**  beta = 1 changes nothing measurable at gamma = 0.  At gamma = 1 it
+  lowers turnover from 1.11 to 0.99 and raises P(lambda > mu) from 0.24 to 0.55.
+- Quartet consensus trees (`ConsTree::Quartet`, pooled draws) are in
+  `stage1-results/consensus-*.nwk`, with split support in `consensus-splits.csv`.
+
+### Bayes factors (provisional)
+
+Evaluation: `bayes-factors.R eval` on all 40 chains, Slurm 19449553, #105 code at 1df5aee.
+- All 40 tasks exited 0.  Maximum |recomputed - logged logPost| over every
+  state and chain was 1.86e-5 (tolerance 1e-4), and maximum |checkChar| was 5e-12
+  (`stage1-results/eval-checks.csv`).
+- `combine` (Slurm 19449554) found the 40 expected chains, with none missing and
+  none unlisted in the launch record.  log BF of `to` over `from`:
+
+| from | to | points | log BF | SE | SE (replicates) | per replicate | max one-sided gap | min ESS |
+|---|---|---|---|---|---|---|---|---|
+| b0g0 | b1g0 | 2 | -0.217 | 0.007 | 0.004 | -0.21556 -0.22141 -0.22593 -0.20547 | 0.21 | 11774 |
+| b0g1 | b1g1 | 2 | -0.584 | 0.052 | 0.058 | -0.44047 -0.54546 -0.63287 -0.71044 | 1.25 | 4550 |
+| b0g0 | b0g1 | 5 | 9.905 | 0.224 | 0.293 | 10.1857 9.1354 9.9518 10.5059 | 1.72 | 118 |
+| b1g0 | b1g1 | 5 | 9.800 | 0.144 | 0.057 | 9.7350 9.7128 9.9650 9.8027 | 0.37 | 295 |
+
+- Square closure: 0.262 nats (SE 0.272), consistent with zero.
+- With the rungs, the largest one-sided gap on a gamma edge is 1.72 nats, within the 2-nat rule.
+  No power ladder is needed, because every edge links power-1 chains, so #96 does not apply.
+- Model probabilities (equal prior weight): (0, 1) 0.61, (1, 1) 0.39, (0, 0) and (1, 0) < 1e-4.
+
+What can be concluded, and what cannot:
+- **gamma.**  The data favour gamma = 1 over gamma = 0 by about 9.8-9.9 nats
+  at both values of beta.  Replicate estimates range 9.14-10.51 and 9.71-9.97.
+  This agrees with the 25-nat shift in median charLL (-1636 to -1611) and the RevBayes
+  UCLN fit.  Whether it is evidence for *covariant tempo* rather than for rate
+  variation in general is not settled.  A comparison of (0, 1) with UCLN on a
+  common marginal-likelihood footing would settle it; it was not made here.
+- **beta.**  There is no support for beta = 1: log BF -0.22 at gamma = 0 and
+  -0.58 at gamma = 1, both well under 1 nat.
+  - At gamma = 1 the replicate estimates drift (-0.44 to -0.71).  Even so, the
+    sign is stable and the magnitude small.
+- **Caveats.**
+  - The minimum bridge ESS on the (0, 0) -> (0, 1) edge is 118, and its
+    replicate SE (0.29) exceeds the bridge SE (0.22).  The between-replicate spread is the better
+    error estimate.
+  - The topology is not converged (see above).  The scalar margins
+    behind these Bayes factors pass the flags, but the Bayes factors average
+    over a tree posterior that the replicates do not yet agree on.
+  - Both PRs (#103, #105) must merge before these are final.
+
+### Files
+
+| File | Role |
+|---|---|
+| `stage1-results.R` | Convergence, ASDSF, per-chain and pooled summaries, quartet consensus, consistency checks; `Rscript stage1-results.R <CET runs> <RevBayes root> <out> [burn-in]` |
+| `stage1-figures.R` | `fig-posteriors.png`, `fig-b0g0-strict.png`, `fig-traces.png` from the outputs of `stage1-results.R` |
+| `stage1-results/` | The outputs quoted above, including the Bayes-factor tables (`bayes-factors.csv`, `closure.txt`, `model-probabilities.csv`), eval checks, gate record and launch record.  The 9 MB `samples.csv.gz` is kept on Hamilton (`$W/stage1-results-400k/`) and not committed |
 
 
 ## Morphology-only RevBayes comparator

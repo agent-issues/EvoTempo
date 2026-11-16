@@ -1,0 +1,25 @@
+burn-in: first 25% of each chain's recorded samples
+b0g0: chains 4, kept draws per chain 3000-3000
+b0g1: chains 4, kept draws per chain 3000-3000
+b1g0: chains 4, kept draws per chain 3000-3000
+b1g1: chains 4, kept draws per chain 3000-3000
+revbayes_strict: chains 4, kept draws per chain 4501-4501
+revbayes_ucln: chains 4, kept draws per chain 4501-4501
+b0g0: max R-hat 1.0090 (charLL); min bulk ESS 400 (charLL); min tail ESS 1820 (charLL); flagged: charLL
+b0g1: max R-hat 1.0045 (treeLength); min bulk ESS 735 (treeLength); min tail ESS 1756 (treeLength); flagged: none
+b1g0: max R-hat 1.0086 (charLL); min bulk ESS 1000 (treeLength); min tail ESS 2781 (treeLength); flagged: none
+b1g1: max R-hat 1.0102 (charLL); min bulk ESS 703 (theta); min tail ESS 1284 (s); flagged: charLL
+revbayes_strict: max R-hat 1.0003 (nSA); min bulk ESS 11144 (treeLength); min tail ESS 14427 (treeLength); flagged: none
+revbayes_ucln: max R-hat 1.0002 (rate); min bulk ESS 9716 (treeLength); min tail ESS 13374 (treeLength); flagged: none
+b0g0: ASDSF 0.0231 over 132 clades; max SDSF 0.0978
+b0g1: ASDSF 0.0252 over 122 clades; max SDSF 0.1330
+b1g0: ASDSF 0.0219 over 126 clades; max SDSF 0.0897
+b1g1: ASDSF 0.0236 over 127 clades; max SDSF 0.1042
+revbayes_strict: ASDSF 0.0056 over 116 clades; max SDSF 0.0140
+revbayes_ucln: ASDSF 0.0052 over 114 clades; max SDSF 0.0145
+b0g0: crown age median 12.32 (95% 10.70-14.49)
+b0g1: crown age median 13.17 (95% 11.21-15.79)
+b1g0: crown age median 12.32 (95% 10.68-14.50)
+b1g1: crown age median 13.30 (95% 11.21-16.23)
+revbayes_strict: crown age median 12.27 (95% 10.64-14.34)
+revbayes_ucln: crown age median 13.00 (95% 11.09-15.92)

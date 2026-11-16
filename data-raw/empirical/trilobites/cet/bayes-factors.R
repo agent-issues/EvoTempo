@@ -265,7 +265,13 @@ LogQ <- function(x, beta, gamma) {
 }
 Draws <- function(p, rep = NULL) {
   sel <- ch$power == 1 & ch$beta == p[1] & ch$gamma == p[2] & (is.null(rep) | ch$rep %in% rep)
-  do.call(rbind, cross[ch$label[sel]])
+  xs <- cross[ch$label[sel]]
+  if (!length(xs)) return(NULL)
+  # Only the columns every chain has: a chain evaluated before a rung was added
+  # lacks that rung's column, and LogQ() then names it (rbind() would fail with
+  # "numbers of columns of arguments do not match")
+  cols <- Reduce(intersect, lapply(xs, names))
+  do.call(rbind, lapply(xs, function(x) x[, cols, drop = FALSE]))
 }
 Bridge <- function(a, b, rep = NULL) {
   xa <- Draws(a, rep)

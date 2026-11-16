@@ -39,8 +39,9 @@ posterior (see **Starting tree** and **Production runs**).
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`) |
 | `check-labels.R` | Checks of chain labels (plain decimal notation, unparseable labels stop), of the Mkv-variant filter of `combine`'s stepping-stone (#75), and of `combine` on incomplete ladders and edges (#88) |
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
-| `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66) |
+| `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66); `ML=true ML_MODE=stone` runs its stepping-stone one stone per Slurm task |
 | `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
+| `ml-ladder.sh`, `ml-root.sh`, `ml-summary.R` | CET character-power ladders, their run root, and the common-footing marginal likelihoods against the RevBayes comparator ("Common-footing marginal likelihoods") |
 | `smoke-results/` | Smoke and pilot outputs quoted below |
 
 ## Data conversion (`prepare.R`)
@@ -605,6 +606,109 @@ directory was deleted before this commit, so only the archived summaries are
 kept) are in `revbayes/prior-check/README.md`.
 
 What this does not check: node ages against an exact oracle.
+
+## Common-footing marginal likelihoods (stage 1)
+
+**Question.** The data favour gamma = 1 over gamma = 0 by about 10 nats (Bayes
+factors in "Stage-1 results", #107).  Is that because tempo is covariant,
+or because any rate variation helps?  The morphology-only RevBayes UCLN
+comparator has rate variation without covariant tempo.  So comparing
+CET (0, 1) and (1, 1) with UCLN needs marginal likelihoods on a common footing.
+
+**What each program estimates.**
+- Both programs anneal only the character likelihood:
+  - CET's character-power chains (`CET_POWER`, `ml-ladder.sh`) raise
+    `PartitionedMk()` to the power t;
+  - RevBayes's `powerPosterior()` raises only the clamped `phy_morph` nodes.
+- The FBD tree (with its tip-age intervals), the clock and the FBD parameters
+  stay at their prior.  Each program therefore estimates
+  log p(characters | tip-age intervals, model) = log E_prior[L(characters)],
+  under its own normalised prior.
+- The constants by which the two tree densities differ cancel in that
+  normalisation: -log n!, the orientation factor 2^|V| (`TempoMCMC()` targets
+  the unoriented labelled tree), and the 1/width of the tip-age intervals.
+- This is why the full-data evidences of "Bayes factors" are not comparable
+  across programs, but these are.
+
+**The remaining difference: a sampled ancestor at the root.**  EvoTempo's
+samplers do not allow a sampled ancestor at the root; RevBayes does.  At the
+stage-1 posterior, RevBayes puts one there in 31.5% (strict) and 41.6% (UCLN)
+of draws.  Suppose the two priors agree on every other tree; the stage-1
+posteriors support this (root age given no root sampled ancestor: 62.60 in
+CET (0, 0) against 62.65 in RevBayes strict).  Then CET's prior is RevBayes's
+conditioned on A = {no sampled ancestor at the root}, and
+
+    log Z_CET = log Z_RB + log P_RB(A | characters) - log P_RB(A).
+
+Here P_RB(A) comes from the trees of RevBayes's power-0 stones (prior), and
+P_RB(A | characters) from the comparator's posterior trees.  The other
+known difference is CET's truncation of the lambda, mu and psi priors at
++-4 sdlog, which is 6e-5 of prior mass each, so below 1e-3 nats.
+
+**Anchor.**  CET (0, 0) and RevBayes strict are the same model on that support.
+Their log Z must therefore differ by the predicted root-SA term, up to
+Monte Carlo error.  If they do, the comparison below is on a common footing.
+If they do not, the gap is reported with its likely causes.  Those include
+the root sampled-ancestor convention, the epsilon conventions for zero-length
+branches and tip ages, and the FBD conditioning.
+
+**Comparison.**
+- CET (0, 1) = ladder (0, 0) + bridge (0, 0) -> (0, 1).  At fixed beta, the
+  prior on (tree, paths, parameters) does not depend on gamma.  The bridge's
+  full-data Bayes factor along a gamma edge is therefore a ratio of character
+  marginals given tip ages.
+- CET (1, 1) = ladder (1, 0) + bridge (1, 0) -> (1, 1).  A beta edge changes
+  the tree prior, so the (0, 0) ladder cannot reach beta = 1; (1, 0) needs
+  its own ladder.
+- Both are compared with RevBayes UCLN restricted to CET's support (UCLN
+  log Z plus its own root-SA term).  The unrestricted values are also reported.
+
+**Design.**
+- **Powers.** t_k = (k/64)^5, k = 0..64, i.e. RevBayes's `cats = 65`,
+  `alpha = 0.2` schedule ((65 - k)/64)^5.  It is the same in both programs,
+  exactly: 1/0.2 evaluates to 5 and (k/64)^5 is a dyadic rational.
+  The estimates on every second power show the discretisation error.
+- **RevBayes.** fd807d10, strict and UCLN, 4 replicates, one Slurm task per
+  stone (`runOneStone()`, then `summarize()`).
+  - Generations per stone: strict 40 000, UCLN 20 000.  Each stone also has
+    a 10 000-generation pre-burn-in with tuning, and 25% of its samples are
+    discarded.  Samples every 10 generations.
+  - Parameter and tree monitors on stones 1 (power 1) and 65 (power 0),
+    every 100 generations.
+  - Seed rep x 7919 + 202 + 100003 x stone.
+  - Directories: `$W/rbml-fd807d10/<clock>_run<rep>/`.  Jobs:
+    `evotempo-penguin-rbml-<clock>-<rep>` (arrays 1-65) and
+    `...-summarize` (afterok).
+- **CET.** Cells (0, 0) and (1, 0), the 64 powers t < 1, 2 replicates each.
+  - 100 000 iterations each, plus 2000 burn-in; thinning 100; 25% of
+    samples discarded.  The t = 1 rung is the cell's production chains,
+    linked into the ladder root by `ml-root.sh`.
+  - Start tree: the production start tree of the same cell and replicate.
+    Seed `ML_SEED` + 100 j + rep (700000 for (0, 0), 800000 for (1, 0)).
+  - Code: the production scripts and build (921253b, `lib-48e6bf7`).
+  - Root `$W/ml-runs`.  Jobs: `evotempo-penguin-cet-ml-<cell>`.
+- **Estimation.** `ml-summary.R` applies the same estimators to both programs:
+  - stepping-stone with `bayes-factors.R`'s `SteppingStone()` variance,
+    per replicate and pooled;
+  - path sampling (trapezoid) as a second estimator.
+  - It also computes P(root SA) under the prior and the posterior, the anchor,
+    and the comparison.
+  - It checks the two programs' priors directly: CET's t = 0 chains against
+    RevBayes's power-0 stones given no root sampled ancestor, on lambda, mu,
+    psi, origin, root and crown age and nSA (`prior-check.csv`).
+- **Target:** SE < 0.5 nats on each log Z, judged by both the estimator SE
+  and the replicate spread.
+- **Smoke tests** (Hamilton, 16 Nov):
+  - The per-stone RevBayes path ran with 5 stones of 200 generations.  The
+    powers are 1, (3/4)^5, (2/4)^5, (1/4)^5 and 0.  The power-0 and power-1
+    stones wrote their logs and trees, and `summarize()` merged the stone files.
+  - The CET ladder wrapper gave labels `b0g0_t0_run1` and
+    `b0g0_t0.000000029802322387695312_run1`.  At t = 0 the logged charLL is
+    the unpowered value (-3200 to -4500 under the prior).
+  - `ml-summary.R`'s stepping-stone on the RevBayes smoke stones agrees with
+    RevBayes's own `steppingStoneSampler()` to 1e-4 nats.
+
+Results: pending (this PR is updated when the chains finish).
 
 ## Engine gaps
 

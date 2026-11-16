@@ -422,10 +422,24 @@ exact resume over 10 samples x 23 columns; `eval` on six chains, |recomputed - l
 `combine` runs on the smoke chains and refuses them once one `cross.csv`'s check column is
 corrupted.  Peak memory in the first smoke 303-304 MB per chain.
 
+**Pilot with Gamma rates** (`smoke.sh` with 500 burn-in + 3000 iterations, thin 10, one chain per
+cell from draws 01-04, `shared`; Slurm 19473080, summarised by 19473317 (`check-pilot.R`);
+`smoke-results/pilot-gamma-*`).  ESS (MkPrime) of the 2000 iterations after the first segment:
+
+| Cell | s/iteration (segments 2-3) | Slowest quantity: ESS / 2000 it. | lambda | s | theta | rootAge | charLL | alpha |
+|---|---|---|---|---|---|---|---|---|
+| (0, 0) | 0.927 | charLL 10.0 | 10.4 | 222.7 | 144.6 | 15.0 | 10.0 | 86.9 |
+| (0, 1) | 1.248 | theta 3.7 | 4.5 | 44.7 | 3.7 | 14.7 | 18.6 | 172.1 |
+| (1, 0) | 0.975 | charLL 4.2 | 7.1 | 196.7 | 136.3 | 19.9 | 4.2 | 159.5 |
+| (1, 1) | 1.587 | logPost 3.7 | 3.8 | 5.2 | 3.8 | 9.7 | 23.3 | 166.7 |
+
+The slowest quantities reach 1.9-5.0 ESS per 1000 iterations, as before Gamma (1.8-2.5), and the
+alpha move mixes well (ESS 87-172 per 2000 iterations; acceptance 20-32%).  Not results, for
+orientation only: alpha's means 0.50-0.57 per cell, against the comparator's posterior 0.52
+(0.37-0.70).
+
 **Pilot before Gamma** (`smoke.sh` with 500 burn-in + 3000 iterations, thin 10, one chain per cell,
-`shared`; Slurm 19429527; `smoke-results/pilot-*`).  A pilot with Gamma rates (Slurm 19473080, the
-same settings) is queued behind node maintenance; its timing and ESS will be added in a separate
-commit.  The pilot predates the #91 review: each chain started
+`shared`; Slurm 19429527; `smoke-results/pilot-*`, without `gamma` in the name).  This pilot predates the #91 review: each chain started
 from the old maximum-Posterior start tree 1, with that tree's move counts (which differ from the
 fixed counts by at most one per move), so its rates are indicative only.  ESS (MkPrime) of the 2000
 iterations after the first segment:
@@ -445,23 +459,23 @@ and are **not results**; for orientation only: root (first split) means 532.1 / 
 522.4 Ma in cells (0,0) / (0,1) / (1,0) / (1,1), against 528.5 Ma in the comparator.
 
 **Projection** (provisional: single 3000-iteration chains understate slow drifts).  The slowest
-quantities reached 1.8-2.5 ESS per 1000 iterations in the pilot before Gamma, as in the penguin
-pilot, so the penguin length is kept: 200 000 iterations per chain (thin 100, segments of 10 000),
-about 25 000 iterations for a pooled ESS of 200 with an 8x margin.  The precision target should
-come from the comparison to be resolved (user decision, 2026-11-11), so the length is to be
-revisited after the first segments.  Seconds per iteration with Gamma rates: the pre-Gamma pilot's
-rate per cell (segments 2-3: 0.606, 0.751, 0.556, 0.721 s) times that cell's smoke ratio with / without
-Gamma (1.51, 1.81, 1.49, 1.92) = 0.91, 1.36, 0.83 and 1.38 s (mean 1.12 s); the smoke rates alone
-(mean 0.90 s) give 804 core-hours.
+quantities reach 1.9-5.0 ESS per 1000 iterations in the pilot with Gamma (1.8-2.5 before it), as in
+the penguin pilot, so the penguin length is kept: 200 000 iterations per chain (thin 100, segments
+of 10 000), about 25 000 iterations for a pooled ESS of 200 with an 8x margin.  The precision
+target should come from the comparison to be resolved (user decision, 2026-11-11), so the length is
+to be revisited after the first segments.  Seconds per iteration with Gamma rates, from the pilot
+with Gamma (segments 2-3): 0.93, 1.25, 0.97 and 1.59 s (mean 1.18 s).  Before that pilot ran, the
+estimate from the smoke ratios (the pre-Gamma pilot's rates times each cell's smoke ratio) was
+0.83-1.38 s (mean 1.12 s, about 1000 core-hours).
 
 | Item | Core-hours |
 |---|---|
-| Production: 4 cells x 4 chains x 200 000 iterations at 0.83-1.38 s (mean 1.12 s) | **~1000** (46-77 h per chain: chains with gamma = 1 pass the 3-day limit of `shared`, stop at `CET_HOURS` (70) and are resubmitted once) |
+| Production: 4 cells x 4 chains x 200 000 iterations at 0.93-1.59 s (pilot with Gamma; mean 1.18 s) | **~1050** (52-88 h per chain: chains with gamma = 1 pass the 3-day limit of `shared`, stop at `CET_HOURS` (70) and are resubmitted once) |
 | `bayes-factors.R eval` | < 5 |
-| Ladder rungs, if a Bayes-factor edge needs them: 4 chains x ~60 h per rung, up to 3 per edge, 4 edges | 0-3000 |
-| Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 iterations) | ~490 |
+| Ladder rungs, if a Bayes-factor edge needs them: 4 chains x ~66 h per rung, up to 3 per edge, 4 edges | 0-3200 |
+| Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 iterations) | ~520 |
 | Checks run for PR #91 (oracle, window checks, smoke, pilot, prior check, SBC-lite) | 12.8 in the first round (Slurm CPU time of every job); the fix round about 1 (smoke, oracle, guards) plus the SBC-lite (48.7) and window replicate 2 (21.0), both as allocated core-hours (elapsed x 16 cores) |
-| Checks for the switch to `MkCharacters()` (oracle, identity, smoke, check-combine, guard) | < 1 (pilot with Gamma: about 5 more) |
+| Checks for the switch to `MkCharacters()` (oracle, identity, smoke, check-combine, guard) | < 1, plus about 5 for the pilot with Gamma (4 chains, 54-108 min each) |
 
 Disk: about 20 KB per stored state (`seg*_states.rds`), so about 40 MB per chain and 0.65 GB for 16
 chains; remove them once `eval` has run.

@@ -609,11 +609,23 @@ What this does not check: node ages against an exact oracle.
 
 ## Common-footing marginal likelihoods (stage 1)
 
-**Question.** The data favour gamma = 1 over gamma = 0 by about 10 nats (Bayes
-factors in "Stage-1 results", #107).  Is that because tempo is covariant,
-or because any rate variation helps?  The morphology-only RevBayes UCLN
-comparator has rate variation without covariant tempo.  So comparing
-CET (0, 1) and (1, 1) with UCLN needs marginal likelihoods on a common footing.
+**Question.**
+- **What the gamma Bayes factor measures.**  The data favour gamma = 1 over
+  gamma = 0 by about 10 nats (Bayes factors in "Stage-1 results", #107).  In
+  cell (0, 1), beta = 0, so the tempo process drives only the character rates.
+  That Bayes factor is therefore evidence for among-lineage rate variation
+  that is autocorrelated along the tree (tempo is a CTMC on the tree).  It
+  is not evidence for covariation between diversification and character change.
+- **Covariation is the beta contrast.**  Within CET, beta = 1 against
+  beta = 0 tests covariation, and it has no support (log BF -0.22 at
+  gamma = 0, -0.58 at gamma = 1).
+- **What this comparison asks.**  Does CET's autocorrelated rate variation
+  fit the characters better or worse than the uncorrelated lognormal rate
+  variation of the RevBayes UCLN comparator?  Equivalently, is the gamma
+  Bayes factor specific to autocorrelated tempo, or would any rate variation
+  earn it?  CET (0, 1) against UCLN answers this.  CET (1, 1) against UCLN adds
+  the covariant tree prior, whose contribution beta has already measured.
+  This needs marginal likelihoods on a common footing.
 
 **What each program estimates.**
 - Both programs anneal only the character likelihood:
@@ -662,6 +674,13 @@ branches and tip ages, and the FBD conditioning.
   its own ladder.
 - Both are compared with RevBayes UCLN restricted to CET's support (UCLN
   log Z plus its own root-SA term).  The unrestricted values are also reported.
+- How to read the result:
+  - CET (0, 1) - UCLN > 0: autocorrelated tempo fits better than uncorrelated
+    lognormal rates.
+  - About 0 (within SE): the gamma Bayes factor reflects rate variation in
+    general.
+  - < 0: the uncorrelated model fits better.
+  - Neither sign speaks to covariation, which is the beta contrast.
 
 **Design.**
 - **Powers.** t_k = (k/64)^5, k = 0..64, i.e. RevBayes's `cats = 65`,

@@ -26,6 +26,25 @@
 #    (F2b), combine leaves out the b0g1 -> b1g1 edge and says so, and still
 #    reports the complete edges (#88).
 # 6. combine stops on a run root that does not exist (#88).
+# 7. Expected chain set (#101): with launch.csv listing 4 cells x 2 replicates,
+#    combine exits 0; with one cross.csv removed it stops, names the chain and
+#    writes no bayes-factors.csv (before: exit 0, chain silently dropped); with
+#    CET_BF_ALLOW_MISSING naming it, exit 0 and the chain is reported as left
+#    out; a chain not in the record, an expected chain with no directory, and
+#    the production default (4 x 4) against 4 x 2 chains all stop.
+# 8. #103 review: a stop leaves none of the earlier outputs (R103-3); opting
+#    out a cell's power-1 chains stops combine when that leaves the ladder
+#    without t = 1 (R103-4); an unfinished chain stops it unless named in
+#    CET_BF_ALLOW_INCOMPLETE, as do a segment added after eval and a cross.csv
+#    that does not record what eval read (R103-2); two directories for one
+#    chain (R103-7), reps = 2.7 (R103-8), a launched directory with no segment
+#    missing from the record (R103-9) and a record with no chain of the
+#    CET_MKV variant (R103-10) stop it; chains-used.csv lists the chains
+#    (R103-12); a cross.csv without a rung's column names it (R103-13).
+# Since #101 every synthetic root of checks 3-5 carries a launch.csv, and its
+# power-1 chains a cross.csv, as combine now requires; since the #103 review
+# every synthetic chain has a complete progress.txt and its cross.csv records
+# what eval read (evalSamples, evalSegMd5).
 # Stops with an error if a check fails.
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
@@ -47,6 +66,11 @@ Check <- function(ok, what) {
   if (!isTRUE(ok)) fail <<- c(fail, what)
 }
 Errors <- function(expr) inherits(try(expr, silent = TRUE), "try-error")
+# Launch record of a synthetic root (#101): one row per group of chains
+Launch <- function(root, cell, reps = 2, power = 1, mkv = "pattern") {
+  utils::write.csv(data.frame(cell = cell, reps = reps, power = vapply(power, FormatValue, ""),
+                              mkv = mkv), file.path(root, "launch.csv"), row.names = FALSE, quote = FALSE)
+}
 
 # ---- 1. Labels in plain decimal notation, read back exactly -------------------
 powers <- list(`33-point ladder` = (0:32 / 32)^(1 / 0.3),
@@ -110,12 +134,21 @@ for (mkv in c("pattern", "allTips")) {
         stats::rnorm(nSmp, sd = 2 + 3 * (1 - t))
       utils::write.csv(data.frame(logPost = charLL, charLL = charLL, iteration = seq_len(nSmp)),
                        file.path(d, "seg0001_samples.csv"), row.names = FALSE)
+      writeLines("2026-11-16 12:00:00 complete", file.path(d, "progress.txt"))
+      # A power-1 chain must have a cross.csv (#101), recording what eval read
+      # (#103 review); no bridge uses this one
+      fp <- SegmentFingerprint(d)
+      if (t == 1) utils::write.csv(data.frame(sample = 1, check = 0, evalSamples = fp$samples,
+                                              evalSegMd5 = fp$md5), file.path(d, "cross.csv"),
+                                   row.names = FALSE)
       truth[[length(truth) + 1L]] <- data.frame(mkv = mkv, power = t, rep = rep,
                                                 charLL = charLL[-seq_len(floor(burn * nSmp))])
     }
   }
 }
 truth <- do.call(rbind, truth)
+grid2 <- expand.grid(power = ladder, mkv = c("pattern", "allTips"), stringsAsFactors = FALSE)
+Launch(root2, "b1g1", 2, grid2$power, grid2$mkv)
 Stone <- function(x) {
   sum(vapply(seq_len(length(ladder) - 1L), function(k) {
     LogMeanExp((ladder[k + 1] - ladder[k]) * x$charLL[x$power == ladder[k]])
@@ -157,12 +190,13 @@ unlink(root2, recursive = TRUE)
 # (plus a little draw-to-draw noise), so the bridge log BF is about -4 per
 # unit beta and -2 per unit gamma
 MakeChain <- function(root, label, rep, charLL = -1700, cross = FALSE,
-                      betas = c(0, 1), gammas = c(0, 1)) {
+                      betas = c(0, 1), gammas = c(0, 1), progress = "2026-11-16 12:00:00 complete") {
   d <- file.path(root, sprintf("%s_run%d", label, rep))
   dir.create(d, recursive = TRUE)
   ll <- charLL + stats::rnorm(nSmp)
   utils::write.csv(data.frame(logPost = ll, charLL = ll, iteration = seq_len(nSmp)),
                    file.path(d, "seg0001_samples.csv"), row.names = FALSE)
+  if (!is.null(progress)) writeLines(progress, file.path(d, "progress.txt"))
   if (cross) {
     z <- stats::rnorm(nSmp)
     x <- data.frame(sample = seq_len(nSmp))
@@ -171,6 +205,10 @@ MakeChain <- function(root, label, rep, charLL = -1700, cross = FALSE,
     for (g in gammas) x[[paste0("chr_g", FormatValue(g))]] <- -2 * g + 0.05 * g * z2
     x$logPrior <- 0
     x$check <- 0
+    # What eval read, as eval records it (#103 review, R103-2)
+    fp <- SegmentFingerprint(d)
+    x$evalSamples <- fp$samples
+    x$evalSegMd5 <- fp$md5
     utils::write.csv(x, file.path(d, "cross.csv"), row.names = FALSE)
   }
 }
@@ -193,12 +231,13 @@ unlink(root3, recursive = TRUE)
 root4 <- tempfile("mixedTop")
 for (t in c(0, 1e-04, 0.3, 1)) for (rep in 1:2) {
   MakeChain(root4, paste0("b1g1", if (t != 1) paste0("_t", FormatValue(t))), rep,
-            charLL = -1700 - 30 * (1 - t))
+            charLL = -1700 - 30 * (1 - t), cross = t == 1)
   if (t != 1) {
     MakeChain(root4, paste0("b1g1_mkvallTips_t", FormatValue(t)), rep,
               charLL = -1660 - 30 * (1 - t))
   }
 }
+Launch(root4, "b1g1", 2, c(0, 1e-04, 0.3, 1))
 resA <- Combine(root4, "allTips")
 resP <- Combine(root4, "pattern")
 Say("F1a (allTips 0, 0.0001, 0.3 beside a complete pattern ladder): allTips exit %d (%s); pattern exit %d (%s)",
@@ -220,6 +259,7 @@ root5 <- tempfile("F2a")
 for (lab in c("b0g0", "b0g1", "b1g0", "b0.5g1")) for (rep in 1:2) {
   MakeChain(root5, lab, rep, cross = TRUE, betas = c(0, 0.5, 1))
 }
+Launch(root5, c("b0g0", "b0g1", "b1g0", "b0.5g1"))
 res <- Combine(root5)
 e <- EdgeRows(root5)
 Say("F2a (b0g0, b0g1, b1g0, rung b0.5g1, no b1g1), exit %d: %s; edges %s", res$status,
@@ -239,6 +279,7 @@ root6 <- tempfile("F2b")
 for (lab in c("b0g0", "b1g0", "b0.25g1", "b0.75g1")) for (rep in 1:2) {
   MakeChain(root6, lab, rep, cross = TRUE, betas = c(0, 0.25, 0.75, 1))
 }
+Launch(root6, c("b0g0", "b1g0", "b0.25g1", "b0.75g1"))
 res <- Combine(root6)
 e <- EdgeRows(root6)
 Say("F2b (rungs b0.25g1, b0.75g1 only), exit %d: %s", res$status,
@@ -255,6 +296,147 @@ Say("nonexistent root, exit %d: %s", res$status,
     paste(grep("exist", res$out, value = TRUE), collapse = " / "))
 Check(res$status != 0L && any(grepl("does not exist", res$out)),
       "combine stops on a run root that does not exist")
+
+# ---- 7. Expected chain set (#101) ------------------------------------------------
+# combine itself must remove any earlier outputs (#103 review, R103-3): this
+# helper does not
+CombineEnv <- function(root, env = character()) {
+  out <- suppressWarnings(system2(rscript, c(file.path(cetDir, "bayes-factors.R"), "combine", root),
+                                  env = c("CET_MKV=pattern", "CET_BF_BURN=0.25", env),
+                                  stdout = TRUE, stderr = TRUE))
+  status <- attr(out, "status")
+  list(out = as.character(out), status = if (is.null(status)) 0L else status,
+       edges = EdgeRows(root))
+}
+Problems <- function(res) {
+  paste(grep("Expected|Left out|no cross|not in|no complete|not expected", res$out, value = TRUE),
+        collapse = " / ")
+}
+root7 <- tempfile("set")
+cells4 <- c("b0g0", "b0g1", "b1g0", "b1g1")
+for (lab in cells4) for (rep in 1:2) MakeChain(root7, lab, rep, cross = TRUE)
+Launch(root7, cells4)
+res <- CombineEnv(root7)
+Say("#101 4 cells x 2 with launch.csv, exit %d: %s", res$status, Problems(res))
+Check(res$status == 0L && !is.null(res$edges) && nrow(res$edges) == 4L,
+      "#101: complete chain set, combine exits 0 with 4 edges")
+invisible(file.rename(file.path(root7, "b1g0_run2", "cross.csv"), file.path(root7, "b1g0_run2", "cross.bak")))
+res <- CombineEnv(root7)
+Say("#101 b1g0_run2/cross.csv removed, exit %d: %s", res$status, Problems(res))
+Check(res$status != 0L && any(grepl("no cross.csv.*b1g0_run2", res$out)) && is.null(res$edges),
+      "#101: a missing cross.csv stops combine, naming b1g0_run2 (before: exit 0, dropped)")
+res <- CombineEnv(root7, "CET_BF_ALLOW_MISSING=b1g0_run2")
+Say("#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit %d: %s", res$status, Problems(res))
+Check(res$status == 0L && any(grepl("Left out on request.*b1g0_run2", res$out)) &&
+        !is.null(res$edges) && nrow(res$edges) == 4L,
+      "#101: explicit opt-out, exit 0 and b1g0_run2 reported as left out")
+res <- CombineEnv(root7, "CET_BF_ALLOW_MISSING=b1g0_run7")
+Check(res$status != 0L && any(grepl("not expected: b1g0_run7", res$out)),
+      "#101: an opt-out naming an unexpected chain stops")
+invisible(file.rename(file.path(root7, "b1g0_run2", "cross.bak"), file.path(root7, "b1g0_run2", "cross.csv")))
+MakeChain(root7, "b1g0.5", 1, cross = TRUE, gammas = c(0, 0.5, 1))
+res <- CombineEnv(root7)
+Check(res$status != 0L && any(grepl("not in the launch record.*b1g0.5_run1", res$out)),
+      "#101: a chain not in the launch record stops combine")
+unlink(file.path(root7, "b1g0.5_run1"), recursive = TRUE)
+unlink(file.path(root7, "b0g1_run1"), recursive = TRUE)
+res <- CombineEnv(root7)
+Check(res$status != 0L && any(grepl("no complete segment.*b0g1_run1", res$out)),
+      "#101: an expected chain with no directory stops combine")
+MakeChain(root7, "b0g1", 1, cross = TRUE)
+unlink(file.path(root7, "launch.csv"))
+res <- CombineEnv(root7)
+Say("#101 no launch.csv, 4 x 2 chains, exit %d: %s", res$status, Problems(res))
+Check(res$status != 0L && any(grepl("production default", res$out)) &&
+        any(grepl("no complete segment.*b0g0_run3", res$out)),
+      "#101: without launch.csv the production default (4 x 4) applies; run3/run4 missing")
+unlink(root7, recursive = TRUE)
+
+# ---- 8. #103 review ---------------------------------------------------------------
+outs <- c("bayes-factors.csv", "model-probabilities.csv", "closure.txt", "chains-used.csv")
+root8 <- tempfile("review103")
+for (lab in cells4) for (rep in 1:2) MakeChain(root8, lab, rep, cross = TRUE)
+Launch(root8, cells4)
+res <- CombineEnv(root8)
+Check(res$status == 0L && all(file.exists(file.path(root8, outs))),
+      "#103: a complete run writes bayes-factors.csv, model-probabilities.csv, closure.txt, chains-used.csv")
+invisible(file.rename(file.path(root8, "b0g0_run1", "cross.csv"), file.path(root8, "b0g0_run1", "cross.bak")))
+res <- CombineEnv(root8)
+Check(res$status != 0L && !any(file.exists(file.path(root8, outs))),
+      "R103-3: a stop leaves none of the earlier outputs (before: all three, unchanged)")
+invisible(file.rename(file.path(root8, "b0g0_run1", "cross.bak"), file.path(root8, "b0g0_run1", "cross.csv")))
+writeLines(c("2026-11-16 start", "2026-11-16 segment 1/20 done"), file.path(root8, "b0g1_run2", "progress.txt"))
+res <- CombineEnv(root8)
+Say("R103-2 b0g1_run2 unfinished, exit %d: %s", res$status, Problems(res))
+Check(res$status != 0L && any(grepl("not complete.*b0g1_run2", res$out)),
+      "R103-2: an unfinished chain stops combine")
+res <- CombineEnv(root8, "CET_BF_ALLOW_INCOMPLETE=b0g1_run2")
+Check(res$status == 0L && any(grepl("Used although not complete.*b0g1_run2", res$out)),
+      "R103-2: CET_BF_ALLOW_INCOMPLETE=b0g1_run2 uses it and says so")
+writeLines("2026-11-16 complete", file.path(root8, "b0g1_run2", "progress.txt"))
+utils::write.csv(data.frame(logPost = -1700, charLL = -1700, iteration = seq_len(nSmp)),
+                 file.path(root8, "b1g0_run1", "seg0002_samples.csv"), row.names = FALSE)
+res <- CombineEnv(root8)
+Check(res$status != 0L && any(grepl("b1g0_run1: cross.csv is stale", res$out)),
+      "R103-2: a segment added after eval stops combine")
+invisible(file.remove(file.path(root8, "b1g0_run1", "seg0002_samples.csv")))
+g <- file.path(root8, "b1g1_run1", "cross.csv")
+x <- utils::read.csv(g, check.names = FALSE)
+utils::write.csv(x[, setdiff(names(x), c("evalSamples", "evalSegMd5"))], g, row.names = FALSE)
+res <- CombineEnv(root8)
+Check(res$status != 0L && any(grepl("b1g1_run1: cross.csv does not record what eval read", res$out)),
+      "R103-2: a cross.csv without eval's record stops combine")
+utils::write.csv(x, g, row.names = FALSE)
+dir.create(file.path(root8, "b0g0_run01"))
+invisible(file.copy(list.files(file.path(root8, "b0g0_run1"), full.names = TRUE), file.path(root8, "b0g0_run01")))
+res <- CombineEnv(root8)
+Check(res$status != 0L && any(grepl("two directories hold the same chain: .*b0g0_run01", res$out)),
+      "R103-7: two directories for one chain stop combine")
+unlink(file.path(root8, "b0g0_run01"), recursive = TRUE)
+Launch(root8, cells4, "2.7")
+res <- CombineEnv(root8)
+Check(res$status != 0L && any(grepl("reps must be a whole number", res$out)), "R103-8: reps = 2.7 stops combine")
+Launch(root8, cells4)
+dir.create(file.path(root8, "b0g0.5_run1"))
+writeLines("2026-11-16 start", file.path(root8, "b0g0.5_run1", "progress.txt"))
+res <- CombineEnv(root8)
+Check(res$status != 0L && any(grepl("not in the launch record.*b0g0.5_run1 \\(no complete segment yet\\)", res$out)),
+      "R103-9: a launched directory with no segment, missing from the record, stops combine")
+unlink(file.path(root8, "b0g0.5_run1"), recursive = TRUE)
+res <- CombineEnv(root8)
+used <- if (file.exists(file.path(root8, "chains-used.csv"))) utils::read.csv(file.path(root8, "chains-used.csv"))
+Check(res$status == 0L && !is.null(used) && nrow(used) == 8L && all(used$role == "bridge") &&
+        all(grepl("^md5:", used$evalSegMd5)),
+      "R103-12: chains-used.csv lists the 8 chains, their role and eval's record")
+unlink(root8, recursive = TRUE)
+root8b <- tempfile("ladderOut")
+for (lab in cells4) for (rep in 1:2) MakeChain(root8b, lab, rep, cross = TRUE)
+for (t in c(0, 0.3)) for (rep in 1:2) MakeChain(root8b, paste0("b1g1_t", FormatValue(t)), rep)
+Launch(root8b, c(cells4, "b1g1", "b1g1"), 2, c(1, 1, 1, 1, 0, 0.3))
+for (rep in 1:2) invisible(file.remove(file.path(root8b, sprintf("b1g1_run%d", rep), "cross.csv")))
+res <- CombineEnv(root8b, "CET_BF_ALLOW_MISSING=b1g1_run1,b1g1_run2")
+Say("R103-4 b1g1's power-1 chains opted out, exit %d: %s", res$status,
+    paste(grep("lacks|log p", res$out, value = TRUE), collapse = " / "))
+Check(res$status != 0L && !HasMarginal(res$out) &&
+        any(grepl("once b1g1_run1, b1g1_run2 \\(CET_BF_ALLOW_MISSING\\) are left out", res$out)) &&
+        any(grepl("power ladder 0, 0.3 lacks t = 1", res$out)),
+      "R103-4: opting out the t = 1 rung stops combine with no marginal (before: stopifnot)")
+unlink(root8b, recursive = TRUE)
+root8c <- tempfile("rungColumn")
+for (lab in cells4) for (rep in 1:2) MakeChain(root8c, lab, rep, cross = TRUE)
+for (rep in 1:2) MakeChain(root8c, "b0g0.5", rep, cross = TRUE, gammas = c(0, 0.5, 1))
+Launch(root8c, c(cells4, "b0g0.5"))
+res <- CombineEnv(root8c)
+Check(res$status != 0L && any(grepl("cross.csv has no column chr_g0.5; rerun eval", res$out)),
+      "R103-13: a cross.csv without the rung's column names it (before: 'missing value where TRUE/FALSE needed')")
+unlink(root8c, recursive = TRUE)
+root8d <- tempfile("empty")
+for (lab in cells4) for (rep in 1:2) MakeChain(root8d, paste0(lab, "_mkvnone"), rep, cross = TRUE)
+Launch(root8d, cells4, 2, 1, "none")
+res <- CombineEnv(root8d)
+Check(res$status != 0L && any(grepl("no expected chain of Mkv variant pattern", res$out)),
+      "R103-10: a record with no chain of the CET_MKV variant stops combine")
+unlink(root8d, recursive = TRUE)
 
 if (!is.null(outFile)) writeLines(lines, outFile)
 if (length(fail)) stop("check-labels.R FAILED: ", paste(fail, collapse = "; "))

@@ -231,8 +231,17 @@ BridgeTwo <- function(l0, l1) {
   f0 <- e0 / (s1 * e0 + s0 * r)
   f1 <- 1 / (s1 * e1 + s0 * r)
   re2 <- stats::var(f0) / (Ess(f0) * mean(f0)^2) + stats::var(f1) / (Ess(f1) * mean(f1)^2)
+  # Overlap (#107 review, R107-3): Kish ESS of the one-sided importance weights,
+  # forward (draws of 0 weighted by q1/q0) and reverse (draws of 1 by q0/q1)
+  Kish <- function(lw) {
+    lw <- lw[is.finite(lw)]
+    if (!length(lw)) return(0)
+    w <- exp(lw - max(lw))
+    sum(w)^2 / sum(w^2)
+  }
   list(logBF = log(r) + shift, se = sqrt(re2), essF0 = Ess(f0), essF1 = Ess(f1),
        logBFfrom0 = LogMeanExp(l0), logBFfrom1 = -LogMeanExp(-l1),
+       kishFwd = Kish(l0), kishRev = Kish(-l1), n0 = n0, n1 = n1,
        nInfinite = sum(!is.finite(c(l0, l1))))
 }
 SteppingStone <- function(ladder, logL) {
@@ -251,7 +260,7 @@ stopifnot("combine: <run root> does not exist" = dir.exists(root))
 # No output of an earlier run survives a stop, or a run with fewer edges
 # (#103 review, R103-3)
 outputs <- file.path(root, c("bayes-factors.csv", "model-probabilities.csv", "closure.txt",
-                             "chains-used.csv"))
+                             "chains-used.csv", "bf-steps.csv", "small-squares.csv"))
 unlink(outputs)
 # Every cell with character-power chains of this variant must have a complete
 # ladder, t = 0 to t = 1, before anything is combined.  The t = 1 rung is the
@@ -333,12 +342,19 @@ LogQ <- function(x, beta, gamma) {
   x[[a]] + x[[g]] + x$logPrior
 }
 # Bridge between model points A and B (beta, gamma), pooling replicates (or
-# replicate `rep` only)
-Bridge <- function(a, b, rep = NULL) {
+# replicate `rep` only; and with `half` = 1 or 2, only the first or second
+# half of each chain's draws, for the chain-half SE, R107-2)
+Bridge <- function(a, b, rep = NULL, half = NULL) {
   Draws <- function(p) {
     sel <- ch$power == 1 & ch$beta == p[1] & ch$gamma == p[2] & (is.null(rep) | ch$rep %in% rep)
     xs <- cross[ch$label[sel]]
     if (!length(xs)) return(NULL)
+    if (!is.null(half)) {
+      xs <- lapply(xs, function(x) {
+        m <- nrow(x) %/% 2L
+        x[if (half == 1) seq_len(m) else seq.int(m + 1L, nrow(x)), , drop = FALSE]
+      })
+    }
     # Only the columns every chain has: a chain evaluated before a rung was
     # added lacks that rung's column, and LogQ() then names it (rbind() would
     # fail with "numbers of columns of arguments do not match")
@@ -376,17 +392,67 @@ Edge <- function(a, b) {
     s <- lapply(seq_len(length(v) - 1L), function(k) Bridge(P(v[k]), P(v[k + 1]), r))
     if (any(vapply(s, is.null, TRUE))) NA else sum(vapply(s, `[[`, 0, "logBF"))
   }, 0)
+  # Chain-half units (replicate r, half h): the spread of the edge over these
+  # 2 x reps units also sees slow mixing within chains (R107-2)
+  perHalf <- unlist(lapply(reps, function(r) vapply(1:2, function(h) {
+    s <- lapply(seq_len(length(v) - 1L), function(k) Bridge(P(v[k]), P(v[k + 1]), r, h))
+    if (any(vapply(s, is.null, TRUE))) NA else sum(vapply(s, `[[`, 0, "logBF"))
+  }, 0)))
+  stepRows[[length(stepRows) + 1L]] <<- data.frame(
+    edge = paste(CellLabel(a[1], a[2]), CellLabel(b[1], b[2])),
+    from = vapply(seq_len(length(v) - 1L), function(k) CellLabel(P(v[k])[1], P(v[k])[2]), ""),
+    to = vapply(seq_len(length(v) - 1L), function(k) CellLabel(P(v[k + 1])[1], P(v[k + 1])[2]), ""),
+    logBF = vapply(steps, `[[`, 0, "logBF"), se = vapply(steps, `[[`, 0, "se"),
+    kishFwd = vapply(steps, `[[`, 0, "kishFwd"), kishRev = vapply(steps, `[[`, 0, "kishRev"),
+    n0 = vapply(steps, `[[`, 0, "n0"), n1 = vapply(steps, `[[`, 0, "n1"),
+    isFwd = vapply(steps, `[[`, 0, "logBFfrom0"), isRev = vapply(steps, `[[`, 0, "logBFfrom1"),
+    gap = vapply(steps, function(s) abs(s$logBFfrom0 - s$logBFfrom1), 0))
   data.frame(from = CellLabel(a[1], a[2]), to = CellLabel(b[1], b[2]), points = length(v),
              logBF = sum(vapply(steps, `[[`, 0, "logBF")),
              se = sqrt(sum(vapply(steps, `[[`, 0, "se")^2)),
              seReplicates = stats::sd(perRep, na.rm = TRUE) / sqrt(sum(is.finite(perRep))),
+             seChainHalf = stats::sd(perHalf, na.rm = TRUE) / sqrt(sum(is.finite(perHalf))),
+             minKish = min(vapply(steps, function(s) min(s$kishFwd, s$kishRev), 0)),
+             # Summed one-sided importance estimates: a diagnostic bracket, not an interval
+             isFwd = sum(vapply(steps, `[[`, 0, "logBFfrom0")),
+             isRev = sum(vapply(steps, `[[`, 0, "logBFfrom1")),
              minEss = min(vapply(steps, function(s) min(s$essF0, s$essF1), 0)),
              maxOneSidedGap = max(vapply(steps, function(s) abs(s$logBFfrom0 - s$logBFfrom1), 0)),
              nInfinite = sum(vapply(steps, `[[`, 0, "nInfinite")),
              perReplicate = paste(format(perRep, digits = 5), collapse = " "))
 }
+stepRows <- list()
 edges <- rbind(Edge(c(0, 0), c(1, 0)), Edge(c(0, 1), c(1, 1)),
                Edge(c(0, 0), c(0, 1)), Edge(c(1, 0), c(1, 1)))
+if (length(stepRows)) {
+  steps <- do.call(rbind, stepRows)
+  cat("Bridge steps (Kish ESS of the one-sided importance weights; isFwd/isRev the one-sided estimates):\n")
+  print(steps, row.names = FALSE, digits = 4)
+  utils::write.csv(steps, file.path(root, "bf-steps.csv"), row.names = FALSE)
+}
+# Small squares (#107 review, R107-3/4): at consecutive gamma values present at
+# both beta = 0 and 1, beta edge + gamma step at beta 1 - gamma step at beta 0 -
+# next beta edge must be 0 up to error
+gs <- intersect(unique(ch$gamma[ch$power == 1 & ch$beta == 0]),
+                unique(ch$gamma[ch$power == 1 & ch$beta == 1]))
+gs <- sort(gs)
+if (length(gs) > 2L) {
+  be <- lapply(gs, function(g) Bridge(c(0, g), c(1, g)))
+  sq <- do.call(rbind, lapply(seq_len(length(gs) - 1L), function(k) {
+    s0 <- Bridge(c(0, gs[k]), c(0, gs[k + 1])); s1 <- Bridge(c(1, gs[k]), c(1, gs[k + 1]))
+    parts <- list(be[[k]], s1, s0, be[[k + 1]])
+    if (any(vapply(parts, is.null, TRUE))) return(NULL)
+    cl <- be[[k]]$logBF + s1$logBF - s0$logBF - be[[k + 1]]$logBF
+    se <- sqrt(sum(vapply(parts, `[[`, 0, "se")^2))
+    data.frame(gammaFrom = gs[k], gammaTo = gs[k + 1], betaEdgeFrom = be[[k]]$logBF,
+               closure = cl, se = se, withinThreeSe = abs(cl) <= 3 * se)
+  }))
+  if (!is.null(sq)) {
+    cat("Small-square closures (gamma steps at beta 0 and 1, beta edges at each gamma):\n")
+    print(sq, row.names = FALSE, digits = 4)
+    utils::write.csv(sq, file.path(root, "small-squares.csv"), row.names = FALSE)
+  }
+}
 if (is.null(edges)) {
   cat("No bridge edge has chains with cross.csv at both ends\n")
 } else {
@@ -398,6 +464,9 @@ if (!is.null(edges) && nrow(edges) == 4) {
   se <- edges$se
   closure <- e[["b0g0 b1g0"]] + e[["b1g0 b1g1"]] - e[["b0g0 b0g1"]] - e[["b0g1 b1g1"]]
   cat(sprintf("Square closure: %.3f nats (SE %.3f)\n", closure, sqrt(sum(se^2))))
+  # The two gamma edges enter with opposite signs, so a bias common to both
+  # cancels: closure cannot detect it (#107 review, R107-4)
+  cat("  (the closure is blind to a bias common to both gamma edges; see bf-steps.csv for overlap)\n")
   # log Z relative to (0,0); (1,1) as the mean of its two paths
   logZ <- c(b0g0 = 0, b1g0 = e[["b0g0 b1g0"]], b0g1 = e[["b0g0 b0g1"]],
             b1g1 = mean(c(e[["b0g0 b1g0"]] + e[["b1g0 b1g1"]], e[["b0g0 b0g1"]] + e[["b0g1 b1g1"]])))

@@ -54,6 +54,9 @@
 # (evalSamples, evalSegMd5).  Check 9 also covers the stricter of CET_BF_TOL
 # and the evalTol eval records (R103-2).
 # Stops with an error if a check fails.
+# The checks build short synthetic chains: a segment cap inherited from the
+# environment (CET_MAX_SEG, #107 review) would make them incomplete
+Sys.unsetenv(c("CET_MAX_SEG", "CET_MAX_SEG_RUNG"))
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {

@@ -64,6 +64,18 @@
 # chain has no complete segment, if an expected power-1 chain has no cross.csv,
 # or if it finds a chain the record does not list; CET_BF_ALLOW_MISSING (chain
 # labels) is the only, explicit, opt-out (#101).
+#
+# #103 review: eval records what it read (evalSamples, evalSegMd5, an md5 of
+# the seg*_samples.csv files) and combine refuses a cross.csv whose chain has
+# changed since, or that records nothing; every chain used must be complete
+# (last progress.txt line; CET_BF_ALLOW_INCOMPLETE names exceptions) (R103-2).
+# combine deletes bayes-factors.csv, model-probabilities.csv, closure.txt and
+# chains-used.csv first, so a stop leaves no output of an earlier run (R103-3);
+# a chain left out is left out everywhere, and combine stops if that leaves a
+# power ladder incomplete (R103-4); chains-used.csv lists every chain and its
+# role (R103-12); LogQ() names a missing column (R103-13).  With #104, eval
+# also records its tolerance (evalTol), and combine applies the stricter of it
+# and its own CET_BF_TOL.
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -130,6 +142,7 @@ if (args[[1]] == "eval") {
   }
   dat <- LoadPenguins(startTree)
   priors <- CetPriors()
+  fp <- SegmentFingerprint(dir)
   s <- LoadSamples(dir)
   states <- LoadStates(dir)
   stopifnot(length(states) == nrow(s$samples))
@@ -166,6 +179,20 @@ if (args[[1]] == "eval") {
   cat(sprintf("%s: %d states, %.1f s; max |own - logPost| = %.3g, max |own - charLL| = %.3g\n",
               basename(dir), nrow(out), proc.time()[["elapsed"]] - t0, max(abs(out[, "check"])),
               max(abs(out[, "checkChar"]))))
+  # What this eval read (#103 review, R103-2): combine compares it with the
+  # chain's seg*_samples.csv files and refuses a cross.csv whose chain changed;
+  # evalTol is the tolerance of this eval, and combine applies the stricter of
+  # it and its own CET_BF_TOL
+  fpAfter <- SegmentFingerprint(dir)
+  if (!identical(fp, fpAfter) || fp$samples != nrow(s$samples)) {
+    unlink(file.path(dir, "cross.csv"))
+    stop(sprintf("%s: the segment files changed while eval read them (%d samples, then %d); no cross.csv written",
+                 basename(dir), fp$samples, fpAfter$samples))
+  }
+  out <- as.data.frame(out)
+  out$evalSamples <- fp$samples
+  out$evalSegMd5 <- fp$md5
+  out$evalTol <- tol
   # Write cross.csv only after the checks pass, so that a failed eval cannot
   # leave a file that combine would use (#104; trilobite A2)
   crossFile <- file.path(dir, "cross.csv")
@@ -217,6 +244,11 @@ SteppingStone <- function(ladder, logL) {
 
 root <- args[[2]]
 stopifnot("combine: <run root> does not exist" = dir.exists(root))
+# No output of an earlier run survives a stop, or a run with fewer edges
+# (#103 review, R103-3)
+outputs <- file.path(root, c("bayes-factors.csv", "model-probabilities.csv", "closure.txt",
+                             "chains-used.csv"))
+unlink(outputs)
 # Every cell with character-power chains of this variant must have a complete
 # ladder, t = 0 to t = 1, before anything is combined.  The t = 1 rung is the
 # cell's ordinary chains: without them under this root, the stepping-stone
@@ -248,25 +280,53 @@ if (length(problems)) {
 # and every expected power-1 chain must have a cross.csv, unless named in
 # CET_BF_ALLOW_MISSING; a chain not in the record also stops combine.  Before,
 # a chain without cross.csv was dropped from the bridges without a message (#101)
+# Every chain used must also be complete (CET_BF_ALLOW_INCOMPLETE names
+# exceptions; #103 review, R103-2)
 leftOut <- CheckChainSet(root, chAll)
+# A chain left out is left out everywhere: the ladders must still be complete
+# without it (#103 review, R103-4)
+problems <- LadderProblems(chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut, ])
+if (length(problems)) {
+  stop("combine: incomplete character-power ladder(s) once ", paste(leftOut, collapse = ", "),
+       " (CET_BF_ALLOW_MISSING) are left out; no marginal is reported.\n  ",
+       paste(problems, collapse = "\n  "), call. = FALSE)
+}
 # Bridge only chains of one Mkv variant: CET_MKV, default "pattern" (#74)
 ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut &
               file.exists(file.path(chAll$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
 # Refuse any cross.csv that did not pass eval's checks, or that predates them
-# (no checkChar column) (#104; trilobite A2)
+# (no checkChar column) (#104; trilobite A2), at the stricter of CET_BF_TOL and
+# the tolerance eval recorded (evalTol; #103 review, R103-2)
 badCross <- vapply(cross, function(x) {
   cols <- intersect(c("check", "checkChar"), names(x))
-  length(cols) < 2L || !all(is.finite(as.matrix(x[, cols]))) || !all(abs(as.matrix(x[, cols])) <= tol)
+  use <- min(tol, if (!is.null(x$evalTol)) x$evalTol[1] else tol)
+  length(cols) < 2L || !all(is.finite(as.matrix(x[, cols]))) || !all(abs(as.matrix(x[, cols])) <= use)
 }, TRUE)
 if (any(badCross)) {
   stop("cross.csv fails eval's checks (|check| or |checkChar| > CET_BF_TOL = ", tol,
-       ", or no checkChar column) for: ", paste(ch$label[badCross], collapse = ", "),
+       " or the stricter evalTol it records, or no checkChar column) for: ", paste(ch$label[badCross], collapse = ", "),
        "; rerun eval on those chains", call. = FALSE)
 }
+# Refuse a cross.csv whose chain has changed since eval read it, or that does
+# not record what eval read (#103 review, R103-2)
+problems <- CrossProblems(ch, cross)
+if (length(problems)) {
+  stop("combine: cross.csv refused; no Bayes factor is reported.\n  ",
+       paste(problems, collapse = "\n  "), call. = FALSE)
+}
+utils::write.csv(ChainsUsed(chAll, leftOut, cross), file.path(root, "chains-used.csv"), row.names = FALSE)
 LogQ <- function(x, beta, gamma) {
-  x[[paste0("aug_b", FormatValue(beta))]] + x[[paste0("chr_g", FormatValue(gamma))]] + x$logPrior
+  a <- paste0("aug_b", FormatValue(beta))
+  g <- paste0("chr_g", FormatValue(gamma))
+  # Name a missing column (e.g. a rung added after eval) rather than fail inside
+  # BridgeTwo() (#103 review, R103-13; as the trilobite pipeline, #100)
+  if (!all(c(a, g) %in% names(x))) {
+    stop(sprintf("cross.csv has no column %s; rerun eval on every chain after adding a rung",
+                 paste(setdiff(c(a, g), names(x)), collapse = " or ")), call. = FALSE)
+  }
+  x[[a]] + x[[g]] + x$logPrior
 }
 # Bridge between model points A and B (beta, gamma), pooling replicates (or
 # replicate `rep` only)

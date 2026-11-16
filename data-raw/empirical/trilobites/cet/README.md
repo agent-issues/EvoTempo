@@ -23,8 +23,8 @@ penguin pipeline (`../../penguins/cet/`); the differences are listed in each sec
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R`, `check-pilot.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume, `bayes-factors.R eval` on every smoke chain including two replicate-2 chains); pilot summary for the cost projection |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`), also reweighted to the comparator's joint FBD prior |
-| `check-labels.R` | Label and `combine` checks on synthetic chains, no MCMC (#100, #101): plain-decimal labels, rung columns, the expected chain set and its opt-out (`smoke-results/check-labels.txt`: 22/22 pass, Slurm 19449477) |
-| `check-combine.sh`, `check-combine.R` | `eval` and `combine` on tiny real chains with a ladder rung (b0.5g0) present, `combine` stopping on a missing `cross.csv`, the old (pre-#100) script reproducing both faults, and the md5 resume guard (#100-#102) (`smoke-results/check-combine.txt`: 15/15 pass; chains 19449431, eval 19449432, check 19449479) |
+| `check-labels.R` | Label and `combine` checks on synthetic chains, no MCMC (#100, #101, #103 review): plain-decimal labels, rung columns, the expected chain set and its opt-outs, power ladders, stale outputs, freshness (`smoke-results/check-labels.txt`; `smoke-results/mutation-check.txt`: mutants M4 and M5 of the #103 review fail it) |
+| `check-combine.sh`, `check-combine.R` | `eval` and `combine` on tiny real chains with a ladder rung (b0.5g0) present, `combine` stopping on a missing `cross.csv`, the old (pre-#100) script reproducing both faults, and the md5 resume guard (#100-#102) (`smoke-results/check-combine.txt`) |
 | `summarise.R` | Convergence (MkPrime R-hat and ESS), parameters, ages in Ma, clade and sampled-ancestor frequencies; CET and RevBayes side by side |
 | `smoke-results/`, `window-check/`, `sbc-check/` | Outputs quoted below |
 
@@ -315,6 +315,31 @@ list.  Before, a chain without `cross.csv` dropped out silently (#91 delta revie
 moved from 7.13 to 7.54 nats, exit 0).  The only opt-out is explicit and per chain:
 `CET_BF_ALLOW_MISSING=b0g0_run3,...`, which `combine` echoes as "Left out on request".  The
 character-power stepping-stone now uses only chains of the `CET_MKV` variant (as penguin #75).
+#103 review fixes to `combine` (and `eval`):
+- **Outputs.** `combine` deletes `bayes-factors.csv`, `model-probabilities.csv`, `closure.txt` and
+  `chains-used.csv` before anything else, so a stop, or a run with fewer edges, leaves no output of
+  an earlier run (R103-3).  `chains-used.csv` lists every chain of the variant with its role
+  (bridge, stepping-stone, or left out) and eval's record of it (R103-12).
+- **Ladders.** As the penguin pipeline (#88), `combine` stops if a cell's character-power ladder
+  lacks t = 0 or t = 1 or has fewer than three rungs, both for the chains found and once the chains
+  left out with `CET_BF_ALLOW_MISSING` are removed: a chain left out is left out everywhere, and
+  leaving out a cell's power-1 chains (its t = 1 rung) stops `combine` (R103-4; before, it reported
+  the marginal of a truncated ladder with exit 0).
+- **Freshness.** `eval` records in `cross.csv` how many sample rows it read and an md5 over the
+  `seg*_samples.csv` files (`evalSamples`, `evalSegMd5`; not the states files, which may be deleted
+  after eval), and its tolerance (`evalTol`).  `combine` refuses a `cross.csv` whose chain has
+  changed since, or that records nothing (written before this fix: rerun eval), applies the
+  stricter of `evalTol` and its own `CET_BF_TOL`, and requires every chain it uses to be complete
+  (the last line of `progress.txt` is "... complete"); `CET_BF_ALLOW_INCOMPLETE=<labels>` names
+  exceptions, which it echoes and records in `chains-used.csv` (R103-2).
+- **Launch record.** `combine` also stops on two directories for one chain (`b0g0_run1` and
+  `b0g0_run01`), on a `reps` that is not a whole number, on a launched chain directory with no
+  segment yet that the record does not list, and on a record with no chain of the `CET_MKV`
+  variant (R103-7 to R103-10).
+- **Resume guard.** A checkpoint written before #102 has no md5; a resume from another path then
+  stops saying so, and a resume from the original absolute path continues (R103-11).
+`check-labels.R` sections 6-11 and `check-combine.R` test each of these.
+
 Before these fixes, eval on a replicate-2 chain scored tree-01 character rows against another tip
 order (3 of 107 positions shared): the self-check stopped it, but only after it had written a
 `cross.csv` that `combine` would have used (gamma edges wrong by up to 114 nats per state).

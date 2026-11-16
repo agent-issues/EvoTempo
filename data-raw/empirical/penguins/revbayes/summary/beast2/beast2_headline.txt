@@ -1,0 +1,3 @@
+chains: ../post1 ../post3 ../post4 ../post5 ../post6
+trees after burn-in: 45005
+P(S. muizoni is a sampled ancestor of the four extant Spheniscus): 0.616

@@ -46,16 +46,22 @@
 # the chains under the same root (CET_BF_BETAS / CET_BF_GAMMAS override), and
 # two checks per state: `check`, the recomputed log posterior minus the chain's
 # logPost, and `checkChar`, the recomputed character log-likelihood minus the
-# chain's charLL (which the power-0 check cannot see).  It writes cross.csv
-# only when both are within CET_BF_TOL (default 1e-4) for every state
-# (temporary file, then rename), and otherwise removes any earlier cross.csv
-# and stops; `combine` refuses any cross.csv whose checks exceed CET_BF_TOL or
-# that has no checkChar column (written before #104).  This ports the
-# trilobite pipeline's A2 (review of #91).  The default tolerance is wider
-# than the trilobite 1e-6: on the penguin production chains (200 000
-# iterations) the recomputed log posterior differs from the chain's by up to
-# 1.1e-5, about 5e-9 relative, which is drift in the chain's running value; a
-# wrong target differs by nats (#104).
+# chain's charLL (which the power-0 check cannot see).  eval first deletes any
+# earlier cross.csv, before anything else can stop it (#105 review, R105-1), and
+# writes a new one (temporary file, removed on exit, then rename) only when every
+# state's |check| <= CET_BF_TOL (default 1e-4) and |checkChar| <= CET_BF_TOL_CHAR
+# (default 1e-8), recording both tolerances (evalTol, evalTolChar).  `combine`
+# refuses a cross.csv that has no check, checkChar, evalTol or evalTolChar
+# column, whose recorded tolerances are not positive numbers, or whose checks
+# are not finite or exceed the stricter of its own and the recorded
+# tolerances, naming the chain (common.R, CrossProblems()).  This ports the
+# trilobite pipeline's A2 (review of #91).  The logPost tolerance is wider
+# than the trilobite 1e-6: on the penguin chains the recomputed log posterior
+# differs from the chain's by up to 1.86e-5 (a 200 000-iteration rung) and
+# 1.11e-5 (the 400 000-iteration production cells), about 1e-8 relative, which
+# is drift in the chain's running value; a wrong target differs by nats (#104).
+# charLL is recomputed exactly (max |checkChar| 5.0e-12 over all 40 chains), so
+# its tolerance is 1e-8 (R105-5).
 #
 # `combine` checks the chains it finds against the expected set: the launch
 # record <run root>/launch.csv (cell, reps, optional power and mkv; one row per
@@ -79,6 +85,12 @@
 # CET_MAX_SEG / CET_MAX_SEG_RUNG cap the segments read (common.R, SegCap();
 # #107 review, R107-9); eval and combine must use the same caps, which the
 # fingerprint check enforces.
+# eval: no earlier cross.csv survives any stop of this run, including one
+# before the package loads or the tolerances are read (#105 review, R105-1)
+local({
+  a <- commandArgs(trailingOnly = TRUE)
+  if (length(a) >= 2L && identical(a[[1]], "eval")) unlink(file.path(a[[2]], "cross.csv"))
+})
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -89,6 +101,8 @@ args <- commandArgs(trailingOnly = TRUE)
 burn <- as.numeric(Sys.getenv("CET_BF_BURN", "0.25"))
 tol <- as.numeric(Sys.getenv("CET_BF_TOL", "1e-4"))
 stopifnot("CET_BF_TOL must be a positive number" = isTRUE(tol > 0))
+tolChar <- suppressWarnings(as.numeric(Sys.getenv("CET_BF_TOL_CHAR", "1e-8")))
+stopifnot("CET_BF_TOL_CHAR must be a positive number" = isTRUE(tolChar > 0))
 
 # ParseLabel() and Chains() are in common.R (shared with run-chain.R, #75)
 # Both read segments 1..CET_MAX_SEG (common.R, SegFiles(); default all)
@@ -179,7 +193,8 @@ if (args[[1]] == "eval") {
       setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))), logPrior = lp,
       check = own - s$samples$logPost[i], checkChar = ownChar - s$samples$charLL[i])
   }))
-  worst <- max(abs(out[, c("check", "checkChar")]))
+  worst <- max(abs(out[, "check"]))
+  worstChar <- max(abs(out[, "checkChar"]))
   cat(sprintf("%s: %d states, %.1f s; max |own - logPost| = %.3g, max |own - charLL| = %.3g\n",
               basename(dir), nrow(out), proc.time()[["elapsed"]] - t0, max(abs(out[, "check"])),
               max(abs(out[, "checkChar"]))))
@@ -197,15 +212,19 @@ if (args[[1]] == "eval") {
   out$evalSamples <- fp$samples
   out$evalSegMd5 <- fp$md5
   out$evalTol <- tol
+  out$evalTolChar <- tolChar
   # Write cross.csv only after the checks pass, so that a failed eval cannot
-  # leave a file that combine would use (#104; trilobite A2)
+  # leave a file that combine would use (#104; trilobite A2).  A non-finite
+  # check fails (isTRUE)
   crossFile <- file.path(dir, "cross.csv")
-  if (!isTRUE(worst <= tol)) {
+  if (!isTRUE(worst <= tol) || !isTRUE(worstChar <= tolChar)) {
     unlink(crossFile)
-    stop(sprintf("recomputed log posterior or charLL differs from the chain's by %.3g > CET_BF_TOL = %g; no cross.csv written",
-                 worst, tol))
+    stop(sprintf(paste("recomputed log posterior differs from the chain's by %.3g (CET_BF_TOL = %g),",
+                       "charLL by %.3g (CET_BF_TOL_CHAR = %g); no cross.csv written"),
+                 worst, tol, worstChar, tolChar))
   }
   tmp <- tempfile("cross-", tmpdir = dir, fileext = ".csv")
+  on.exit(unlink(tmp), add = TRUE)  # R105-2: no temporary file survives a failed write or rename
   utils::write.csv(out, tmp, row.names = FALSE)
   stopifnot(file.rename(tmp, crossFile))
   quit(save = "no")
@@ -309,22 +328,12 @@ ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut &
               file.exists(file.path(chAll$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
-# Refuse any cross.csv that did not pass eval's checks, or that predates them
-# (no checkChar column) (#104; trilobite A2), at the stricter of CET_BF_TOL and
-# the tolerance eval recorded (evalTol; #103 review, R103-2)
-badCross <- vapply(cross, function(x) {
-  cols <- intersect(c("check", "checkChar"), names(x))
-  use <- min(tol, if (!is.null(x$evalTol)) x$evalTol[1] else tol)
-  length(cols) < 2L || !all(is.finite(as.matrix(x[, cols]))) || !all(abs(as.matrix(x[, cols])) <= use)
-}, TRUE)
-if (any(badCross)) {
-  stop("cross.csv fails eval's checks (|check| or |checkChar| > CET_BF_TOL = ", tol,
-       " or the stricter evalTol it records, or no checkChar column) for: ", paste(ch$label[badCross], collapse = ", "),
-       "; rerun eval on those chains", call. = FALSE)
-}
 # Refuse a cross.csv whose chain has changed since eval read it, or that does
-# not record what eval read (#103 review, R103-2)
-problems <- CrossProblems(ch, cross)
+# not record what eval read (#103 review, R103-2), or that did not pass eval's
+# checks at the stricter of combine's and eval's tolerances, or predates them
+# (#104; trilobite A2): one place, naming each chain (common.R,
+# CrossProblems(); #105 review, R105-3/8)
+problems <- CrossProblems(ch, cross, tol, tolChar)
 if (length(problems)) {
   stop("combine: cross.csv refused; no Bayes factor is reported.\n  ",
        paste(problems, collapse = "\n  "), call. = FALSE)

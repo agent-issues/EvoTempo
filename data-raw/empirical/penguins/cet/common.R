@@ -442,10 +442,12 @@ SegmentFingerprint <- function(dir) {
 # Problems with the cross.csv files combine is about to use (`cross`, named by
 # chain label; `ch`, their rows of Chains()): stale (eval read other sample
 # files than the chain has now, or recorded nothing; R103-2), and, when `tol`
-# is given, eval's checks: `check` and `checkChar` must be within the stricter
-# of `tol` and the tolerance eval recorded (evalTol) (review of #91, A2;
-# R103-2).  Returns one line per bad chain.
-CrossProblems <- function(ch, cross, tol = NULL) {
+# is given, eval's checks: `check` within the stricter of `tol` and the
+# tolerance eval recorded (evalTol), `checkChar` within the stricter of
+# `tolChar` and evalTolChar, all finite, both tolerances recorded as positive
+# numbers (review of #91, A2; R103-2; #105 review, R105-3/5/7/8).  Returns one
+# line per bad chain, starting with its label.
+CrossProblems <- function(ch, cross, tol = NULL, tolChar = tol) {
   unlist(lapply(seq_along(cross), function(i) {
     x <- cross[[i]]
     lab <- names(cross)[i]
@@ -458,13 +460,31 @@ CrossProblems <- function(ch, cross, tol = NULL) {
                      lab, x$evalSamples[1], x$evalSegMd5[1], fp$samples, fp$md5))
     }
     if (is.null(tol)) return(NULL)
-    cols <- intersect(c("check", "checkChar"), names(x))
-    if (length(cols) < 2L) return(sprintf("%s: cross.csv has no checkChar column; rerun eval", lab))
-    use <- min(tol, if (!is.null(x$evalTol)) x$evalTol[1] else tol)
-    v <- as.matrix(x[, cols])
-    if (!all(is.finite(v)) || !all(abs(v) <= use)) {
-      return(sprintf("%s: cross.csv fails eval's checks (max |check|, |checkChar| %.3g > tolerance %g)",
-                     lab, max(abs(v)), use))
+    if (!all(c("check", "checkChar") %in% names(x))) {
+      return(sprintf("%s: cross.csv has no check or checkChar column (written before #104); rerun eval", lab))
+    }
+    # The tolerances eval applied are required, and must be positive numbers
+    # (a character or NA value would make the comparison meaningless; R105-7/8)
+    if (!all(c("evalTol", "evalTolChar") %in% names(x))) {
+      return(sprintf("%s: cross.csv records no evalTol or evalTolChar (written before the #105 review); rerun eval", lab))
+    }
+    et <- suppressWarnings(as.numeric(x$evalTol[1]))
+    etc <- suppressWarnings(as.numeric(x$evalTolChar[1]))
+    if (!isTRUE(et > 0) || !isTRUE(etc > 0)) {
+      return(sprintf("%s: cross.csv records evalTol %s and evalTolChar %s; both must be positive numbers; rerun eval",
+                     lab, format(x$evalTol[1]), format(x$evalTolChar[1])))
+    }
+    chk <- suppressWarnings(as.numeric(x$check))
+    chc <- suppressWarnings(as.numeric(x$checkChar))
+    bad <- sum(!is.finite(chk)) + sum(!is.finite(chc))
+    if (bad) {
+      return(sprintf("%s: cross.csv fails eval's checks: %d non-finite check or checkChar value(s)", lab, bad))
+    }
+    use <- min(tol, et)
+    useChar <- min(tolChar, etc)
+    if (max(abs(chk)) > use || max(abs(chc)) > useChar) {
+      return(sprintf("%s: cross.csv fails eval's checks (max |check| %.3g, tolerance %g; max |checkChar| %.3g, tolerance %g)",
+                     lab, max(abs(chk)), use, max(abs(chc)), useChar))
     }
     NULL
   }))

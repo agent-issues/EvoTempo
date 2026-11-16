@@ -45,6 +45,9 @@ test_that("GammaRates() matches fnDiscretizeGamma", {
   expect_equal(GammaRates(3, 1), 1)
   expect_error(GammaRates(0), "positive")
   expect_error(GammaRates(c(1, 2)), "positive")
+  for (bad in list(2.5, 0, -1, NA, c(2, 4), "4")) {
+    expect_error(GammaRates(1, bad), "`nCat`")
+  }
 })
 
 test_that("MkCharacters() reads states, sets and unknowns", {
@@ -63,9 +66,20 @@ test_that("MkCharacters() reads states, sets and unknowns", {
   expect_equal(full$partitions, gap$partitions)
   part <- MkCharacters(matrix(c("0", "1", "(01)", "0", "2"), 5))
   expect_equal(array(part$partitions[[1]]$tip, c(3, 1, 5))[, 1, 3], c(1, 1, 0))
-  # A two-state ordered character is unordered
-  expect_false(MkCharacters(num, ordered = TRUE)$ordered[[2]])
-  expect_true(MkCharacters(num, ordered = TRUE)$ordered[[1]])
+  # A two-state ordered character is unordered; a default K for an ordered
+  # character is announced
+  expect_message(ordK <- MkCharacters(num, ordered = TRUE), "nState")
+  expect_false(ordK$ordered[[2]])
+  expect_true(ordK$ordered[[1]])
+  expect_silent(MkCharacters(num, nState = c(3, 2), ordered = TRUE))
+  # "/" sets and states of several digits
+  slash <- MkCharacters(matrix(c("0/1", "12", "3", "?", "1/12"), 5), nState = 13)
+  expect_equal(slash$nState, 13L)
+  tip <- array(slash$partitions[[1]]$tip, c(13, 1, 5))
+  expect_equal(which(tip[, 1, 1] == 1), 1:2)
+  expect_equal(which(tip[, 1, 2] == 1), 13)
+  expect_equal(which(tip[, 1, 5] == 1), c(2, 13))
+  expect_error(MkCharacters(matrix(c("0/", "1", "2"), 3)), "Cannot read")
   expect_error(MkCharacters(matrix(c("0", "x", "1"), 3)), "Cannot read")
   expect_error(MkCharacters(matrix(c(0, -1, 1), 3)), "whole numbers")
   expect_error(MkCharacters(matrix(0:1, 1)), "two rows")
@@ -256,6 +270,9 @@ test_that("TempoMCMC() checks the Gamma shape and its prior", {
   expect_error(Run(charPriors = list(function(a) 0)), "charPriors")
   expect_error(Run(pri = c(priors, alpha = function(a) 0)), "goes in `charPriors`")
   expect_error(Run(charPriors = list(alpha = function(a) -Inf)), "outside the support")
+  expect_error(Run(charPriors = list(alpha = 5)), "must be a function")
+  expect_error(Run(charPriors = list(alpha = "dexp")), "must be a function")
+  expect_equal(nrow(Run(charPriors = NULL)$samples), 1)
   expect_error(Run(characters = MkCharacters(mkCells),
                    charPriors = list(alpha = function(a) 0)), "nRateCat")
   expect_equal(nrow(Run()$samples), 1)
@@ -266,4 +283,178 @@ test_that("TempoMCMC() checks the Gamma shape and its prior", {
                     function(...) stop("not called"))
   expect_false(res$accepted)
   expect_identical(res$state, st)
+})
+
+# Independent exact reference for exp(Q t): uniformization by a direct
+# Poisson sum (no halving or squaring), to a tail below 1e-20
+RefTransition <- function(Q, t) {
+  K <- nrow(Q)
+  if (t == 0) return(diag(K))
+  mu <- max(-diag(Q))
+  x <- mu * t
+  B <- diag(K) + Q / mu
+  N <- ceiling(x + 20 * sqrt(x) + 40 + K)
+  term <- diag(K)
+  P <- stats::dpois(0, x) * term
+  for (n in seq_len(N)) {
+    term <- term %*% B
+    w <- stats::dpois(n, x)
+    if (w > 0) P <- P + w * term
+  }
+  P
+}
+
+# Exact log site likelihoods of one partition (coding "all"), by plain
+# pruning with RefTransition() and per-node rescaling
+RefLogLik <- function(tree, cells, K, ordered, lengths, rates = 1) {
+  mk <- MkCharacters(cells, nState = K, ordered = ordered)
+  g <- mk$partitions[[1]]
+  Q <- .MkRateMatrix(K, ordered)
+  nTip <- tree$nTip
+  tip <- array(g$tip, c(K, g$nCol, nTip))
+  perCat <- vapply(rates, function(r) {
+    part <- vector("list", nTip + tree$nNode)
+    for (i in seq_len(nTip)) part[[i]] <- matrix(tip[, , i], K)
+    logScale <- numeric(g$nCol)
+    for (v in tree$postorder) {
+      a <- 1
+      for (kid in tree$kids[v - nTip, ]) {
+        a <- a * (RefTransition(Q, r * lengths[[kid]]) %*% part[[kid]])
+      }
+      mx <- apply(a, 2, max)
+      part[[v]] <- a / rep(mx, each = K)
+      logScale <- logScale + log(mx)
+    }
+    log(colSums(part[[tree$root]]) / K) + logScale
+  }, numeric(g$nCol))
+  perCat <- matrix(perCat, g$nCol)
+  top <- apply(perCat, 1, max)
+  sum(log(rowMeans(exp(perCat - top))) + top)
+}
+
+# A random binary tree of n tips (coalescent-like heights; tips at 0, so all
+# extant), as a phylo object built without ape
+RandomPhylo <- function(n, seed) {
+  set.seed(seed)
+  active <- seq_len(n)
+  height <- numeric(2 * n - 1)
+  edge <- NULL
+  node <- n
+  h <- 0
+  while (length(active) > 1) {
+    h <- h + stats::rexp(1, choose(length(active), 2))
+    pick <- sample(active, 2)
+    node <- node + 1
+    height[node] <- h
+    edge <- rbind(edge, c(node, pick[1]), c(node, pick[2]))
+    active <- c(setdiff(active, pick), node)
+  }
+  root <- node
+  # Renumber internal nodes so that the root is n + 1 (ape's convention)
+  internal <- (n + 1):(2 * n - 1)
+  map <- integer(2 * n - 1)
+  map[c(seq_len(n), rev(internal))] <- c(seq_len(n), internal)
+  e <- cbind(map[edge[, 1]], map[edge[, 2]])
+  hh <- numeric(2 * n - 1)
+  hh[map] <- height
+  structure(list(edge = e, edge.length = hh[e[, 1]] - hh[e[, 2]],
+                 tip.label = paste0("t", seq_len(n)), Nnode = n - 1L),
+            class = "phylo")
+}
+
+test_that("Ordered transition probabilities are exact at small and large t (R98-13)", {
+  for (K in 3:10) {
+    Q <- .MkRateMatrix(K, TRUE)
+    expect_identical(.MkTransition(Q, 0), diag(K))
+    for (t in c(1e-300, 1e-200, 1e-12, 1e-6, 1e-3, 0.1, 1, 10, 100)) {
+      P <- .MkTransition(Q, t)
+      ref <- RefTransition(Q, t)
+      expect_true(all(P >= 0))
+      keep <- ref > 1e-290
+      expect_lt(max(abs(P[keep] - ref[keep]) / ref[keep]), 1e-12)
+      expect_true(all(P[!keep] <= 1e-280))
+    }
+  }
+  # Moderate t: the Taylor reference agrees too
+  Q <- .MkRateMatrix(6, TRUE)
+  expect_equal(.MkTransition(Q, 0.7), MatExp(Q * 0.7), tolerance = 1e-13)
+})
+
+test_that("Ordered characters with a sampled ancestor at small rates are exact", {
+  # Review of #98 (R98-13): eigendecomposition P(0) gave -Inf (C++) / NaN (R)
+  x <- matrix(c(4, 4, 0, 4, 4), 5)
+  for (rate in c(1e-4, 1e-3, 0.01, 0.1, 1)) {
+    ref <- RefLogLik(mkTree, x, 5, TRUE, rate * mkLengths)
+    mk <- MkCharacters(x, nState = 5, ordered = TRUE)
+    for (engine in c("cpp", "R")) {
+      value <- MkLikelihood(mkTree, mk, rate * mkLengths, engine = engine)
+      expect_true(is.finite(value))
+      expect_equal(value, ref, tolerance = 1e-10)
+    }
+  }
+  # Unordered: closed-form JC in both engines, exact at tiny lengths
+  y <- matrix(c(1, 0, 2, 2, 0), 5)
+  for (rate in c(1e-10, 1e-6, 1)) {
+    ref <- RefLogLik(mkTree, y, 3, FALSE, rate * mkLengths)
+    mk <- MkCharacters(y, nState = 3)
+    for (engine in c("cpp", "R")) {
+      expect_equal(MkLikelihood(mkTree, mk, rate * mkLengths, engine = engine), ref,
+                   tolerance = 1e-10)
+    }
+  }
+})
+
+test_that("Both engines match the exact reference over K, rates and alpha", {
+  tree <- TempoTree(RandomPhylo(30, 9801))
+  lengths <- numeric(tree$nTip + tree$nNode)
+  child <- which(!is.na(tree$parent))
+  lengths[child] <- tree$age[tree$parent[child]] - tree$age[child]
+  lengths <- lengths / max(tree$age)
+  set.seed(9802)
+  for (K in c(3, 5, 7, 10)) {
+    x <- matrix(sample.int(K, 30 * 3, replace = TRUE) - 1L, 30)
+    x[sample(length(x), 9)] <- NA
+    for (alpha in c(1e-3, 1, 1e3)) {
+      mk <- MkCharacters(x, nState = K, ordered = TRUE, nRateCat = 4)
+      for (rate in c(1e-6, 1e-2, 1, 10)) {
+        ref <- RefLogLik(tree, x, K, TRUE, rate * lengths, GammaRates(alpha, 4))
+        for (engine in c("cpp", "R")) {
+          value <- MkLikelihood(tree, mk, rate * lengths, alpha = alpha, engine = engine)
+          expect_true(is.finite(value))
+          expect_equal(value, ref, tolerance = 1e-9)
+        }
+      }
+    }
+  }
+})
+
+test_that("Non-finite character likelihoods are reported, not propagated", {
+  # A constant pattern that is certain to rounding: -Inf in both engines (R98-2)
+  x <- matrix(c(0, 1, 0, 0, 0, 1, 0, 0, 0, 0), 5)
+  mk <- MkCharacters(x, coding = "variable", nRateCat = 4)
+  for (engine in c("cpp", "R")) {
+    expect_identical(MkLikelihood(mkTree, mk, 1e-20 * mkLengths, alpha = 1,
+                                  engine = engine), -Inf)
+  }
+  # ... which TempoMCMC() refuses at the start (R98-1)
+  for (engine in c("cpp", "R")) {
+    expect_error(
+      TempoMCMC(mkTree, mkModel, c(mkPar[names(mkPar) != "rate"], rate = 1e-20, alpha = 1),
+                TempoPriors()["theta"], nIter = 1, nSlice = 4, characters = mk,
+                moves = c(node = 1), minAcceptance = 0, engine = engine),
+      "not finite")
+  }
+})
+
+test_that("MkCharacters() keeps row names and checks them against the tree", {
+  x <- matrix(c(0, 1, 1, 0, 1), 5, dimnames = list(mkTree$tipLabel, NULL))
+  mk <- MkCharacters(x)
+  expect_equal(mk$tipLabel, mkTree$tipLabel)
+  expect_equal(MkLikelihood(mkTree, mk, mkLengths),
+               MkLikelihood(mkTree, unname(x), mkLengths))
+  shuffled <- MkCharacters(x[c(2, 1, 3:5), , drop = FALSE])
+  expect_error(MkLikelihood(mkTree, shuffled, mkLengths), "row names")
+  # Default row names 1..n are not labels
+  expect_null(MkCharacters(matrix(c(0, 1, 1, 0, 1), 5,
+                                  dimnames = list(as.character(1:5), NULL)))$tipLabel)
 })

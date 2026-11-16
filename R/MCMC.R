@@ -247,7 +247,8 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' @param characters Optional matrix of character states, as for
 #' [MkLikelihood()], or characters prepared by [MkCharacters()].
 #' @param updateParameters Logical; if `FALSE`, hold parameters fixed (`shift`
-#' then moves the bins only).
+#' then moves the bins only), including a free `alpha`, whose acceptance is
+#' then 0.
 #' @param minAcceptance Numeric giving the burn-in acceptance below which
 #' `tree` and `joint` moves are dropped after burn-in (see Details).
 #' @param agePriors Named list of functions giving log prior densities of
@@ -257,10 +258,12 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' @param charPriors Named list of functions giving log prior densities of
 #' parameters of the character model: `alpha`, the shape of the Gamma rates
 #' among characters (for [MkCharacters()] with `nRateCat > 1`), which is
-#' then free; without it, `alpha` stays at `start$alpha`.
+#' then free; without it (or with `charPriors = NULL`), `alpha` stays at
+#' `start$alpha`.
 #' @returns `TempoMCMC()` returns a list with elements
 #' - `samples`: data frame with one column per free parameter, then, with
-#'   Gamma rates among characters, `alpha`, then `logPost`
+#'   Gamma rates among characters, `alpha` (so the later columns move by
+#'   one; index them by name), then `logPost`
 #'   (log augmented density, plus character log-likelihood, log prior of the
 #'   parameters, of a free `alpha`, and, when `rootAge` or `originAge` moves
 #'   it, log prior of the start age), `rootBin` (the bin at the root), `meanX`
@@ -375,6 +378,12 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   st <- list(tree = tree, par = par, set = set, msg = msg,
              paths = draw[["paths"]], bin = draw[["bin"]])
   st[["charLL"]] <- CharLL(tree, st[["paths"]], par, set)
+  # A non-finite start would make every acceptance ratio non-finite (#98, R98-1)
+  if (!is.finite(st[["charLL"]])) {
+    stop("The character log-likelihood at the start is not finite (",
+         st[["charLL"]], "): check `start$rate` (and `start$alpha`); a very low ",
+         "rate can underflow a character's likelihood in the C++ engine")
+  }
   # Reuses the current set when only parameters outside E change (`rate`)
   Target <- function(p, current) {
     s <- if (.SameSet(current[["set"]], st[["tree"]], p)) {
@@ -531,12 +540,19 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 # Checks the Gamma shape of the character model (#97): its start value, and
 # its prior `charPriors$alpha`, if any; returns whether alpha is free
 .CheckCharPriors <- function(charPriors, priors, par, gammaRates) {
+  if (is.null(charPriors)) {
+    charPriors <- list()
+  }
   if (!is.list(charPriors) || length(setdiff(names(charPriors), "alpha")) ||
       length(charPriors) != sum(names(charPriors) %in% "alpha")) {
     stop("`charPriors` must be a list with at most an element `alpha`")
   }
   if ("alpha" %in% names(priors)) {
     stop("The prior of the Gamma shape `alpha` goes in `charPriors`, not `priors`")
+  }
+  if (!is.null(charPriors[["alpha"]]) && !is.function(charPriors[["alpha"]])) {
+    stop("`charPriors$alpha` must be a function giving the log prior density ",
+         "of alpha")
   }
   free <- is.function(charPriors[["alpha"]])
   if (!gammaRates) {

@@ -54,9 +54,12 @@ if (args[[1]] == "summary") {
   tests <- do.call(rbind, lapply(seq_len(nrow(cells)), function(ci) {
     sub <- ranks[ranks$cell == ci, ]
     do.call(rbind, lapply(statNames[colSums(!is.na(sub[statNames])) > 0], function(p) {
-      bins <- cut(sub[[p]], seq(-0.5, nDraw + 0.5, length.out = 11))
-      counts <- table(bins)
-      chi <- suppressWarnings(stats::chisq.test(counts))
+      breaks <- seq(-0.5, nDraw + 0.5, length.out = 11)
+      counts <- table(cut(sub[[p]], breaks))
+      # The 51 rank values do not split evenly into 10 bins (one holds 6):
+      # test against the bin probabilities, not equal ones (review V98-1)
+      prob <- as.vector(table(cut(0:nDraw, breaks))) / (nDraw + 1)
+      chi <- suppressWarnings(stats::chisq.test(counts, p = prob))
       data.frame(beta = cells$beta[ci], gamma = cells$gamma[ci], statistic = p,
                  nRep = nrow(sub), chisq = unname(chi$statistic), p = chi$p.value,
                  meanRank = mean(sub[[p]]) / nDraw, minBin = min(counts),

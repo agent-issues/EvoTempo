@@ -7,6 +7,7 @@
 #   bash data-raw/gamma-acrv-hamilton.sh oracle <scratch> <gamma>  # validation 2 (-c 16)
 #   bash data-raw/gamma-acrv-hamilton.sh sbc <scratch> <task> <nTask>  # validation 3
 #   bash data-raw/gamma-acrv-hamilton.sh sbc-summary <scratch>
+#   bash data-raw/gamma-acrv-hamilton.sh ptcheck <scratch>    # review of #98, R98-13 (-c 16)
 #
 # Results go to data-raw/gamma-acrv-results/.  RevBayes: the development
 # build fd807d10 (gcc/14.2 boost/1.88.0); RB=<path to rb> overrides it.
@@ -43,7 +44,7 @@ case $what in
     CET=$SCR/hym/data-raw/empirical/hymenoptera/cet
     Rscript data-raw/gamma-acrv-revbayes.R hymenoptera $CET \
       $CET/smoke-results/revbayes-check-mkv-fd807d10.txt $RES/hymenoptera.csv \
-      > $RES/hymenoptera-compare.txt 2>&1
+      $RES/revbayes-output.txt > $RES/hymenoptera-compare.txt 2>&1
     rm -rf $SCR/hym
     ;;
   oracle)
@@ -55,6 +56,14 @@ case $what in
   sbc)
     Rscript data-raw/gamma-acrv-sbc.R run $3 $4 $SCR ${SBC_REPS:-100} ${SBC_ITER:-3000} \
       > $SCR/sbc-task$3.txt 2>&1
+    ;;
+  ptcheck)
+    rm -rf $SCR/hym
+    git clone -q https://github.com/agent-issues/EvoTempo $SCR/hym
+    (cd $SCR/hym && git checkout -q ${HYM_SHA:-e0c1384})
+    Rscript data-raw/gamma-acrv-pt-check.R $SCR/hym/data-raw/empirical/hymenoptera/cet \
+      $RES/pt-check.csv > $RES/pt-check.txt 2>&1
+    rm -rf $SCR/hym
     ;;
   sbc-summary)
     Rscript data-raw/gamma-acrv-sbc.R summary $SCR > $RES/sbc-summary.txt 2>&1

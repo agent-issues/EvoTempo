@@ -44,6 +44,7 @@ tt <- TempoTree(tr, ages = age,
 raw <- read.csv(file.path(dir, "cells.csv"), colClasses = "character",
                 check.names = FALSE, na.strings = character(0))
 cells <- as.matrix(raw[match(tt$tipLabel, raw$taxon), -1])
+rownames(cells) <- tt$tipLabel
 parts <- read.csv(file.path(dir, "partitions.csv"))
 partOf <- rep(seq_len(nrow(parts)), parts$nChar)
 mk <- MkCharacters(cells, nState = parts$nState[partOf], ordered = parts$ordered[partOf],

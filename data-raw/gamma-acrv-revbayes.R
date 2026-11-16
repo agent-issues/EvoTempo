@@ -20,8 +20,13 @@
 #     against its RevBayes oracle (revbayes/check-mkv.Rev: coding "variable"
 #     without and with Gamma(4) at alpha 1.10, and coding "all")
 #
-# With EvoTempo installed.  RevBayes prints 7 significant digits, so the Rev
-# script prints each value as floor(lnL) and lnL - floor(lnL).
+# With EvoTempo installed.  The Rev script prints each value as floor(lnL)
+# and lnL - floor(lnL) (RevBayes prints 14 significant digits), and the rates
+# of fnDiscretizeGamma(a, a, 4) at each shape ("RATES a" and four lines).
+# `compare` scores CET with its own GammaRates() and, as a check on the
+# discretisation, with RevBayes's printed rates; the Hymenoptera mode takes
+# RevBayes's rates at alpha 1.1 from an optional fifth argument, the output
+# of the synthetic run.
 suppressMessages({
   library(EvoTempo)
   library(ape)
@@ -87,12 +92,24 @@ AddSampledAncestor <- function(tr, edge, pos, label) {
 }
 
 CetLogLik <- function(tt, cells, cols, K, ordered, rate, alpha, coding = "variable",
-                      engine = "cpp") {
+                      engine = "cpp", rates = NULL) {
   nCat <- if (is.na(alpha)) 1L else 4L
   mk <- MkCharacters(cells[, cols, drop = FALSE], nState = K, ordered = ordered,
                      coding = coding, nRateCat = nCat)
+  if (!is.null(rates) && nCat > 1) {
+    return(EvoTempo:::.MkCharactersLogLik(tt, mk, rate * Durations(tt), alpha,
+                                          engine = engine, rates = rates))
+  }
   MkLikelihood(tt, mk, rate * Durations(tt), alpha = if (nCat > 1) alpha,
                engine = engine)
+}
+
+# RevBayes's fnDiscretizeGamma rates per shape index, from "RATES a" blocks
+ReadRevBayesRates <- function(file) {
+  rb <- gsub("\"", "", trimws(readLines(file)))
+  at <- grep("^RATES ", rb)
+  setNames(lapply(at, function(i) as.numeric(rb[i + 1:4])),
+           sub("^RATES ", "", rb[at]))
 }
 
 if (mode == "prepare") {
@@ -193,8 +210,10 @@ if (mode == "compare") {
   raw <- read.csv(file.path(dir, "cells.csv"), colClasses = "character",
                   check.names = FALSE, na.strings = character(0))
   cells <- as.matrix(raw[match(tt$tipLabel, raw$taxon), -1])
+  rownames(cells) <- tt$tipLabel
   parts <- read.csv(file.path(dir, "partitions.csv"))
   partOf <- rep(seq_len(nrow(parts)), parts$nChar)
+  rbRates <- ReadRevBayesRates(args[[3]])
   rows <- list()
   for (ri in seq_along(rates)) for (p in seq_len(nrow(parts))) for (ai in 1:4) {
     alpha <- if (ai <= 3) alphas[ai] else NA
@@ -204,10 +223,20 @@ if (mode == "compare") {
                      engine = "R")
     v <- rb$lnL[rb$rateIndex == ri & rb$partition == p & rb$alphaIndex == ai]
     stopifnot(length(v) == 1)
+    rr <- if (ai <= 3) rbRates[[as.character(ai)]]
+    cppRB <- if (ai <= 3) {
+      CetLogLik(tt, cells, cols, parts$nState[p], parts$ordered[p], rates[ri], alpha,
+                rates = rr)
+    } else cpp
+    refRB <- if (ai <= 3) {
+      CetLogLik(tt, cells, cols, parts$nState[p], parts$ordered[p], rates[ri], alpha,
+                engine = "R", rates = rr)
+    } else ref
     rows[[length(rows) + 1]] <- data.frame(
       rate = rates[ri], partition = parts$partition[p], nChar = length(cols),
       alpha = alpha, revbayes = v, cpp = cpp, R = ref, diffCpp = cpp - v,
-      diffR = ref - v, diffEngines = cpp - ref)
+      diffR = ref - v, diffEngines = cpp - ref, diffCppRBRates = cppRB - v,
+      diffRRBRates = refRB - v)
   }
   res <- do.call(rbind, rows)
   print(res, digits = 10, row.names = FALSE)
@@ -215,6 +244,15 @@ if (mode == "compare") {
   byShape$alpha[is.na(byShape$alpha)] <- Inf  # Inf: no Gamma
   tot <- aggregate(cbind(revbayes, cpp, R) ~ rate + alpha, byShape, sum)
   tot$diff <- tot$cpp - tot$revbayes
+  if (length(rbRates)) {
+    for (ai in names(rbRates)) {
+      cat(sprintf("RevBayes rates at alpha %s: %s; GammaRates(): %s\n", alphas[as.integer(ai)],
+                  paste(format(rbRates[[ai]], digits = 15), collapse = " "),
+                  paste(format(GammaRates(alphas[as.integer(ai)], 4), digits = 15), collapse = " ")))
+    }
+    cat(sprintf("with RevBayes's rates: max |CET - RevBayes| C++ %.3g, R %.3g\n",
+                max(abs(res$diffCppRBRates)), max(abs(res$diffRRBRates))))
+  }
   print(tot, digits = 10, row.names = FALSE)
   write.csv(res, args[[4]], row.names = FALSE)
   worst <- max(abs(c(res$diffCpp, res$diffR)) / pmax(1, abs(res$revbayes)))
@@ -254,6 +292,8 @@ if (mode == "hymenoptera") {
                   colClasses = "character", na.strings = character(0))
   parts <- read.csv(file.path(cetDir, "data", "partitions.csv"))
   cells <- as.matrix(raw[match(tr$tip.label, raw$taxon), -1])
+  rownames(cells) <- tt$tipLabel
+  rbRate11 <- if (length(args) >= 5) ReadRevBayesRates(args[[5]])[["2"]]
   rows <- list()
   for (ri in seq_along(hymRates)) for (pi in names(rbNames)) {
     lab <- rbNames[[pi]]
@@ -269,10 +309,13 @@ if (mode == "hymenoptera") {
       cpp <- CetLogLik(tt, cells, cols, K, ord, hymRates[ri], alpha, coding)
       ref <- CetLogLik(tt, cells, cols, K, ord, hymRates[ri], alpha, coding, engine = "R")
       v <- rb$lnL[rb$rateIndex == ri & rb$part == as.integer(pi) & rb$coding == cd]
+      cppRB <- if (cd == 3 && !is.null(rbRate11)) {
+        CetLogLik(tt, cells, cols, K, ord, hymRates[ri], alpha, coding, rates = rbRate11)
+      } else NA_real_
       rows[[length(rows) + 1]] <- data.frame(
         rate = hymRates[ri], partition = lab, nChar = length(cols), coding = coding,
         alpha = alpha, revbayes = v, cpp = cpp, R = ref, diffCpp = cpp - v,
-        diffR = ref - v, diffEngines = cpp - ref)
+        diffR = ref - v, diffEngines = cpp - ref, diffCppRBRates = cppRB - v)
     }
   }
   res <- do.call(rbind, rows)
@@ -282,6 +325,10 @@ if (mode == "hymenoptera") {
   worstEng <- max(abs(res$diffEngines) / pmax(1, abs(res$R)))
   cat(sprintf("Hymenoptera: max |CET - RevBayes| / max(1, |lnL|) = %.3g; max engine difference %.3g\n",
               worst, worstEng))
+  if (!is.null(rbRate11)) {
+    cat(sprintf("Hymenoptera, alpha 1.10 with RevBayes's rates: max |C++ - RevBayes| %.3g\n",
+                max(abs(res$diffCppRBRates), na.rm = TRUE)))
+  }
   if (worst > tol || worstEng > 1e-8) stop("gamma-acrv-revbayes.R hymenoptera FAILED")
   cat("hymenoptera: all checks passed\n")
 }

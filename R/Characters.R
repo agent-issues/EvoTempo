@@ -99,6 +99,9 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 #' Both rate matrices are scaled to one expected change per unit of branch
 #' length, and both give a uniform distribution at the root.
 #' A two-state ordered character is unordered.
+#' Unordered transition probabilities are computed in closed form; ordered ones
+#' by uniformization with repeated squaring, which sums only non-negative terms
+#' and so keeps small probabilities accurate, with \eqn{P(0) = I} exactly.
 #'
 #' A cell holds one state, a set of states, whose likelihood is the sum over
 #' its states, or is unknown.
@@ -113,26 +116,39 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 #' \eqn{-n_m \log(1 - P_m)}, where \eqn{P_m} is the probability that every
 #' scored tip of mask \eqn{m} has the same state, averaged over rate
 #' categories, and \eqn{n_m} the number of characters with that mask.
+#' The conditioning is exact only for characters without partial sets: as in
+#' RevBayes, a character such as `0, 0, {01}` is kept although some of the
+#' histories it sums over are constant.
 #' A character whose scored cells all hold the same state or set cannot be
 #' variable, and is an error (RevBayes excludes it).
 #'
 #' With `nRateCat` \eqn{> 1}, the branch lengths of each character are
 #' multiplied by a rate \eqn{r_c}, and its likelihood is the mean over the
 #' `nRateCat` equiprobable categories \eqn{c}, whose rates are those of
-#' [GammaRates()] (a Gamma distribution with shape and rate \eqn{\alpha}, as
-#' RevBayes `fnDiscretizeGamma(alpha, alpha, nRateCat)`).
+#' [GammaRates()] (a Gamma distribution with shape and rate \eqn{\alpha}).
 #' The shape is the argument `alpha` of [MkLikelihood()], and a parameter of
 #' [TempoMCMC()] (`start$alpha`, with prior `charPriors$alpha`).
+#'
+#' The row names of `characters`, if any (other than `1, 2, ...`), are kept
+#' and must equal the tip labels of the tree that the characters are scored
+#' on.
+#'
+#' A character's likelihood is computed without rescaling in the C++ engine,
+#' so a single character with likelihood below about \eqn{10^{-308}} (log
+#' likelihood below about -709; reachable with many tips at very low rates)
+#' gives `-Inf` there, but not in the R engine.
 #'
 #' @param characters Matrix with one row per tip (in the order of the tree's
 #' tips) and one column per character: either integer states `0` to
 #' \eqn{K - 1}, with `NA` where unknown, or character cells holding a state
-#' (`"0"` to `"9"`), a set of states (such as `"{01}"` or `"(012)"`), or
-#' `"?"`, `"-"`, `""` or `NA` where unknown.
+#' (`"0"`, `"12"`), a set of states (such as `"{01}"`, `"(012)"` or `"0/12"`),
+#' or `"?"`, `"-"`, `""` or `NA` where unknown.
 #' @param nState Integer giving the number of states \eqn{K} of each
 #' character: one value, or one per character.
 #' By default, one more than the largest state of the character, and at
-#' least 2.
+#' least 2; RevBayes instead takes \eqn{K} from the matrix's symbols, so give
+#' `nState` to match it (a message says so when ordered characters take the
+#' default).
 #' @param ordered Logical, one value or one per character: whether the
 #' character is ordered.
 #' @param coding Character string: `"all"` for no conditioning, or
@@ -140,11 +156,11 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 #' @param nRateCat Integer giving the number of Gamma rate categories;
 #' 1 for no rate variation among characters.
 #' @returns `MkCharacters()` returns an object of class `MkCharacters`: a
-#' list with elements `nTip`, `nChar`, `nState` and `ordered` (per
-#' character), `coding`, `nRateCat` and `partitions`, one per combination of
-#' ordering and number of states, each holding the tip partial likelihoods
-#' of its characters, followed by those of the constant patterns of its
-#' missing-data masks if `coding = "variable"`.
+#' list with elements `nTip`, `tipLabel` (the row names, or `NULL`), `nChar`,
+#' `nState` and `ordered` (per character), `coding`, `nRateCat` and
+#' `partitions`, one per combination of ordering and number of states, each
+#' holding the tip partial likelihoods of its characters, followed by those of
+#' the constant patterns of its missing-data masks if `coding = "variable"`.
 #' @references
 #' Lewis PO (2001). A likelihood approach to estimating phylogeny from
 #' discrete morphological character data. Systematic Biology 50:913--925.
@@ -155,7 +171,7 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 #' Molecular Evolution 39:306--314. \doi{10.1007/BF00160154}
 #' @examples
 #' cells <- matrix(c("0", "1", "2", "{01}", "1", "0", "0", "1", "?"), 3)
-#' mk <- MkCharacters(cells, ordered = c(TRUE, FALSE, FALSE),
+#' mk <- MkCharacters(cells, nState = c(3, 2, 2), ordered = c(TRUE, FALSE, FALSE),
 #'                    coding = "variable", nRateCat = 4)
 #' mk$nState
 #' @family dCET inference
@@ -169,12 +185,24 @@ MkCharacters <- function(characters, nState = NULL, ordered = FALSE,
   if (nTip < 2L || nChar < 1L) {
     stop("`characters` needs at least two rows (tips) and one column")
   }
+  tipLabel <- rownames(characters)
+  if (identical(tipLabel, as.character(seq_len(nTip)))) {
+    tipLabel <- NULL
+  }
   maxState <- apply(sets, 2, function(col) {
     states <- unlist(col)
     if (length(states)) max(states) else 0L
   })
+  if (!is.logical(ordered) || !length(ordered) %in% c(1L, nChar) || anyNA(ordered)) {
+    stop("`ordered` must be TRUE or FALSE, or one value per character")
+  }
   if (is.null(nState)) {
     nState <- pmax(2L, maxState + 1L)
+    if (any(rep_len(ordered, nChar) & nState > 2L)) {
+      message("MkCharacters(): `nState` taken from the largest observed state of ",
+              "each character; give `nState` to match a matrix whose symbols ",
+              "allow more states (RevBayes takes K from the symbols)")
+    }
   }
   if (!is.numeric(nState) || !length(nState) %in% c(1L, nChar) ||
       any(!is.finite(nState) | nState != round(nState) | nState < 2)) {
@@ -184,9 +212,6 @@ MkCharacters <- function(characters, nState = NULL, ordered = FALSE,
   if (any(maxState >= nState)) {
     stop("States exceed `nState` - 1 in character(s) ",
          paste(which(maxState >= nState), collapse = ", "))
-  }
-  if (!is.logical(ordered) || !length(ordered) %in% c(1L, nChar) || anyNA(ordered)) {
-    stop("`ordered` must be TRUE or FALSE, or one value per character")
   }
   ordered <- rep_len(ordered, nChar) & nState > 2L
   if (length(nRateCat) != 1L || !is.numeric(nRateCat) || !is.finite(nRateCat) ||
@@ -247,15 +272,12 @@ MkCharacters <- function(characters, nState = NULL, ordered = FALSE,
       combined[, length(cols) + seq_len(ncol(mask) * nConst), ] <- const
       tip <- combined
     }
-    Q <- .MkRateMatrix(K, ord)
-    e <- eigen(Q, symmetric = TRUE)
     list(nState = K, ordered = ord, columns = cols, nData = length(cols),
          nConst = nConst, count = count, nCol = dim(tip)[[2]],
-         tip = as.vector(tip), Q = Q, vectors = e[["vectors"]],
-         values = e[["values"]])
+         tip = as.vector(tip), Q = .MkRateMatrix(K, ord))
   })
-  structure(list(nTip = nTip, nChar = nChar, nState = nState, ordered = ordered,
-                 coding = coding, nRateCat = as.integer(nRateCat),
+  structure(list(nTip = nTip, tipLabel = tipLabel, nChar = nChar, nState = nState,
+                 ordered = ordered, coding = coding, nRateCat = as.integer(nRateCat),
                  partitions = partitions),
             class = "MkCharacters")
 }
@@ -264,7 +286,12 @@ MkCharacters <- function(characters, nState = NULL, ordered = FALSE,
 #'
 #' Rate multipliers of `nCat` equiprobable categories of a Gamma distribution
 #' with shape and rate `alpha` (mean 1), each the mean rate within its
-#' category (Yang 1994), as RevBayes `fnDiscretizeGamma(alpha, alpha, nCat)`.
+#' category (Yang 1994): the discretisation that RevBayes
+#' `fnDiscretizeGamma(alpha, alpha, nCat)` approximates.
+#' The cut points here come from R's `qgamma()`; RevBayes's chi-square
+#' quantile (AS 91, relative tolerance 5e-7) moves its rates by up to a few
+#' times \eqn{10^{-8}} at some shapes (e.g. 0.8 and 1.1), which changes
+#' log-likelihoods by up to about \eqn{10^{-6}}.
 #'
 #' @param alpha Numeric giving the shape (and rate) of the Gamma
 #' distribution.
@@ -282,6 +309,10 @@ MkCharacters <- function(characters, nState = NULL, ordered = FALSE,
 GammaRates <- function(alpha, nCat = 4L) {
   if (length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) || alpha <= 0) {
     stop("`alpha` must be a positive number")
+  }
+  if (length(nCat) != 1L || !is.numeric(nCat) || !is.finite(nCat) || nCat < 1 ||
+      nCat != round(nCat)) {
+    stop("`nCat` must be a whole number >= 1")
   }
   if (nCat == 1L) {
     return(1)
@@ -310,10 +341,16 @@ GammaRates <- function(alpha, nCat = 4L) {
       if (x %in% c("", "?", "-")) {
         return(integer(0))
       }
-      if (!grepl("^([0-9]|[\\{\\(][0-9]+[\\}\\)])$", x)) {
+      if (grepl("^[0-9]+$", x)) {
+        return(as.integer(x))  # one state, possibly of several digits
+      }
+      if (grepl("^[0-9]+(/[0-9]+)+$", x)) {
+        return(sort(unique(as.integer(strsplit(x, "/")[[1]]))))  # "0/12"
+      }
+      if (!grepl("^[\\{\\(][0-9]+[\\}\\)]$", x)) {
         stop("Cannot read character cell \"", x, "\"")
       }
-      sort(unique(as.integer(strsplit(gsub("[^0-9]", "", x), "")[[1]])))
+      sort(unique(as.integer(strsplit(gsub("[^0-9]", "", x), "")[[1]])))  # "{01}"
     })
   }
   matrix(cells, nrow(characters), ncol(characters))
@@ -335,20 +372,66 @@ GammaRates <- function(alpha, nCat = 4L) {
   Q
 }
 
+# Transition probabilities exp(Q t) by uniformization and squaring (#98,
+# R98-13): with mu = max_i -Q_ii and B = I + Q / mu >= 0, the argument
+# x = mu t is halved s times until y = x / 2^s <= 1/2, exp(Q t / 2^s) =
+# exp(-y) sum_{n <= K + 17} y^n / n! B^n (truncation below 1e-19 relative to
+# any term that the sum contains), and the result is squared s times.  Every
+# step adds and multiplies non-negative numbers, so small probabilities keep
+# their relative accuracy, and P(0) = I exactly.  Mirrored step by step by
+# UniformizedTransition() in src/characters.cpp.
+.MkTransition <- function(Q, t) {
+  K <- nrow(Q)
+  if (!(t > 0)) {
+    return(diag(K))
+  }
+  mu <- max(-diag(Q))
+  x <- mu * t
+  s <- if (x > 0.5) as.integer(ceiling(log2(x / 0.5))) else 0L
+  y <- x / 2^s
+  B <- diag(K) + Q / mu
+  term <- diag(K)
+  total <- diag(K)
+  for (n in seq_len(K + 17L)) {
+    term <- (term %*% B) * (y / n)
+    total <- total + term
+  }
+  P <- exp(-y) * total
+  for (i in seq_len(s)) {
+    P <- P %*% P
+  }
+  P
+}
+
+# log(1 - exp(lp)) for lp < 0, without cancellation (Maechler 2012)
+.Log1mExp <- function(lp) {
+  ifelse(lp > -log(2), log(-expm1(lp)), log1p(-exp(lp)))
+}
+
 # Log-likelihood of MkCharacters on branch lengths, with rate categories at
-# shape `alpha`; the Mkv correction per mask if coding = "variable"
+# shape `alpha` (or the given `rates`); the Mkv correction per mask if
+# coding = "variable".  -Inf if a constant pattern's probability reaches 1
 .MkCharactersLogLik <- function(tree, characters, lengths, alpha,
-                                engine = getOption("EvoTempo.engine", "cpp")) {
+                                engine = getOption("EvoTempo.engine", "cpp"),
+                                rates = NULL) {
   if (characters[["nTip"]] != tree[["nTip"]]) {
     stop("`characters` needs one row per tip")
   }
-  rates <- if (characters[["nRateCat"]] > 1L) {
-    if (is.null(alpha)) {
-      stop("`alpha` is needed with `nRateCat` > 1")
+  labels <- characters[["tipLabel"]]
+  if (!is.null(labels) && !is.null(tree[["tipLabel"]]) &&
+      !identical(labels, tree[["tipLabel"]])) {
+    stop("The row names of `characters` do not match the tree's tip labels ",
+         "(in the tree's order)")
+  }
+  if (is.null(rates)) {
+    rates <- if (characters[["nRateCat"]] > 1L) {
+      if (is.null(alpha)) {
+        stop("`alpha` is needed with `nRateCat` > 1")
+      }
+      GammaRates(alpha, characters[["nRateCat"]])
+    } else {
+      1
     }
-    GammaRates(alpha, characters[["nRateCat"]])
-  } else {
-    1
   }
   variable <- characters[["coding"]] == "variable"
   if (TempoEngine(engine) == "cpp") {
@@ -366,20 +449,27 @@ GammaRates <- function(alpha, nCat = 4L) {
     data <- seq_len(g[["nData"]])
     total <- total + sum(siteLik[data])
     if (variable) {
-      pConst <- exp(siteLik[-data])
-      pMask <- if (g[["ordered"]]) {
-        colSums(matrix(pConst, g[["nConst"]]))
+      # log P_m: of state 0 times K (unordered), or of every state (ordered)
+      logConst <- siteLik[-data]
+      logMask <- if (g[["ordered"]]) {
+        m <- matrix(logConst, g[["nConst"]])
+        mTop <- apply(m, 2, max)
+        log(colSums(exp(m - rep(mTop, each = nrow(m))))) + mTop
       } else {
-        g[["nState"]] * pConst
+        log(g[["nState"]]) + logConst
       }
-      total <- total - sum(g[["count"]] * log1p(-pMask))
+      if (any(!(logMask < 0))) {
+        return(-Inf)
+      }
+      total <- total - sum(g[["count"]] * .Log1mExp(logMask))
     }
   }
   total
 }
 
 # Pure-R pruning of one partition's columns, with per-node rescaling:
-# log site likelihoods with a uniform root
+# log site likelihoods with a uniform root.  Unordered: the closed-form
+# Jukes-Cantor probabilities of MkPrime's JCRates; ordered: .MkTransition()
 .MkColumnLogLik <- function(tree, g, lengths) {
   nTip <- tree[["nTip"]]
   K <- g[["nState"]]
@@ -389,12 +479,19 @@ GammaRates <- function(alpha, nCat = 4L) {
     part[[i]] <- matrix(tip[, , i], K)
   }
   logScale <- numeric(g[["nCol"]])
-  V <- g[["vectors"]]
   for (v in tree[["postorder"]]) {
     a <- 1
     for (kid in tree[["kids"]][v - nTip, ]) {
-      P <- V %*% (exp(g[["values"]] * lengths[[kid]]) * t(V))
-      a <- a * (P %*% part[[kid]])
+      ell <- lengths[[kid]]
+      L <- part[[kid]]
+      a <- a * if (g[["ordered"]]) {
+        .MkTransition(g[["Q"]], ell) %*% L
+      } else {
+        negExpm1 <- -expm1(-K * ell / (K - 1))
+        pSame <- 1 / K + (1 - 1 / K) * (1 - negExpm1)
+        pDiff <- negExpm1 / K
+        rep(pDiff * colSums(L), each = K) + (pSame - pDiff) * L
+      }
     }
     mx <- apply(a, 2, max)
     part[[v]] <- a / rep(mx, each = K)

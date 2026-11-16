@@ -5,6 +5,7 @@
 #include <Rcpp.h>
 #include <MkPrime/MkPrime.h>
 #include "tree.h"
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -15,27 +16,74 @@ using namespace Rcpp;
 
 namespace {
 
-// Symmetric rate matrix Q = V diag(ev) V' with a uniform root distribution
-// (ordered characters; see .MkRateMatrix()).  A model for MkPrime::Pruner:
-// P(t)[a, b] = sum_m V[a, m] exp(ev[m] t) V[b, m], V column-major as in R.
-class SymmetricModel {
+// exp(Q t) by uniformization and squaring, as .MkTransition() in
+// R/Characters.R (#98, R98-13): mu = max_i -Q_ii, B = I + Q / mu >= 0;
+// x = mu t is halved s times until y = x / 2^s <= 1/2; exp(Q t / 2^s) =
+// exp(-y) sum_{n <= K + 17} y^n / n! B^n; then s squarings.  Only
+// non-negative terms are added, so small probabilities keep their relative
+// accuracy, and P(0) = I exactly.  P is row-major: P[a * K + b] = P(a -> b).
+inline std::vector<double> UniformizedTransition(const std::vector<double>& Q, int K,
+                                                 double t) {
+  const std::size_t KK = static_cast<std::size_t>(K) * K;
+  std::vector<double> P(KK, 0.0);
+  if (!(t > 0.0)) {
+    for (int a = 0; a < K; ++a) P[a * K + a] = 1.0;
+    return P;
+  }
+  double mu = 0.0;
+  for (int a = 0; a < K; ++a) mu = std::max(mu, -Q[a * K + a]);
+  const double x = mu * t;
+  const int s = x > 0.5 ? static_cast<int>(std::ceil(std::log2(x / 0.5))) : 0;
+  const double y = x / std::ldexp(1.0, s);
+  std::vector<double> B(KK), term(KK, 0.0), next(KK), total(KK, 0.0);
+  for (std::size_t i = 0; i < KK; ++i) B[i] = Q[i] / mu;
+  for (int a = 0; a < K; ++a) {
+    B[a * K + a] += 1.0;
+    term[a * K + a] = 1.0;
+    total[a * K + a] = 1.0;
+  }
+  for (int n = 1; n <= K + 17; ++n) {
+    const double f = y / n;
+    for (int a = 0; a < K; ++a) {
+      for (int b = 0; b < K; ++b) {
+        double acc = 0.0;
+        for (int m = 0; m < K; ++m) acc += term[a * K + m] * B[m * K + b];
+        next[a * K + b] = acc * f;
+      }
+    }
+    term.swap(next);
+    for (std::size_t i = 0; i < KK; ++i) total[i] += term[i];
+  }
+  const double e = std::exp(-y);
+  for (std::size_t i = 0; i < KK; ++i) P[i] = e * total[i];
+  for (int i = 0; i < s; ++i) {
+    for (int a = 0; a < K; ++a) {
+      for (int b = 0; b < K; ++b) {
+        double acc = 0.0;
+        for (int m = 0; m < K; ++m) acc += P[a * K + m] * P[m * K + b];
+        next[a * K + b] = acc;
+      }
+    }
+    P.swap(next);
+  }
+  return P;
+}
+
+// Ordered characters (or any rate matrix Q with a uniform root distribution)
+// for MkPrime::Pruner, with P(t) from UniformizedTransition()
+class UniformizedModel {
  public:
-  SymmetricModel(int k, const double* vectors, const double* values)
-    : k_(k), V_(vectors, vectors + static_cast<std::size_t>(k) * k),
-      ev_(values, values + k) {}
+  UniformizedModel(int k, const double* Q)  // Q column-major, as in R
+    : k_(k), Q_(static_cast<std::size_t>(k) * k) {
+    for (int a = 0; a < k; ++a) {
+      for (int b = 0; b < k; ++b) Q_[a * k + b] = Q[a + b * k];
+    }
+  }
 
   int n_states() const { return k_; }
 
   void transition(const double* src, double* dst, int nChar, double t) const {
-    std::vector<double> e(k_), P(static_cast<std::size_t>(k_) * k_);
-    for (int m = 0; m < k_; ++m) e[m] = std::exp(ev_[m] * t);
-    for (int a = 0; a < k_; ++a) {
-      for (int b = 0; b < k_; ++b) {
-        double s = 0.0;
-        for (int m = 0; m < k_; ++m) s += V_[a + m * k_] * e[m] * V_[b + m * k_];
-        P[a * k_ + b] = s;
-      }
-    }
+    const std::vector<double> P = UniformizedTransition(Q_, k_, t);
     for (int c = 0; c < nChar; ++c) {
       const double* in = src + static_cast<std::size_t>(c) * k_;
       double* out = dst + static_cast<std::size_t>(c) * k_;
@@ -47,7 +95,7 @@ class SymmetricModel {
     }
   }
 
-  // P(t) is symmetric
+  // Q is symmetric, so P(t) is too
   void transition_transpose(const double* src, double* dst, int nChar,
                             double t) const {
     transition(src, dst, nChar, t);  // # nocov
@@ -61,7 +109,7 @@ class SymmetricModel {
 
  private:
   int k_;
-  std::vector<double> V_, ev_;
+  std::vector<double> Q_;  // row-major
 };
 
 struct EdgeList {
@@ -127,9 +175,8 @@ double MkCharactersCpp(List tree, List partitions, NumericVector lengths,
     std::vector<double> site;
     try {
       if (ordered) {
-        const NumericMatrix V = g["vectors"];
-        const NumericVector ev = g["values"];
-        const SymmetricModel model(K, V.begin(), ev.begin());
+        const NumericMatrix Q = g["Q"];
+        const UniformizedModel model(K, Q.begin());
         site = SiteLikelihoods(model, el, tr.nTip, nCol, tip.begin(), r);
       } else {
         const MkPrime::JCModel model(K);
@@ -149,6 +196,8 @@ double MkCharactersCpp(List tree, List partitions, NumericVector lengths,
         double p = 0.0;
         for (int s = 0; s < nConst; ++s) p += site[nData + m * nConst + s];
         if (!ordered) p *= K;
+        // A constant pattern certain (to rounding): not a likelihood (R98-2)
+        if (!(p < 1.0)) return -std::numeric_limits<double>::infinity();
         total -= count[m] * std::log1p(-p);
       }
     }

@@ -33,7 +33,29 @@
 #   (JointPriorLogWeight()); `combine` reports each edge reweighted to that
 #   prior, log BF' = log BF + log E_B[w] - log E_A[w] (self-normalised), with
 #   the weights' ESS per cell: MkPrime's bulk ESS (autocorrelation-aware) and
-#   the iid Kish ESS (README, "Priors"; review of #91, F3).
+#   the iid Kish ESS (README, "Priors"; review of #91, F3);
+# - column names and chain labels write numbers with FormatValue() (common.R):
+#   format() on the vector c(0, 0.5, 1) gave aug_b0.0 / aug_b0.5 / aug_b1.0,
+#   which combine could not find, so any ladder rung crashed it (#100);
+#   ParseLabel() and Chains() are in common.R and stop on a label they cannot
+#   read (as the penguin pipeline, #75);
+# - combine checks the chains it finds against the expected set (launch
+#   record <run root>/launch.csv, or the production default of 4 cells x 4
+#   replicates; common.R, ExpectedChains()) and stops if any expected chain has
+#   no complete segment or no cross.csv, or if a chain is not in the record;
+#   CET_BF_ALLOW_MISSING (chain labels) is the only, explicit, opt-out (#101);
+# - #103 review: eval records what it read (evalSamples, evalSegMd5: an md5 of
+#   the seg*_samples.csv files) and its tolerance (evalTol); combine refuses a
+#   cross.csv whose chain has changed since, or that records nothing, uses the
+#   stricter of evalTol and its own CET_BF_TOL, and requires every chain it
+#   uses to be complete (CET_BF_ALLOW_INCOMPLETE names exceptions) (R103-2);
+#   combine deletes its outputs (bayes-factors.csv, model-probabilities.csv,
+#   closure.txt, chains-used.csv) before anything else, so a stop leaves none
+#   from an earlier run (R103-3); a chain left out with CET_BF_ALLOW_MISSING is
+#   left out everywhere, and combine stops if that, or the chains found, leave
+#   a character-power ladder without t = 0 or t = 1 or with fewer than three
+#   rungs (penguin's LadderProblems(), #88; R103-4); chains-used.csv lists
+#   every chain and its role (R103-12).
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -44,23 +66,7 @@ args <- commandArgs(trailingOnly = TRUE)
 burn <- as.numeric(Sys.getenv("CET_BF_BURN", "0.25"))
 tol <- as.numeric(Sys.getenv("CET_BF_TOL", "1e-6"))
 
-# Chain labels (run-chain.R): b<beta>g<gamma>[_mkvnone][_t<power>]_run<rep>
-ParseLabel <- function(label) {
-  m <- regmatches(label, regexec(
-    "^b([0-9.]+)g([0-9.]+)(_mkv(none))?(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
-  if (!length(m)) return(NULL)
-  data.frame(label = label, beta = as.numeric(m[2]), gamma = as.numeric(m[3]),
-             mkv = if (nzchar(m[5])) m[5] else "pattern",
-             power = if (nzchar(m[7])) as.numeric(m[7]) else 1, rep = as.integer(m[8]))
-}
-Chains <- function(root) {
-  dirs <- list.dirs(root, recursive = FALSE)
-  do.call(rbind, lapply(dirs, function(d) {
-    p <- ParseLabel(basename(d))
-    if (is.null(p) || !length(Sys.glob(file.path(d, "seg*_samples.csv")))) return(NULL)
-    cbind(p, dir = d)
-  }))
-}
+# ParseLabel(), Chains(), FormatValue() and the expected chain set are in common.R
 LoadSamples <- function(dir) {
   smp <- do.call(rbind, lapply(sort(Sys.glob(file.path(dir, "seg*_samples.csv"))), utils::read.csv))
   keep <- seq_len(nrow(smp)) > floor(burn * nrow(smp))
@@ -86,7 +92,6 @@ CharLLAt <- function(state, gamma, characters) {
 if (args[[1]] == "eval") {
   dir <- args[[2]]
   me <- ParseLabel(basename(dir))
-  if (is.null(me)) stop("not a chain directory of run-chain.R: ", dir)
   ckpFile <- file.path(dir, "checkpoint.rds")
   if (!file.exists(ckpFile)) stop("no checkpoint in ", dir, ": cannot verify the chain's target")
   ckp <- readRDS(ckpFile)
@@ -108,6 +113,7 @@ if (args[[1]] == "eval") {
     as.numeric(strsplit(Sys.getenv("CET_BF_GAMMAS"), ",")[[1]])
   } else sort(unique(all$gamma))
   priors <- CetPriors()
+  fp <- SegmentFingerprint(dir)
   s <- LoadSamples(dir)
   states <- LoadStates(dir)
   stopifnot(length(states) == nrow(s$samples))
@@ -128,8 +134,8 @@ if (args[[1]] == "eval") {
     la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
     ownChar <- CharLLAt(st, me$gamma, dat$characters)
     own <- LogAugAt(st, me$beta, me$gamma) + me$power * ownChar + lp + la
-    c(sample = i, setNames(aug, paste0("aug_b", format(betas))),
-      setNames(chr, paste0("chr_g", format(gammas))), logPrior = lp,
+    c(sample = i, setNames(aug, paste0("aug_b", vapply(betas, FormatValue, ""))),
+      setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))), logPrior = lp,
       logJointW = JointPriorLogWeight(st$par, priors), check = own - s$samples$logPost[i],
       checkChar = ownChar - s$samples$charLL[i])
   }))
@@ -138,6 +144,17 @@ if (args[[1]] == "eval") {
               basename(dir), nrow(out), proc.time()[["elapsed"]] - t0, max(abs(out[, "check"])),
               max(abs(out[, "checkChar"]))))
   crossFile <- file.path(dir, "cross.csv")
+  # What this eval read (R103-2): combine compares it with the chain's files
+  fpAfter <- SegmentFingerprint(dir)
+  if (!identical(fp, fpAfter) || fp$samples != nrow(s$samples)) {
+    unlink(crossFile)
+    stop(sprintf("%s: the segment files changed while eval read them (%d samples, then %d); no cross.csv written",
+                 basename(dir), fp$samples, fpAfter$samples))
+  }
+  out <- as.data.frame(out)
+  out$evalSamples <- fp$samples
+  out$evalSegMd5 <- fp$md5
+  out$evalTol <- tol
   if (!(worst <= tol)) {
     unlink(crossFile)
     stop(sprintf("recomputed log posterior or charLL differs from the chain's by %.3g > %g; no cross.csv written",
@@ -182,25 +199,79 @@ SteppingStone <- function(ladder, logL) {
   list(logR = sum(inc[1, ]), se = sqrt(sum(inc[2, ])))
 }
 root <- args[[2]]
-ch <- Chains(root)
-ch <- ch[ch$mkv == .cet$mkv & file.exists(file.path(ch$dir, "cross.csv")), ]
+stopifnot("combine: <run root> does not exist" = dir.exists(root))
+# No output of an earlier run survives a stop, or a run with fewer edges (R103-3)
+outputs <- file.path(root, c("bayes-factors.csv", "model-probabilities.csv", "closure.txt",
+                             "chains-used.csv"))
+unlink(outputs)
+# Every cell with character-power chains must have a complete ladder, t = 0 to
+# t = 1 (the t = 1 rung is the cell's power-1 chains under the same root), with
+# at least 3 rungs; otherwise the stepping-stone would report log Z(t_max) /
+# Z(t_min) as the marginal (penguin #88; #103 review, R103-4)
+LadderProblems <- function(ch) {
+  pw <- unique(ch[ch$power != 1, c("beta", "gamma")])
+  unlist(lapply(seq_len(nrow(pw)), function(i) {
+    sel <- ch$beta == pw$beta[i] & ch$gamma == pw$gamma[i]
+    ladder <- sort(unique(ch$power[sel]))
+    missing <- c(if (ladder[1] != 0) "t = 0", if (ladder[length(ladder)] != 1) "t = 1")
+    few <- length(ladder) < 3L
+    if (!length(missing) && !few) return(NULL)
+    sprintf("cell %s (mkv %s): power ladder %s %s", CellLabel(pw$beta[i], pw$gamma[i]), .cet$mkv,
+            paste(vapply(ladder, FormatValue, ""), collapse = ", "),
+            paste(c(if (length(missing)) paste("lacks", paste(missing, collapse = " and ")),
+                    if (few) "has fewer than 3 rungs"), collapse = " and "))
+  }))
+}
+chAll <- Chains(root)
+problems <- LadderProblems(chAll[chAll$mkv == .cet$mkv, ])
+if (length(problems)) {
+  stop("combine: incomplete character-power ladder(s); no marginal is reported.\n  ",
+       paste(problems, collapse = "\n  "),
+       "\n  The t = 1 rung is the cell's chains at power 1 (production chains) under the same root.",
+       call. = FALSE)
+}
+# Every expected chain must be present, complete and with a cross.csv, unless
+# named in CET_BF_ALLOW_MISSING / CET_BF_ALLOW_INCOMPLETE (#101; R103-2)
+leftOut <- CheckChainSet(root, chAll)
+# A chain left out is left out everywhere: the ladders must still be complete
+# without it (lead decision on R103-4)
+problems <- LadderProblems(chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut, ])
+if (length(problems)) {
+  stop("combine: incomplete character-power ladder(s) once ", paste(leftOut, collapse = ", "),
+       " (CET_BF_ALLOW_MISSING) are left out; no marginal is reported.\n  ",
+       paste(problems, collapse = "\n  "), call. = FALSE)
+}
+ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut &
+              file.exists(file.path(chAll$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
-# Refuse any cross.csv that did not pass eval's checks (review of #91, A2)
-bad <- vapply(cross, function(x) {
-  cols <- intersect(c("check", "checkChar"), names(x))
-  length(cols) < 2 || !all(abs(as.matrix(x[, cols])) <= tol)
-}, TRUE)
-if (any(bad)) {
-  stop("cross.csv fails eval's checks (or predates checkChar) for: ",
-       paste(ch$label[bad], collapse = ", "), "; rerun eval on those chains")
+# Refuse any cross.csv that did not pass eval's checks at the stricter of its
+# recorded and this tolerance (review of #91, A2), or whose chain has changed
+# since eval read it, or that does not record what eval read (R103-2)
+problems <- CrossProblems(ch, cross, tol)
+if (length(problems)) {
+  stop("combine: cross.csv refused; no Bayes factor is reported.\n  ",
+       paste(problems, collapse = "\n  "), call. = FALSE)
 }
+utils::write.csv(ChainsUsed(chAll, leftOut, cross), file.path(root, "chains-used.csv"), row.names = FALSE)
 LogQ <- function(x, beta, gamma) {
-  x[[paste0("aug_b", format(beta))]] + x[[paste0("chr_g", format(gamma))]] + x$logPrior
+  a <- paste0("aug_b", FormatValue(beta))
+  g <- paste0("chr_g", FormatValue(gamma))
+  if (!all(c(a, g) %in% names(x))) {
+    stop(sprintf("cross.csv has no column %s; rerun eval on every chain after adding a rung",
+                 paste(setdiff(c(a, g), names(x)), collapse = " or ")), call. = FALSE)
+  }
+  x[[a]] + x[[g]] + x$logPrior
 }
 Draws <- function(p, rep = NULL) {
   sel <- ch$power == 1 & ch$beta == p[1] & ch$gamma == p[2] & (is.null(rep) | ch$rep %in% rep)
-  do.call(rbind, cross[ch$label[sel]])
+  xs <- cross[ch$label[sel]]
+  if (!length(xs)) return(NULL)
+  # Only the columns every chain has: a chain evaluated before a rung was added
+  # lacks that rung's column, and LogQ() then names it (rbind() would fail with
+  # "numbers of columns of arguments do not match")
+  cols <- Reduce(intersect, lapply(xs, names))
+  do.call(rbind, lapply(xs, function(x) x[, cols, drop = FALSE]))
 }
 Bridge <- function(a, b, rep = NULL) {
   xa <- Draws(a, rep)
@@ -216,6 +287,13 @@ Edge <- function(a, b) {
   v <- pts[other, along]
   v <- sort(unique(v[v >= min(a[along], b[along]) & v <= max(a[along], b[along])]))
   if (a[along] > b[along]) v <- rev(v)
+  # The path must run from a to b: both end points need chains (penguin #88);
+  # possible here only if CET_BF_ALLOW_MISSING left out a whole cell
+  if (length(v) < 2L || v[1] != a[along] || v[length(v)] != b[along]) {
+    cat(sprintf("Edge %s -> %s: no chains with cross.csv at an end point; edge left out\n",
+                CellLabel(a[1], a[2]), CellLabel(b[1], b[2])))
+    return(NULL)
+  }
   P <- function(val) if (along == 1) c(val, a[2]) else c(a[1], val)
   steps <- lapply(seq_len(length(v) - 1L), function(k) Bridge(P(v[k]), P(v[k + 1])))
   if (any(vapply(steps, is.null, TRUE)) || !length(steps)) return(NULL)
@@ -247,8 +325,12 @@ Edge <- function(a, b) {
 }
 edges <- rbind(Edge(c(0, 0), c(1, 0)), Edge(c(0, 1), c(1, 1)),
                Edge(c(0, 0), c(0, 1)), Edge(c(1, 0), c(1, 1)))
-print(edges, row.names = FALSE)
-utils::write.csv(edges, file.path(root, "bayes-factors.csv"), row.names = FALSE)
+if (is.null(edges)) {
+  cat("No bridge edge has chains with cross.csv at both ends\n")
+} else {
+  print(edges, row.names = FALSE)
+  utils::write.csv(edges, file.path(root, "bayes-factors.csv"), row.names = FALSE)
+}
 if (!is.null(edges) && nrow(edges) == 4) {
   e <- setNames(edges$logBF, paste(edges$from, edges$to))
   se <- edges$se
@@ -262,12 +344,15 @@ if (!is.null(edges) && nrow(edges) == 4) {
   utils::write.csv(res, file.path(root, "model-probabilities.csv"), row.names = FALSE)
   writeLines(sprintf("closure %.4f se %.4f", closure, sqrt(sum(se^2))), file.path(root, "closure.txt"))
 }
-ch <- Chains(root)
-pw <- unique(ch[, c("beta", "gamma")])
+# Character-power stepping-stone per cell with power chains: only chains of
+# the CET_MKV variant (as penguin #75), without the chains left out.  Ladders
+# were checked to run from t = 0 to t = 1 above (R103-4).
+ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut, ]
+pw <- unique(ch[ch$power != 1, c("beta", "gamma")])
 for (i in seq_len(nrow(pw))) {
   sel <- ch$beta == pw$beta[i] & ch$gamma == pw$gamma[i]
   ladder <- sort(unique(ch$power[sel]))
-  if (length(ladder) < 3 || ladder[1] != 0) next
+  stopifnot(ladder[1] == 0, ladder[length(ladder)] == 1, length(ladder) >= 3L)
   logL <- lapply(ladder, function(t) {
     unlist(lapply(ch$dir[sel & ch$power == t], function(d) {
       s <- LoadSamples(d)
@@ -275,6 +360,7 @@ for (i in seq_len(nrow(pw))) {
     }))
   })
   ss <- SteppingStone(ladder, logL)
-  cat(sprintf("%s: log p(characters | tip ages) = %.3f (SE %.3f), %d rungs\n",
-              CellLabel(pw$beta[i], pw$gamma[i]), ss$logR, ss$se, length(ladder)))
+  cat(sprintf("%s (mkv %s): log p(characters | tip ages) = %.3f (SE %.3f), %d rungs, %d chains\n",
+              CellLabel(pw$beta[i], pw$gamma[i]), .cet$mkv, ss$logR, ss$se, length(ladder),
+              sum(sel)))
 }

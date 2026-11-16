@@ -32,14 +32,17 @@
 #   CET_NBIN, CET_ZMAX   tempo grid (default 26 bins, z in [-5, 5])
 #   CET_STATES       "true" (default) to save per-sample states for
 #                    bayes-factors.R
-# The checkpoint records the target (beta, gamma, power, Mkv variant, grid) and
+# The checkpoint records the target (beta, gamma, power, Mkv variant, Gamma
+# rate categories, grid) and
 # the thinning and segment length, and a run with any of them different stops
 # rather than continue it (#74, #76).  It also records the start tree (md5,
 # and path relative to cet/), and a resume from a tree with another md5 or tip
 # order stops; the checkout path does not matter (#102).
-# Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples plus charLL;
+# Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples, with the
+# Gamma shape alpha, plus charLL;
 # logPrior, the log prior of the parameters; logOriginPrior, that of the origin
-# age, which TempoMCMC()'s logPost also includes; the iteration), seg<k>_trees.nwk
+# age, and logAlphaPrior, that of alpha, both of which TempoMCMC()'s logPost
+# also includes; the iteration), seg<k>_trees.nwk
 # (ages in Myr before 485.4 Ma), seg<k>_states.rds; acceptance.csv (per segment,
 # with constraint rejections per tree move); checkpoint.rds; progress.txt.
 t0 <- proc.time()[["elapsed"]]
@@ -96,15 +99,16 @@ moves <- CetMoves(dat$tree, dat$characters, model)
 Progress <- function(...) {
   cat(sprintf(...), "\n", file = file.path(outDir, "progress.txt"), append = TRUE)
 }
+# nRateCat: a checkpoint from before Gamma rates (#97), which records none, stops
 target <- list(mkv = mkv, power = power, beta = beta, gamma = gamma, nBin = grid$nBin,
-               zMax = grid$zMax, thin = thin, seg = seg)
+               zMax = grid$zMax, thin = thin, seg = seg, nRateCat = cetRateCats)
 ckpFile <- file.path(outDir, "checkpoint.rds")
 if (file.exists(ckpFile)) {
   ckp <- readRDS(ckpFile)
   same <- vapply(names(target), function(n) identical(ckp[[n]], target[[n]]), TRUE)
   if (!all(same)) {
     stop(sprintf("%s holds a chain with %s; this run has %s", ckpFile,
-                 paste(names(target), vapply(names(target), function(n) format(ckp[[n]]), ""),
+                 paste(names(target), vapply(names(target), function(n) format(ckp[[n]] %||% "(none)"), ""),
                        collapse = ", "),
                  paste(names(target), vapply(target, format, ""), collapse = ", ")))
   }
@@ -114,7 +118,7 @@ if (file.exists(ckpFile)) {
   sameTree <- if (is.null(ckp$startTreeMd5)) {
     identical(ckp$startTree, startTree)
   } else identical(ckp$startTreeMd5, startTreeMd5)
-  if (!sameTree || !identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
+  if (!sameTree || !identical(ckp$captured$st$tree$tipLabel, dat$characters$tipLabel)) {
     if (is.null(ckp$startTreeMd5)) {
       # Checkpoint written before #102: no md5, so only the path can be compared
       # (#103 review, R103-11)
@@ -146,17 +150,18 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   .cet$injected <- FALSE
   .cet$constraintRejections <- list()
   tSeg <- proc.time()[["elapsed"]]
-  stopifnot(identical(rownames(dat$characters), dat$tree$tipLabel))
+  stopifnot(identical(dat$characters$tipLabel, dat$tree$tipLabel))
   if (is.null(ckp)) {
     run <- TempoMCMC(dat$tree, model, CetStart(startIndex), priors, nIter = seg, burnin = burnin,
                      thin = thin, nSlice = nSlice, moves = moves,
-                     characters = dat$characters, agePriors = CetAgePriors())
+                     characters = dat$characters, agePriors = CetAgePriors(),
+                     charPriors = CetCharPriors())
   } else {
     .cet$resume <- ckp$captured
     run <- TempoMCMC(ckp$captured$st$tree, model, ckp$captured$st$par, priors,
                      nIter = seg, burnin = 0, thin = thin, nSlice = nSlice,
                      moves = ckp$captured$moves, characters = dat$characters,
-                     agePriors = CetAgePriors())
+                     agePriors = CetAgePriors(), charPriors = CetCharPriors())
     stopifnot(.cet$injected)
   }
   secs <- proc.time()[["elapsed"]] - tSeg
@@ -169,6 +174,7 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   }, 0)
   smp$logOriginPrior <- vapply(rec, function(r) CetAgePriors()$origin(
     r$state$tree$age[[r$state$tree$root]] + r$state$tree$stem), 0)
+  smp$logAlphaPrior <- vapply(rec, function(r) CetCharPriors()$alpha(r$state$par$alpha), 0)
   smp$iteration <- (k - 1) * seg + seq(thin, seg, by = thin)
   smp$segment <- k
   tag <- sprintf("seg%04d", k)

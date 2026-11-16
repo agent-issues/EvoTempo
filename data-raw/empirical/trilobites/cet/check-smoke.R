@@ -27,6 +27,7 @@ timing <- do.call(rbind, lapply(labels, function(l) {
              iterations = 100 + seg$burnin, secsPerIteration = seg$secs / (100 + seg$burnin),
              finalLogPost = tapply(smp$logPost, smp$segment, utils::tail, 1)[seg$segment],
              finalCharLL = tapply(smp$charLL, smp$segment, utils::tail, 1)[seg$segment],
+             finalAlpha = tapply(smp$alpha, smp$segment, utils::tail, 1)[seg$segment],
              finalOriginMa = tapply(smp$originAge, smp$segment, utils::tail, 1)[seg$segment] + 485.4)
 }))
 print(timing, row.names = FALSE)

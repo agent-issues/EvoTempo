@@ -113,7 +113,7 @@ for (l in unique(sub("_run[0-9]+$", "", basename(dirs)))) {
     smp <- do.call(rbind, lapply(f, utils::read.csv))
     tr <- unlist(lapply(sort(Sys.glob(file.path(dd, "seg*_trees.nwk"))), readLines))
     keep <- Keep(nrow(smp))
-    cols <- intersect(c("lambda", "mu", "psi", "theta", "s", "rate", "logPost", "charLL",
+    cols <- intersect(c("lambda", "mu", "psi", "theta", "s", "rate", "alpha", "logPost", "charLL",
                         "rootBin", "meanX", "nAncestor", "treeLength", "clock"), names(smp))
     logW <- vapply(which(keep), function(i) {
       JointPriorLogWeight(as.list(smp[i, c("lambda", "mu", "psi")]), priors)

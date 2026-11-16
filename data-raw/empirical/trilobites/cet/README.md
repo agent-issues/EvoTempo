@@ -8,14 +8,20 @@ penguin pipeline (`../../penguins/cet/`); the differences are listed in each sec
 
 **Production is not launched by this PR.** It starts after the independent review.
 
+The characters are scored by the package's `MkCharacters()` (#97, PR #98): the comparator's
+character model **with** its Gamma(4) rate variation among characters and a free shape alpha
+(**Character model**).  The first version of the pipeline (PR #91) scored them with its own code
+(`PartitionedMk()`, `prune.cpp`) and had no Gamma; that code is gone, and its no-Gamma values are
+reproduced by the package (`check-mkv.R`).
+
 ## Files
 
 | File | Role |
 |---|---|
 | `prepare.R` | Converts `../trilobites_morph.nex` and `../trilobites_characters.csv` into `data/characters.csv` and `data/partitions.csv`, and draws one starting state per production chain from the RevBayes posterior (`data/start-tree-01.nwk` ... `16.nwk`, `data/start-values.csv`, `data/start-tree-log.txt`) |
-| `common.R` | Time origin and conditioning, priors, moves, data loading, and the three namespace rebindings: character likelihood, per-sample recording and exact resume, ingroup constraint |
-| `prune.cpp` | C++ pruning (via `Rcpp::sourceCpp()`) of the columns `MkLikelihood()` cannot score: ambiguous cells, ordered characters, and the constant columns of the Mkv corrections |
-| `check-mkv.R`, `revbayes/check-oracle.Rev`, `revbayes/check-oracle.sh` | Fixed-tree checks against RevBayes: the character likelihood against `dnPhyloCTMC(coding = "variable")`, and the conditioning and time origin against `dnFBDP(rho = 0, condition = "sampling")` |
+| `common.R` | Time origin and conditioning, priors, moves, data loading (characters as `MkCharacters()`), and the three namespace rebindings: a power on the character likelihood, per-sample recording and exact resume, ingroup constraint |
+| `check-mkv.R`, `revbayes/check-oracle.Rev`, `revbayes/check-oracle.sh` | Fixed-tree checks against RevBayes: the character likelihood, with and without Gamma rates, against `dnPhyloCTMC(coding = "variable")`, and the conditioning and time origin against `dnFBDP(rho = 0, condition = "sampling")` |
+| `check-identity.R`, `check-identity.sh` | Whether the character-free path of `TempoMCMC()` (that of the window check and SBC-lite) gives identical chains under the build that ran those checks and the build the chains use |
 | `check-window.R`, `check-window.sh` | Forward-simulation check of the all-fossil set-up (rho = 0, origin start, survival, beta = 1) |
 | `check-priors.R` | Monte Carlo check of the priors matched to the comparator |
 | `check-sbc.R`, `check-sbc.sh` | Free-parameter simulation-based calibration at rho = 0, beta = 1 (SBC-lite) |
@@ -130,6 +136,16 @@ was checked here before being relied on:
    trilobite regime (the comparator's lambda about 3-13 with turnover about 0.99), so it says
    nothing about mixing or calibration at high turnover (#91 delta review; #102).  A trial of 8 replicates x 990 iterations (Slurm 19431323) ran end to end.
 
+**Items 2 and 3 after the switch to `MkCharacters()`.**  They ran at 48e6bf7 and use no characters.
+`check-identity.sh` (Slurm 19473189, `smoke-results/identity.txt`) runs, under 48e6bf7 and under
+the build the chains now use (bf8ce1c), a free-parameter prior-only chain with every path, tree and
+origin move and the parameter, `joint` and `shift` moves, under survival and none, and a small
+`check-window.R` (300 iterations, 2 chains, 32 simulated trees per conditioning): samples,
+acceptance and simulations are `identical()` between the builds.  The character-free path of
+`TempoMCMC()` is unchanged, so both results stand and the window check needs no rerun.  Item 1 was
+rerun on bf8ce1c: the same residuals (3.4e-8 C++, 6.7e-7 R; spreads of the negative controls 2.76
+and 3.16 nats).
+
 **Engine findings** (not used by `TempoMCMC()`, whose target is `.LogAugmented()` and whose frozen
 messages use eigendecomposed slice exponentials): `FBDTreeLikelihood()` returns NaN with rho = 0
 and no extant tip (it adds 0 x log 0); `TreeLikelihood()`'s default `atol = 1e-14` on the rescaled D
@@ -137,47 +153,71 @@ is too loose on long branches where D decays far (grid case 6, psi 0.3 and a 100
 nats too high, the engines disagree), so `check-mkv.R` uses `atol = 1e-30`, at which both engines
 agree with RevBayes.  An issue draft is with the lead.
 
-## Character model (`common.R`, `prune.cpp`)
+## Character model (`common.R`, `MkCharacters()`)
 
-`PartitionedMk()` (rebinding `MkLikelihood()`) scores the comparator's character model without its
-Gamma rate variation:
+`LoadCharacters()` builds the characters with the package's `MkCharacters()` (#97, PR #98), with
+row names equal to the tip labels of the tree they are scored on (`MkLikelihood()` checks them):
 
-- unordered characters without ambiguous cells: `MkLikelihood()` per K (C++ engine);
-- characters with ambiguous cells (15 unordered) and the two ordered characters: `CetPrune()`
-  (C++), with an R reference (`SymLogLik()`, `OrdLogLik()`) used by the R engine and by the checks;
-- ordered characters: adjacent-state changes at equal rates, rescaled to mean rate 1 (rate
-  K / (2(K - 1)), as RevBayes's `fnOrderedRateMatrix(maxState = K)`, whose matrices the oracle
-  prints), uniform root;
-- the Mkv correction once per missing-data pattern and partition, as RevBayes
-  `coding = "variable"` (#65): 81 unordered patterns plus one per ordered character.  A cell is
-  observed for the masks unless it is `?`, `-` or ambiguous over **all** K states: RevBayes treats
-  such a cell (character 12 has one `{01}` in a binary character) as missing, and counting it as
-  observed moved partition u2 by 1.4e-3 nats at rate 0.005 before this was found.
+    MkCharacters(cells, nState = parts$k, ordered = parts$ordered, coding = "variable", nRateCat = 4)
 
-`check-mkv.R` on start tree 01 with a strict clock (`smoke-results/mkv-check.csv`, both engines):
+- K per character from `data/partitions.csv` (the comparator's K, from the matrix symbols);
+  unordered characters Mk (RevBayes `fnJC(K)`); characters 45 and 47 ordered: adjacent-state
+  changes at equal rates, rescaled to mean rate 1 (`fnOrderedRateMatrix(maxState = K)`); uniform
+  root; character 17 excluded (`prepare.R`);
+- cells as `prepare.R` writes them: one state (`"0"`, `"12"` in the 16-state character 3), a set
+  (`"0/1"`, read as the ambiguous set {0, 1}), or `""` (unknown).  A set over all K states is
+  unknown, as RevBayes (character 12 has one `{01}` in a binary character);
+- `coding = "variable"`: one Mkv correction per missing-data mask, number of states and ordering,
+  as RevBayes `dnPhyloCTMC(coding = "variable")` (#65), averaged over the rate categories as RevBayes
+  does (one correction per mask, not per category).  `CET_MKV=none` gives `coding = "all"`;
+- **Gamma rates among characters**: 4 equiprobable categories with the mean rate of each
+  (`GammaRates()`, RevBayes `fnDiscretizeGamma(alpha, alpha, 4)`), one shape `alpha` for all
+  characters, as the comparator.  `alpha` is a parameter of `TempoMCMC()` (`start$alpha`, prior
+  `charPriors$alpha`; `CetCharPriors()`: Exponential(rate 2), the comparator's), updated by the
+  package's scale move once per iteration (step adapted during burn-in);
+- the power of the stepping-stone chains multiplies the package's log-likelihood
+  (`PoweredMk()`, the only rebinding of `MkLikelihood()`; at power 1 it returns the package's value
+  unchanged).
 
-| Rate | CET (per pattern) | RevBayes `coding = "variable"` | Difference | Mkv correction |
+`check-mkv.R` on start tree 01 with a strict clock (`smoke-results/mkv-check.csv`, both engines),
+against RevBayes with the comparator's matrices (`../revbayes/prepare-data.R`):
+
+| Rate | Gamma shape | CET (`MkLikelihood()`) | RevBayes `coding = "variable"` | Mkv correction |
 |---|---|---|---|---|
-| 0.005 | -2805.185423 | -2805.185423 | -4.7e-10 | 31.70 |
-| 0.0236 | -2667.526174 | -2667.526174 | 1.1e-10 | 4.36 |
-| 0.05 | -3123.850355 | -3123.850355 | -7.1e-11 | 1.98 |
+| 0.005 | none | -2805.185423 | -2805.185423 | 31.70 |
+| 0.005 | 0.25 | -2493.735803 | -2493.735803 | 96.48 |
+| 0.005 | 0.6 | -2538.950564 | -2538.950564 | 66.80 |
+| 0.005 | 2 | -2627.377324 | -2627.377324 | 43.70 |
+| 0.0236 | none | -2667.526174 | -2667.526174 | 4.36 |
+| 0.0236 | 0.25 | -2433.332262 | -2433.332262 | 56.76 |
+| 0.0236 | 0.6 | -2414.623148 | -2414.623148 | 25.52 |
+| 0.0236 | 2 | -2448.941189 | -2448.941189 | 7.90 |
+| 0.05 | none | -3123.850355 | -3123.850355 | 1.98 |
+| 0.05 | 0.25 | -2460.105471 | -2460.105471 | 43.57 |
+| 0.05 | 0.6 | -2438.300303 | -2438.300303 | 14.26 |
+| 0.05 | 2 | -2555.296907 | -2555.296907 | 3.28 |
 
-Every partition agrees to 5.1e-10 (10 partitions x 3 rates x 2 engines); the route through the R pruners alone (no C++) agrees
-with the C++ route to 1e-8, the engines to 1.5e-11, and power t scales the corrected lnL exactly.
-RevBayes prints 14 significant digits (`setOption("outputPrecision", "14")`).
+Gamma off (nRateCat = 1): every partition agrees with RevBayes to 5.1e-10 (10 partitions x 3 rates x
+2 engines), and the totals equal those of PR #91's own code (`PartitionedMk()`) to 1e-5, their printed
+precision.  Gamma on (nRateCat = 4, alpha 0.25, 0.6, 2): every partition agrees to 5.7e-8
+(10 x 9 x 2), within the bar of 1e-6 set beforehand.  The whole matrix equals the sum of its
+partitions, the engines agree to 2.3e-12, and power t gives t x lnL.  RevBayes prints 14 significant
+digits (`setOption("outputPrecision", "14")`).  The calibration of the alpha move is checked in
+PR #98 (`data-raw/gamma-acrv-results/`: alpha oracle and SBC with Gamma), not here.
 
-Cost of one evaluation on start tree 01 (`smoke-results/mkv-check-timing.csv`, mean of 200):
+Cost of one evaluation on start tree 01 (`smoke-results/mkv-check-timing.csv`; C++ mean of 200):
 
-
-| Part | ms |
+| Character likelihood | ms |
 |---|---|
-| `PartitionedMk()`, C++ engine (all of it) | 1.40 |
-| of which `MkLikelihood()` groups | 0.34 |
-| of which `CetPrune()` (ambiguous, ordered, Mkv columns) | 1.01 |
-| `PartitionedMk()`, R engine (R pruners) | 45.0 |
+| `MkLikelihood()`, C++, Gamma 4 categories, `coding = "variable"` (the chains) | 4.50 |
+| `MkLikelihood()`, C++, Gamma 4 categories, `coding = "all"` | 3.92 |
+| `MkLikelihood()`, C++, no Gamma, `coding = "variable"` | 1.27 |
+| `MkLikelihood()`, R engine, Gamma 4 categories (mean of 10) | 409 |
+| `MkLikelihood()`, R engine, no Gamma (mean of 10) | 103 |
 
-The R pruners alone took 18.4 ms per evaluation (about 3.4 s per MCMC iteration), which is why
-`prune.cpp` exists; the R versions remain the reference.
+PR #91's own code took 1.40 ms (C++, no Gamma).  Four rate categories cost about 3.5 times as
+much as one; the ordered characters now use uniformization (#113: +50 % per evaluation on the
+Hymenoptera matrix), but here they are 2 of 106 characters.
 
 ## Priors (`common.R`)
 
@@ -189,7 +229,7 @@ The R pruners alone took 18.4 ms per evaluation (about 3.4 s per MCMC iteration)
 | theta | LogNormal(log 0.05, 1), truncated at 4 sdlog (as penguins; reversion time median 20 Myr) | - |
 | origin | U(0.6, 1000.6) Myr before 485.4 Ma (U(0, 1000) above the youngest tip) | the same |
 | rho; conditioning | 0; survival of the stem (at least one sample) | 0; `condition = "sampling"` |
-| among-character rate variation | none | Gamma(4), shape ~ Exp(mean 0.5) |
+| among-character rate variation | Gamma(4), shape alpha ~ Exponential(rate 2) (`CetCharPriors()`) | the same: Gamma(4), `alpha_morph ~ dnExponential(2)` (mean 0.5) |
 
 - **lambda, mu, psi.** `TempoMCMC()` takes one independent prior per parameter, evaluated
   parameter by parameter in the parameter sweep, the joint sweep and the shift move, so the
@@ -218,7 +258,8 @@ The R pruners alone took 18.4 ms per evaluation (about 3.4 s per MCMC iteration)
   variation and UCLN rate variation start from the same prior.  The bound 3 is numerical (the
   penguin pilot's s = 86.8 overflow); the mass above it is exp(-270).
 - **Starting values** (`CetStart()`): the RevBayes sample whose tree starts chain k (draw k of
-  `prepare.R`; **Starting trees**): lambda, mu, psi, rate = clock_morph, s = ucld_sd; theta 0.05.
+  `prepare.R`; **Starting trees**): lambda, mu, psi, rate = clock_morph, s = ucld_sd,
+  alpha = alpha_morph; theta 0.05.
 
 ## Ingroup constraint
 
@@ -283,9 +324,13 @@ the first version took them from each start tree, so they differed by replicate:
 gamma = 1, 27 `node`, 27 `tip`, 53 `branch`, 1 `shift`; with gamma = 0, `TempoMoves()`'s fixed
 schedule (1 `tree`, 2 `node`, 2 `tip`, 2 `branch`, 1 `joint`, 1 `shift`); plus `nodeAge` 27 (0.25 x
 106 bifurcations), `slide` 16, `saJump` 11 (0.1 x tips) and `originAge` 1; no `fossilAge` (point ages).
-Per-sample trees, states and exact resume work as in the penguin pipeline (rebound `.TreeStats()`).
+The Gamma shape alpha has the package's scale move, once per iteration in every cell (the
+comparator: `mvScale`, weight 3).
+Per-sample trees, states and exact resume work as in the penguin pipeline (rebound `.TreeStats()`);
+the resume also restores alpha's adapted step (`alphaStep`).
 The checkpoint records the grid (`CET_NBIN`, `CET_ZMAX`), thinning, segment length, beta, gamma,
-power, Mkv variant, start-draw index and the start tree (its md5, its path relative to `cet/`,
+power, Mkv variant, number of Gamma rate categories (so a checkpoint from before Gamma rates
+stops: `smoke-results/guard-gamma.txt`), start-draw index and the start tree (its md5, its path relative to `cet/`,
 and the full path); a run with any of them different, from a start tree with another md5, or whose
 tree has another tip order than the loaded characters, stops (#76; review of #91, F1).  The resume
 guard compares the md5, not the absolute path, so resubmitting from another checkout of the same
@@ -348,23 +393,39 @@ penguin pipeline's `allTips` variant is not carried over.
 
 ## Smoke run, pilot and cost projection
 
-Hamilton, EvoTempo main 48e6bf7 (`lib-48e6bf7`), one core per chain.
+Hamilton, one core per chain.  Since the switch to `MkCharacters()`: EvoTempo bf8ce1c (PR #98's
+gamma-acrv-97 at da4dbd0 with #103 merged; `lib-bf8ce1c`), work directory
+`/nobackup/pjjg18/evotempo-trilobite-gamma`.  Before it (PR #91): main 48e6bf7.
 
-**Smoke** (`smoke.sh`, `test` partition, 40 burn-in + 2 x 100 iterations per chain; rerun for the
-fixes of the #91 review as Slurm 19431320, checked by 19431322; `smoke-results/timing.csv`,
-`acceptance.csv`, `resume.txt`, `eval.txt`, `check-smoke.txt`): every cell ran from its own draw
-(01-04), plus cells (1, 1) and (0, 0) of replicate 2 (draws 08 and 05); 0.47-0.62 s per iteration
-after burn-in.  **Exact resume:** cell (1, 1) in two segments of 100 and in one of 200 gave identical
-samples (maximum absolute difference 0 over 10 samples x 23 columns) and identical trees.
+**Smoke with Gamma rates** (`smoke.sh`, `test` partition, 40 burn-in + 2 x 100 iterations per
+chain; Slurm 19473061, checked by 19473084; `smoke-results/timing.csv`, `acceptance.csv`,
+`resume.txt`, `eval.txt`, `check-smoke.txt`): every cell ran from its own draw (01-04), plus cells
+(1, 1) and (0, 0) of replicate 2 (draws 08 and 05).  After burn-in: 0.71 s per iteration in
+(0, 0), 0.72 in (1, 0), 1.05 in (0, 1) and 1.13 in (1, 1), against 0.47, 0.49, 0.58 and 0.59 s in
+the same smoke before Gamma (same draws and seeds): x 1.49-1.51 with gamma = 0 and x 1.81-1.92 with
+gamma = 1, whose many local path moves each rescore the characters.  Acceptance of the alpha move
+29-40%; the other moves as before (`slide` 2.2-2.7%, `saJump` 3.7-7.3%, `nodeAge` 53-57%).
+**Exact resume:** cell (1, 1) in two segments of 100 and in one of 200 gave identical samples
+(maximum absolute difference 0 over 10 samples x 25 columns, alpha included) and identical trees.
 **`eval` on every smoke chain**, the two replicate-2 chains included: exit 0 and `cross.csv` written
-for all six; maximum |recomputed - logPost| 4.6e-12 to 1.6e-9, maximum |recomputed - charLL|
-<= 5e-12 (review of #91, A3).  **Guard tests** (Slurm 19431540, `smoke-results/guard-tests.txt`):
-`eval` with `CET_BF_TOL = 1e-13` on a replicate-2 chain (residual 1.6e-9) exits 1 and leaves no
-`cross.csv`; `combine` runs on the smoke chains and refuses them once one `cross.csv`'s check column
-is corrupted.  Peak memory in the first smoke 303-304 MB per chain.
+for all six; maximum |recomputed - logPost| 4.1e-12 to 4.7e-9 (the recomputation includes alpha's
+prior), maximum |recomputed - charLL| <= 5e-12.  **`check-combine.sh`** (#103's tiny real chains,
+`eval` and `combine` with a ladder rung, the expected chain set and the resume guard; Slurm
+19473089-91) passes on this code (`smoke-results/check-combine.txt`).  **Pre-Gamma checkpoint**
+(a round-1 smoke chain): the resume stops, `nRateCat (none)` against 4
+(`smoke-results/guard-gamma.txt`, Slurm 19473118).  Peak memory 173-186 MB per chain.
 
-**Pilot** (`smoke.sh` with 500 burn-in + 3000 iterations, thin 10, one chain per cell, `shared`;
-Slurm 19429527; `smoke-results/pilot-*`).  The pilot predates the #91 review: each chain started
+**Before Gamma (PR #91).**  Smoke Slurm 19431320, checked by 19431322: 0.47-0.62 s per iteration;
+exact resume over 10 samples x 23 columns; `eval` on six chains, |recomputed - logPost| 4.6e-12 to
+1.6e-9.  **Guard tests** (Slurm 19431540, `smoke-results/guard-tests.txt`): `eval` with
+`CET_BF_TOL = 1e-13` on a replicate-2 chain (residual 1.6e-9) exits 1 and leaves no `cross.csv`;
+`combine` runs on the smoke chains and refuses them once one `cross.csv`'s check column is
+corrupted.  Peak memory in the first smoke 303-304 MB per chain.
+
+**Pilot before Gamma** (`smoke.sh` with 500 burn-in + 3000 iterations, thin 10, one chain per cell,
+`shared`; Slurm 19429527; `smoke-results/pilot-*`).  A pilot with Gamma rates (Slurm 19473080, the
+same settings) is queued behind node maintenance; its timing and ESS will be added in a separate
+commit.  The pilot predates the #91 review: each chain started
 from the old maximum-Posterior start tree 1, with that tree's move counts (which differ from the
 fixed counts by at most one per move), so its rates are indicative only.  ESS (MkPrime) of the 2000
 iterations after the first segment:
@@ -384,28 +445,34 @@ and are **not results**; for orientation only: root (first split) means 532.1 / 
 522.4 Ma in cells (0,0) / (0,1) / (1,0) / (1,1), against 528.5 Ma in the comparator.
 
 **Projection** (provisional: single 3000-iteration chains understate slow drifts).  The slowest
-quantities reach 1.8-2.5 ESS per 1000 iterations, as in the penguin pilot, so the penguin length is
-kept: 200 000 iterations per chain (thin 100, segments of 10 000), about 25 000 iterations for a
-pooled ESS of 200 with an 8x margin.  The precision target should come from the comparison to be
-resolved (user decision, 2026-11-11), so the length is to be revisited after the first segments.
+quantities reached 1.8-2.5 ESS per 1000 iterations in the pilot before Gamma, as in the penguin
+pilot, so the penguin length is kept: 200 000 iterations per chain (thin 100, segments of 10 000),
+about 25 000 iterations for a pooled ESS of 200 with an 8x margin.  The precision target should
+come from the comparison to be resolved (user decision, 2026-11-11), so the length is to be
+revisited after the first segments.  Seconds per iteration with Gamma rates: the pre-Gamma pilot's
+rate per cell (segments 2-3: 0.606, 0.751, 0.556, 0.721 s) times that cell's smoke ratio with / without
+Gamma (1.51, 1.81, 1.49, 1.92) = 0.91, 1.36, 0.83 and 1.38 s (mean 1.12 s); the smoke rates alone
+(mean 0.90 s) give 804 core-hours.
 
 | Item | Core-hours |
 |---|---|
-| Production: 4 cells x 4 chains x 200 000 iterations at 0.556-0.751 s (cell means after burn-in; mean 0.658 s) | ~585 (31-42 h per chain, one 3-day job each) |
+| Production: 4 cells x 4 chains x 200 000 iterations at 0.83-1.38 s (mean 1.12 s) | **~1000** (46-77 h per chain: chains with gamma = 1 pass the 3-day limit of `shared`, stop at `CET_HOURS` (70) and are resubmitted once) |
 | `bayes-factors.R eval` | < 5 |
-| Ladder rungs, if a Bayes-factor edge needs them: 4 chains x ~37 h per rung, up to 3 per edge, 4 edges | 0-1760 |
-| Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 iterations) | ~290 |
-| Checks run for this PR (oracle, window checks, smoke, pilot, prior check) | 12.8 in the first round (Slurm CPU time of every job); the fix round adds about 1 (smoke, oracle, guards) plus the SBC-lite (48.7) and window replicate 2 (21.0), both as allocated core-hours (elapsed x 16 cores) |
+| Ladder rungs, if a Bayes-factor edge needs them: 4 chains x ~60 h per rung, up to 3 per edge, 4 edges | 0-3000 |
+| Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 iterations) | ~490 |
+| Checks run for PR #91 (oracle, window checks, smoke, pilot, prior check, SBC-lite) | 12.8 in the first round (Slurm CPU time of every job); the fix round about 1 (smoke, oracle, guards) plus the SBC-lite (48.7) and window replicate 2 (21.0), both as allocated core-hours (elapsed x 16 cores) |
+| Checks for the switch to `MkCharacters()` (oracle, identity, smoke, check-combine, guard) | < 1 (pilot with Gamma: about 5 more) |
 
 Disk: about 20 KB per stored state (`seg*_states.rds`), so about 40 MB per chain and 0.65 GB for 16
 chains; remove them once `eval` has run.
 
 ## Running on Hamilton
 
-    W=/nobackup/pjjg18/evotempo-trilobite-cet     # src/ = checkout, lib-<sha>/ = EvoTempo build
+    W=/nobackup/pjjg18/evotempo-trilobite-gamma   # src/ = checkout, lib-<sha>/ = EvoTempo build
     cd $W/src
     Rscript data-raw/empirical/trilobites/cet/prepare.R $W/rbposterior
     sbatch -J evotempo-trilobite-cet-oracle data-raw/empirical/trilobites/cet/revbayes/check-oracle.sh
+    sbatch -J evotempo-trilobite-cet-identity data-raw/empirical/trilobites/cet/check-identity.sh
     sbatch -J evotempo-trilobite-cet-smoke --array=1-7 data-raw/empirical/trilobites/cet/smoke.sh
     Rscript data-raw/empirical/trilobites/cet/check-smoke.R $W     # also runs eval on every smoke chain
     sbatch -J evotempo-trilobite-cet --array=1-16 \
@@ -417,7 +484,9 @@ chains; remove them once `eval` has run.
     Rscript data-raw/empirical/trilobites/cet/bayes-factors.R combine $W/runs        # refuses failed evals and missing chains
     Rscript data-raw/empirical/trilobites/cet/summarise.R $W/runs $W/rbposterior $W/runs/summary
 
-`common.R` compiles `prune.cpp` at start (about 20 s per job).  The Bayes-factor procedure is the
+The scripts' defaults (`W`, the `#SBATCH -o` log paths) name the first work directory,
+`/nobackup/pjjg18/evotempo-trilobite-cet`; export `W` (and pass `-o`) to use another.  The
+Bayes-factor procedure is the
 penguin pipeline's (its README, "Bayes factors"); it ran end to end on the smoke chains
 (`smoke-results/eval.txt`, `guard-tests.txt`); those numbers carry no information and are not
 reported.  `summarise.R` ran on the pilot
@@ -428,10 +497,10 @@ R-hat as -Inf for the single-chain pilot cells; fixed since, display only.).
 
 ## Deviations from the comparator and the penguin pipeline
 
-1. **No among-character rate variation** in CET; the comparator has Gamma(4) with posterior shape
-   0.52 (0.37-0.70), i.e. strong rate heterogeneity.  CET's tempo varies along branches, not among
-   characters, so CET-versus-RevBayes differences confound clock model with rate heterogeneity
-   (engine gap #47).
+1. **Among-character rate variation now matches** the comparator (Gamma(4), one shape with the
+   comparator's prior; `MkCharacters()`, #97), so CET-versus-RevBayes differences no longer confound
+   the clock model with rate heterogeneity (the comparator's posterior shape is 0.52, 0.37-0.70).
+   PR #91 had no Gamma; this was its first deviation.
 2. **Independent marginal priors** on lambda, mu, psi instead of the joint (d, turnover, sampling
    proportion) prior, with importance reweighting to the joint prior (**Priors**).
 3. **Ingroup constraint** enforced by rejecting proposals (an equivalent target, not a change of
@@ -452,10 +521,9 @@ R-hat as -Inf for the single-chain pilot cells; fixed since, display only.).
 - **Priors on lambda, mu, psi**: (a) run as is (marginals) and report the joint-prior reweighting
   where its ESS allows; (b) add joint or transformed priors to `TempoMCMC()` (#48), then run with
   the comparator's prior exactly; or (c) run a matched RevBayes comparator with CET's independent
-  priors (and without Gamma), as the penguin pipeline did, at about 4 x 7 days of `long`
+  priors, as the penguin pipeline did, at about 4 x 7 days of `long`
   (all-fossil trees cannot be resumed from RevBayes checkpoints).
-- **Gamma rate variation**: compare CET with the existing comparator (confounded), or add a
-  matched no-Gamma comparator (as (c)), or wait for #47.
 - **Run length**: 200 000 iterations per chain as projected, or a target derived from the
   comparison to be resolved.
-- Production also waits for Gamma rate variation in the package (#97), per the maintainer.
+- Production waits for PR #98 (Gamma rate variation, #97) to merge, and for the independent review
+  of this PR; it builds EvoTempo from main once both are in.

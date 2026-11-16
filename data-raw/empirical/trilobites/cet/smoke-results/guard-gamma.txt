@@ -1,0 +1,5 @@
+Resume of a checkpoint written before Gamma rates (round-1 smoke chain b0g0_run1, 48e6bf7):
+Error: /nobackup/pjjg18/evotempo-trilobite-gamma/guard/runs/b0g0_run1/checkpoint.rds holds a chain with mkv pattern, power 1, beta 0, gamma 0, nBin 26, zMax 5, thin 10, seg 100, nRateCat (none); this run has mkv pattern, power 1, beta 0, gamma 0, nBin 26, zMax 5, thin 10, seg 100, nRateCat 4
+Execution halted
+exit 1
+2026-11-11 15:37:56 complete 

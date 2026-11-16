@@ -8,8 +8,10 @@
 #   fig-b0g0-strict.png  cell (0, 0) against the strict-clock comparator, the
 #                        RevBayes counterpart of a constant-rate, constant-clock
 #                        model, per chain (the lambda < mu check)
-#   fig-traces.png       per-chain traces (post burn-in) of the slowest
-#                        quantities in each CET cell
+#   fig-traces.png       per-chain traces (post burn-in) of log10 theta, s,
+#                        crown age and tree length in each CET cell (the
+#                        quantities flagged at 200 000 iterations; charLL,
+#                        flagged at 400 000, is in convergence.csv)
 # Base graphics only.
 args <- commandArgs(trailingOnly = TRUE)
 resDir <- args[[1]]

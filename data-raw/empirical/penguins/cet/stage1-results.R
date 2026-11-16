@@ -28,10 +28,23 @@
 # Summary trees: ConsTree::Quartet() consensus of the pooled post-burn-in
 # trees (no MCC trees), with the frequency of each consensus split.
 #
+# Ladder rungs (other b<beta>g<gamma> labels under <CET run root>) enter the
+# convergence table and ASDSF only (#107 review, R107-1); meanX and rootBin
+# (tempo-path state) are diagnosed in every CET cell (R107-14).
+# Segment cap (R107-9): CET_MAX_SEG = m reads segments 1..m of each production
+# chain, CET_MAX_SEG_RUNG (default CET_MAX_SEG) of each rung, as
+# bayes-factors.R (common.R, SegCap()); the 400 000-iteration results are
+# CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20.  CET_MAX_RB_ITER caps the RevBayes chains.
+# Comparison with RevBayes (R107-7): RevBayes allows a sampled ancestor at the
+# root, EvoTempo does not, so CET is compared with RevBayes both unconditionally
+# and given no root sampled ancestor (comparison.csv; chain-mean SEs).
+#
 # Writes to <out dir>: convergence.csv, asdsf.csv, chains.csv (per-chain
-# quantities), posterior.csv (pooled summaries), consensus-<analysis>.nwk,
-# consensus-splits.csv, samples.csv.gz (post-burn-in draws of the scalar
-# quantities, for the figures), headline.txt.
+# quantities), posterior.csv (pooled summaries, with P(lambda > mu)),
+# comparison.csv, consensus-<analysis>.nwk, consensus-splits.csv,
+# samples.csv.gz (post-burn-in draws of the scalar quantities, for the
+# figures), versions.txt (R and package versions, md5 of the MkPrime functions
+# used; mkprime-functions.R, their deparsed source: R107-11), headline.txt.
 # Packages: ape, TreeTools, ConsTree, MkPrime.
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) >= 3L)
@@ -139,9 +152,27 @@ ParseTrees <- function(nwk) {
 
 # ---- Load chains ----------------------------------------------------------------
 Burn <- function(n) seq_len(n) > floor(burn * n)
+productionCells <- c("b0g0", "b0g1", "b1g0", "b1g1")
+SegCap <- function(label) {
+  m <- suppressWarnings(as.integer(Sys.getenv("CET_MAX_SEG", "0")))
+  if (!sub("_run[0-9]+$", "", label) %in% productionCells && nzchar(Sys.getenv("CET_MAX_SEG_RUNG"))) {
+    m <- suppressWarnings(as.integer(Sys.getenv("CET_MAX_SEG_RUNG")))
+  }
+  if (is.na(m)) stop("CET_MAX_SEG and CET_MAX_SEG_RUNG must be whole numbers")
+  m
+}
+SegFiles <- function(dir, what) {
+  f <- sort(Sys.glob(file.path(dir, paste0("seg*_", what))))
+  m <- SegCap(basename(dir))
+  if (m > 0L) {
+    if (length(f) < m) stop(sprintf("%s has %d segments, fewer than the cap %d", dir, length(f), m))
+    f <- utils::head(f, m)
+  }
+  f
+}
 LoadCet <- function(dir) {
-  smp <- do.call(rbind, lapply(sort(Sys.glob(file.path(dir, "seg*_samples.csv"))), utils::read.csv))
-  nwk <- unlist(lapply(sort(Sys.glob(file.path(dir, "seg*_trees.nwk"))), readLines))
+  smp <- do.call(rbind, lapply(SegFiles(dir, "samples.csv"), utils::read.csv))
+  nwk <- unlist(lapply(SegFiles(dir, "trees.nwk"), readLines))
   stopifnot(length(nwk) == nrow(smp))
   keep <- Burn(nrow(smp))
   list(params = smp[keep, ], nwk = nwk[keep], n = nrow(smp), lastIteration = max(smp$iteration))
@@ -161,6 +192,8 @@ LoadRb <- function(dir) {
   tr <- Read(paste0(stem, ".trees"))
   tr <- tr[grepl(";\\s*$", tr$fbd_tree), ]
   it <- intersect(lg$Iteration, tr$Iteration)
+  maxIt <- as.numeric(Sys.getenv("CET_MAX_RB_ITER", "Inf"))
+  it <- it[it <= maxIt]
   lg <- lg[match(it, lg$Iteration), ]
   tr <- tr[match(it, tr$Iteration), ]
   keep <- Burn(nrow(lg))
@@ -181,23 +214,35 @@ for (clock in c("strict", "ucln")) {
   dirs <- sort(Sys.glob(file.path(rbRoot, paste0(clock, "_run*"))))
   if (length(dirs)) analyses[[paste0("revbayes_", clock)]] <- stats::setNames(lapply(dirs, LoadRb), basename(dirs))
 }
-lengthsInfo <- do.call(rbind, lapply(names(analyses), function(a) {
-  data.frame(analysis = a, chain = names(analyses[[a]]),
-             samples = vapply(analyses[[a]], `[[`, 0L, "n"),
-             lastIteration = vapply(analyses[[a]], `[[`, 0, "lastIteration"),
-             keptAfterBurnin = vapply(analyses[[a]], function(ch) nrow(ch$params), 0L))
+# Ladder rungs: convergence and ASDSF only (R107-1)
+rungs <- list()
+rungDirs <- list.dirs(cetRoot, recursive = FALSE)
+rungDirs <- rungDirs[grepl("^b[0-9.]+g[0-9.]+_run[0-9]+$", basename(rungDirs)) &
+                       !sub("_run[0-9]+$", "", basename(rungDirs)) %in% productionCells]
+for (cell in sort(unique(sub("_run[0-9]+$", "", basename(rungDirs))))) {
+  dirs <- sort(rungDirs[sub("_run[0-9]+$", "", basename(rungDirs)) == cell])
+  rungs[[cell]] <- stats::setNames(lapply(dirs, LoadCet), basename(dirs))
+}
+allSets <- c(analyses, rungs)
+lengthsInfo <- do.call(rbind, lapply(names(allSets), function(a) {
+  data.frame(analysis = a, chain = names(allSets[[a]]),
+             samples = vapply(allSets[[a]], `[[`, 0L, "n"),
+             lastIteration = vapply(allSets[[a]], `[[`, 0, "lastIteration"),
+             keptAfterBurnin = vapply(allSets[[a]], function(ch) nrow(ch$params), 0L))
 }))
+utils::write.csv(lengthsInfo, file.path(outDir, "chain-lengths.csv"), row.names = FALSE)
 print(lengthsInfo, row.names = FALSE)
 
 # ---- Tree facts --------------------------------------------------------------------
 t0 <- proc.time()[["elapsed"]]
-for (a in names(analyses)) {
-  for (k in names(analyses[[a]])) {
-    trees <- ParseTrees(analyses[[a]][[k]]$nwk)
+for (a in names(allSets)) {
+  for (k in names(allSets[[a]])) {
+    trees <- ParseTrees(allSets[[a]][[k]]$nwk)
     facts <- lapply(trees, TreeFacts)
-    analyses[[a]][[k]]$facts <- as.data.frame(do.call(rbind, lapply(facts, `[[`, "num")))
-    analyses[[a]][[k]]$keys <- lapply(facts, `[[`, "keys")
-    analyses[[a]][[k]]$trees <- trees
+    allSets[[a]][[k]]$facts <- as.data.frame(do.call(rbind, lapply(facts, `[[`, "num")))
+    allSets[[a]][[k]]$keys <- lapply(facts, `[[`, "keys")
+    # Rung trees are needed only for their facts and clade keys
+    if (a %in% names(analyses)) allSets[[a]][[k]]$trees <- trees
   }
   cat(sprintf("%s: tree facts done (%.0f s)\n", a, proc.time()[["elapsed"]] - t0))
 }
@@ -213,6 +258,8 @@ Scalars <- function(ch, a) {
     out$theta <- p$theta
     out$s <- p$s
     out$treeLength <- p$treeLength
+    out$meanX <- p$meanX
+    out$rootBin <- p$rootBin
   } else {
     out$treeLength <- f$treeLengthTips
     if (!is.null(p$ucldSd)) out$ucldSd <- p$ucldSd
@@ -222,9 +269,11 @@ Scalars <- function(ch, a) {
   out$samplingProportion <- out$psi / (out$mu + out$psi)
   out
 }
-for (a in names(analyses)) for (k in names(analyses[[a]])) {
-  analyses[[a]][[k]]$scalars <- Scalars(analyses[[a]][[k]], a)
+for (a in names(allSets)) for (k in names(allSets[[a]])) {
+  allSets[[a]][[k]]$scalars <- Scalars(allSets[[a]][[k]], a)
 }
+analyses <- allSets[names(analyses)]
+rungs <- allSets[names(rungs)]
 # Consistency checks between tree-derived and logged quantities
 checks <- do.call(rbind, lapply(names(analyses), function(a) do.call(rbind, lapply(names(analyses[[a]]), function(k) {
   ch <- analyses[[a]][[k]]
@@ -241,17 +290,18 @@ utils::write.csv(checks, file.path(outDir, "consistency-checks.csv"), row.names 
 
 # ---- Convergence ------------------------------------------------------------------
 convParams <- c("lambda", "mu", "psi", "theta", "s", "rate", "originAge", "crownAge", "rootAge",
-                "nSA", "charLL", "treeLength", "ucldSd")
+                "nSA", "charLL", "treeLength", "ucldSd", "meanX", "rootBin")
 ChainMatrix <- function(a, p) {
-  xs <- lapply(analyses[[a]], function(ch) ch$scalars[[p]])
+  xs <- lapply(allSets[[a]], function(ch) ch$scalars[[p]])
   if (any(vapply(xs, is.null, TRUE))) return(NULL)
   n <- min(lengths(xs))
   do.call(cbind, lapply(xs, function(x) utils::tail(x, n)))
 }
-conv <- do.call(rbind, lapply(names(analyses), function(a) do.call(rbind, lapply(convParams, function(p) {
+conv <- do.call(rbind, lapply(names(allSets), function(a) do.call(rbind, lapply(convParams, function(p) {
   m <- ChainMatrix(a, p)
   if (is.null(m)) return(NULL)
-  data.frame(analysis = a, parameter = p, chains = ncol(m), drawsPerChain = nrow(m),
+  data.frame(analysis = a, role = if (a %in% names(rungs)) "rung" else "cell", parameter = p,
+             chains = ncol(m), drawsPerChain = nrow(m),
              rhat = Rhat(m), essBulk = EssBulk(m), essTail = EssTail(m))
 }))))
 conv$flag <- ifelse(conv$rhat > 1.01 | conv$essBulk < 400,
@@ -261,8 +311,8 @@ print(conv, digits = 4, row.names = FALSE)
 utils::write.csv(conv, file.path(outDir, "convergence.csv"), row.names = FALSE)
 
 # ---- ASDSF over rooted clades ------------------------------------------------------
-asdsf <- do.call(rbind, lapply(names(analyses), function(a) {
-  freq <- lapply(analyses[[a]], function(ch) {
+asdsf <- do.call(rbind, lapply(names(allSets), function(a) {
+  freq <- lapply(allSets[[a]], function(ch) {
     tab <- table(unlist(ch$keys))
     tab / length(ch$keys)
   })
@@ -325,7 +375,58 @@ posterior <- do.call(rbind, lapply(names(analyses), function(a) {
                q975 = Q(x, 0.975), draws = length(x))
   }))
 }))
+# P(lambda > mu) (R107-10), as a row with the probability in mean and median
+posterior <- rbind(posterior, do.call(rbind, lapply(names(analyses), function(a) {
+  pool <- do.call(rbind, lapply(analyses[[a]], `[[`, "scalars"))
+  p <- mean(pool$lambda > pool$mu)
+  data.frame(analysis = a, parameter = "P(lambda > mu)", mean = p, median = p, q025 = NA, q975 = NA,
+             draws = nrow(pool))
+})))
 utils::write.csv(posterior, file.path(outDir, "posterior.csv"), row.names = FALSE)
+
+# ---- CET against RevBayes, unconditionally and given no root sampled ancestor (R107-7) ----
+# Chain means (one per chain) of each quantity; SE = sd(chain means) / sqrt(chains),
+# so z has few degrees of freedom (4 chains a side).  KS D on the pooled draws.
+cmpQ <- c("lambda", "mu", "psi", "rate", "crownAge", "rootAge", "originAge", "nSA", "charLL", "lambdaGtMu")
+ChainMeans <- function(a, q, noRootSA) {
+  vapply(analyses[[a]], function(ch) {
+    s <- ch$scalars
+    s$lambdaGtMu <- as.numeric(s$lambda > s$mu)
+    keep <- if (noRootSA) !as.logical(ch$facts$rootSA) else rep(TRUE, nrow(s))
+    mean(s[[q]][keep])
+  }, 0)
+}
+Pooled <- function(a, q, noRootSA) {
+  unlist(lapply(analyses[[a]], function(ch) {
+    s <- ch$scalars
+    s$lambdaGtMu <- as.numeric(s$lambda > s$mu)
+    keep <- if (noRootSA) !as.logical(ch$facts$rootSA) else rep(TRUE, nrow(s))
+    s[[q]][keep]
+  }))
+}
+pairs <- list(c("b0g0", "revbayes_strict"), c("b0g1", "revbayes_ucln"), c("b1g1", "revbayes_ucln"))
+pairs <- Filter(function(p) all(p %in% names(analyses)), pairs)
+comparison <- do.call(rbind, lapply(pairs, function(pr) do.call(rbind, lapply(c(FALSE, TRUE), function(cond) {
+  do.call(rbind, lapply(cmpQ, function(q) {
+    m1 <- ChainMeans(pr[1], q, FALSE)  # CET has no root sampled ancestor
+    m2 <- ChainMeans(pr[2], q, cond)
+    se <- sqrt(stats::var(m1) / length(m1) + stats::var(m2) / length(m2))
+    data.frame(cet = pr[1], revbayes = pr[2], revbayesDraws = if (cond) "no root SA" else "all",
+               quantity = if (q == "lambdaGtMu") "P(lambda > mu)" else q,
+               cetMean = mean(m1), revbayesMean = mean(m2), diff = mean(m1) - mean(m2), se = se,
+               z = (mean(m1) - mean(m2)) / se,
+               ksD = if (q == "lambdaGtMu") NA else
+                 suppressWarnings(stats::ks.test(Pooled(pr[1], q, FALSE), Pooled(pr[2], q, cond))$statistic[[1]]))
+  }))
+}))))
+comparison <- rbind(comparison, do.call(rbind, lapply(intersect(c("revbayes_strict", "revbayes_ucln"), names(analyses)), function(a) {
+  m <- vapply(analyses[[a]], function(ch) mean(as.logical(ch$facts$rootSA)), 0)
+  data.frame(cet = NA, revbayes = a, revbayesDraws = "all", quantity = "P(root sampled ancestor)",
+             cetMean = 0, revbayesMean = mean(m), diff = -mean(m), se = stats::sd(m) / sqrt(length(m)),
+             z = NA, ksD = NA)
+})))
+print(comparison, digits = 4, row.names = FALSE)
+utils::write.csv(comparison, file.path(outDir, "comparison.csv"), row.names = FALSE)
 samples <- do.call(rbind, lapply(names(analyses), function(a) do.call(rbind, lapply(names(analyses[[a]]), function(k) {
   s <- analyses[[a]][[k]]$scalars
   for (p in setdiff(c("theta", "s", "ucldSd"), names(s))) s[[p]] <- NA_real_
@@ -365,9 +466,9 @@ head <- c(sprintf("burn-in: first %.0f%% of each chain's recorded samples", 100 
           sprintf("%s: chains %d, kept draws per chain %s", names(analyses),
                   vapply(analyses, length, 0L),
                   vapply(analyses, function(x) paste(range(vapply(x, function(ch) nrow(ch$params), 0L)), collapse = "-"), "")),
-          vapply(names(analyses), function(a) {
+          vapply(names(allSets), function(a) {
             cv <- conv[conv$analysis == a, ]
-            sprintf("%s: max R-hat %.4f (%s); min bulk ESS %.0f (%s); min tail ESS %.0f (%s); flagged: %s", a,
+            sprintf("%s: max R-hat %.4f (%s); min bulk ESS %.1f (%s); min tail ESS %.0f (%s); flagged: %s", a,
                     max(cv$rhat), cv$parameter[which.max(cv$rhat)], min(cv$essBulk),
                     cv$parameter[which.min(cv$essBulk)], min(cv$essTail), cv$parameter[which.min(cv$essTail)],
                     if (any(nzchar(cv$flag))) paste(cv$parameter[nzchar(cv$flag)], collapse = ", ") else "none")
@@ -379,4 +480,29 @@ head <- c(sprintf("burn-in: first %.0f%% of each chain's recorded samples", 100 
             sprintf("%s: crown age median %.2f (95%% %.2f-%.2f)", a, x$median, x$q025, x$q975)
           }, ""))
 writeLines(head, file.path(outDir, "headline.txt"))
+
+# ---- Versions (R107-11) ------------------------------------------------------------
+# MkPrime is installed without a RemoteSha, so record the md5 of the deparsed
+# functions used, and their source
+pkgs <- c("EvoTempo", "ape", "TreeTools", "ConsTree", "Quartet", "MkPrime")
+ver <- vapply(pkgs, function(p) {
+  d <- tryCatch(utils::packageDescription(p), error = function(e) NULL)
+  if (is.null(d) || !is.list(d)) return(sprintf("%s: not installed", p))
+  sprintf("%s %s%s (%s)", p, d$Version, if (!is.null(d$RemoteSha)) paste0(" RemoteSha ", d$RemoteSha) else "",
+          dirname(dirname(attr(d, "file"))))
+}, "")
+fns <- c(".Rhat", ".EssBulk", ".EssTail")
+src <- unlist(lapply(fns, function(f) c(paste0("MkPrime:::", f, " <- "), deparse(get(f, asNamespace("MkPrime"))), "")))
+writeLines(src, file.path(outDir, "mkprime-functions.R"))
+md5 <- vapply(fns, function(f) {
+  tmp <- tempfile(); on.exit(unlink(tmp))
+  writeLines(deparse(get(f, asNamespace("MkPrime"))), tmp)
+  unname(tools::md5sum(tmp))
+}, "")
+evoSha <- file.path(Sys.getenv("W", "/nobackup/pjjg18/evotempo-penguin-cet"), "out", "build-sha.txt")
+writeLines(c(R.version.string, ver, sprintf("MkPrime:::%s deparsed md5 %s", fns, md5),
+             if (file.exists(evoSha)) paste("EvoTempo build commit", readLines(evoSha, n = 1)),
+             sprintf("CET_MAX_SEG=%s CET_MAX_SEG_RUNG=%s CET_MAX_RB_ITER=%s", Sys.getenv("CET_MAX_SEG"),
+                     Sys.getenv("CET_MAX_SEG_RUNG"), Sys.getenv("CET_MAX_RB_ITER"))),
+           file.path(outDir, "versions.txt"))
 cat(head, sep = "\n")

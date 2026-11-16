@@ -40,14 +40,29 @@ ok   F2b: no b0g1 -> b1g1 edge from the interior rungs alone (before: -2.0)
 ok   F2b: combine names both missing end points
 nonexistent root, exit 1: Error: combine: <run root> does not exist
 ok   combine stops on a run root that does not exist
-#101 4 cells x 2 with launch.csv, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 0; not in the launch record 0
+#101 4 cells x 2 with launch.csv, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19467632/RtmpFeUv1P/setcfa944cff1e0e/launch.csv); found 8; missing 0; not complete 0; not in the launch record 0
 ok   #101: complete chain set, combine exits 0 with 4 edges
-#101 b1g0_run2/cross.csv removed, exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 1; not in the launch record 0 /   no cross.csv (eval failed or was not run): b1g0_run2
+#101 b1g0_run2/cross.csv removed, exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19467632/RtmpFeUv1P/setcfa944cff1e0e/launch.csv); found 8; missing 1; not complete 0; not in the launch record 0 /   no cross.csv (eval failed or was not run): b1g0_run2
 ok   #101: a missing cross.csv stops combine, naming b1g0_run2 (before: exit 0, dropped)
-#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19449478/RtmpVcbddN/setc0427375909ce/launch.csv); found 8; missing 1; not in the launch record 0 / Left out on request (CET_BF_ALLOW_MISSING): b1g0_run2
+#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19467632/RtmpFeUv1P/setcfa944cff1e0e/launch.csv); found 8; missing 1; not complete 0; not in the launch record 0 / Left out on request (CET_BF_ALLOW_MISSING): b1g0_run2 (from bridges and stepping-stone)
 ok   #101: explicit opt-out, exit 0 and b1g0_run2 reported as left out
 ok   #101: an opt-out naming an unexpected chain stops
 ok   #101: a chain not in the launch record stops combine
 ok   #101: an expected chain with no directory stops combine
-#101 no launch.csv, 4 x 2 chains, exit 1: Expected chains (mkv pattern): 16 (no launch.csv: production default, 4 cells x 4 replicates); found 8; missing 8; not in the launch record 0 /   no complete segment (chain directory missing or empty): b0g0_run3, b0g0_run4, b0g1_run3, b0g1_run4, b1g0_run3, b1g0_run4, b1g1_run3, b1g1_run4
+#101 no launch.csv, 4 x 2 chains, exit 1: Expected chains (mkv pattern): 16 (no launch.csv: production default, 4 cells x 4 replicates); found 8; missing 8; not complete 0; not in the launch record 0 /   no complete segment (chain directory missing or empty): b0g0_run3, b0g0_run4, b0g1_run3, b0g1_run4, b1g0_run3, b1g0_run4, b1g1_run3, b1g1_run4
 ok   #101: without launch.csv the production default (4 x 4) applies; run3/run4 missing
+ok   #103: a complete run writes bayes-factors.csv, model-probabilities.csv, closure.txt, chains-used.csv
+ok   R103-3: a stop leaves none of the earlier outputs (before: all three, unchanged)
+R103-2 b0g1_run2 unfinished, exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19467632/RtmpFeUv1P/review103cfa9457ad1125/launch.csv); found 8; missing 0; not complete 1; not in the launch record 0
+ok   R103-2: an unfinished chain stops combine
+ok   R103-2: CET_BF_ALLOW_INCOMPLETE=b0g1_run2 uses it and says so
+ok   R103-2: a segment added after eval stops combine
+ok   R103-2: a cross.csv without eval's record stops combine
+ok   R103-7: two directories for one chain stop combine
+ok   R103-8: reps = 2.7 stops combine
+ok   R103-9: a launched directory with no segment, missing from the record, stops combine
+ok   R103-12: chains-used.csv lists the 8 chains, their role and eval's record
+R103-4 b1g1's power-1 chains opted out, exit 1:   cell b1g1 (mkv pattern): power ladder 0, 0.3 lacks t = 1 and has fewer than 3 rungs
+ok   R103-4: opting out the t = 1 rung stops combine with no marginal (before: stopifnot)
+ok   R103-13: a cross.csv without the rung's column names it (before: 'missing value where TRUE/FALSE needed')
+ok   R103-10: a record with no chain of the CET_MKV variant stops combine

@@ -1,0 +1,26 @@
+# Mutation check of trilobite check-labels.R (#103 review, R103-5), at eeb0a40
+# Each mutant is one line of data-raw/empirical/trilobites/cet/bayes-factors.R; the suite must fail.
+# M4: Edge end-point guard `if (length(v) < 2L || v[1] != a[along] || v[length(v)] != b[along]) {` -> `if (FALSE) {`
+# M5: stepping-stone `ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut, ]` -> `ch <- Chains(root)`
+# Control (head): 45 ok, 0 FAIL (Slurm 19467631, check-labels.txt)
+
+## M4 (Slurm 19467633): 43 ok, 2 FAIL
+V3b b1g1's power-1 chains opted out, exit 1: Error: combine: incomplete character-power ladder(s) once b1g1_run1, b1g1_run2 (CET_BF_ALLOW_MISSING) are left out; no marginal is reported. /   cell b1g1 (mkv pattern): power ladder 0, 0.3, 0.6 lacks t = 1
+V4 ladder-only root (t = 0, 0.3, 0.6), exit 1: Error: combine: incomplete character-power ladder(s); no marginal is reported. /   cell b1g1 (mkv pattern): power ladder 0, 0.3, 0.6 lacks t = 1
+V9 b0g0 opted out, rung b0.5g0 present, exit 0: ; edges b0g0->b1g0 -1.9984 (2 points), b0g1->b1g1 -4.0048 (2 points), b1g0->b1g1 -2.0031 (2 points)
+FAIL V9: no edge from the opted-out cell b0g0 (M4 reports b0g0->b1g0 from the b0.5g0 rung); 2 edges left
+FAIL V9: combine says the b0g0 -> b1g0 edge is left out
+V13 pattern ladder -1520.0390; with mkvnone t = 0.3 chains (charLL -3000) under the root, exit 0: -1520.0390
+Error: check-labels.R FAILED: V9: no edge from the opted-out cell b0g0 (M4 reports b0g0->b1g0 from the b0.5g0 rung); 2 edges left; V9: combine says the b0g0 -> b1g0 edge is left out
+exit 1
+
+## M5 (Slurm 19467634): 44 ok, 1 FAIL
+V3b b1g1's power-1 chains opted out, exit 1: Error: combine: incomplete character-power ladder(s) once b1g1_run1, b1g1_run2 (CET_BF_ALLOW_MISSING) are left out; no marginal is reported. /   cell b1g1 (mkv pattern): power ladder 0, 0.3, 0.6 lacks t = 1
+V4 ladder-only root (t = 0, 0.3, 0.6), exit 1: Error: combine: incomplete character-power ladder(s); no marginal is reported. /   cell b1g1 (mkv pattern): power ladder 0, 0.3, 0.6 lacks t = 1
+V9 b0g0 opted out, rung b0.5g0 present, exit 0: Edge b0g0 -> b1g0: no chains with cross.csv at an end point; edge left out / Edge b0g0 -> b0g1: no chains with cross.csv at an end point; edge left out; edges b0g1->b1g1 -4.0048 (2 points), b1g0->b1g1 -2.0031 (2 points)
+V13 pattern ladder -1520.0390; with mkvnone t = 0.3 chains (charLL -3000) under the root, exit 0: -1520.7320
+FAIL V13: mkvnone power chains do not join the pattern ladder (M5 and main pool them: -1520.70)
+Error: check-labels.R FAILED: V13: mkvnone power chains do not join the pattern ladder (M5 and main pool them: -1520.70)
+exit 1
+
+# The -1520.70 in the V13 check's label is the verifier's run of M5 and main (different seed); this M5 run gave -1520.732 against -1520.039 at head.

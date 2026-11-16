@@ -322,14 +322,16 @@ RefLogLik <- function(tree, cells, K, ordered, lengths, rates = 1) {
         a <- a * (RefTransition(Q, r * lengths[[kid]]) %*% part[[kid]])
       }
       mx <- apply(a, 2, max)
-      part[[v]] <- a / rep(mx, each = K)
+      part[[v]] <- a / rep(ifelse(mx > 0, mx, 1), each = K)
       logScale <- logScale + log(mx)
     }
     log(colSums(part[[tree$root]]) / K) + logScale
   }, numeric(g$nCol))
   perCat <- matrix(perCat, g$nCol)
   top <- apply(perCat, 1, max)
-  sum(log(rowMeans(exp(perCat - top))) + top)
+  site <- log(rowMeans(exp(perCat - top))) + top
+  site[top == -Inf] <- -Inf
+  sum(site)
 }
 
 # A random binary tree of n tips (coalescent-like heights; tips at 0, so all

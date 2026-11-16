@@ -67,7 +67,7 @@ RefColumns <- function(tree, g, lengths) {
       a <- a * (RefTransition(g$Q, lengths[[kid]]) %*% part[[kid]])
     }
     mx <- apply(a, 2, max)
-    part[[v]] <- a / rep(mx, each = K)
+    part[[v]] <- a / rep(ifelse(mx > 0, mx, 1), each = K)
     logScale <- logScale + log(mx)
   }
   log(colSums(part[[tree$root]]) / K) + logScale
@@ -77,6 +77,7 @@ RefLogLik <- function(tree, g, lengths, rates) {
                           numeric(g$nCol)), g$nCol)
   top <- apply(logLik, 1, max)
   siteLik <- log(rowMeans(exp(logLik - top))) + top
+  siteLik[top == -Inf] <- -Inf
   data <- seq_len(g$nData)
   logConst <- siteLik[-data]
   logMask <- if (g$ordered) {

@@ -446,6 +446,8 @@ GammaRates <- function(alpha, nCat = 4L) {
     logLik <- matrix(logLik, g[["nCol"]])
     top <- apply(logLik, 1, max)
     siteLik <- log(rowMeans(exp(logLik - top))) + top
+    # Likelihood 0 in every category (as the C++ engine's sum): -Inf, not NaN
+    siteLik[top == -Inf] <- -Inf
     data <- seq_len(g[["nData"]])
     total <- total + sum(siteLik[data])
     if (variable) {
@@ -494,7 +496,9 @@ GammaRates <- function(alpha, nCat = 4L) {
       }
     }
     mx <- apply(a, 2, max)
-    part[[v]] <- a / rep(mx, each = K)
+    # A column with likelihood 0 (e.g. changes on branches of length ~0, at a
+    # Gamma category rate near 0) stays 0, with log scale -Inf, not NaN
+    part[[v]] <- a / rep(ifelse(mx > 0, mx, 1), each = K)
     logScale <- logScale + log(mx)
   }
   log(colSums(part[[tree[["root"]]]]) / K) + logScale

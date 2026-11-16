@@ -1,0 +1,3 @@
+source: /nobackup/pjjg18/evotempo-penguin-cet/start-trees-r4draws/start-tree-01.nex
+root age 60.7590, origin 66.8838, sampled ancestors 11
+sampled ancestor Waimanu_manneringi -> fossil tip at 60.7490 (node 56 at 60.7590)

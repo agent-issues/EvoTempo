@@ -88,11 +88,9 @@ if (args[[1]] == "eval") {
                  basename(dir), me$mkv))
   }
   ckpFile <- file.path(dir, "checkpoint.rds")
-  if (file.exists(ckpFile)) {
-    ckpMkv <- readRDS(ckpFile)$mkv
-    if (!is.null(ckpMkv) && ckpMkv != me$mkv) {
-      stop(sprintf("%s records mkv %s, but its label says %s", ckpFile, ckpMkv, me$mkv))
-    }
+  ckp <- if (file.exists(ckpFile)) readRDS(ckpFile)
+  if (!is.null(ckp$mkv) && ckp$mkv != me$mkv) {
+    stop(sprintf("%s records mkv %s, but its label says %s", ckpFile, ckp$mkv, me$mkv))
   }
   .cet$mkv <- me$mkv
   all <- Chains(dirname(dir))
@@ -103,11 +101,22 @@ if (args[[1]] == "eval") {
   gammas <- if (nzchar(Sys.getenv("CET_BF_GAMMAS"))) {
     as.numeric(strsplit(Sys.getenv("CET_BF_GAMMAS"), ",")[[1]])
   } else sort(unique(all$gamma))
-  dat <- LoadPenguins()
+  # The chain's own start tree (run-chain.R records it): the character rows
+  # follow its tip order, and chains start from different trees (#89 review)
+  startTree <- if (is.null(ckp$startTree)) file.path(cetDir, "data", "start-tree.nwk") else ckp$startTree
+  if (!is.null(ckp$startTreeMd5) && unname(tools::md5sum(startTree)) != ckp$startTreeMd5) {
+    stop(sprintf("%s has changed since chain %s started from it", startTree, basename(dir)))
+  }
+  dat <- LoadPenguins(startTree)
   priors <- CetPriors()
   s <- LoadSamples(dir)
   states <- LoadStates(dir)
   stopifnot(length(states) == nrow(s$samples))
+  sameTips <- vapply(states, function(st) identical(st$tree$tipLabel, rownames(dat$characters)), TRUE)
+  if (!all(sameTips)) {
+    stop(sprintf("%s: %d of %d states have a tip order other than the character rows of %s",
+                 basename(dir), sum(!sameTips), length(states), startTree))
+  }
   idx <- which(s$keep)
   t0 <- proc.time()[["elapsed"]]
   out <- do.call(rbind, lapply(idx, function(i) {

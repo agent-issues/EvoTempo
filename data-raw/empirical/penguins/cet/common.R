@@ -350,18 +350,53 @@ GammaTrunc <- function(shape, scale, hi) {
 CetAgePriors <- function() {
   list(origin = function(a) if (a > 0 && a < 160) -log(160) else -Inf)
 }
-# Near the RevBayes total-evidence round-1 posterior means (lambda 0.20,
-# mu 0.16; psi from the sampling proportion; clock_morph 0.017), jittered per
-# replicate by exp(N(0, 0.2^2))
-CetStart <- function(rep) {
-  start <- list(lambda = 0.2, mu = 0.15, psi = 0.05, theta = 0.05, s = 0.2, rate = 0.017)
-  if (rep > 1) {
-    old <- if (exists(".Random.seed", globalenv())) get(".Random.seed", globalenv())
-    set.seed(9000 + rep)
-    start <- lapply(start, function(v) v * exp(stats::rnorm(1, 0, 0.2)))
-    if (!is.null(old)) assign(".Random.seed", old, envir = globalenv())
+# Starting parameters: the round-1 total-evidence posterior means (lambda
+# 0.20, mu 0.16; psi from the sampling proportion; clock_morph 0.017), each
+# multiplied by exp(N(0, 1)) for every chain, replicate 1 included (#89 review,
+# R89-5: dispersed starts; before, exp(N(0, 0.2^2)) and none for replicate 1).
+# The draw uses its own stream, set.seed(9000 + index), and leaves the chain's
+# random-number state untouched.  A draw is rejected, and the next one from the
+# same stream taken, while its log posterior is not finite: the log prior, the
+# origin age prior, the log augmented density of a tempo-path draw from the
+# start state (as TempoMCMC() builds it: .Precompute(), .AddSlices(),
+# .Messages(), .SampleTree()) and the character log-likelihood.  Without
+# `tree`, no check is made (as before).  Returns the parameters, with
+# attributes "attempts" and "logPost".
+CetStartLogPost <- function(par, tree, model, characters, priors, nSlice = 20) {
+  tryCatch({
+    lp <- sum(vapply(names(priors), function(p) priors[[p]](par[[p]]), 0))
+    if (!is.finite(lp)) return(-Inf)
+    tt <- get(".NoRootAncestor", .ns)(get(".ForModel", .ns)(TempoTree(tree), model))
+    la <- CetAgePriors()$origin(get(".StartAge", .ns)(tt))
+    set <- get(".AddSlices", .ns)(tt, get(".Precompute", .ns)(tt, par, model), nSlice)
+    msg <- get(".Messages", .ns)(tt, set)
+    draw <- get(".SampleTree", .ns)(tt, set, msg)
+    aug <- get(".LogAugmented", .ns)(tt, set, draw[["paths"]], draw[["bin"]])
+    chr <- get("MkLikelihood", .ns)(tt, characters,
+                                    get(".CharacterLengths", .ns)(tt, set[["grid"]][["x"]],
+                                                                 draw[["paths"]], par[["rate"]],
+                                                                 model[["gamma"]]), 2L)
+    lp + la + aug + chr
+  }, error = function(e) structure(-Inf, error = conditionMessage(e)))
+}
+CetStart <- function(index, tree = NULL, model = NULL, characters = NULL, priors = CetPriors(),
+                     nSlice = 20, sdlog = 1, maxAttempts = 100L) {
+  centre <- list(lambda = 0.2, mu = 0.15, psi = 0.05, theta = 0.05, s = 0.2, rate = 0.017)
+  old <- if (exists(".Random.seed", globalenv())) get(".Random.seed", globalenv())
+  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = globalenv()))
+  set.seed(9000 + index)
+  lastError <- NULL
+  for (attempt in seq_len(maxAttempts)) {
+    start <- lapply(centre, function(v) v * exp(stats::rnorm(1, 0, sdlog)))
+    lp <- if (is.null(tree)) NA_real_ else CetStartLogPost(start, tree, model, characters,
+                                                           priors, nSlice)
+    if (is.null(tree) || is.finite(lp)) {
+      return(structure(start, attempts = attempt, logPost = as.numeric(lp)))
+    }
+    lastError <- attr(lp, "error")
   }
-  start
+  stop("CetStart(): no start with a finite log posterior in ", maxAttempts, " draws",
+       if (!is.null(lastError)) paste0("; last error: ", lastError))
 }
 # Default schedule (TempoMoves(): local path moves for 0.25 of the tree and a
 # shift with gamma != 0; whole-tree draws and joint sweeps with gamma = 0)

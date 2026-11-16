@@ -389,10 +389,37 @@ ChainDirs <- function(root) {
   }
   out
 }
+# Segment cap (#107 review, R107-9): so that a summary can be reproduced while
+# its chains are extended, CET_MAX_SEG = m > 0 makes eval, combine and the
+# fingerprint read only segments 1..m of each chain, and CET_MAX_SEG_RUNG
+# (default CET_MAX_SEG) does the same for chains other than the four
+# production cells at power 1 (ladder rungs, power ladders).  For example,
+# the 400 000-iteration results of #107 read CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20.
+# 0 (default) reads every segment.
+SegCap <- function(label) {
+  m <- suppressWarnings(as.integer(Sys.getenv("CET_MAX_SEG", "0")))
+  if (is.na(m)) stop("CET_MAX_SEG must be a whole number")
+  p <- tryCatch(ParseLabel(label), error = function(e) NULL)
+  production <- !is.null(p) && p$power == 1 && p$beta %in% c(0, 1) && p$gamma %in% c(0, 1)
+  if (!production && nzchar(Sys.getenv("CET_MAX_SEG_RUNG"))) {
+    m <- suppressWarnings(as.integer(Sys.getenv("CET_MAX_SEG_RUNG")))
+    if (is.na(m)) stop("CET_MAX_SEG_RUNG must be a whole number")
+  }
+  m
+}
+SegFiles <- function(dir, what = "samples.csv") {
+  f <- sort(Sys.glob(file.path(dir, paste0("seg*_", what))))
+  m <- SegCap(basename(dir))
+  if (m > 0L) f <- utils::head(f, m)
+  f
+}
 # A chain is complete when the last line of its progress.txt says so
 # (run-chain.R writes "<time> complete" after the last segment, and a resumed
 # or extended chain writes later lines after any earlier "complete")
 ChainComplete <- function(dir) {
+  # Under a segment cap, complete means the capped set is full
+  m <- SegCap(basename(dir))
+  if (m > 0L) return(length(SegFiles(dir)) >= m)
   f <- file.path(dir, "progress.txt")
   if (!file.exists(f)) return(FALSE)
   x <- trimws(readLines(f, warn = FALSE))
@@ -404,7 +431,7 @@ ChainComplete <- function(dir) {
 # once eval has run).  eval records both in cross.csv (evalSamples,
 # evalSegMd5), and combine refuses a cross.csv whose chain has changed since.
 SegmentFingerprint <- function(dir) {
-  f <- sort(Sys.glob(file.path(dir, "seg*_samples.csv")))
+  f <- SegFiles(dir)
   n <- sum(vapply(f, function(x) nrow(utils::read.csv(x)), 0L))
   tmp <- tempfile()
   on.exit(unlink(tmp))

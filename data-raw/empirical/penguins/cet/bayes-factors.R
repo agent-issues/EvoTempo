@@ -76,6 +76,9 @@
 # role (R103-12); LogQ() names a missing column (R103-13).  With #104, eval
 # also records its tolerance (evalTol), and combine applies the stricter of it
 # and its own CET_BF_TOL.
+# CET_MAX_SEG / CET_MAX_SEG_RUNG cap the segments read (common.R, SegCap();
+# #107 review, R107-9); eval and combine must use the same caps, which the
+# fingerprint check enforces.
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -88,13 +91,14 @@ tol <- as.numeric(Sys.getenv("CET_BF_TOL", "1e-4"))
 stopifnot("CET_BF_TOL must be a positive number" = isTRUE(tol > 0))
 
 # ParseLabel() and Chains() are in common.R (shared with run-chain.R, #75)
+# Both read segments 1..CET_MAX_SEG (common.R, SegFiles(); default all)
 LoadSamples <- function(dir) {
-  smp <- do.call(rbind, lapply(sort(Sys.glob(file.path(dir, "seg*_samples.csv"))), utils::read.csv))
+  smp <- do.call(rbind, lapply(SegFiles(dir), utils::read.csv))
   keep <- seq_len(nrow(smp)) > floor(burn * nrow(smp))
   list(samples = smp, keep = keep)
 }
 LoadStates <- function(dir) {
-  unlist(lapply(sort(Sys.glob(file.path(dir, "seg*_states.rds"))), readRDS), recursive = FALSE)
+  unlist(lapply(SegFiles(dir, "states.rds"), readRDS), recursive = FALSE)
 }
 LogAugAt <- function(state, beta, gamma) {
   model <- CetModel(beta, gamma)

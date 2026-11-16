@@ -37,7 +37,7 @@ posterior (see **Starting tree** and **Production runs**).
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume) |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`) |
-| `check-labels.R` | Checks of chain labels (plain decimal notation, unparseable labels stop), of the Mkv-variant filter of `combine`'s stepping-stone (#75), and of `combine` on incomplete ladders and edges (#88), and of the expected chain set (launch record, #101); `smoke-results/check-labels.txt` (38/38 pass, Slurm 19449478) |
+| `check-labels.R` | Checks of chain labels (plain decimal notation, unparseable labels stop), of the Mkv-variant filter of `combine`'s stepping-stone (#75), and of `combine` on incomplete ladders and edges (#88), and of the expected chain set (launch record, #101); `smoke-results/check-labels.txt` |
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
 | `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66) |
 | `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
@@ -325,6 +325,22 @@ expected chain has no complete segment, if an expected power-1 chain has no
 does not list; before, a chain without `cross.csv` dropped out of the bridges
 without a message.  The only opt-out is explicit and per chain:
 `CET_BF_ALLOW_MISSING=b0g0_run3,...`, echoed as "Left out on request".
+Since the #103 review, `combine` also deletes its outputs (`bayes-factors.csv`,
+`model-probabilities.csv`, `closure.txt`, `chains-used.csv`) before anything
+else, so a stop leaves none from an earlier run (R103-3); leaves a chain out of
+the stepping-stone too, stopping if a ladder then lacks t = 1 (R103-4);
+requires every chain it uses to be complete (last `progress.txt` line;
+`CET_BF_ALLOW_INCOMPLETE=<labels>` names exceptions) and refuses a `cross.csv`
+whose chain has changed since eval read it, or that does not record what eval
+read (`evalSamples`, `evalSegMd5`, an md5 of the `seg*_samples.csv` files;
+R103-2); stops on two directories for one chain, a non-integer `reps`, a
+launched chain directory missing from the record, and a record with no chain
+of the variant (R103-7 to R103-10); writes `chains-used.csv` (R103-12); and
+names a column missing from `cross.csv` (R103-13).  A `cross.csv` written
+before these fixes is refused: rerun `eval`.
+**Caveat (R103-6):** until #104, `eval` writes `cross.csv` before its
+self-check and never stops on it, and `combine` does not read the `check`
+column, so a chain scored against the wrong target would still be used.
 `check-labels.R` checks all of these.
 In `seg*_samples.csv`, `logPrior` is the log prior of the
 parameters (as in `cross.csv`), and `logOriginPrior` is that of the origin

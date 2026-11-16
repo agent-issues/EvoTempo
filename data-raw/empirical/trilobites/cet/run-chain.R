@@ -115,8 +115,17 @@ if (file.exists(ckpFile)) {
     identical(ckp$startTree, startTree)
   } else identical(ckp$startTreeMd5, startTreeMd5)
   if (!sameTree || !identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
+    if (is.null(ckp$startTreeMd5)) {
+      # Checkpoint written before #102: no md5, so only the path can be compared
+      # (#103 review, R103-11)
+      stop(sprintf(paste("%s predates #102 and records no start-tree md5, so the start tree was",
+                         "compared by absolute path: the chain started from %s; this run loads %s%s.",
+                         "Resume from the original path, or restart the chain"), ckpFile,
+                   format(ckp$startTree), startTree,
+                   if (sameTree) " (same path, but the tip orders differ)" else ""))
+    }
     stop(sprintf("%s was started from %s (md5 %s); this run loads %s (md5 %s)%s", ckpFile,
-                 format(ckp$startTreeRel %||% ckp$startTree), format(ckp$startTreeMd5),
+                 format(ckp$startTreeRel %||% ckp$startTree), ckp$startTreeMd5,
                  startTreeRel, startTreeMd5,
                  if (sameTree) ": tip orders differ" else ": a different start tree"))
   }

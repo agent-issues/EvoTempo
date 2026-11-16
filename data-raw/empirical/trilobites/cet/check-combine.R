@@ -22,7 +22,13 @@
 #    (#101, silent drop), where the new combine stops.
 # 5. Resume guard (#102): rerunning run-chain.R on b0g0_run1 with
 #    CET_START_TREE a copy of its start tree at another absolute path
-#    continues (exit 0, "resuming"); with another draw's tree it stops.
+#    continues (exit 0, "resuming"); with another draw's tree it stops.  A
+#    checkpoint without md5 (as written before #102; b0g1_run1 with the md5
+#    removed) stops at the copy, saying it predates #102 and was compared by
+#    absolute path, and resumes from the original path (#103 review, R103-11).
+# Since the #103 review, eval's record of what it read (evalSamples,
+# evalSegMd5, evalTol) is checked in 1, and the Combine() helper no longer
+# deletes bayes-factors.csv itself: combine removes its own outputs (R103-3).
 # Writes <check root>/check-combine.txt; stops if a check fails.
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
@@ -54,7 +60,6 @@ Run <- function(script, args, env = character()) {
 }
 newBF <- file.path(cetDir, "bayes-factors.R")
 Combine <- function(r, script = newBF, env = character()) {
-  unlink(file.path(r, "bayes-factors.csv"))
   res <- Run(script, c("combine", r), c("CET_MKV=pattern", env))
   res$edges <- if (file.exists(file.path(r, "bayes-factors.csv"))) {
     utils::read.csv(file.path(r, "bayes-factors.csv"))
@@ -85,7 +90,11 @@ ev <- do.call(rbind, lapply(chains, function(ch) {
              cross = !is.null(x), states = if (is.null(x)) NA else nrow(x),
              columns = if (is.null(x)) "" else paste(grep("^(aug|chr)_", names(x), value = TRUE),
                                                      collapse = " "),
-             maxCheck = if (is.null(x)) NA else max(abs(as.matrix(x[, c("check", "checkChar")]))))
+             maxCheck = if (is.null(x)) NA else max(abs(as.matrix(x[, c("check", "checkChar")]))),
+             record = if (is.null(x) || is.null(x$evalSegMd5)) FALSE else {
+               fp <- SegmentFingerprint(file.path(runs, ch))
+               all(x$evalSamples == fp$samples) && all(x$evalSegMd5 == fp$md5) && all(x$evalTol == tol)
+             })
 }))
 Say("eval results:")
 for (k in seq_len(nrow(ev))) {
@@ -96,6 +105,8 @@ want <- "aug_b0 aug_b0.5 aug_b1 chr_g0 chr_g1"
 Check(all(ev$exit %in% 0L) && all(ev$cross), "eval exited 0 and wrote cross.csv on all 10 chains")
 Check(all(ev$columns == want), sprintf("every cross.csv has the columns %s (#100)", want))
 Check(all(ev$maxCheck <= tol), sprintf("every cross.csv's checks are within %g", tol))
+Check(all(ev$record), sprintf(paste("every cross.csv records what eval read (evalSamples, evalSegMd5 equal",
+                                    "to the chain's seg*_samples.csv) and evalTol %g (R103-2)"), tol))
 
 # ---- 2. combine with the rung ----------------------------------------------------
 utils::write.csv(data.frame(cell = labs, reps = 2), file.path(runs, "launch.csv"),
@@ -190,6 +201,24 @@ Say("resume with start-tree-02: exit %d: %s", res$status,
     paste(grep("Error|start tree", res$out, value = TRUE), collapse = " / "))
 Check(res$status != 0L && any(grepl("a different start tree", res$out)),
       "another start tree (other md5): the resume stops")
+
+# Checkpoint written before #102 (no md5): compared by absolute path (R103-11)
+ck2 <- file.path(runs, "b0g1_run1", "checkpoint.rds")
+legacy <- readRDS(ck2)
+legacy$startTreeMd5 <- NULL
+legacy$startTreeRel <- NULL
+saveRDS(legacy, ck2)
+invisible(file.copy(StartTreeFile(2L), copyDir, overwrite = TRUE))
+res <- Run(runChain, c("2", "1"), c(env, paste0("CET_START_TREE=", file.path(copyDir, "start-tree-02.nwk"))))
+Say("legacy checkpoint (no md5), resume with a copy of its tree at another path: exit %d: %s", res$status,
+    paste(grep("Error|predates", res$out, value = TRUE), collapse = " / "))
+Check(res$status != 0L && any(grepl("predates #102 and records no start-tree md5", res$out)) &&
+        any(grepl("compared by absolute path", res$out)),
+      "no-md5 checkpoint at another path: stops, saying it predates #102 and was compared by absolute path")
+res <- Run(runChain, c("2", "1"), c(env, paste0("CET_START_TREE=", normalizePath(StartTreeFile(2L)))))
+prog <- readLines(file.path(runs, "b0g1_run1", "progress.txt"))
+Check(res$status == 0L && any(grepl("resuming after segment 1", prog)),
+      "no-md5 checkpoint at its original absolute path: the chain resumes")
 
 writeLines(lines, file.path(root, "check-combine.txt"))
 if (length(fail)) stop("check-combine.R FAILED: ", paste(fail, collapse = "; "))

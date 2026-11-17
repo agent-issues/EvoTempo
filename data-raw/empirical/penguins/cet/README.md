@@ -555,6 +555,15 @@ replaced it.
   Every number here will be recomputed then (same scripts, no segment cap).
 - **The 400 000-iteration state is reproducible** with
   `CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20` (stage1-results.R, bayes-factors.R).
+  The run root must hold only the 40 chains of that state:
+  `bash jobs/make-bf400k-root.sh $W/runs $W/bf400k-root` builds it.  The
+  script makes links to the 16 production and 24 rung chains (not the
+  gamma = 0.125 / 0.375 rungs), copies `stage1-results/launch.csv` (10
+  groups x 4) as its launch record, and checks that every chain has its
+  capped segments.  Then:
+  - eval each chain as `jobs/bf400k-eval.sh` does;
+  - combine on that root;
+  - run `stage1-results.R $W/bf400k-root ...`.
 - **Acceptance gate for the gamma Bayes factor** (#107 review):
   - every rung passes R-hat <= 1.01 and bulk ESS >= 400 (meanX included);
   - each bridge step has Kish ESS >= 100 in both directions;
@@ -732,7 +741,7 @@ EvoTempo does not (#112).  RevBayes puts one there in 31.5% (strict) and
 - **lambda < mu is shared by the comparator.**  P(lambda > mu) is 0.188 in
   (0, 0) against 0.206 in RevBayes strict (0.193 given no root sampled
   ancestor).  It comes from the data and the FBD priors, not from CET.  The
-  exception is cell (1, 1), at 0.553.
+  exception is cell (1, 1), at 0.552 (0.5525).
 - **gamma = 1 cells against UCLN.**  These are different models (CET's
   autocorrelated tempo against uncorrelated lognormal rates), and their
   differences are expected:
@@ -820,7 +829,9 @@ Per bridge step:
     +-0.1).
 - **Sensitivity to the prior on s (R107-16; the open decision under "Model and
   priors").**  The gamma Bayes factor depends directly on the s prior,
-  because (beta, 0) does not depend on s.
+  because (0, 0) does not depend on s.  (The (1, 0) evidence does: there s
+  enters the tree prior through the tempo coupling, with log E[w] up to
+  -0.64 under LN(log 0.5, 1).)
   - Method: reweighting the posterior draws, Z'/Z = E_post[pi'(s)/pi(s)]
     (`s-prior-reweight.R`; Kish ESS of the weights >= 2252 of 12000).  The
     per-chain values agree within 0.09 nats, except under LN(log 0.2, 0.5) in

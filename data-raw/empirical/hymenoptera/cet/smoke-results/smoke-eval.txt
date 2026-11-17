@@ -1,0 +1,8 @@
+b0g0_run1: 15 states, 0.6 s; max |own - logPost| = 3.42e-08, max |own - charLL| = 4.55e-12
+eval b0g0_run1 exit 0
+b0g1_run1: 15 states, 0.6 s; max |own - logPost| = 1.45e-07, max |own - charLL| = 4.55e-12
+eval b0g1_run1 exit 0
+b1g0_run1: 15 states, 0.7 s; max |own - logPost| = 1.73e-08, max |own - charLL| = 4.55e-12
+eval b1g0_run1 exit 0
+b1g1_run1: 15 states, 0.7 s; max |own - logPost| = 1.44e-08, max |own - charLL| = 4.55e-12
+eval b1g1_run1 exit 0

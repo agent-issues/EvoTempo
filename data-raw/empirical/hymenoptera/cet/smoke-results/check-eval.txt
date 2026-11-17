@@ -1,0 +1,10 @@
+check-eval.sh on /nobackup/pjjg18/evotempo-hym-cet/eval-test/evalcheck/b0g1_run1 (f7e9d04)
+Error: recomputed log posterior or charLL differs from the chain's by 1.45e-07 > CET_BF_TOL = 1e-15; no cross.csv written
+Execution halted
+1. CET_BF_TOL=1e-15: exit 1, cross.csv absent
+ok   1. a failed check leaves no cross.csv
+b0g1_run1: 15 states, 0.4 s; max |own - logPost| = 1.45e-07, max |own - charLL| = 4.55e-12
+2. cross.csv: 15 rows; max |check| 1.45e-07; max |checkChar| 4.55e-12
+ok   2. passing checks write cross.csv with check and checkChar, no temporary file
+check-eval.sh: all checks passed
+check-eval exit 0

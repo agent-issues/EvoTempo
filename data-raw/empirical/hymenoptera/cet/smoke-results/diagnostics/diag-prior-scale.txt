@@ -1,0 +1,6 @@
+ok   1. default: beta 0 vs 1 differ by 0; vs hand sum 1.77636e-15 
+ok   2. LineageMean(s, 1) / exp(-s^2 / 2) = 1 1.0002 1.0033 1.0166; LineageMean(1.3, 0) = 1 
+ok   3. lineage: beta 1 vs hand 3.55271e-15; beta 0 vs default 0; joint names lambda,mu,psi,s / lambda,mu,psi 
+ok   4. FbdUPrior(u) - FbdLogPrior(par(u)) - log(psi mu d) = 5.32907e-15; FbdFromU(FbdToU()) relative error 2.66454e-15 
+diag-prior-scale.R: all checks passed
+exit 0

@@ -1,0 +1,30 @@
+Expected chains (mkv pattern): 4 (/nobackup/pjjg18/evotempo-hym-cet/eval-test/root/launch.csv); found 4; missing 0; not complete 0; not in the launch record 0
+Bridge steps (Kish ESS of the one-sided importance weights; isFwd/isRev the one-sided estimates):
+      edge from   to     logBF     se kishFwd kishRev n0 n1   isFwd   isRev
+ b0g0 b1g0 b0g0 b1g0 5.234e+00 1.1884   2.141   1.013 15 15  -1.396  11.853
+ b0g1 b1g1 b0g1 b1g1 1.385e+01 0.9738   7.479   2.026 15 15   2.575  25.760
+ b0g0 b0g1 b0g0 b0g1 3.180e-04 1.2892   1.000   2.622 15 15  11.222   2.271
+ b1g0 b1g1 b1g0 b1g1 1.048e+02 1.4130   1.000   1.003 15 15 -23.335 232.841
+     gap
+  13.250
+  23.186
+   8.951
+ 256.176
+ from   to points        logBF        se seReplicates seChainHalf  minKish
+ b0g0 b1g0      2 5.233612e+00 1.1884087           NA   0.1778808 1.012998
+ b0g1 b1g1      2 1.385450e+01 0.9738487           NA   1.2615298 2.025897
+ b0g0 b0g1      2 3.179935e-04 1.2891756           NA  22.4243888 1.000000
+ b1g0 b1g1      2 1.047539e+02 1.4130105           NA  14.6131187 1.000000
+      isFwd      isRev    minEss maxOneSidedGap nInfinite perReplicate
+  -1.396496  11.853347 15.000000      13.249843         0       5.2336
+   2.574582  25.760196  8.277407      23.185614         0       13.854
+  11.221961   2.271437  6.392437       8.950525         0   0.00031799
+ -23.335107 232.841335 15.000000     256.176442         0       104.75
+Square closure: 96.133 nats (SE 2.453)
+  (the closure is blind to a bias common to both gamma edges; see bf-steps.csv for overlap)
+ cell         logZ posteriorProbability
+ b0g0 0.000000e+00         1.282266e-27
+ b1g0 5.233612e+00         2.403848e-25
+ b0g1 3.179935e-04         1.282674e-27
+ b1g1 6.192117e+01         1.000000e+00
+combine exit 0

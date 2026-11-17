@@ -411,8 +411,8 @@ chain; tasks 1-10, Slurm 19476399, checked by 19476400; `smoke-results/timing.cs
 `check-smoke.txt`): every cell ran from its own draw (01-04), plus cells (1, 1) and (0, 0) of
 replicate 2 (draws 08 and 05).  After burn-in: 0.77 s per iteration in (0, 0), 0.79 in (1, 0), 1.18
 in (0, 1) and 1.17 in (1, 1), with ten tasks sharing one node; the first smoke with Gamma (Slurm
-19473061, seven tasks) gave 0.71, 0.72, 1.05 and 1.13 s, against 0.47, 0.49, 0.58 and 0.59 s before
-Gamma (same draws and seeds): x 1.49-1.51 with gamma = 0 and x 1.81-1.92 with gamma = 1, whose many
+19473061, seven tasks) gave 0.709, 0.724, 1.052 and 1.133 s, against 0.471, 0.487, 0.581 and 0.590 s
+before Gamma (same draws and seeds): x 1.49-1.51 with gamma = 0 and x 1.81-1.92 with gamma = 1, whose many
 local path moves each rescore the characters.  Acceptance of the alpha move 29-40%; the other moves
 as before (`slide` 2.2-2.7%, `saJump` 3.7-7.3%, `nodeAge` 53-57%).  **Exact resume:** cell (1, 1)
 in two segments of 100 in one process (task 4) and in one segment of 200 (task 5) gave identical

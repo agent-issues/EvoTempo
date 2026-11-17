@@ -1,0 +1,15 @@
+Resume check: max |difference| over 10 samples x 23 columns = 0; trees identical: TRUE
+     chain exit crossWritten startTree
+ b0g0_run1    0         TRUE    draw 1
+ b0g0_run2    0         TRUE    draw 5
+ b0g1_run1    0         TRUE    draw 2
+ b1g0_run1    0         TRUE    draw 3
+ b1g1_run1    0         TRUE    draw 4
+ b1g1_run2    0         TRUE    draw 8
+                                                                                    message
+ b0g0_run1: 15 states, 0.3 s; max |own - logPost| = 4.55e-12, max |own - charLL| = 4.55e-12
+    b0g0_run2: 15 states, 0.2 s; max |own - logPost| = 1.57e-09, max |own - charLL| = 5e-12
+    b0g1_run1: 15 states, 0.2 s; max |own - logPost| = 4.55e-12, max |own - charLL| = 5e-12
+    b1g0_run1: 15 states, 0.2 s; max |own - logPost| = 5.14e-11, max |own - charLL| = 5e-12
+    b1g1_run1: 15 states, 0.2 s; max |own - logPost| = 5e-12, max |own - charLL| = 4.55e-12
+    b1g1_run2: 15 states, 0.3 s; max |own - logPost| = 6.02e-10, max |own - charLL| = 5e-12

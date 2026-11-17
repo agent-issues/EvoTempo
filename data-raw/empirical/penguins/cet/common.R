@@ -252,7 +252,58 @@ LoadPenguins <- function(startTree = file.path(cetDir, "data", "start-tree.nwk")
 
 # ---- Model, priors, moves -------------------------------------------------------
 cells <- data.frame(beta = c(0, 0, 1, 1), gamma = c(0, 1, 0, 1))
-CellLabel <- function(beta, gamma) sprintf("b%sg%s", format(beta), format(gamma))
+# A number as it appears in chain labels and cross.csv column names: plain
+# decimal notation (never scientific, which ParseLabel() cannot read), with
+# the fewest significant digits that read back as exactly `x` (#75)
+FormatValue <- function(x) {
+  stopifnot(length(x) == 1L, is.finite(x), x >= 0)
+  for (d in 1:17) {
+    s <- format(x, scientific = FALSE, digits = d, trim = TRUE)
+    if (as.numeric(s) == x) return(s)
+  }
+  stop("cannot write ", x, " in plain decimal notation")
+}
+CellLabel <- function(beta, gamma) sprintf("b%sg%s", FormatValue(beta), FormatValue(gamma))
+
+# Chain labels (run-chain.R): b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>.
+# ParseLabel() stops on a label it cannot read (#75); before, it returned NULL,
+# and Chains() dropped the directory without a message.
+ParseLabel <- function(label) {
+  m <- regmatches(label, regexec(
+    "^b([0-9.]+)g([0-9.]+)(_mkv(allTips|none))?(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
+  out <- if (length(m)) {
+    data.frame(label = label, beta = as.numeric(m[2]), gamma = as.numeric(m[3]),
+               mkv = if (nzchar(m[5])) m[5] else "pattern",
+               power = if (nzchar(m[7])) as.numeric(m[7]) else 1, rep = as.integer(m[8]))
+  }
+  if (is.null(out) || anyNA(out[, c("beta", "gamma", "power", "rep")])) {
+    stop(sprintf(paste("cannot parse chain label '%s': expected",
+                       "b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>",
+                       "with numbers in plain decimal notation"), label))
+  }
+  out
+}
+# Chain directories under `root`: every subdirectory holding run-chain.R
+# output (seg*_samples.csv, checkpoint.rds or progress.txt) must have a
+# readable label; other subdirectories (e.g. summary/) are ignored.  Only
+# chains with at least one complete segment are returned.
+Chains <- function(root) {
+  dirs <- list.dirs(root, recursive = FALSE)
+  isChain <- vapply(dirs, function(d) {
+    length(Sys.glob(file.path(d, "seg*_samples.csv"))) > 0L ||
+      file.exists(file.path(d, "checkpoint.rds")) || file.exists(file.path(d, "progress.txt"))
+  }, TRUE)
+  out <- do.call(rbind, lapply(dirs[isChain], function(d) {
+    p <- ParseLabel(basename(d))
+    if (!length(Sys.glob(file.path(d, "seg*_samples.csv")))) return(NULL)
+    cbind(p, dir = d)
+  }))
+  if (is.null(out)) {
+    out <- data.frame(label = character(), beta = numeric(), gamma = numeric(),
+                      mkv = character(), power = numeric(), rep = integer(), dir = character())
+  }
+  out
+}
 
 CetModel <- function(beta, gamma,
                      nBin = as.integer(Sys.getenv("CET_NBIN", "26")),
@@ -299,18 +350,53 @@ GammaTrunc <- function(shape, scale, hi) {
 CetAgePriors <- function() {
   list(origin = function(a) if (a > 0 && a < 160) -log(160) else -Inf)
 }
-# Near the RevBayes total-evidence round-1 posterior means (lambda 0.20,
-# mu 0.16; psi from the sampling proportion; clock_morph 0.017), jittered per
-# replicate by exp(N(0, 0.2^2))
-CetStart <- function(rep) {
-  start <- list(lambda = 0.2, mu = 0.15, psi = 0.05, theta = 0.05, s = 0.2, rate = 0.017)
-  if (rep > 1) {
-    old <- if (exists(".Random.seed", globalenv())) get(".Random.seed", globalenv())
-    set.seed(9000 + rep)
-    start <- lapply(start, function(v) v * exp(stats::rnorm(1, 0, 0.2)))
-    if (!is.null(old)) assign(".Random.seed", old, envir = globalenv())
+# Starting parameters: the round-1 total-evidence posterior means (lambda
+# 0.20, mu 0.16; psi from the sampling proportion; clock_morph 0.017), each
+# multiplied by exp(N(0, 1)) for every chain, replicate 1 included (#89 review,
+# R89-5: dispersed starts; before, exp(N(0, 0.2^2)) and none for replicate 1).
+# The draw uses its own stream, set.seed(9000 + index), and leaves the chain's
+# random-number state untouched.  A draw is rejected, and the next one from the
+# same stream taken, while its log posterior is not finite: the log prior, the
+# origin age prior, the log augmented density of a tempo-path draw from the
+# start state (as TempoMCMC() builds it: .Precompute(), .AddSlices(),
+# .Messages(), .SampleTree()) and the character log-likelihood.  Without
+# `tree`, no check is made (as before).  Returns the parameters, with
+# attributes "attempts" and "logPost".
+CetStartLogPost <- function(par, tree, model, characters, priors, nSlice = 20) {
+  tryCatch({
+    lp <- sum(vapply(names(priors), function(p) priors[[p]](par[[p]]), 0))
+    if (!is.finite(lp)) return(-Inf)
+    tt <- get(".NoRootAncestor", .ns)(get(".ForModel", .ns)(TempoTree(tree), model))
+    la <- CetAgePriors()$origin(get(".StartAge", .ns)(tt))
+    set <- get(".AddSlices", .ns)(tt, get(".Precompute", .ns)(tt, par, model), nSlice)
+    msg <- get(".Messages", .ns)(tt, set)
+    draw <- get(".SampleTree", .ns)(tt, set, msg)
+    aug <- get(".LogAugmented", .ns)(tt, set, draw[["paths"]], draw[["bin"]])
+    chr <- get("MkLikelihood", .ns)(tt, characters,
+                                    get(".CharacterLengths", .ns)(tt, set[["grid"]][["x"]],
+                                                                 draw[["paths"]], par[["rate"]],
+                                                                 model[["gamma"]]), 2L)
+    lp + la + aug + chr
+  }, error = function(e) structure(-Inf, error = conditionMessage(e)))
+}
+CetStart <- function(index, tree = NULL, model = NULL, characters = NULL, priors = CetPriors(),
+                     nSlice = 20, sdlog = 1, maxAttempts = 100L) {
+  centre <- list(lambda = 0.2, mu = 0.15, psi = 0.05, theta = 0.05, s = 0.2, rate = 0.017)
+  old <- if (exists(".Random.seed", globalenv())) get(".Random.seed", globalenv())
+  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = globalenv()))
+  set.seed(9000 + index)
+  lastError <- NULL
+  for (attempt in seq_len(maxAttempts)) {
+    start <- lapply(centre, function(v) v * exp(stats::rnorm(1, 0, sdlog)))
+    lp <- if (is.null(tree)) NA_real_ else CetStartLogPost(start, tree, model, characters,
+                                                           priors, nSlice)
+    if (is.null(tree) || is.finite(lp)) {
+      return(structure(start, attempts = attempt, logPost = as.numeric(lp)))
+    }
+    lastError <- attr(lp, "error")
   }
-  start
+  stop("CetStart(): no start with a finite log posterior in ", maxAttempts, " draws",
+       if (!is.null(lastError)) paste0("; last error: ", lastError))
 }
 # Default schedule (TempoMoves(): local path moves for 0.25 of the tree and a
 # shift with gamma != 0; whole-tree draws and joint sweeps with gamma = 0)

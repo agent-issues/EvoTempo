@@ -1,0 +1,10 @@
+run root: /nobackup/pjjg18/evotempo-penguins-rbdev-r4; clock: shared; burn-in: iteration >= 0.25 x last iteration
+pooled samples: 7504 from 4 chains (shared_run13 1876, shared_run14 1876, shared_run15 1876, shared_run16 1876)
+tips: 55; quartets per tree Q = 341055
+quartet consensus: ConsTree 1.0.1 Quartet(init = "majority", greedy = "best"); 43 of 52 splits; 171.3 s
+distance: symmetric quartet distance 2d + r1 + r2 (Quartet 1.4.0 QuartetStatus)
+distance to the consensus over the pool: min 10347, 5% 20091.9, median 31857, 95% 57992.9, max 95871
+sum of distances (consensus objective): 2.55674e+08; mean 34071.7
+selected: shared_run14 iteration 97140; distance 10347 (0.01517 of 2Q); ties at the minimum: 1
+selected sample: posterior -19855.9900, origin 63.141910, crown 11.756560, sampled ancestors 16
+mean distance from the selected sample to the pool: 36531.2 (consensus: 34071.7)

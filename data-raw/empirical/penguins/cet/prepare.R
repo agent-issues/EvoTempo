@@ -1,7 +1,7 @@
 # Penguin CET pipeline, step 1: data for EvoTempo and for the morphology-only
 # RevBayes comparator.
 #
-#   Rscript data-raw/empirical/penguins/cet/prepare.R [mcc.nex] [origin_age]
+#   Rscript data-raw/empirical/penguins/cet/prepare.R [tree.nex] [origin_age] [out.nwk]
 #
 # Run from the package root.  Writes, under data-raw/empirical/penguins/cet/:
 #   data/characters.csv     taxon x character states (0-based; NA = unknown)
@@ -11,6 +11,10 @@
 #   data/start-tree.nwk     starting tree (with an origin root edge), if an
 #                           MCC tree is given; data/start-tree-log.txt lists
 #                           every age that had to be changed
+#   With [out.nwk] (dispersed per-chain starts, draw-start-trees.R): the
+#   starting tree goes to out.nwk and its log to out-log.txt instead, and
+#   data/start-tree.nwk and revbayes/data/start_tree.nwk, start_origin.txt
+#   (the reference start tree) are left alone.
 #
 # Recoding (identical for EvoTempo and the RevBayes comparator):
 # - '?' and '-' are unknown.
@@ -184,16 +188,24 @@ if (length(args) >= 1L) {
   tr$edge.length[sa[tr$edge[, 2]] & tr$edge[, 2] <= nTip] <- 0
   tr$root.edge <- origin - rootAge
   stopifnot(all(tr$edge.length >= 0))
-  write.tree(tr, file.path(cet, "data", "start-tree.nwk"), digits = 10)
-  # RevBayes: no root edge; the origin goes in separately
-  rbTree <- tr
-  rbTree$root.edge <- NULL
-  write.tree(rbTree, file.path(cet, "revbayes", "data", "start_tree.nwk"), digits = 10)
-  writeLines(format(origin, digits = 10), file.path(cet, "revbayes", "data", "start_origin.txt"))
+  outTree <- if (length(args) >= 3L) args[[3]] else file.path(cet, "data", "start-tree.nwk")
+  outLog <- if (length(args) >= 3L) {
+    sub("\\.nwk$", "-log.txt", outTree)
+  } else file.path(cet, "data", "start-tree-log.txt")
+  stopifnot(outLog != outTree)
+  dir.create(dirname(outTree), recursive = TRUE, showWarnings = FALSE)
+  write.tree(tr, outTree, digits = 10)
+  if (length(args) < 3L) {
+    # RevBayes: no root edge; the origin goes in separately
+    rbTree <- tr
+    rbTree$root.edge <- NULL
+    write.tree(rbTree, file.path(cet, "revbayes", "data", "start_tree.nwk"), digits = 10)
+    writeLines(format(origin, digits = 10), file.path(cet, "revbayes", "data", "start_origin.txt"))
+  }
   writeLines(c(sprintf("source: %s", args[[1]]),
                sprintf("root age %.4f, origin %.4f, sampled ancestors %d", rootAge,
                        origin, sum(sa)), changes),
-             file.path(cet, "data", "start-tree-log.txt"))
+             outLog)
   cat(sprintf("Start tree: root %.3f Ma, origin %.3f Ma, %d sampled ancestors, %d changes\n",
               rootAge, origin, sum(sa), length(changes)))
 }

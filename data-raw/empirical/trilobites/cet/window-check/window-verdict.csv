@@ -1,0 +1,5 @@
+"mcmc","simulation","tests","maxAbsZ","at","role","criterion","pass"
+"none","none",56,2.92488983238381,"inverseClock q75","own target","max |z| < 3.5",TRUE
+"none","survival",56,6.1626875440211,"originAge q25","negative control","max |z| >= 5",TRUE
+"survival","none",56,4.85916037091555,"originAge q50","negative control","max |z| >= 5",FALSE
+"survival","survival",56,1.88952694309397,"clock q25","own target","max |z| < 3.5",TRUE

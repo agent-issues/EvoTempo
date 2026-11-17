@@ -31,6 +31,14 @@
 #   CET_TREE_MOVES   scale of the tree-move counts (default 1)
 #   CET_FBD_BLOCK    rounds of FBD block moves per iteration (default 1)
 #   CET_NBIN, CET_ZMAX   tempo grid (default 26 bins, z in [-5, 5])
+#   CET_NRATECAT     Gamma rate categories among characters (default 4; 1 is a
+#                    diagnostic variant without rate variation)
+#   CET_HOLO_CAL     "true" (default) or "false": Holometabola calibration on
+#                    or off (constraint kept), for prior-only comparisons
+#   CET_FBD_SCALE    "none" (default) or "lineage": the comparator's FBD-rate
+#                    prior on the rates at x = 0 or on the lineage-averaged
+#                    rates (common.R; diagnosis of cell (1, 0))
+#   CET_S_MAX        upper bound of the prior on s (default 3)
 #   CET_STATES       "true" (default) to save per-sample states for
 #                    bayes-factors.R
 # Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples, alpha
@@ -100,8 +108,8 @@ startTree <- startSrc$file
 startTreeMd5 <- unname(tools::md5sum(startTree))
 dat <- LoadHymenoptera(startTree)
 model <- CetModel(beta, gamma)
-priors <- CetPriors()
-charPriors <- CetCharPriors()
+priors <- CetPriors(beta)
+charPriors <- if (.cet$nRateCat > 1L) CetCharPriors() else list()
 moves <- CetMoves(dat$tree, dat$characters, model)
 Progress <- function(...) {
   cat(sprintf(...), "\n", file = file.path(outDir, "progress.txt"), append = TRUE)
@@ -121,6 +129,15 @@ if (file.exists(ckpFile)) {
   if (!identical(ckp$nRateCat, .cet$nRateCat)) {
     stop(sprintf("%s holds a chain with %s Gamma rate categories; this run has %d", ckpFile,
                  format(ckp$nRateCat), .cet$nRateCat))
+  }
+  if (!identical(if (is.null(ckp$fbdScale)) "none" else ckp$fbdScale, .cet$fbdScale) ||
+      !identical(if (is.null(ckp$sMax)) 3 else ckp$sMax, .cet$sMax)) {
+    stop(sprintf("%s holds a chain with CET_FBD_SCALE %s, CET_S_MAX %s; this run has %s, %s",
+                 ckpFile, format(ckp$fbdScale), format(ckp$sMax), .cet$fbdScale, format(.cet$sMax)))
+  }
+  if (!identical(if (is.null(ckp$holoCal)) TRUE else ckp$holoCal, .cet$holoCal)) {
+    stop(sprintf("%s holds a chain with Holometabola calibration %s; this run has %s", ckpFile,
+                 format(ckp$holoCal), format(.cet$holoCal)))
   }
   if (!identical(ckp$startTree, startTree) || !identical(ckp$startTreeMd5, startTreeMd5)) {
     stop(sprintf("%s started from %s (md5 %s); this run would load %s (md5 %s)", ckpFile,
@@ -145,6 +162,8 @@ if (file.exists(ckpFile)) {
                        nSlice)
   startInfo <- attributes(startPar)[c("attempts", "logPost")]
   startPar <- as.list(stats::setNames(unlist(startPar), names(startPar)))
+  # Without Gamma rates (CET_NRATECAT = 1) alpha is not a parameter
+  if (.cet$nRateCat == 1L) startPar$alpha <- NULL
   Progress("%s start %s rep %d (beta %g, gamma %g, power %g, mkv %s, %d Gamma categories): nIter %d, burnin %d, thin %d, seg %d; moves %s",
            format(Sys.time()), label, rep, beta, gamma, power, mkv, .cet$nRateCat, nIter, burnin,
            thin, seg, paste(names(moves), moves, sep = "=", collapse = " "))
@@ -205,7 +224,9 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),
                      append = file.exists(accFile))
   ckp <- list(segment = k, captured = .cet$captured, label = label, beta = beta, gamma = gamma,
-              power = power, mkv = mkv, nRateCat = .cet$nRateCat, rep = rep, thin = thin,
+              power = power, mkv = mkv, nRateCat = .cet$nRateCat, holoCal = .cet$holoCal,
+              fbdScale = .cet$fbdScale, sMax = .cet$sMax,
+              rep = rep, thin = thin,
               seg = seg, startTree = startTree, startTreeMd5 = startTreeMd5,
               start = if (is.null(ckp)) list(par = startPar, info = startInfo,
                                              sample = startSrc$sample) else ckp$start)
@@ -214,7 +235,8 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   file.rename(tmp, ckpFile)
   Progress("%s segment %d/%d done: %.1f s (%.3f s/iteration incl. %d burn-in); logPost %.2f, charLL %.2f, alpha %.4g",
            format(Sys.time()), k, nSeg, secs, secs / (seg + acc$burnin[1]), acc$burnin[1],
-           utils::tail(smp$logPost, 1), utils::tail(smp$charLL, 1), utils::tail(smp$alpha, 1))
+           utils::tail(smp$logPost, 1), utils::tail(smp$charLL, 1),
+           if (is.null(smp$alpha)) NA else utils::tail(smp$alpha, 1))
   if ((proc.time()[["elapsed"]] - t0) / 3600 > hours && k < nSeg) {
     Progress("%s stopping after %.1f h; resubmit to continue", format(Sys.time()), hours)
     break

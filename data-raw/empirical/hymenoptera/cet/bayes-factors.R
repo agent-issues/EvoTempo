@@ -161,7 +161,16 @@ if (args[[1]] == "eval") {
                  format(ckp$nRateCat), .cet$nRateCat))
   }
   dat <- LoadHymenoptera(startTree)
-  priors <- CetPriors()
+  # The prior depends on beta when CET_FBD_SCALE = "lineage" (common.R); then
+  # each beta's log prior goes into cross.csv (prior_b<beta>)
+  priorsAt <- lapply(betas, CetPriors)
+  priors <- CetPriors(me$beta)
+  for (v in c("fbdScale", "sMax", "holoCal")) {
+    if (!is.null(ckp[[v]]) && !identical(ckp[[v]], .cet[[v]])) {
+      stop(sprintf("%s records %s = %s; this eval has %s (set the same CET_* variable)", ckpFile, v,
+                   format(ckp[[v]]), format(.cet[[v]])))
+    }
+  }
   fp <- SegmentFingerprint(dir)
   s <- LoadSamples(dir)
   states <- LoadStates(dir)
@@ -193,8 +202,10 @@ if (args[[1]] == "eval") {
     # without the tree term (common.R, RecordingStats())
     ownChar <- CharLLAt(st, me$gamma, dat$characters)
     own <- LogAugAt(st, me$beta, me$gamma) + me$power * ownChar + tt + lp + la
+    lpB <- vapply(priorsAt, function(pr) CetLogPrior(st$par, pr), 0)
     c(sample = i, setNames(aug, paste0("aug_b", vapply(betas, FormatValue, ""))),
-      setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))), logPrior = lp,
+      setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))),
+      setNames(lpB, paste0("prior_b", vapply(betas, FormatValue, ""))), logPrior = lp,
       treeTerm = tt, check = own - s$samples$logPost[i], checkChar = ownChar - s$samples$charLL[i])
   }))
   worst <- max(abs(out[, c("check", "checkChar")]))
@@ -357,7 +368,10 @@ LogQ <- function(x, beta, gamma) {
     stop(sprintf("cross.csv has no column %s; rerun eval on every chain after adding a rung",
                  paste(setdiff(c(a, g), names(x)), collapse = " or ")), call. = FALSE)
   }
-  x[[a]] + x[[g]] + x$logPrior
+  # The prior at beta (prior_b<beta>, written by eval since the
+  # CET_FBD_SCALE option; equal to logPrior when the prior does not depend on beta)
+  pb <- paste0("prior_b", FormatValue(beta))
+  x[[a]] + x[[g]] + if (pb %in% names(x)) x[[pb]] else x$logPrior
 }
 # Bridge between model points A and B (beta, gamma), pooling replicates (or
 # replicate `rep` only; and with `half` = 1 or 2, only the first or second

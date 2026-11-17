@@ -1,0 +1,7 @@
+            set beta   n defaultMinusTightMin defaultMinusTightMax
+ oracle, beta 0    0 200           -1.757e-07            7.525e-09
+ oracle, beta 1    1 200           -3.445e-08            2.854e-09
+ defaultMinusTightSd tightMinusFbdSd
+           1.250e-08       5.571e-07
+           3.254e-09              NA
+exit 0

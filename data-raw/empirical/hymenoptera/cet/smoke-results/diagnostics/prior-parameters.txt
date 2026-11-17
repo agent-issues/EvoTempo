@@ -1,0 +1,6 @@
+       src              logD  turnover                   sampling       logLambda         root  nAnc
+ CET nocal -6.99/-5.61/-4.72     1/1/1 6.32e-10/2.58e-09/9.24e-09  5.16/5.96/6.67  316/325/355 0/0/0
+  RB nocal  -6.2/-4.93/-4.61 0.213/1/1  1.57e-09/3.18e-08/0.00125 -4.62/4.38/6.22 317/393/1450 0/0/1
+RB: cor(root, log lambda) = -0.975 ; cor(root, turnover) = -0.947 ; root > 600 share = 0.499 
+RB root>600: turnover 0.194/0.317/0.609 logD -4.99/-4.8/-4.6 sampling 0.000226/0.000756/0.0013 
+CET: max root 425 ; cor(root, log lambda) = -0.079 

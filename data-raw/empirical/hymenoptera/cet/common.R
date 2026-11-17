@@ -73,8 +73,15 @@ cetDir <- "data-raw/empirical/hymenoptera/cet"
 
 # ---- Characters -----------------------------------------------------------------
 # Number of discrete Gamma rate categories among characters, as the comparator
-# (fnDiscretizeGamma(alpha_morph, alpha_morph, 4))
-.cet$nRateCat <- 4L
+# (fnDiscretizeGamma(alpha_morph, alpha_morph, 4)).  CET_NRATECAT = 1 (no rate
+# variation; alpha is then not a parameter) is a diagnostic variant
+# (README, "Root ages"); run-chain.R records it in the checkpoint.
+.cet$nRateCat <- as.integer(Sys.getenv("CET_NRATECAT", "4"))
+stopifnot("CET_NRATECAT must be a whole number >= 1" = isTRUE(.cet$nRateCat >= 1L))
+# Holometabola calibration on (default) or off (CET_HOLO_CAL = false: the
+# constraint only), a diagnostic variant for prior-only comparisons with
+# RevBayes, whose ignoreAllData() also ignores the clamped calibration node
+.cet$holoCal <- Sys.getenv("CET_HOLO_CAL", "true") == "true"
 # Coding of the Mkv variant: "pattern" is RevBayes coding = "variable" (one
 # correction per missing-data mask, #65, #80); "none" is coding = "all"
 MkvCoding <- function(mkv = .cet$mkv) switch(mkv, pattern = "variable", none = "all",
@@ -130,9 +137,9 @@ CladeAge <- function(tree, members, mrca = FALSE) {
 # clamped-exponential calibration, MrBayes `calibrate`): exp(-(t - 302)/94)/94.
 # Unnormalised, as in RevBayes (no renormalisation of the tree prior)
 HoloCalibration <- function(age) if (age > 302) -log(94) - (age - 302) / 94 else -Inf
-TreeTerm <- function(tree) {
+TreeTerm <- function(tree, calibration = .cet$holoCal) {
   a <- CladeAge(tree, .cet$holo)
-  if (is.na(a)) -Inf else HoloCalibration(a)
+  if (is.na(a)) -Inf else if (calibration) HoloCalibration(a) else 0
 }
 
 # ---- FBD-rate prior of the comparator, as conditional priors --------------------
@@ -140,15 +147,40 @@ TreeTerm <- function(tree) {
 # r = mu / lambda ~ U(0, 1), s = psi / (mu + psi) ~ U(0, 1):
 #   p(lambda, mu, psi) = 100 exp(-100 d) |d(d, r, s) / d(lambda, mu, psi)|,
 #   |J| = (lambda - mu) mu / (lambda^2 (mu + psi)^2).
-FbdLogPrior <- function(par) {
+FbdLogPrior <- function(par, beta = 0) {
   l <- par[["lambda"]]
   m <- par[["mu"]]
   p <- par[["psi"]]
   if (!(is.finite(l) && is.finite(m) && is.finite(p) && m > 0 && l > m && p > 0)) {
     return(-Inf)
   }
+  # Lineage-averaged rates (CET_FBD_SCALE = "lineage"; README, "Cell (1, 0)"):
+  # the density of (lambda, mu, psi) is that of (k lambda, k mu, psi) under the
+  # comparator's prior, times k^2 (the Jacobian), with k = LineageMean(s, beta)
+  k <- if (beta != 0 && .cet$fbdScale == "lineage") LineageMean(par[["s"]], beta) else 1
+  l <- k * l
+  m <- k * m
   d <- l - m
-  log(100) - 100 * d + log(d) + log(m) - 2 * log(l) - 2 * log(m + p)
+  log(100) - 100 * d + log(d) + log(m) - 2 * log(l) - 2 * log(m + p) + 2 * log(k)
+}
+# ---- Lineage-averaged rates and the bound on s (diagnosis of cell (1, 0)) --------
+# CET_FBD_SCALE = "none" (default): the comparator's prior is on lambda, mu, the
+# rates at log-tempo x = 0.  "lineage": it is on the lineage-averaged rates
+# k lambda, k mu, k = E_pi[e^(beta x)], pi the stationary law of the tempo
+# generator Q = diag(e^(alpha x)) A (mean x = -s^2, k about e^(-s^2 / 2) for
+# alpha = beta = 1; diag-ridge.R); s then enters the joint prior.  k = 1 when
+# beta = 0, so cells with beta = 0 are unchanged.  CET_S_MAX (default 3) is the
+# upper bound of the prior on s.
+.cet$fbdScale <- Sys.getenv("CET_FBD_SCALE", "none")
+stopifnot("CET_FBD_SCALE must be \"none\" or \"lineage\"" = .cet$fbdScale %in% c("none", "lineage"))
+.cet$sMax <- as.numeric(Sys.getenv("CET_S_MAX", "3"))
+stopifnot("CET_S_MAX must be a positive number" = isTRUE(.cet$sMax > 0))
+LineageMean <- function(s, beta, nBin = as.integer(Sys.getenv("CET_NBIN", "26")),
+                        zMax = as.numeric(Sys.getenv("CET_ZMAX", "5"))) {
+  if (!is.finite(s) || s <= 0) return(NA_real_)
+  grid <- TempoGrid(nBin, c(-zMax, zMax), s)
+  p <- TempoEquilibrium(TempoGenerator(grid, 1, 1, "central"))$p
+  sum(p * exp(beta * grid$x))
 }
 fbdNames <- c("lambda", "mu", "psi")
 # Prior for parameter `p` in TempoMCMC()'s `priors`: the joint density at the
@@ -156,8 +188,9 @@ fbdNames <- c("lambda", "mu", "psi")
 # `par` in .ParameterSweep() and `st$par` in .JointSweep(); in both, every
 # call changes `p` only.  Any other caller is an error (.ShiftMove() and
 # .LogPrior() never call these functions: see ShiftJoint(), LogPriorJoint())
-FbdConditional <- function(p) {
+FbdConditional <- function(p, JointPrior = FbdLogPrior) {
   force(p)
+  force(JointPrior)
   f <- function(x) {
     caller <- sys.function(sys.parent())
     pf <- parent.frame()
@@ -170,20 +203,27 @@ FbdConditional <- function(p) {
            "common.R's joint prior supports only .ParameterSweep() and .JointSweep()")
     }
     cur[[p]] <- x
-    FbdLogPrior(cur)
+    JointPrior(cur)
   }
   attr(f, "cetJoint") <- p
+  attr(f, "cetJointPrior") <- JointPrior
   f
 }
 IsJoint <- function(priors) {
   any(vapply(priors, function(f) !is.null(attr(f, "cetJoint")), TRUE))
 }
-# .LogPrior() for logPost: the joint FBD-rate density plus the other priors
+JointNames <- function(priors) {
+  names(priors)[vapply(priors, function(f) !is.null(attr(f, "cetJoint")), TRUE)]
+}
+JointPriorOf <- function(priors) attr(priors[[JointNames(priors)[1]]], "cetJointPrior")
+# .LogPrior() for logPost: the joint density (FBD rates, and s with
+# CET_FBD_SCALE = "lineage") plus the other priors
 LogPriorJoint <- function(par, priors) {
   if (!IsJoint(priors)) return(.logPriorOriginal(par, priors))
   stopifnot(all(fbdNames %in% names(priors)))
-  other <- setdiff(names(priors), fbdNames)
-  FbdLogPrior(par) + sum(vapply(other, function(p) priors[[p]](par[[p]]), 0))
+  joint <- JointNames(priors)
+  other <- setdiff(names(priors), joint)
+  JointPriorOf(priors)(par) + sum(vapply(other, function(p) priors[[p]](par[[p]]), 0))
 }
 # .ShiftMove() rescales the free parameters with a non-zero tempo exponent,
 # p -> p exp(-e_p d) (lambda and mu share e = beta), and scores
@@ -197,15 +237,16 @@ ShiftJoint <- function(st, model, free, priors, nSlice, CharLL) {
     expo <- c(rate = model[["gamma"]], lambda = model[["beta"]], mu = model[["beta"]],
               psi = model[["delta"]], theta = model[["alpha"]])
     comp <- intersect(names(expo)[expo != 0], free)
-    jc <- intersect(comp, fbdNames)
+    jc <- intersect(comp, JointNames(priors))
     if (length(jc)) {
       old <- st[["par"]]
       carrier <- jc[1]
+      JP <- JointPriorOf(priors)
       priors[[carrier]] <- function(x) {
-        if (identical(x, old[[carrier]])) return(FbdLogPrior(old))
+        if (identical(x, old[[carrier]])) return(JP(old))
         new <- old
         for (q in jc) new[[q]] <- old[[q]] * (x / old[[carrier]])^(expo[[q]] / expo[[carrier]])
-        FbdLogPrior(new)
+        JP(new)
       }
       for (q in setdiff(jc, carrier)) priors[[q]] <- function(x) 0
     }
@@ -214,7 +255,13 @@ ShiftJoint <- function(st, model, free, priors, nSlice, CharLL) {
   if (IsJoint(priors) && all(fbdNames %in% free) && .cet$blockRounds > 0) {
     tm <- parent.frame()
     burn <- get("i", envir = tm, inherits = FALSE) <= get("burnin", envir = tm, inherits = FALSE)
-    for (k in seq_len(.cet$blockRounds)) res$state <- FbdBlockMoves(res$state, model, nSlice, burn)
+    # The comparator's prior on (lambda, mu, psi) has its own form in u
+    # (FbdUPrior()); a joint prior that includes s (CET_FBD_SCALE = "lineage")
+    # goes through the general target
+    JP <- if ("s" %in% JointNames(priors)) JointPriorOf(priors)
+    for (k in seq_len(.cet$blockRounds)) {
+      res$state <- FbdBlockMoves(res$state, model, nSlice, burn, JP)
+    }
   }
   res
 }
@@ -261,7 +308,16 @@ FbdUPrior <- function(u) {
     stats::plogis(u[2], log.p = TRUE) + stats::plogis(-u[2], log.p = TRUE) +
     stats::plogis(u[3], log.p = TRUE) + stats::plogis(-u[3], log.p = TRUE)
 }
-FbdBlockMoves <- function(st, model, nSlice, burn) {
+# With a joint prior JP other than the comparator's on (lambda, mu, psi)
+# (CET_FBD_SCALE = "lineage"), the target in u is JP + log|d(lambda, mu, psi) /
+# du|, and log|d(lambda, mu, psi) / du| = FbdUPrior(u) - FbdLogPrior(par(u))
+# (beta = 0: the comparator's density on (lambda, mu, psi) is its density in u
+# divided by that Jacobian); with the comparator's prior this is FbdUPrior(u)
+FbdBlockMoves <- function(st, model, nSlice, burn, JP = NULL) {
+  UTarget <- function(u, par) {
+    if (is.null(JP)) return(FbdUPrior(u))
+    JP(par) + FbdUPrior(u) - FbdLogPrior(par)
+  }
   tree <- st[["tree"]]
   cur <- get(".LogAugmented", .ns)(tree, st[["set"]], st[["paths"]], st[["bin"]])
   for (j in seq_along(blockNames)) {
@@ -276,7 +332,7 @@ FbdBlockMoves <- function(st, model, nSlice, burn) {
     if (is.null(set)) next
     new <- tryCatch(get(".LogAugmented", .ns)(tree, set, st[["paths"]], st[["bin"]]),
                     infeasibleProposal = function(e) -Inf)
-    logRatio <- new - cur + FbdUPrior(v) - FbdUPrior(u)
+    logRatio <- new - cur + UTarget(v, prop) - UTarget(u, st[["par"]])
     if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
       st[["par"]] <- prop
       st[["set"]] <- get(".AddSlices", .ns)(tree, set, nSlice)
@@ -767,10 +823,19 @@ ExpTrunc <- function(rate, hi) {
 # truncated at 3 (numerical bound of the penguin pipeline; removes 0.61% of
 # the mass).  rate: the comparator's clock prior LogNormal(-7.1, 0.5),
 # truncated at +-4 sdlog.
-CetPriors <- function() {
-  list(lambda = FbdConditional("lambda"), mu = FbdConditional("mu"),
-       psi = FbdConditional("psi"), theta = LnTrunc(log(1 / 120), 1),
-       s = ExpTrunc(1 / 0.587405, 3), rate = LnTrunc(-7.1, 0.5))
+CetPriors <- function(beta = 0) {
+  sPrior <- ExpTrunc(1 / 0.587405, .cet$sMax)
+  scaled <- beta != 0 && .cet$fbdScale == "lineage"
+  force(beta)
+  JP <- if (scaled) {
+    function(par) FbdLogPrior(par, beta) + sPrior(par[["s"]])
+  } else {
+    FbdLogPrior
+  }
+  pri <- list(lambda = NULL, mu = NULL, psi = NULL, theta = LnTrunc(log(1 / 120), 1),
+              s = sPrior, rate = LnTrunc(-7.1, 0.5))
+  for (p in c(fbdNames, if (scaled) "s")) pri[[p]] <- FbdConditional(p, JP)
+  pri
 }
 # Hymenoptera: shape of the Gamma rates among characters, alpha ~ Exp(1), as
 # the comparator's alpha_morph ~ dnExponential(1); TempoMCMC(charPriors = )
@@ -861,7 +926,7 @@ CetStart <- function(index, sample, tree = NULL, model = NULL, characters = NULL
     }
     repeat {
       s <- stats::rexp(1, 1 / 0.587405)
-      if (s <= 3) break
+      if (s <= .cet$sMax) break
     }
     start <- c(fixed[c("lambda", "mu", "psi")], list(theta = theta, s = s),
                fixed[c("rate", "alpha")])

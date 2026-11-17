@@ -27,7 +27,8 @@ reproduced by the package (`check-mkv.R`).
 | `check-sbc.R`, `check-sbc.sh` | Free-parameter simulation-based calibration at rho = 0, beta = 1 (SBC-lite) |
 | `run-chain.R` | One chain of one cell, in checkpointed segments |
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
-| `smoke.sh`, `check-smoke.R`, `check-pilot.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume, `bayes-factors.R eval` on every smoke chain including two replicate-2 chains); pilot summary for the cost projection |
+| `smoke.sh`, `check-smoke.R`, `check-pilot.R` | Smoke run on the `test` partition and its checks (timing, acceptance, peak memory, exact resume in one process and in a second process, the predictive stop under a fake wall limit, a kill between `acceptance.csv` and the checkpoint, `bayes-factors.R eval` on every smoke chain including two replicate-2 chains); pilot summary for the cost projection |
+| `check-guards.sh` | The checkpoint's build, data and prior guards: a resume under another build, changed characters, a changed alpha prior or a pre-Gamma checkpoint stops, naming the field; under an identical copy of the install it continues |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`), also reweighted to the comparator's joint FBD prior |
 | `check-labels.R` | Label and `combine` checks on synthetic chains, no MCMC (#100, #101, #103 review): plain-decimal labels, rung columns, the expected chain set and its opt-outs, power ladders, stale outputs, freshness (`smoke-results/check-labels.txt`; `smoke-results/mutation-check.txt`: mutants M4 and M5 of the #103 review fail it) |
 | `check-combine.sh`, `check-combine.R` | `eval` and `combine` on tiny real chains with a ladder rung (b0.5g0) present, `combine` stopping on a missing `cross.csv`, the old (pre-#100) script reproducing both faults, and the md5 resume guard (#100-#102) (`smoke-results/check-combine.txt`) |
@@ -200,7 +201,7 @@ against RevBayes with the comparator's matrices (`../revbayes/prepare-data.R`):
 Gamma off (nRateCat = 1): every partition agrees with RevBayes to 5.1e-10 (10 partitions x 3 rates x
 2 engines), and the totals equal those of PR #91's own code (`PartitionedMk()`) to 1e-5, their printed
 precision.  Gamma on (nRateCat = 4, alpha 0.25, 0.6, 2): every partition agrees to 5.7e-8
-(10 x 9 x 2), within the bar of 1e-6 set beforehand.  The whole matrix equals the sum of its
+(10 x 9 x 2) and the totals to 1.1e-7, within the bar of 1e-6 set beforehand.  The whole matrix equals the sum of its
 partitions, the engines agree to 2.3e-12, and power t gives t x lnL.  RevBayes prints 14 significant
 digits (`setOption("outputPrecision", "14")`).  The calibration of the alpha move is checked in
 PR #98 (`data-raw/gamma-acrv-results/`: alpha oracle and SBC with Gamma), not here.
@@ -330,7 +331,14 @@ Per-sample trees, states and exact resume work as in the penguin pipeline (rebou
 the resume also restores alpha's adapted step (`alphaStep`).
 The checkpoint records the grid (`CET_NBIN`, `CET_ZMAX`), thinning, segment length, beta, gamma,
 power, Mkv variant, number of Gamma rate categories (so a checkpoint from before Gamma rates
-stops: `smoke-results/guard-gamma.txt`), start-draw index and the start tree (its md5, its path relative to `cet/`,
+stops: `smoke-results/guard-gamma.txt`), the alpha prior (a tag and an md5 of the code of
+`CetCharPriors()` and `PoweredMk()`), md5s of `data/characters.csv` and `data/partitions.csv`, and
+the EvoTempo build: `packageVersion()`, the commit SHA that the build step writes into the install
+(`<lib>/EvoTempo/BUILD_SHA`; **Running on Hamilton**) and an md5 over the installed code (review of
+#114, R114-3, R114-6).  A resubmission therefore resumes only under the same build, data and
+prior; a stop names the fields that differ (`smoke-results/guards.txt`).  A reinstall, even of the
+same commit, may change the md5: resume a chain with the library it started with.  The
+checkpoint also records the start-draw index and the start tree (its md5, its path relative to `cet/`,
 and the full path); a run with any of them different, from a start tree with another md5, or whose
 tree has another tip order than the loaded characters, stops (#76; review of #91, F1).  The resume
 guard compares the md5, not the absolute path, so resubmitting from another checkout of the same
@@ -398,22 +406,35 @@ gamma-acrv-97 at da4dbd0 with #103 merged; `lib-bf8ce1c`), work directory
 `/nobackup/pjjg18/evotempo-trilobite-gamma`.  Before it (PR #91): main 48e6bf7.
 
 **Smoke with Gamma rates** (`smoke.sh`, `test` partition, 40 burn-in + 2 x 100 iterations per
-chain; Slurm 19473061, checked by 19473084; `smoke-results/timing.csv`, `acceptance.csv`,
-`resume.txt`, `eval.txt`, `check-smoke.txt`): every cell ran from its own draw (01-04), plus cells
-(1, 1) and (0, 0) of replicate 2 (draws 08 and 05).  After burn-in: 0.71 s per iteration in
-(0, 0), 0.72 in (1, 0), 1.05 in (0, 1) and 1.13 in (1, 1), against 0.47, 0.49, 0.58 and 0.59 s in
-the same smoke before Gamma (same draws and seeds): x 1.49-1.51 with gamma = 0 and x 1.81-1.92 with
-gamma = 1, whose many local path moves each rescore the characters.  Acceptance of the alpha move
-29-40%; the other moves as before (`slide` 2.2-2.7%, `saJump` 3.7-7.3%, `nodeAge` 53-57%).
-**Exact resume:** cell (1, 1) in two segments of 100 and in one of 200 gave identical samples
-(maximum absolute difference 0 over 10 samples x 25 columns, alpha included) and identical trees.
+chain; tasks 1-10, Slurm 19476399, checked by 19476400; `smoke-results/timing.csv`,
+`acceptance.csv`, `resume.txt`, `stop-resume.txt`, `eval.txt`, `peak-memory.csv`,
+`check-smoke.txt`): every cell ran from its own draw (01-04), plus cells (1, 1) and (0, 0) of
+replicate 2 (draws 08 and 05).  After burn-in: 0.77 s per iteration in (0, 0), 0.79 in (1, 0), 1.18
+in (0, 1) and 1.17 in (1, 1), with ten tasks sharing one node; the first smoke with Gamma (Slurm
+19473061, seven tasks) gave 0.71, 0.72, 1.05 and 1.13 s, against 0.47, 0.49, 0.58 and 0.59 s before
+Gamma (same draws and seeds): x 1.49-1.51 with gamma = 0 and x 1.81-1.92 with gamma = 1, whose many
+local path moves each rescore the characters.  Acceptance of the alpha move 29-40%; the other moves
+as before (`slide` 2.2-2.7%, `saJump` 3.7-7.3%, `nodeAge` 53-57%).  **Exact resume:** cell (1, 1)
+in two segments of 100 in one process (task 4) and in one segment of 200 (task 5) gave identical
+samples (maximum absolute difference 0 over 10 samples x 25 columns, alpha included) and identical
+trees.  **Resume in a second process** (task 8, review of #114, R114-2): stopped by `CET_HOURS=0`
+after segment 1 and resumed by a new `Rscript` from the checkpoint on disk, it equals task 4 and
+task 5 (0 over 20 samples x 26 columns; trees identical).  **Predictive stop** (task 9, R114-1):
+under a fake 0.02 h limit, the chain stopped before segment 2 (0.021 h elapsed + 1.5 x 0.020 h >
+0.020 h), and a second process resumed and completed it.  **Kill before a checkpoint** (task 10):
+killed after writing segment 2's `acceptance.csv` rows and before its checkpoint, then resumed:
+`acceptance.csv` holds each segment once, and the samples and trees equal task 9's (0 over 20 x 26).
 **`eval` on every smoke chain**, the two replicate-2 chains included: exit 0 and `cross.csv` written
 for all six; maximum |recomputed - logPost| 4.1e-12 to 4.7e-9 (the recomputation includes alpha's
-prior), maximum |recomputed - charLL| <= 5e-12.  **`check-combine.sh`** (#103's tiny real chains,
-`eval` and `combine` with a ladder rung, the expected chain set and the resume guard; Slurm
-19473089-91) passes on this code (`smoke-results/check-combine.txt`).  **Pre-Gamma checkpoint**
-(a round-1 smoke chain): the resume stops, `nRateCat (none)` against 4
-(`smoke-results/guard-gamma.txt`, Slurm 19473118).  Peak memory 173-186 MB per chain.
+prior), maximum |recomputed - charLL| <= 5e-12.  Peak memory 171-185 MB per process
+(`peak-memory.csv`).  **Guards** (`check-guards.sh`, Slurm 19476428, `smoke-results/guards.txt`;
+R114-3, R114-6): a resume under an install with another `BUILD_SHA`, from changed `characters.csv`,
+with the alpha prior's rate changed, or from PR #91's pre-Gamma checkpoint stops, naming exactly the
+fields that differ; under an identical copy of the install it continues to completion (5 of 5).
+**`check-combine.sh`** (#103's tiny real chains: `eval` and `combine` with a ladder rung, the
+expected chain set and the resume guard; Slurm 19476412-14) passes on this code
+(`smoke-results/check-combine.txt`), and so does `summarise.R` on the smoke chains and the
+comparator, with the new bulk-ESS column (Slurm 19476470).
 
 **Before Gamma (PR #91).**  Smoke Slurm 19431320, checked by 19431322: 0.47-0.62 s per iteration;
 exact resume over 10 samples x 23 columns; `eval` on six chains, |recomputed - logPost| 4.6e-12 to
@@ -460,22 +481,54 @@ and are **not results**; for orientation only: root (first split) means 532.1 / 
 
 **Projection** (provisional: single 3000-iteration chains understate slow drifts).  The slowest
 quantities reach 1.9-5.0 ESS per 1000 iterations in the pilot with Gamma (1.8-2.5 before it), as in
-the penguin pilot, so the penguin length is kept: 200 000 iterations per chain (thin 100, segments
-of 10 000), about 25 000 iterations for a pooled ESS of 200 with an 8x margin.  The precision
-target should come from the comparison to be resolved (user decision, 2026-11-11), so the length is
-to be revisited after the first segments.  Seconds per iteration with Gamma rates, from the pilot
+the penguin pilot, so the penguin length is kept as the starting plan: 200 000 iterations per chain
+(thin 100, segments of 10 000), about 25 000 iterations for a pooled ESS of 200 with an 8x margin.
+Pilot ESS from 200 draws is a weak guide, and lambda's pilot means moved a long way between pilots
+of a cell (b0g0 5.26 -> 1.69, b1g1 8.53 -> 11.23; within the Gamma pilot, b1g1's 95% range 3.4-28.1
+at ESS 3.8), which suggests slow drift along the lambda ~ mu ridge (review of #114, R114-8), so the
+length is set by the **run-length rule** below, not by this projection.  Seconds per iteration with Gamma rates, from the pilot
 with Gamma (segments 2-3): 0.93, 1.25, 0.97 and 1.59 s (mean 1.18 s).  Before that pilot ran, the
 estimate from the smoke ratios (the pre-Gamma pilot's rates times each cell's smoke ratio) was
 0.83-1.38 s (mean 1.12 s, about 1000 core-hours).
 
 | Item | Core-hours |
 |---|---|
-| Production: 4 cells x 4 chains x 200 000 iterations at 0.93-1.59 s (pilot with Gamma; mean 1.18 s) | **~1050** (52-88 h per chain: chains with gamma = 1 pass the 3-day limit of `shared`, stop at `CET_HOURS` (70) and are resubmitted once) |
+| Production: 4 cells x 4 chains x 200 000 iterations at 0.93-1.59 s (pilot with Gamma; mean 1.18 s) | **~1050** (52-88 h per chain; see **Wall clock** below: the chains of cells (0, 1) and (1, 1) need a second job) |
 | `bayes-factors.R eval` | < 5 |
 | Ladder rungs, if a Bayes-factor edge needs them: 4 chains x ~66 h per rung, up to 3 per edge, 4 edges | 0-3200 |
 | Character-power stepping-stone, best cell only (16 powers x 2 chains x 50 000 iterations) | ~520 |
 | Checks run for PR #91 (oracle, window checks, smoke, pilot, prior check, SBC-lite) | 12.8 in the first round (Slurm CPU time of every job); the fix round about 1 (smoke, oracle, guards) plus the SBC-lite (48.7) and window replicate 2 (21.0), both as allocated core-hours (elapsed x 16 cores) |
-| Checks for the switch to `MkCharacters()` (oracle, identity, smoke, check-combine, guard) | < 1, plus about 5 for the pilot with Gamma (4 chains, 54-108 min each) |
+| Checks for the switch to `MkCharacters()` (oracle, identity, smoke, check-combine, guard) | < 1, plus about 5 for the pilot with Gamma (4 chains, 54-108 min each); fix round of the #114 review (smoke, guards, check-combine, summarise) < 1 |
+
+**Wall clock** (review of #114, R114-1).  `shared` kills a job at 72 h, and a 10 000-iteration
+segment takes 2.6-4.4 h, so a stop checked only after each segment (`CET_HOURS`, then 70) did not
+guarantee a clean stop: at its pilot rate b1g1 would have stopped at 71.3 h, and 2% slower it would
+have been killed inside segment 16; b0g1 would have finished at 70.5-71.0 h inside its first job, and
+10% slower it would have been killed in segment 19 (the reviewer and verifier agree to 0.1 h).
+`run-chain.R` now stops cleanly **before** a segment if the time elapsed plus 1.5 x the last
+segment's would pass `CET_WALL_HOURS - CET_WALL_MARGIN` (72 - 0.25 h), and keeps `CET_HOURS` as a
+hard cap, now 65 h (the launch sets it explicitly).  At the Gamma pilot's rates (burn-in 0.91,
+2.06, 0.85 and 1.47 s per iteration; segments 2.58, 3.47, 2.71 and 4.41 h) the chains of cells
+(0, 0) and (1, 0) complete in about 52 and 55 h; the chains of (0, 1) stop after segment 19 (about
+67 h) and those of (1, 1) after segment 15 (about 67 h), and each finishes in a second job of about
+3.5 and 22 h.  A kill can no longer leave a segment half-recorded: `acceptance.csv` is rewritten
+with any earlier rows of the segment replaced (a kill between it and the checkpoint used to append
+the segment's rows twice on resubmission).  Smoke tasks 8-10 test the predictive stop with a fake
+limit, a resume in a second process, and a kill between `acceptance.csv` and the checkpoint.
+
+**Run-length rule** (review of #114, R114-8; fixed before production).  After the first 2 segments
+(20 000 iterations) of every chain of a cell, and again at the planned end, `summarise.R` gives per
+quantity the MkPrime rank-normalised split R-hat over the cell's 4 chains (`rhat`) and the bulk ESS
+over chains (`bulkEss`, `MkPrime:::.EssBulk()`), after discarding the first 25% of each chain.  The
+quantities: lambda, mu, psi, theta, s, rate, alpha, logPost, charLL, meanX, treeLength, rootMa,
+originMa.  A cell's run is long enough when **every** quantity has R-hat <= 1.01 and bulk ESS >= 400.
+- At 20 000 iterations: project the length that reaches bulk ESS 400 from the ESS per iteration.
+  If the projection exceeds 400 000 iterations per chain, report to the maintainer before
+  continuing (the moves would need tuning rather than more iterations).
+- At 200 000 iterations: if the rule is not met, extend all 4 chains of the cell by 100 000
+  iterations (resubmit with `CET_NITER=300000`; the checkpoint continues) and check again;
+  repeat.  Estimates and Bayes factors are reported only for cells that meet the rule, and a cell
+  that does not is reported as such, with its R-hat and ESS.
 
 Disk: about 20 KB per stored state (`seg*_states.rds`), so about 40 MB per chain and 0.65 GB for 16
 chains; remove them once `eval` has run.
@@ -484,13 +537,20 @@ chains; remove them once `eval` has run.
 
     W=/nobackup/pjjg18/evotempo-trilobite-gamma   # src/ = checkout, lib-<sha>/ = EvoTempo build
     cd $W/src
+    # build: record the commit in the install, which every checkpoint records (R114-3)
+    sha=$(git rev-parse --short HEAD); mkdir -p $W/lib-$sha
+    R CMD INSTALL --no-docs -l $W/lib-$sha . && git rev-parse HEAD > $W/lib-$sha/EvoTempo/BUILD_SHA
+    echo $sha > $W/out/build-sha.txt
     Rscript data-raw/empirical/trilobites/cet/prepare.R $W/rbposterior
     sbatch -J evotempo-trilobite-cet-oracle data-raw/empirical/trilobites/cet/revbayes/check-oracle.sh
     sbatch -J evotempo-trilobite-cet-identity data-raw/empirical/trilobites/cet/check-identity.sh
-    sbatch -J evotempo-trilobite-cet-smoke --array=1-7 data-raw/empirical/trilobites/cet/smoke.sh
+    sbatch -J evotempo-trilobite-cet-smoke --array=1-10 data-raw/empirical/trilobites/cet/smoke.sh
+    sbatch -J evotempo-trilobite-cet-guards data-raw/empirical/trilobites/cet/check-guards.sh
     Rscript data-raw/empirical/trilobites/cet/check-smoke.R $W     # also runs eval on every smoke chain
     sbatch -J evotempo-trilobite-cet --array=1-16 \
-      --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 data-raw/empirical/trilobites/cet/run-array.sh
+      --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000,CET_HOURS=65 \
+      data-raw/empirical/trilobites/cet/run-array.sh
+    # resubmit the same command for the chains that stopped before the limit (cells (0, 1), (1, 1))
     # launch record (only needed beyond the 4 x 4 production chains; one row per launched group):
     printf 'cell,reps\nb0g0,4\nb0g1,4\nb1g0,4\nb1g1,4\n' > $W/runs/launch.csv   # + e.g. b0.5g0,4 per rung
     # per chain, then once:
@@ -537,7 +597,10 @@ R-hat as -Inf for the single-chain pilot cells; fixed since, display only.).
   the comparator's prior exactly; or (c) run a matched RevBayes comparator with CET's independent
   priors, as the penguin pipeline did, at about 4 x 7 days of `long`
   (all-fossil trees cannot be resumed from RevBayes checkpoints).
-- **Run length**: 200 000 iterations per chain as projected, or a target derived from the
-  comparison to be resolved.
+- **Run length**: set by the run-length rule (**Smoke run, pilot and cost projection**); the
+  precision target of the comparison to be resolved may raise it.
 - Production waits for PR #98 (Gamma rate variation, #97) to merge, and for the independent review
-  of this PR; it builds EvoTempo from main once both are in.
+  of this PR; it builds EvoTempo from main once both are in.  Every check here ran on `lib-bf8ce1c`
+  (#98's head da4dbd0 plus #103); before launch, `revbayes/check-oracle.sh` and `check-identity.sh`
+  are rerun on the production build (with #113's fixes, if merged, which touch the ordered
+  characters' P(t) and cell parsing; the matrix has no cell that #113 N2 would misread).

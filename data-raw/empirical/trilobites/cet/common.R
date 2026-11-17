@@ -79,8 +79,45 @@ utils::assignInNamespace("MkLikelihood", PoweredMk, ns = "EvoTempo")
 
 # Prior on the Gamma shape alpha: the comparator's alpha_morph ~
 # dnExponential(2) (mean 0.5; BEAST 1.8)
+cetAlphaRate <- 2
 CetCharPriors <- function() {
-  list(alpha = function(a) if (a > 0) stats::dexp(a, rate = 2, log = TRUE) else -Inf)
+  list(alpha = function(a) if (a > 0) stats::dexp(a, rate = cetAlphaRate, log = TRUE) else -Inf)
+}
+# The character model's prior, as recorded in each chain's checkpoint target
+# (run-chain.R; review of #114, R114-6): a readable tag, and an md5 of the
+# code of CetCharPriors() and PoweredMk()
+CetCharPriorTag <- function() {
+  sprintf("alpha ~ Exponential(rate %s); %d Gamma categories", format(cetAlphaRate), cetRateCats)
+}
+CetCharPriorCode <- function() {
+  Md5Text(c(deparse(CetCharPriors), deparse(PoweredMk)))
+}
+
+# ---- Build and data identity (review of #114, R114-3, R114-6) -----------------------
+Md5Text <- function(x) {
+  tmp <- tempfile()
+  on.exit(unlink(tmp))
+  writeLines(x, tmp)
+  paste0("md5:", unname(tools::md5sum(tmp)))
+}
+# md5 of a file in cet/data/
+DataMd5 <- function(file) paste0("md5:", unname(tools::md5sum(file.path(cetDir, "data", file))))
+# The EvoTempo build in use: packageVersion(); the commit SHA that the build
+# step writes into the installed package (<lib>/EvoTempo/BUILD_SHA; README,
+# "Running on Hamilton"), or "unrecorded"; and an md5 over the installed
+# compiled code and R code (libs/*.so or *.dll, R/EvoTempo.rdb), which
+# identifies the install even without BUILD_SHA.  A reinstall, even of the same
+# commit, may change the md5: resume a chain with the library it started with.
+BuildId <- function(pkg = "EvoTempo") {
+  dir <- find.package(pkg)
+  shaFile <- file.path(dir, "BUILD_SHA")
+  files <- sort(c(Sys.glob(file.path(dir, "libs", "*.so")), Sys.glob(file.path(dir, "libs", "*.dll")),
+                  Sys.glob(file.path(dir, "libs", "*", "*.so")), Sys.glob(file.path(dir, "libs", "*", "*.dll")),
+                  file.path(dir, "R", paste0(pkg, ".rdb"))))
+  files <- files[file.exists(files)]
+  list(version = as.character(utils::packageVersion(pkg)),
+       sha = if (file.exists(shaFile)) trimws(readLines(shaFile, n = 1L, warn = FALSE)) else "unrecorded",
+       md5 = Md5Text(paste(basename(files), unname(tools::md5sum(files)))))
 }
 
 # ---- Ingroup constraint ----------------------------------------------------------
@@ -678,10 +715,20 @@ MkpPosterior <- function(chains) {
                  per_run = lapply(chains, function(x) list(samples = x)),
                  nRuns = length(chains), burnin = 0L), class = "MkPosterior")
 }
+# bulkEss: MkPrime's rank-normalised bulk ESS over chains (MkPrime:::.EssBulk()
+# on the iterations x chains matrix, tail-equalised), the quantity of the
+# run-length rule (README, "Run length"; review of #114, R114-8); `ess` is
+# ConvergenceDiagnostics()'s ESS of the pooled samples
 RhatEss <- function(chains) {
   d <- suppressWarnings(MkPrime::ConvergenceDiagnostics(MkpPosterior(chains)))
   q <- names(d$ess)
-  data.frame(quantity = q, ess = unname(d$ess),
+  n <- min(vapply(chains, NROW, 0L))
+  bulk <- vapply(q, function(p) {
+    m <- vapply(chains, function(x) utils::tail(as.matrix(x)[, p], n), numeric(n))
+    if (n == 1L) m <- matrix(m, nrow = 1)
+    if (n >= 4 && isTRUE(stats::var(as.vector(m)) > 0)) MkPrime:::.EssBulk(m) else NA_real_
+  }, 0)
+  data.frame(quantity = q, ess = unname(d$ess), bulkEss = unname(bulk),
              rhat = if (is.null(d$rhat)) NA_real_ else unname(d$rhat[q]))
 }
 # Effective sample size of importance weights given on the log scale, one

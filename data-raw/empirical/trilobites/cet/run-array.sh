@@ -8,12 +8,16 @@
 # prepare.R: one of 16 seeded random draws without replacement from the pooled
 # post-burn-in RevBayes posterior (start-tree-<kk>.nwk and its row of
 # start-values.csv; README, "Starting trees").  Each task runs run-chain.R, which
-# writes a checkpoint after every segment and stops cleanly after CET_HOURS
-# (default 70); resubmitting the same array continues every unfinished chain
-# from its checkpoint (finished chains exit at once).  Settings pass through
-# the environment (see run-chain.R), e.g.
+# writes a checkpoint after every segment and stops cleanly before the job's
+# 72 h limit: before a segment if the time elapsed plus 1.5 x the last
+# segment's would pass 71.75 h, and after the segment that passes CET_HOURS
+# (default 65; review of #114, R114-1).  Resubmitting the same array continues
+# every unfinished chain from its checkpoint (finished chains exit at once),
+# with the same EvoTempo build (the checkpoint records it; a resume under
+# another build stops).  Settings pass through the environment (see
+# run-chain.R); production:
 #   sbatch -J evotempo-trilobite-cet --array=1-16 \
-#     --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 run-array.sh
+#     --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000,CET_HOURS=65 run-array.sh
 # Ladder rungs and power-posterior chains: set CET_CELL (a label such as
 # b0.5g1) and/or CET_POWER, and use --array=1-<reps>; add a row for them to
 # the launch record $CET_OUT/launch.csv (cell,reps[,power]; README, "Running on

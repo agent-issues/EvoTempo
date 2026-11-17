@@ -74,6 +74,7 @@ Analysis <- function(name, chains) {
     data.frame(analysis = name, parameter = p, mean = mean(x),
                q025 = unname(stats::quantile(x, 0.025)), q975 = unname(stats::quantile(x, 0.975)),
                rhat = if (nrow(r)) r$rhat else NA, ess = if (nrow(r)) r$ess else NA,
+               bulkEss = if (nrow(r)) r$bulkEss else NA,
                meanJointPrior = wq[1], q025JointPrior = wq[2], q975JointPrior = wq[3],
                weightEss = we[["mkprime"]], weightKish = we[["kish"]])
   }))

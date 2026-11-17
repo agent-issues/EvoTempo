@@ -1,0 +1,5 @@
+2026-11-16 16:45:43 start b0g0 rep 1 (beta 0, gamma 0, power 1, mkv pattern, grid 26 bins z +-5): start tree /nobackup/pjjg18/evotempo-trilobite-gamma/src/data-raw/empirical/trilobites/cet/data/start-tree-01.nwk (draw 1); nIter 3000, burnin 500, thin 10, seg 1000; moves tree=1 node=2 tip=2 branch=2 joint=1 shift=1 nodeAge=27 slide=16 saJump=11 originAge=1 
+2026-11-16 17:08:48 segment 1/3 done: 1383.5 s (0.922 s/iteration incl. 500 burn-in); logPost -3954.81, charLL -2396.91 
+2026-11-16 17:24:15 segment 2/3 done: 926.3 s (0.926 s/iteration incl. 0 burn-in); logPost -3981.53, charLL -2391.48 
+2026-11-16 17:39:43 segment 3/3 done: 927.8 s (0.928 s/iteration incl. 0 burn-in); logPost -3493.85, charLL -2372.10 
+2026-11-16 17:39:43 complete 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Trilobite CET pipeline: smoke run on Hamilton's `test` partition.
 #
-#   sbatch -J evotempo-trilobite-cet-smoke --array=1-7 smoke.sh
+#   sbatch -J evotempo-trilobite-cet-smoke --array=1-10 smoke.sh
 #
 # From a checkout at $SRC with EvoTempo installed in $LIB and cet/data/ written
 # by prepare.R.  Tasks 1-4: cells (0,0), (0,1), (1,0), (1,1), replicate 1,
@@ -11,7 +11,9 @@
 # continuation; check-smoke.R).  Tasks 6 and 7: cells (1,1) and (0,0),
 # replicate 2, as tasks 1-4: their start trees (draws 8 and 5) have other tip
 # orders than replicate 1's, so check-smoke.R's eval of them covers the
-# start-tree path of bayes-factors.R (review of #91, A3).
+# start-tree path of bayes-factors.R (review of #91, A3).  Tasks 8-10: resume
+# in a second process, the predictive stop, and a kill before a checkpoint
+# (below; review of #114).
 # Logs: $W/out/<smoke dir>-<label>_run<rep>-<task>.txt.
 #SBATCH -p test
 #SBATCH -c 1
@@ -32,13 +34,47 @@ cd $SRC
 #   -p shared --time=02:00:00 --export=ALL,SMOKE_NITER=3000,SMOKE_BURNIN=500,SMOKE_SEG=1000,SMOKE_OUT=$W/pilot
 export CET_NITER=${SMOKE_NITER:-200} CET_BURNIN=${SMOKE_BURNIN:-40} CET_THIN=10
 export CET_SEG=${SMOKE_SEG:-100} CET_OUT=${SMOKE_OUT:-$W/smoke}
-cell=$SLURM_ARRAY_TASK_ID; rep=1
-if [ "$cell" = 5 ]; then cell=4; export CET_SEG=$CET_NITER CET_OUT=$CET_OUT-identity; fi
-if [ "$cell" = 6 ]; then cell=4; rep=2; fi
-if [ "$cell" = 7 ]; then cell=1; rep=2; fi
+task=$SLURM_ARRAY_TASK_ID; cell=$task; rep=1; runs=1
+if [ "$task" = 5 ]; then cell=4; export CET_SEG=$CET_NITER CET_OUT=$CET_OUT-identity; fi
+if [ "$task" = 6 ]; then cell=4; rep=2; fi
+if [ "$task" = 7 ]; then cell=1; rep=2; fi
+# Tasks 8-10 (review of #114, R114-1, R114-2): each runs run-chain.R twice, as
+# two Rscript processes, so the second resumes from the checkpoint on disk.
+# 8: cell (1, 1) as task 4 with CET_HOURS=0: the first process stops after
+#    segment 1, the second resumes; check-smoke.R compares it with task 4 (one
+#    process) and task 5 (one segment).
+# 9: cell (0, 0), segments of 50, with a fake wall limit in the first process
+#    (CET_WALL_HOURS=$SMOKE_FAKE_WALL, default 0.043 h; margin 0), between
+#    the time elapsed at segment 1's end (~0.019 h) plus 1.0 and plus 1.5 x
+#    segment 1 (64-71 s: ~0.037-0.041 and ~0.046-0.051 h), so only the 1.5
+#    factor stops it (#114 delta review, N1; check-smoke.R checks this from
+#    the logged times): the predictive stop must stop it before segment 2; the second process, with
+#    the default limit, resumes and completes.
+# 10: as 9, but the first process is killed after writing segment 2's
+#    acceptance.csv rows and before its checkpoint (CET_TEST_KILL_SEGMENT=2):
+#    the second redoes segment 2; acceptance.csv must hold each segment once,
+#    and the samples must equal task 9's.
+case $task in
+  8) cell=4; runs=2; export CET_OUT=$CET_OUT-twoproc ;;
+  9) cell=1; runs=2; export CET_SEG=50 CET_OUT=$CET_OUT-predict ;;
+  10) cell=1; runs=2; export CET_SEG=50 CET_OUT=$CET_OUT-kill ;;
+esac
 labels=(x b0g0 b0g1 b1g0 b1g1)
 sfx=""; if [ -n "$CET_MKV" ] && [ "$CET_MKV" != pattern ]; then sfx=_mkv$CET_MKV; fi
 rm -rf $CET_OUT/${labels[$cell]}${sfx}_run$rep
-log=$W/out/$(basename $CET_OUT)-${labels[$cell]}${sfx}_run$rep-$SLURM_ARRAY_TASK_ID
-/usr/bin/time -v Rscript data-raw/empirical/trilobites/cet/run-chain.R $cell $rep > $log.txt 2> $log.err
-echo "exit $?" >> $log.txt
+log=$W/out/$(basename $CET_OUT)-${labels[$cell]}${sfx}_run$rep-$task
+rm -f $log.txt $log.err
+for run in $(seq 1 $runs); do
+  first=""
+  if [ "$runs" = 2 ] && [ "$run" = 1 ]; then
+    case $task in
+      8) first="CET_HOURS=0" ;;
+      9) first="CET_WALL_HOURS=${SMOKE_FAKE_WALL:-0.043} CET_WALL_MARGIN=0" ;;
+      10) first="CET_TEST_KILL_SEGMENT=2" ;;
+    esac
+  fi
+  echo "process $run of $runs: $first" >> $log.txt
+  env $first /usr/bin/time -v Rscript data-raw/empirical/trilobites/cet/run-chain.R $cell $rep \
+    >> $log.txt 2>> $log.err
+  echo "exit $?" >> $log.txt
+done

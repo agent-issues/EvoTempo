@@ -11,6 +11,8 @@
 #   data/start-tree.nwk     starting time tree (crown: no root edge), if a
 #                           RevBayes run root is given
 #   data/start-tree-log.txt the selected sample and every age changed
+#   data/start-tree-sample.csv the selected sample's parameters (the starting
+#                           parameters of chains on this tree; common.R)
 #
 # Characters (identical to the morphology-only RevBayes comparator,
 # ../revbayes/prepare-data.R): the 343 characters not excluded in
@@ -29,13 +31,9 @@
 # drop the first <burn-in> (default 0.25) of each chain's samples, as the
 # baseline's summaries do, and take the sample with the highest Posterior
 # among the pooled remainder.  Ties: lowest chain, then earliest iteration.
-# Its tree is converted as for the penguin pipeline: extant tips at age 0;
-# zero-length fossil tips are sampled ancestors; fossil ages (a sampled
-# ancestor's node age) clamped into their intervals; parents made at least
-# `eps` older than their children (the Newick is printed to 6 decimals); a
-# sampled ancestor that cannot stay one (at the root, or above its interval)
-# becomes a fossil tip.  The tree is a crown tree (start = "root"): no root
-# edge.
+# Its tree is converted as for the penguin pipeline (rb-trees.R,
+# ConvertRbTree()).  This is the reference start tree; production chains start
+# from random posterior draws (draw-start-trees.R).
 args <- commandArgs(trailingOnly = TRUE)
 here <- "data-raw/empirical/hymenoptera"
 cet <- file.path(here, "cet")
@@ -92,89 +90,20 @@ stopifnot(setequal(tips$taxon, rownames(x)), sum(tips$status == "fossil") == 45L
 # ---- Starting tree ------------------------------------------------------------
 if (length(args) >= 1L) {
   suppressMessages(library(ape))
+  source(file.path(cet, "rb-trees.R"))
   root <- args[[1]]
   burn <- if (length(args) >= 2L) as.numeric(args[[2]]) else 0.25
-  eps <- 0.01
-  cand <- do.call(rbind, lapply(1:6, function(r) {
-    lg <- utils::read.delim(file.path(root, sprintf("morph_run%d", r),
-                                      sprintf("hymenoptera_morph_run%d.log", r)))
-    lg <- lg[-seq_len(floor(burn * nrow(lg))), ]
-    data.frame(run = r, n = nrow(lg), lg[order(-lg$Posterior, lg$Iteration)[1], ])
-  }))
+  post <- ReadRbPosterior(root, burn)
+  cand <- do.call(rbind, lapply(split(post, post$run), function(x) x[order(-x$Posterior, x$Iteration)[1], ]))
   pick <- cand[order(-cand$Posterior, cand$run, cand$Iteration)[1], ]
-  tl <- readLines(file.path(root, sprintf("morph_run%d", pick$run),
-                            sprintf("hymenoptera_morph_run%d.trees", pick$run)))
-  row <- tl[startsWith(tl, paste0(pick$Iteration, "\t"))]
-  stopifnot(length(row) == 1L)
-  tr <- read.tree(text = sub("^.*\t", "", row))
-  nTip <- Ntip(tr)
-  nAll <- nTip + tr$Nnode
-  len <- numeric(nAll)
-  len[tr$edge[, 2]] <- tr$edge.length
-  depth <- node.depth.edgelength(tr)
-  tinfo <- tips[match(tr$tip.label, tips$taxon), ]
-  stopifnot(!anyNA(tinfo$taxon))
-  extant <- tinfo$status == "extant"
-  age <- max(depth[which(extant)]) - depth
-  age[which(extant)] <- 0
-  sa <- !extant & len[seq_len(nTip)] < 1e-6
-  changes <- character(0)
-  shifts <- numeric(0)
-  Note <- function(old, new, ...) {
-    changes <<- c(changes, sprintf(...))
-    shifts <<- c(shifts, abs(new - old))
-  }
-  lo <- tinfo$min_age
-  hi <- tinfo$max_age
-  Clamp <- function(a, i) min(max(a, lo[i]), hi[i])
-  for (i in which(!extant & !sa)) {
-    new <- Clamp(age[i], i)
-    if (abs(new - age[i]) > 1e-9) {
-      Note(age[i], new, "fossil %s: %.6f -> %.6f", tr$tip.label[i], age[i], new)
-    }
-    age[i] <- new
-  }
-  rootNode <- nTip + 1L
-  gen <- integer(nAll)
-  pre <- reorder(tr, "cladewise")$edge
-  for (i in seq_len(nrow(pre))) gen[pre[i, 2]] <- gen[pre[i, 1]] + 1L
-  post <- (nTip + 1L):nAll
-  post <- post[order(-gen[post])]
-  for (pass in 1:50) {
-    changed <- FALSE
-    for (v in post) {
-      kids <- tr$edge[tr$edge[, 1] == v, 2]
-      saKid <- kids[kids <= nTip][sa[kids[kids <= nTip]]]
-      other <- setdiff(kids, saKid)
-      need <- max(age[other] + eps)
-      target <- max(age[v], need)
-      if (length(saKid)) {
-        i <- saKid
-        if (v == rootNode || need > hi[i]) {
-          sa[i] <- FALSE
-          new <- Clamp(min(target, hi[i]) - eps, i)
-          target <- max(target, new + eps)
-          Note(age[i], new, "sampled ancestor %s -> fossil tip at %.6f (node %d at %.6f)",
-               tr$tip.label[i], new, v, target)
-          age[i] <- new
-        } else {
-          target <- Clamp(target, i)
-          age[i] <- target
-        }
-      }
-      if (abs(target - age[v]) > 1e-9) {
-        Note(age[v], target, "node %d: %.6f -> %.6f", v, age[v], target)
-        age[v] <- target
-        changed <- TRUE
-      }
-    }
-    if (!changed) break
-  }
-  tr$edge.length <- age[tr$edge[, 1]] - age[tr$edge[, 2]]
-  tr$edge.length[sa[tr$edge[, 2]] & tr$edge[, 2] <= nTip] <- 0
-  stopifnot(all(tr$edge.length >= 0))
+  tr <- ConvertRbTree(pick$newick, tips)
+  changes <- attr(tr, "changes")
   write.tree(tr, file.path(cet, "data", "start-tree.nwk"), digits = 10)
-  maxShift <- if (length(shifts)) max(shifts) else 0
+  # The sample's parameters start the chains on this tree (common.R, CetStart())
+  sampleCols <- c("run", "Iteration", "Posterior", "Likelihood", "root_age", "holo_age",
+                  "lambda", "mu", "psi", "clock_rate", "alpha_morph", "ucld_sd", "num_samp_anc")
+  utils::write.csv(pick[, sampleCols], file.path(cet, "data", "start-tree-sample.csv"),
+                   row.names = FALSE)
   writeLines(c(
     sprintf("source: %s (burn-in %.2f of each chain; highest Posterior of the pooled remainder)", root, burn),
     sprintf("candidates (best per chain): %s",
@@ -187,8 +116,9 @@ if (length(args) >= 1L) {
             pick$holo_age, pick$lambda, pick$mu, pick$psi, pick$clock_rate,
             pick$alpha_morph, pick$ucld_sd, as.integer(pick$num_samp_anc)),
     sprintf("start tree: root %.6f Ma, %d sampled ancestors, %d changes, largest age change %.6f Myr",
-            age[rootNode], sum(sa), length(changes), maxShift),
+            attr(tr, "root"), attr(tr, "nSA"), length(changes), attr(tr, "maxShift")),
     changes), file.path(cet, "data", "start-tree-log.txt"))
   cat(sprintf("Start tree from run%d iteration %d: root %.3f Ma, %d sampled ancestors, %d changes (max %.4f Myr)\n",
-              pick$run, pick$Iteration, age[rootNode], sum(sa), length(changes), maxShift))
+              pick$run, pick$Iteration, attr(tr, "root"), attr(tr, "nSA"), length(changes),
+              attr(tr, "maxShift")))
 }

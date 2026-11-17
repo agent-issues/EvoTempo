@@ -1,31 +1,33 @@
 # Hymenoptera CET pipeline: definitions shared by run-chain.R, check-mkv.R,
-# bayes-factors.R and check-prior.R.  Source from the package root after
-# loading EvoTempo.  Follows data-raw/empirical/penguins/cet/common.R; the
-# differences are marked "Hymenoptera:".
+# bayes-factors.R, check-prior.R and the check scripts.  Source from the
+# package root after loading EvoTempo.  Follows
+# data-raw/empirical/penguins/cet/common.R; the differences are marked
+# "Hymenoptera:".
 #
-# The engine (EvoTempo main @ 48e6bf7) lacks several things this analysis
-# needs.  As in the penguin pipeline, this file rebinds functions inside the
-# EvoTempo namespace for the duration of a run, without changing the package:
+# The characters use the package's model (#97, #98): MkCharacters() with the
+# number of states and the ordering of each character, ambiguity sets, the
+# Mkv correction per missing-data mask (coding = "variable", as RevBayes
+# dnPhyloCTMC(coding = "variable")) and Gamma(4) rates among characters, whose
+# shape alpha is a parameter of TempoMCMC() (start$alpha) with the
+# comparator's prior Exp(1) (CetCharPriors()).  This is the comparator's
+# character model (../revbayes/hymenoptera_fbd.Rev).
 #
-# 1. MkLikelihood() scores unordered (Jukes-Cantor) characters with one
-#    number of states, one state or NA per cell, and no ascertainment
-#    correction.  Hymenoptera: the matrix has 43 ordered characters (K = 3-5)
-#    and 22 ambiguous cells, so the rebound MkLikelihood() (HymMk()) scores
-#    each (ordering, K) partition with its own rate matrix through the C++
-#    kernel mk-columns.cpp (any 0/1 tip partials, so ambiguity sets are summed
-#    over, as in RevBayes), and applies the Mkv correction per missing-data
-#    mask, as RevBayes dnPhyloCTMC(coding = "variable") (#65, #80).  It
-#    raises the character likelihood, correction included, to a power
-#    (`.cet$power`) for stepping-stone runs.
+# What the engine still lacks, this file adds by rebinding functions inside
+# the EvoTempo namespace for the duration of a run, without changing the
+# package:
+#
+# 1. Power and tree term.  The rebound MkLikelihood() (CetMk()) calls the
+#    package's MkLikelihood() and raises the character likelihood, Mkv
+#    correction included, to a power (`.cet$power`) for stepping-stone runs.
 # 2. Hymenoptera: the Holometabola constraint and calibration of the
 #    comparator (a clade constraint and an offset-exponential density on the
-#    clade's age) are tree-only terms with no place in TempoMCMC().  HymMk()
+#    clade's age) are tree-only terms with no place in TempoMCMC().  CetMk()
 #    adds them, unpowered, to its return value (TreeTerm()).  This is exact:
 #    TempoMCMC() rescores the characters on every proposed tree (tree and
 #    start-age moves) and reuses the stored value only when the tree is
-#    unchanged (path, shift and parameter moves).  The recorded charLL
-#    excludes the term, and RecordingStats() checks the decomposition at every
-#    sample.
+#    unchanged (path, shift, parameter and alpha moves; in the alpha move the
+#    term cancels).  The recorded charLL excludes the term, and
+#    RecordingStats() checks the decomposition at every sample.
 # 3. Hymenoptera: the comparator's prior on the FBD rates is on net
 #    diversification d = lambda - mu ~ Exp(100), turnover mu / lambda ~ U(0, 1)
 #    and sampling proportion psi / (mu + psi) ~ U(0, 1), which is not a
@@ -42,7 +44,9 @@
 #    result against an independent sampler.
 # 4. TempoMCMC() returns no per-sample trees or states and cannot checkpoint
 #    or resume; the rebound .TreeStats() (RecordingStats(), as in the penguin
-#    pipeline) records them and continues a captured chain exactly.
+#    pipeline) records them and continues a captured chain exactly (step
+#    sizes of the parameter, joint, start-age and alpha moves and of the FBD
+#    block moves included).
 # See README.md and the engine issues #47 and #48.
 suppressMessages(library(ape))
 .ns <- asNamespace("EvoTempo")
@@ -63,146 +67,41 @@ if (!exists(".mkOriginal")) {
   .sweepOriginal <- get(".ParameterSweep", .ns)
   .jointOriginal <- get(".JointSweep", .ns)
 }
+stopifnot("EvoTempo lacks MkCharacters() (#97): install the gamma-acrv-97 branch or later" =
+            exists("MkCharacters", .ns))
 cetDir <- "data-raw/empirical/hymenoptera/cet"
-Rcpp::sourceCpp(file.path(cetDir, "mk-columns.cpp"),
-                cacheDir = Sys.getenv("CET_RCPP_CACHE", file.path(tempdir(), "cet-rcpp")))
 
 # ---- Characters -----------------------------------------------------------------
-# Rate matrix of a partition, rescaled to mean rate 1 under its (uniform)
-# stationary distribution, and its eigen decomposition (symmetric, so
-# P(t) = V diag(exp(ev t)) V').  Unordered: Jukes-Cantor (RevBayes fnJC(K)).
-# Ordered: changes between adjacent states only, at equal rates
-# (fnOrderedRateMatrix(maxState = K), RevBayes 1.4 / dev); mean rate
-# 2 (K - 1) r / K = 1, so r = K / (2 (K - 1)).
-RateMatrix <- function(K, ordered) {
-  if (ordered) {
-    Q <- matrix(0, K, K)
-    r <- K / (2 * (K - 1))
-    Q[cbind(1:(K - 1), 2:K)] <- r
-    Q[cbind(2:K, 1:(K - 1))] <- r
-  } else {
-    Q <- matrix(1 / (K - 1), K, K)
-  }
-  diag(Q) <- 0
-  diag(Q) <- -rowSums(Q)
-  stopifnot(isSymmetric(Q), abs(-mean(diag(Q)) - 1) < 1e-12)
-  e <- eigen(Q, symmetric = TRUE)
-  list(Q = Q, V = e$vectors, ev = e$values)
+# Number of discrete Gamma rate categories among characters, as the comparator
+# (fnDiscretizeGamma(alpha_morph, alpha_morph, 4))
+.cet$nRateCat <- 4L
+# Coding of the Mkv variant: "pattern" is RevBayes coding = "variable" (one
+# correction per missing-data mask, #65, #80); "none" is coding = "all"
+MkvCoding <- function(mkv = .cet$mkv) switch(mkv, pattern = "variable", none = "all",
+                                              stop("`mkv` must be \"pattern\" or \"none\""))
+# Characters of LoadHymenoptera(): `cells` (taxon x character, row names the
+# tip labels; a state, a set such as "{01}", or "" for unknown) and
+# `partitions` (data/partitions.csv: nState, ordered per character)
+CetCharacters <- function(cells, partitions, mkv = .cet$mkv, nRateCat = .cet$nRateCat) {
+  stopifnot(!is.null(rownames(cells)), ncol(cells) == nrow(partitions))
+  MkCharacters(cells, nState = partitions$nState, ordered = partitions$ordered,
+               coding = MkvCoding(mkv), nRateCat = nRateCat)
 }
-
-# Tip partials of one cell: a state, a set "{01}", or "" (unknown)
-CellPartial <- function(cell, K) {
-  p <- numeric(K)
-  if (!nzchar(cell)) return(p + 1)
-  p[as.integer(strsplit(gsub("[^0-9]", "", cell), "")[[1]]) + 1L] <- 1
-  stopifnot(sum(p) >= 1)
-  p
-}
-
-# One entry per (ordering, K) partition: the kernel inputs for its data
-# columns followed by its constant columns.  Mkv (#65): a missing-data mask
-# is the set of tips with a scored cell ('?' and '-' unknown; an ambiguity set
-# counts as scored, as for RevBayes, which treats only '?' and '-' as gaps);
-# for each distinct mask within a partition, the constant columns hold state
-# j at the scored tips and unknown elsewhere.  Under Jukes-Cantor with a
-# uniform root P(all scored tips in state j) is the same for every j, so
-# unordered partitions need one constant column per mask (state 0) and use
-# K x its probability; ordered partitions have one column per state.
-BuildPartitions <- function(cells, partitions) {
-  nTip <- nrow(cells)
-  labels <- unique(partitions$partition[order(partitions$ordered, partitions$nState)])
-  lapply(labels, function(lab) {
-    cols <- which(partitions$partition == lab)
-    K <- partitions$nState[cols[1]]
-    ordered <- partitions$ordered[cols[1]]
-    x <- cells[, cols, drop = FALSE]
-    # A cell is scored unless unknown or an ambiguity set covering all K
-    # states (in a binary character, {01}): RevBayes treats both as gaps for
-    # the Mkv masks (check-mkv.R: counting {01} as scored made u2 differ by
-    # up to 6.8e-3 while every K >= 3 partition matched to 1e-10)
-    full <- matrix(nchar(gsub("[^0-9]", "", x)) == K & grepl("^\\{", x), nrow(x))
-    observed <- matrix(nzchar(x), nrow(x)) & !full
-    key <- apply(observed, 2, function(o) paste(which(o), collapse = ","))
-    first <- !duplicated(key)
-    maskObs <- observed[, first, drop = FALSE]
-    count <- tabulate(match(key, key[first]), sum(first))
-    stopifnot(all(colSums(maskObs) >= 2), sum(count) == length(cols))
-    nConstState <- if (ordered) K else 1L
-    nData <- length(cols)
-    nMask <- ncol(maskObs)
-    nCol <- nData + nMask * nConstState
-    tip <- array(0, c(K, nCol, nTip))
-    for (i in seq_len(nTip)) {
-      for (j in seq_len(nData)) tip[, j, i] <- CellPartial(x[i, j], K)
-      for (m in seq_len(nMask)) for (s in seq_len(nConstState)) {
-        tip[, nData + (m - 1L) * nConstState + s, i] <-
-          if (maskObs[i, m]) as.numeric(seq_len(K) == s) else rep(1, K)
-      }
-    }
-    c(list(label = lab, K = K, ordered = ordered, columns = cols, nData = nData,
-           nMask = nMask, nConstState = nConstState, count = count, nCol = nCol,
-           tip = as.vector(tip), maskObserved = maskObs),
-      RateMatrix(K, ordered))
-  })
-}
-
-# Pure-R reference of MkColumnLogLik() (check-mkv.R): plain pruning with
-# per-node rescaling
-ColumnLogLikR <- function(tree, g, lengths) {
-  nTip <- tree[["nTip"]]
-  K <- g$K
-  tip <- array(g$tip, c(K, g$nCol, nTip))
-  part <- vector("list", nTip + tree[["nNode"]])
-  for (i in seq_len(nTip)) part[[i]] <- matrix(tip[, , i], K)
-  logScale <- numeric(g$nCol)
-  for (v in tree[["postorder"]]) {
-    a <- matrix(1, K, g$nCol)
-    for (kid in tree[["kids"]][v - nTip, ]) {
-      P <- g$V %*% diag(exp(g$ev * lengths[[kid]]), K) %*% t(g$V)
-      a <- a * (P %*% part[[kid]])
-    }
-    mx <- apply(a, 2, max)
-    part[[v]] <- sweep(a, 2, mx, "/")
-    logScale <- logScale + log(mx)
-  }
-  log(colSums(part[[tree[["root"]]]]) / K) + logScale
-}
-
-# Data log-likelihood and Mkv correction of one partition
-PartitionLogLik <- function(tree, g, lengths, impl = "cpp") {
-  ll <- if (impl == "cpp") {
-    MkColumnLogLik(as.integer(tree[["postorder"]]), tree[["kids"]], tree[["nTip"]],
-                   tree[["root"]], as.double(lengths), g$V, g$ev, g$tip, g$nCol)
-  } else {
-    ColumnLogLikR(tree, g, lengths)
-  }
-  data <- sum(ll[seq_len(g$nData)])
-  pConst <- exp(ll[-seq_len(g$nData)])
-  pMask <- if (g$ordered) colSums(matrix(pConst, g$nConstState)) else g$K * pConst
-  c(data = data, correction = -sum(g$count * log1p(-pMask)))
-}
-
-# Character log-likelihood, Mkv-corrected, raised to `power`, plus the
-# unpowered tree-only term (constraint and calibration) if `treeTerm`
-HymMk <- function(tree, characters, lengths, nState = 2L,
-                  engine = getOption("EvoTempo.engine", "cpp"),
-                  power = .cet$power, mkv = .cet$mkv, treeTerm = TRUE, impl = "cpp") {
-  parts <- attr(characters, "hym")
-  if (is.null(parts)) {
-    return(.mkOriginal(tree, characters, lengths, nState, engine))
+# The rebound MkLikelihood(): power x the package's character log-likelihood
+# (Mkv correction and Gamma mixture included) + the unpowered tree term.
+# Input other than MkCharacters() goes to the package's function unchanged.
+CetMk <- function(tree, characters, lengths, nState = 2L,
+                  engine = getOption("EvoTempo.engine", "cpp"), alpha = NULL,
+                  power = .cet$power, treeTerm = TRUE) {
+  if (!inherits(characters, "MkCharacters")) {
+    return(.mkOriginal(tree, characters, lengths, nState, engine, alpha))
   }
   tree <- TempoTree(tree)
   tt <- if (treeTerm) TreeTerm(tree) else 0
   if (power == 0 || !is.finite(tt)) {
     return(tt)
   }
-  ll <- 0
-  for (g in parts) {
-    v <- PartitionLogLik(tree, g, lengths, impl)
-    ll <- ll + v[["data"]] + switch(mkv, pattern = v[["correction"]], none = 0,
-                                    stop("`mkv` must be \"pattern\" or \"none\""))
-  }
-  power * ll + tt
+  power * .mkOriginal(tree, characters, lengths, nState, engine, alpha) + tt
 }
 
 # ---- Tree-only terms: Holometabola constraint and calibration -------------------
@@ -398,12 +297,20 @@ FbdBlockMoves <- function(st, model, nSlice, burn) {
 }
 
 # ---- Recording and exact resume (as the penguin pipeline) -----------------------
+# Loop variables of TempoMCMC() that a resumed chain must continue with: step
+# sizes of the parameter sweep, joint sweep, start-age moves and (with Gamma
+# rates) the alpha move, and the move counts after burn-in; plus the chain
+# state and the random-number state.  The FBD block-move step sizes are in .cet.
+resumeVars <- c("st", "step", "jointStep", "ageStep", "alphaStep", "moves")
 RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
   pf <- parent.frame()
   if (is.null(lengths)) {
     r <- .cet$resume
     if (!is.null(r)) {
-      for (v in c("st", "step", "jointStep", "ageStep", "moves")) {
+      # TempoMCMC() calls .TreeStats(tree) once, after setting up these
+      # variables and before its first iteration
+      stopifnot(all(resumeVars %in% names(r)), all(resumeVars %in% ls(pf)))
+      for (v in resumeVars) {
         assign(v, r[[v]], envir = pf)
       }
       assign(".Random.seed", r[["seed"]], envir = globalenv())
@@ -424,7 +331,8 @@ RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
     } else {
       len <- get(".CharacterLengths", .ns)(tr, st[["set"]][["grid"]][["x"]], st[["paths"]],
                                             st[["par"]][["rate"]], model[["gamma"]])
-      charLL <- HymMk(tr, chars, len, power = 1, treeTerm = FALSE)
+      charLL <- CetMk(tr, chars, len, alpha = st[["par"]][["alpha"]], power = 1,
+                      treeTerm = FALSE)
       treeTerm <- TreeTerm(tr)
     }
     # The chain's stored value must decompose into the two (see 2. above)
@@ -438,15 +346,14 @@ RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
                hymCrownAge = CladeAge(tr, .cet$hymCrown, mrca = TRUE),
                hymTotalAge = CladeAge(tr, .cet$hymAll, mrca = TRUE)),
       state = st[c("tree", "par", "paths", "bin")])
-    .cet$captured <- list(st = st, step = get("step", pf), jointStep = get("jointStep", pf),
-                          ageStep = get("ageStep", pf), moves = get("moves", pf),
-                          seed = get(".Random.seed", globalenv()),
-                          blockStep = .cet$blockStep, blockCalls = .cet$blockCalls)
+    .cet$captured <- c(mget(resumeVars, envir = pf, inherits = FALSE),
+                       list(seed = get(".Random.seed", globalenv()),
+                            blockStep = .cet$blockStep, blockCalls = .cet$blockCalls))
   }
   .statsOriginal(tree, lengths, inverse)
 }
 
-utils::assignInNamespace("MkLikelihood", HymMk, ns = "EvoTempo")
+utils::assignInNamespace("MkLikelihood", CetMk, ns = "EvoTempo")
 utils::assignInNamespace(".TreeStats", RecordingStats, ns = "EvoTempo")
 utils::assignInNamespace(".LogPrior", LogPriorJoint, ns = "EvoTempo")
 utils::assignInNamespace(".ShiftMove", ShiftJoint, ns = "EvoTempo")
@@ -485,7 +392,12 @@ local({
   stopifnot(length(.cet$holo) == 111L, length(.cet$hymCrown) == 60L, length(.cet$hymAll) == 105L)
 })
 
-LoadHymenoptera <- function(startTree = file.path(cetDir, "data", "start-tree.nwk")) {
+# Reference start tree (prepare.R); production chains start from their own
+# draws (draw-start-trees.R; StartTreeFor())
+referenceTree <- file.path(cetDir, "data", "start-tree.nwk")
+startTreeDir <- file.path(cetDir, "data", "start-trees")
+LoadHymenoptera <- function(startTree = referenceTree, mkv = .cet$mkv,
+                            nRateCat = .cet$nRateCat) {
   tips <- read.csv(file.path(hymDir, "hymenoptera_tips.csv"))
   tr <- read.tree(startTree)
   nTip <- Ntip(tr)
@@ -506,19 +418,319 @@ LoadHymenoptera <- function(startTree = file.path(cetDir, "data", "start-tree.nw
   chars <- read.csv(file.path(cetDir, "data", "characters.csv"), check.names = FALSE,
                     colClasses = "character", na.strings = character(0))
   parts <- read.csv(file.path(cetDir, "data", "partitions.csv"))
+  # One row per tip, in the tree's tip order, with the tip labels as row names
+  # (MkCharacters() keeps them and they must equal the tree's tip labels)
   cells <- as.matrix(chars[match(tr$tip.label, chars$taxon), -1])
   stopifnot(!anyNA(cells), ncol(cells) == nrow(parts))
   rownames(cells) <- tr$tip.label
-  # TempoMCMC() needs a matrix with one row per tip; the rebound MkLikelihood()
-  # scores the partitions in attribute "hym".  Unambiguous states, NA otherwise
-  x <- matrix(suppressWarnings(as.integer(cells)), nTip, dimnames = dimnames(cells))
-  attr(x, "hym") <- BuildPartitions(cells, parts)
+  x <- CetCharacters(cells, parts, mkv, nRateCat)
+  stopifnot(identical(x$tipLabel, tt$tipLabel))
   list(tree = tt, characters = x, cells = cells, partitions = parts, tips = info)
 }
 
 # ---- Model, priors, moves -------------------------------------------------------
+# Chain labels, the expected chain set, segment caps and eval freshness: as the
+# penguin pipeline (#75, #101, #103, #104, #107 review)
 cells <- data.frame(beta = c(0, 0, 1, 1), gamma = c(0, 1, 0, 1))
-CellLabel <- function(beta, gamma) sprintf("b%sg%s", format(beta), format(gamma))
+# A number as it appears in chain labels and cross.csv column names: plain
+# decimal notation (never scientific, which ParseLabel() cannot read), with
+# the fewest significant digits that read back as exactly `x` (#75)
+FormatValue <- function(x) {
+  stopifnot(length(x) == 1L, is.finite(x), x >= 0)
+  for (d in 1:17) {
+    s <- format(x, scientific = FALSE, digits = d, trim = TRUE)
+    if (as.numeric(s) == x) return(s)
+  }
+  stop("cannot write ", x, " in plain decimal notation")
+}
+CellLabel <- function(beta, gamma) sprintf("b%sg%s", FormatValue(beta), FormatValue(gamma))
+
+# Chain labels (run-chain.R): b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>.
+# ParseLabel() stops on a label it cannot read (#75); before, it returned NULL,
+# and Chains() dropped the directory without a message.
+ParseLabel <- function(label) {
+  m <- regmatches(label, regexec(
+    "^b([0-9.]+)g([0-9.]+)(_mkv(none))?(_t([0-9.]+))?_run([0-9]+)$", label))[[1]]
+  out <- if (length(m)) {
+    data.frame(label = label, beta = as.numeric(m[2]), gamma = as.numeric(m[3]),
+               mkv = if (nzchar(m[5])) m[5] else "pattern",
+               power = if (nzchar(m[7])) as.numeric(m[7]) else 1, rep = as.integer(m[8]))
+  }
+  if (is.null(out) || anyNA(out[, c("beta", "gamma", "power", "rep")])) {
+    stop(sprintf(paste("cannot parse chain label '%s': expected",
+                       "b<beta>g<gamma>[_mkv<variant>][_t<power>]_run<rep>",
+                       "with numbers in plain decimal notation"), label))
+  }
+  out
+}
+# Chain directories under `root`: every subdirectory holding run-chain.R
+# output (seg*_samples.csv, checkpoint.rds or progress.txt) must have a
+# readable label; other subdirectories (e.g. summary/) are ignored.  Only
+# chains with at least one complete segment are returned.
+Chains <- function(root) {
+  dirs <- list.dirs(root, recursive = FALSE)
+  isChain <- vapply(dirs, function(d) {
+    length(Sys.glob(file.path(d, "seg*_samples.csv"))) > 0L ||
+      file.exists(file.path(d, "checkpoint.rds")) || file.exists(file.path(d, "progress.txt"))
+  }, TRUE)
+  out <- do.call(rbind, lapply(dirs[isChain], function(d) {
+    p <- ParseLabel(basename(d))
+    if (!length(Sys.glob(file.path(d, "seg*_samples.csv")))) return(NULL)
+    cbind(p, dir = d)
+  }))
+  if (is.null(out)) {
+    out <- data.frame(label = character(), beta = numeric(), gamma = numeric(),
+                      mkv = character(), power = numeric(), rep = integer(), dir = character())
+  }
+  out
+}
+
+# ---- Expected chain set (#101) ----------------------------------------------------
+# `bayes-factors.R combine` must use every chain that was launched, not just the
+# chains it happens to find with a cross.csv: eval writes cross.csv only after
+# its checks pass, so a chain whose eval failed (or was never run) used to drop
+# out of the Bayes factors without a message (found in the trilobite pipeline,
+# #91 delta review, N2; this pipeline had the same gap).
+#
+# The expected set comes from the launch record <run root>/launch.csv, one row
+# per launched group of chains (cells x replicates x rungs):
+#   cell   the (beta, gamma) label as run-chain.R writes it: b0g0, b1g1, b0.5g0
+#   reps   number of replicates; the group is runs 1..reps
+#   power  character power (optional; default 1)
+#   mkv    Mkv variant (optional; default "pattern"; or "none")
+# For example, the production launch (run-array.sh --array=1-16) plus one rung
+# of 4 replicates (CET_CELL=b0.5g0, --array=1-4):
+#   cell,reps
+#   b0g0,4
+#   b0g1,4
+#   b1g0,4
+#   b1g1,4
+#   b0.5g0,4
+# A rung launched with its own replicate count, a power ladder (power = t) or
+# another Mkv variant (mkv = none) gets its own row.
+# Without launch.csv the expected set is the production launch alone: the four
+# cells x CET_BF_REPS (default 4) replicates at power 1.  `reps` must be a
+# whole number >= 1 (2.7 used to be truncated to 2), and a record that selects
+# no chain of the CET_MKV variant stops (#103 review, R103-8, R103-10).
+ExpectedChains <- function(root, mkv = .cet$mkv) {
+  f <- file.path(root, "launch.csv")
+  if (file.exists(f)) {
+    L <- utils::read.csv(f, colClasses = "character", strip.white = TRUE)
+    if (!all(c("cell", "reps") %in% names(L)) || !nrow(L)) {
+      stop(f, " needs columns cell and reps (optional: power, mkv) and at least one row")
+    }
+    source <- f
+  } else {
+    L <- data.frame(cell = mapply(CellLabel, cells$beta, cells$gamma),
+                    reps = Sys.getenv("CET_BF_REPS", "4"))
+    source <- sprintf("no launch.csv: production default, 4 cells x %s replicates", L$reps[1])
+  }
+  if (is.null(L$power)) L$power <- "1"
+  if (is.null(L$mkv)) L$mkv <- "pattern"
+  L$power[is.na(L$power) | !nzchar(L$power)] <- "1"
+  L$mkv[is.na(L$mkv) | !nzchar(L$mkv)] <- "pattern"
+  out <- do.call(rbind, lapply(seq_len(nrow(L)), function(i) {
+    reps <- if (grepl("^[0-9]+$", trimws(L$reps[i]))) as.integer(L$reps[i]) else NA_integer_
+    power <- suppressWarnings(as.numeric(L$power[i]))
+    if (is.na(reps) || reps < 1L || is.na(power)) {
+      stop(sprintf("%s row %d: reps must be a whole number >= 1 (got '%s') and power a number",
+                   source, i, L$reps[i]))
+    }
+    cell <- ParseLabel(paste0(L$cell[i], "_run1"))
+    label <- paste0(CellLabel(cell$beta, cell$gamma), MkvSuffix(L$mkv[i]),
+                    if (power != 1) paste0("_t", FormatValue(power)), "_run", seq_len(reps))
+    do.call(rbind, lapply(label, ParseLabel))
+  }))
+  out <- out[out$mkv == mkv, ]
+  if (!nrow(out)) stop(sprintf("%s: no expected chain of Mkv variant %s (CET_MKV)", source, mkv))
+  if (anyDuplicated(ChainKey(out))) stop(source, " lists a chain twice")
+  attr(out, "source") <- source
+  out
+}
+ChainKey <- function(x) {
+  if (!nrow(x)) return(character())
+  paste(vapply(x$beta, FormatValue, ""), vapply(x$gamma, FormatValue, ""), x$mkv,
+        vapply(x$power, FormatValue, ""), x$rep)
+}
+# Every chain directory under `root` (run-chain.R output: seg*_samples.csv,
+# checkpoint.rds or progress.txt), with or without a complete segment, so that a
+# launched chain missing from the record is flagged even before it has written
+# a segment (R103-9)
+ChainDirs <- function(root) {
+  dirs <- list.dirs(root, recursive = FALSE)
+  isChain <- vapply(dirs, function(d) {
+    length(Sys.glob(file.path(d, "seg*_samples.csv"))) > 0L ||
+      file.exists(file.path(d, "checkpoint.rds")) || file.exists(file.path(d, "progress.txt"))
+  }, TRUE)
+  out <- do.call(rbind, lapply(dirs[isChain], function(d) cbind(ParseLabel(basename(d)), dir = d)))
+  if (is.null(out)) {
+    out <- data.frame(label = character(), beta = numeric(), gamma = numeric(),
+                      mkv = character(), power = numeric(), rep = integer(), dir = character())
+  }
+  out
+}
+# Segment cap (#107 review, R107-9): so that a summary can be reproduced while
+# its chains are extended, CET_MAX_SEG = m > 0 makes eval, combine and the
+# fingerprint read only segments 1..m of each chain, and CET_MAX_SEG_RUNG
+# (default CET_MAX_SEG) does the same for chains other than the four
+# production cells at power 1 (ladder rungs, power ladders).  For example,
+# the penguin results of #107 read CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20.
+# 0 (default) reads every segment.
+SegCap <- function(label) {
+  m <- suppressWarnings(as.integer(Sys.getenv("CET_MAX_SEG", "0")))
+  if (is.na(m)) stop("CET_MAX_SEG must be a whole number")
+  p <- tryCatch(ParseLabel(label), error = function(e) NULL)
+  production <- !is.null(p) && p$power == 1 && p$beta %in% c(0, 1) && p$gamma %in% c(0, 1)
+  if (!production && nzchar(Sys.getenv("CET_MAX_SEG_RUNG"))) {
+    m <- suppressWarnings(as.integer(Sys.getenv("CET_MAX_SEG_RUNG")))
+    if (is.na(m)) stop("CET_MAX_SEG_RUNG must be a whole number")
+  }
+  m
+}
+SegFiles <- function(dir, what = "samples.csv") {
+  f <- sort(Sys.glob(file.path(dir, paste0("seg*_", what))))
+  m <- SegCap(basename(dir))
+  if (m > 0L) f <- utils::head(f, m)
+  f
+}
+# A chain is complete when the last line of its progress.txt says so
+# (run-chain.R writes "<time> complete" after the last segment, and a resumed
+# or extended chain writes later lines after any earlier "complete")
+ChainComplete <- function(dir) {
+  # Under a segment cap, complete means the capped set is full
+  m <- SegCap(basename(dir))
+  if (m > 0L) return(length(SegFiles(dir)) >= m)
+  f <- file.path(dir, "progress.txt")
+  if (!file.exists(f)) return(FALSE)
+  x <- trimws(readLines(f, warn = FALSE))
+  x <- x[nzchar(x)]
+  length(x) > 0L && grepl(" complete$", x[length(x)])
+}
+# What eval read (R103-2): the number of sample rows and an md5 over the
+# chain's seg*_samples.csv files (not the states files, which may be deleted
+# once eval has run).  eval records both in cross.csv (evalSamples,
+# evalSegMd5), and combine refuses a cross.csv whose chain has changed since.
+SegmentFingerprint <- function(dir) {
+  f <- SegFiles(dir)
+  n <- sum(vapply(f, function(x) nrow(utils::read.csv(x)), 0L))
+  tmp <- tempfile()
+  on.exit(unlink(tmp))
+  writeLines(paste(basename(f), unname(tools::md5sum(f))), tmp)
+  # "md5:" keeps read.csv from reading an all-digit hash as a number
+  list(samples = n, md5 = paste0("md5:", unname(tools::md5sum(tmp))))
+}
+# Problems with the cross.csv files combine is about to use (`cross`, named by
+# chain label; `ch`, their rows of Chains()): stale (eval read other sample
+# files than the chain has now, or recorded nothing; R103-2), and, when `tol`
+# is given, eval's checks: `check` and `checkChar` must be within the stricter
+# of `tol` and the tolerance eval recorded (evalTol) (review of #91, A2;
+# R103-2).  Returns one line per bad chain.
+CrossProblems <- function(ch, cross, tol = NULL) {
+  unlist(lapply(seq_along(cross), function(i) {
+    x <- cross[[i]]
+    lab <- names(cross)[i]
+    if (!all(c("evalSamples", "evalSegMd5") %in% names(x))) {
+      return(sprintf("%s: cross.csv does not record what eval read (written before #103); rerun eval", lab))
+    }
+    fp <- SegmentFingerprint(ch$dir[ch$label == lab])
+    if (x$evalSamples[1] != fp$samples || x$evalSegMd5[1] != fp$md5) {
+      return(sprintf("%s: cross.csv is stale: eval read %d samples (md5 %s), the chain now has %d (md5 %s); rerun eval",
+                     lab, x$evalSamples[1], x$evalSegMd5[1], fp$samples, fp$md5))
+    }
+    if (is.null(tol)) return(NULL)
+    cols <- intersect(c("check", "checkChar"), names(x))
+    if (length(cols) < 2L) return(sprintf("%s: cross.csv has no checkChar column; rerun eval", lab))
+    use <- min(tol, if (!is.null(x$evalTol)) x$evalTol[1] else tol)
+    v <- as.matrix(x[, cols])
+    if (!all(is.finite(v)) || !all(abs(v) <= use)) {
+      return(sprintf("%s: cross.csv fails eval's checks (max |check|, |checkChar| %.3g > tolerance %g)",
+                     lab, max(abs(v)), use))
+    }
+    NULL
+  }))
+}
+# Compare the chains under `root` (`found`: Chains(), chains with a complete
+# segment) with the expected set.  For the CET_MKV variant, combine stops if:
+# - an expected chain has no complete segment;
+# - an expected chain at power 1 (the chains the bridges use) has no cross.csv;
+# - an expected chain is not complete (last progress.txt line; R103-2);
+# - a chain directory, with or without a segment, is not in the record (R103-9);
+# - two directories hold the same chain (e.g. b0g0_run1 and b0g0_run01; R103-7).
+# The opt-outs are explicit and per chain: CET_BF_ALLOW_MISSING (labels such as
+# b0g0_run3) lets combine leave a missing chain out, everywhere: bridges and
+# stepping-stone; CET_BF_ALLOW_INCOMPLETE lets it use a chain that is not
+# complete.  Each named chain must be expected.  Returns the labels left out,
+# with attribute "incomplete" (the incomplete chains used on request).
+CheckChainSet <- function(root, found, mkv = .cet$mkv,
+                          allow = strsplit(Sys.getenv("CET_BF_ALLOW_MISSING"), ",")[[1]],
+                          allowIncomplete = strsplit(Sys.getenv("CET_BF_ALLOW_INCOMPLETE"), ",")[[1]]) {
+  allow <- trimws(allow[nzchar(trimws(allow))])
+  allowIncomplete <- trimws(allowIncomplete[nzchar(trimws(allowIncomplete))])
+  expected <- ExpectedChains(root, mkv)
+  found <- found[found$mkv == mkv, ]
+  dirs <- ChainDirs(root)
+  dirs <- dirs[dirs$mkv == mkv, ]
+  dKey <- ChainKey(dirs)
+  fKey <- ChainKey(found)
+  eKey <- ChainKey(expected)
+  hasCross <- file.exists(file.path(found$dir, "cross.csv"))
+  absent <- expected$label[!eKey %in% fKey]
+  noCross <- found$label[fKey %in% eKey & found$power == 1 & !hasCross]
+  unknown <- dirs$label[!dKey %in% eKey]
+  unknown <- paste0(unknown, ifelse(dirs$label[!dKey %in% eKey] %in% found$label, "",
+                                    " (no complete segment yet)"))
+  dup <- dirs$label[dKey %in% dKey[duplicated(dKey)]]
+  missing <- c(absent, noCross)
+  leftOut <- intersect(missing, allow)
+  # Completeness matters for every chain that will be used (not for one left out)
+  incomplete <- setdiff(found$label[fKey %in% eKey & !vapply(found$dir, ChainComplete, TRUE)], leftOut)
+  badAllow <- setdiff(c(allow, allowIncomplete), expected$label)
+  cat(sprintf(paste("Expected chains (mkv %s): %d (%s); found %d; missing %d; not complete %d;",
+                    "not in the launch record %d\n"),
+              mkv, nrow(expected), attr(expected, "source"), nrow(found), length(missing),
+              length(incomplete), length(unknown)))
+  List <- function(what, x) if (length(x)) paste0(what, ": ", paste(x, collapse = ", "))
+  problems <- c(
+    List("no complete segment (chain directory missing or empty)", setdiff(absent, allow)),
+    List("no cross.csv (eval failed or was not run)", setdiff(noCross, allow)),
+    List("not complete (last line of progress.txt is not 'complete'; CET_BF_ALLOW_INCOMPLETE to use anyway)",
+         setdiff(incomplete, allowIncomplete)),
+    List("found but not in the launch record (add to <run root>/launch.csv)", unknown),
+    List("two directories hold the same chain", dup),
+    List("CET_BF_ALLOW_MISSING / CET_BF_ALLOW_INCOMPLETE name chains that are not expected", badAllow))
+  if (length(problems)) {
+    stop("combine: the chain set does not match the launch record; no Bayes factor is reported.\n  ",
+         paste(problems, collapse = "\n  "),
+         "\n  To leave a chain out on purpose, name it in CET_BF_ALLOW_MISSING.", call. = FALSE)
+  }
+  if (length(leftOut)) {
+    cat(sprintf("Left out on request (CET_BF_ALLOW_MISSING): %s (from bridges and stepping-stone)\n",
+                paste(leftOut, collapse = ", ")))
+  }
+  usedIncomplete <- intersect(incomplete, allowIncomplete)
+  if (length(usedIncomplete)) {
+    cat(sprintf("Used although not complete (CET_BF_ALLOW_INCOMPLETE): %s\n",
+                paste(usedIncomplete, collapse = ", ")))
+  }
+  structure(leftOut, incomplete = usedIncomplete)
+}
+# chains-used.csv (R103-12): every chain of the CET_MKV variant combine found
+# or expected, with its role in the outputs beside it
+ChainsUsed <- function(chAll, leftOut, cross, mkv = .cet$mkv) {
+  x <- chAll[chAll$mkv == mkv, c("label", "beta", "gamma", "mkv", "power", "rep")]
+  if (length(leftOut)) {
+    x <- rbind(x, do.call(rbind, lapply(leftOut, ParseLabel))[, names(x)])
+    x <- x[!duplicated(x$label), ]
+  }
+  x$role <- ifelse(x$label %in% leftOut, "left out (CET_BF_ALLOW_MISSING)",
+                   ifelse(x$power == 1, "bridge", "stepping-stone"))
+  x$incompleteAllowed <- x$label %in% attr(leftOut, "incomplete")
+  x$evalSamples <- vapply(x$label, function(l) if (is.null(cross[[l]])) NA_real_ else
+    as.numeric(cross[[l]]$evalSamples[1]), 0)
+  x$evalSegMd5 <- vapply(x$label, function(l) if (is.null(cross[[l]]$evalSegMd5)) NA_character_ else
+    as.character(cross[[l]]$evalSegMd5[1]), "")
+  x
+}
 
 # Hymenoptera: crown start (the comparator conditions on the root age) with
 # conditioning on a sampled extant descendant of each root daughter (RevBayes
@@ -560,28 +772,108 @@ CetPriors <- function() {
        psi = FbdConditional("psi"), theta = LnTrunc(log(1 / 120), 1),
        s = ExpTrunc(1 / 0.587405, 3), rate = LnTrunc(-7.1, 0.5))
 }
-# Log prior of all parameters (for outputs outside TempoMCMC())
-CetLogPrior <- function(par, priors = CetPriors()) LogPriorJoint(par, priors)
+# Hymenoptera: shape of the Gamma rates among characters, alpha ~ Exp(1), as
+# the comparator's alpha_morph ~ dnExponential(1); TempoMCMC(charPriors = )
+CetCharPriors <- function() {
+  list(alpha = function(a) if (is.finite(a) && a > 0) -a else -Inf)
+}
+# Log prior of all parameters (for outputs outside TempoMCMC()): the
+# parameters of `priors` (joint FBD-rate prior included) and alpha, if present
+CetLogPrior <- function(par, priors = CetPriors(), charPriors = CetCharPriors()) {
+  LogPriorJoint(par, priors) + if (is.null(par[["alpha"]])) 0 else charPriors$alpha(par[["alpha"]])
+}
 # Root age ~ offset exponential, minimum 315 Ma, mean 396 Ma (the comparator's
 # root_time ~ dnExponential(1/81, offset = 315))
 CetAgePriors <- function() {
   list(root = function(a) if (a > 315) -log(81) - (a - 315) / 81 else -Inf)
 }
-# Near the comparator's posterior medians (parameters_morph.csv: lambda 42.48,
-# mu 42.48, d 0.0055, psi 2.18e-6, clock_rate 0.0019); theta at its prior
-# median, s 0.3.  Replicates > 1 are jittered by exp(N(0, 0.2^2)) on d,
-# lambda, psi, theta, s and rate, keeping mu = lambda - d
-CetStart <- function(rep) {
-  d <- 0.0055
-  start <- list(lambda = 42.48, psi = 2.18e-6, theta = 1 / 120, s = 0.3, rate = 0.0019)
-  if (rep > 1) {
-    old <- if (exists(".Random.seed", globalenv())) get(".Random.seed", globalenv())
-    set.seed(9000 + rep)
-    start <- lapply(start, function(v) v * exp(stats::rnorm(1, 0, 0.2)))
-    d <- d * exp(stats::rnorm(1, 0, 0.2))
-    if (!is.null(old)) assign(".Random.seed", old, envir = globalenv())
+
+# ---- Starting trees and parameters (#89 review, R89-5; as the penguin pipeline) --
+# Production chain k = 4 (rep - 1) + cell (cells 1-4) starts from its own
+# draw from the comparator's posterior, data/start-trees/start-tree-<kk>.nwk
+# (draw-start-trees.R: 16 post-burn-in samples drawn at random without
+# replacement, seed 20261111), when data/start-trees/draws.csv lists k.  Other
+# chains (ladder rungs such as b0.5g1, power chains of a cell label,
+# replicates beyond the draws) start from the reference tree
+# data/start-tree.nwk (prepare.R: the highest posterior sample).
+# CET_START_TREE overrides both.  Returns the tree file and the comparator
+# sample it came from (a one-row data frame; NULL for an override).
+ChainIndex <- function(cell, rep) if (cell > 0L) 4L * (rep - 1L) + cell else NA_integer_
+StartTreeFor <- function(chainK, override = Sys.getenv("CET_START_TREE", "")) {
+  if (nzchar(override)) return(list(file = override, sample = NULL))
+  drawsFile <- file.path(startTreeDir, "draws.csv")
+  if (!is.na(chainK) && file.exists(drawsFile)) {
+    draws <- utils::read.csv(drawsFile)
+    if (chainK %in% draws$k) {
+      own <- file.path(startTreeDir, sprintf("start-tree-%02d.nwk", chainK))
+      if (!file.exists(own)) stop("draws.csv lists chain ", chainK, " but ", own, " is missing")
+      return(list(file = own, sample = draws[draws$k == chainK, ]))
+    }
   }
-  c(start["lambda"], list(mu = start$lambda - d), start[c("psi", "theta", "s", "rate")])
+  refFile <- file.path(cetDir, "data", "start-tree-sample.csv")
+  list(file = referenceTree, sample = if (file.exists(refFile)) utils::read.csv(refFile))
+}
+# Log posterior of a start (as TempoMCMC() builds its first state: tempo-path
+# draw from .Precompute(), .AddSlices(), .Messages(), .SampleTree()); -Inf with
+# attribute "error" if it cannot be computed
+CetStartLogPost <- function(par, tree, model, characters, priors = CetPriors(),
+                            nSlice = 20) {
+  tryCatch({
+    lp <- CetLogPrior(par, priors)
+    if (!is.finite(lp)) return(-Inf)
+    tt <- get(".NoRootAncestor", .ns)(get(".ForModel", .ns)(TempoTree(tree), model))
+    la <- CetAgePriors()$root(get(".StartAge", .ns)(tt))
+    set <- get(".AddSlices", .ns)(tt, get(".Precompute", .ns)(tt, par, model), nSlice)
+    msg <- get(".Messages", .ns)(tt, set)
+    draw <- get(".SampleTree", .ns)(tt, set, msg)
+    aug <- get(".LogAugmented", .ns)(tt, set, draw[["paths"]], draw[["bin"]])
+    len <- get(".CharacterLengths", .ns)(tt, set[["grid"]][["x"]], draw[["paths"]],
+                                         par[["rate"]], model[["gamma"]])
+    chr <- CetMk(tt, characters, len, alpha = par[["alpha"]])
+    lp + la + aug + chr
+  }, error = function(e) structure(-Inf, error = conditionMessage(e)))
+}
+# Starting parameters.  Hymenoptera: lambda, mu, psi, rate (clock_rate) and
+# alpha (alpha_morph) are those of the comparator sample that gave the start
+# tree, so each production chain starts at its own joint draw from the
+# comparator's posterior; the reference tree takes those of its sample
+# (data/start-tree-sample.csv).  theta and s, which the comparator lacks, are
+# drawn from their priors, theta ~ LogNormal(log(1/120), 1) within +-4 sdlog
+# and s ~ Exp(mean 0.587405) below 3, from a stream of their own,
+# set.seed(9000 + index), which leaves the chain's random-number state
+# untouched; they are redrawn while the start log posterior is not finite
+# (with `tree` given; CetStartLogPost()).  Returns the parameters, with
+# attributes "attempts" and "logPost".
+CetStart <- function(index, sample, tree = NULL, model = NULL, characters = NULL,
+                     priors = CetPriors(), nSlice = 20, maxAttempts = 100L) {
+  stopifnot(is.data.frame(sample), nrow(sample) == 1L)
+  fixed <- list(lambda = sample$lambda, mu = sample$mu, psi = sample$psi,
+                rate = sample$clock_rate, alpha = sample$alpha_morph)
+  stopifnot(all(vapply(fixed, function(v) is.finite(v) && v > 0, TRUE)))
+  old <- if (exists(".Random.seed", globalenv())) get(".Random.seed", globalenv())
+  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = globalenv()))
+  set.seed(9000 + index)
+  lastError <- NULL
+  for (attempt in seq_len(maxAttempts)) {
+    repeat {
+      theta <- exp(stats::rnorm(1, log(1 / 120), 1))
+      if (abs(log(theta) - log(1 / 120)) <= 4) break
+    }
+    repeat {
+      s <- stats::rexp(1, 1 / 0.587405)
+      if (s <= 3) break
+    }
+    start <- c(fixed[c("lambda", "mu", "psi")], list(theta = theta, s = s),
+               fixed[c("rate", "alpha")])
+    lp <- if (is.null(tree)) NA_real_ else CetStartLogPost(start, tree, model, characters,
+                                                           priors, nSlice)
+    if (is.null(tree) || is.finite(lp)) {
+      return(structure(start, attempts = attempt, logPost = as.numeric(lp)))
+    }
+    lastError <- attr(lp, "error")
+  }
+  stop("CetStart(): no start with a finite log posterior in ", maxAttempts, " draws",
+       if (!is.null(lastError)) paste0("; last error: ", lastError))
 }
 CetMoves <- function(tt, characters, model,
                      scale = as.numeric(Sys.getenv("CET_TREE_MOVES", "1"))) {

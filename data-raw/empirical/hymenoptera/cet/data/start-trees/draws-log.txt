@@ -1,0 +1,20 @@
+source: /nobackup/pjjg18/evotempo-hym-cet/rbmorph; 6 chains, 11934 pooled post-burn-in samples (burn-in 0.25 of each chain)
+seed 20261111; 16 draws without replacement (sample.int)
+draw 1: run4 iteration 74900; root 411.534632 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 2: run5 iteration 77800; root 595.301019 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 3: run5 iteration 116200; root 327.885298 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 4: run3 iteration 144900; root 522.177367 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 5: run4 iteration 152300; root 352.656457 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 6: run1 iteration 70100; root 327.171647 Ma, 0 sampled ancestors, 1 changes, largest 0.001224 Myr
+  node 123: 171.181094 -> 171.182318
+draw 7: run1 iteration 223400; root 322.737263 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 8: run2 iteration 113100; root 381.615877 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 9: run1 iteration 186500; root 354.477868 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 10: run6 iteration 76500; root 378.039505 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 11: run1 iteration 124600; root 354.710801 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 12: run1 iteration 89200; root 377.634545 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 13: run1 iteration 88800; root 339.346330 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 14: run5 iteration 73500; root 399.190792 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 15: run4 iteration 220900; root 363.703072 Ma, 0 sampled ancestors, 0 changes, largest 0.000000 Myr
+draw 16: run4 iteration 223300; root 367.991866 Ma, 0 sampled ancestors, 1 changes, largest 0.009850 Myr
+  node 117: 264.368255 -> 264.378105

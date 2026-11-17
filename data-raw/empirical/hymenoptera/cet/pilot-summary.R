@@ -15,7 +15,7 @@ burn <- if (length(args) >= 2) as.numeric(args[[2]]) else 0.25
 EssBulk <- get(".EssBulk", asNamespace("MkPrime"))
 EssTail <- get(".EssTail", asNamespace("MkPrime"))
 cells <- c("b0g0", "b0g1", "b1g0", "b1g1")
-qs <- c("lambda", "mu", "psi", "theta", "s", "rate", "logD", "logitTurnover", "logPost",
+qs <- c("lambda", "mu", "psi", "theta", "s", "rate", "alpha", "logD", "logitTurnover", "logPost",
         "charLL", "rootAge", "holoAge", "hymCrownAge", "treeLength", "meanNodeAge", "nAncestor")
 ess <- list(); speed <- list()
 for (cl in cells) {

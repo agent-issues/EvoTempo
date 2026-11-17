@@ -1,14 +1,17 @@
 #!/bin/bash
 # Hymenoptera CET pipeline: run the fixed-tree RevBayes oracle (check-mkv.Rev)
-# on the RevBayes development builds, for check-mkv.R.
+# for check-mkv.R.
 #
 #   bash data-raw/empirical/hymenoptera/cet/revbayes/run-check-mkv.sh <scratch dir> [rbmorph data dir]
 #
 # From the package root.  Regenerates the comparator's data/ with
 # ../../revbayes/prepare-data.R (and, if given, checks it byte for byte
-# against the data/ directory of the comparator's chains), copies it with the
-# CET start tree into <scratch dir>, and writes
-# cet/smoke-results/revbayes-check-mkv-<build>.txt for each build.
+# against the data/ directory of the comparator's chains), and runs the
+# oracle with the RevBayes development build fd807d10 on two trees: the
+# reference start tree (data/start-tree.nwk; tag "reference") and production
+# chain 6's start tree (data/start-trees/start-tree-06.nwk; tag "draw06", one
+# of the two draws whose conversion moved an age).  Writes
+# cet/smoke-results/revbayes-check-mkv-fd807d10-<tag>.txt.
 set +e; set +o pipefail
 SCR=$1
 RBDATA=$2
@@ -26,14 +29,16 @@ if [ -n "$RBDATA" ]; then
     diff $SCR/md5-regenerated.txt $SCR/md5-chains.txt >> $ROOT/$CET/smoke-results/revbayes-data-check.txt
   fi
 fi
-rm -rf $SCR/rb && mkdir -p $SCR/rb
-cp -r data-raw/empirical/hymenoptera/revbayes/data $SCR/rb/data
-cp $CET/data/start-tree.nwk $SCR/rb/start_tree.nwk
-cp $CET/revbayes/check-mkv.Rev $SCR/rb/
-for build in fd807d10 a2a8e2db; do
-  RB=/nobackup/pjjg18/revbayes-dev-$build/projects/cmake/build/rb
+build=fd807d10
+RB=/nobackup/pjjg18/revbayes-dev-$build/projects/cmake/build/rb
+for tag in reference draw06; do
+  if [ $tag = reference ]; then tree=$CET/data/start-tree.nwk; else tree=$CET/data/start-trees/start-tree-06.nwk; fi
+  rm -rf $SCR/rb-$tag && mkdir -p $SCR/rb-$tag
+  cp -r data-raw/empirical/hymenoptera/revbayes/data $SCR/rb-$tag/data
+  cp $tree $SCR/rb-$tag/start_tree.nwk
+  cp $CET/revbayes/check-mkv.Rev $SCR/rb-$tag/
   (source /etc/profile > /dev/null 2>&1 || true; module purge || true
    module load gcc/14.2 boost/1.88.0
-   cd $SCR/rb && $RB --version > $SCR/rb-version-$build.txt 2>&1
-   $RB check-mkv.Rev > $ROOT/$CET/smoke-results/revbayes-check-mkv-$build.txt 2>&1)
+   cd $SCR/rb-$tag && $RB --version > $SCR/rb-version-$build.txt 2>&1
+   $RB check-mkv.Rev > $ROOT/$CET/smoke-results/revbayes-check-mkv-$build-$tag.txt 2>&1)
 done

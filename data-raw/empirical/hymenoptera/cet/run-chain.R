@@ -1,5 +1,6 @@
-# Hymenoptera CET pipeline (as the penguin pipeline's run-chain.R): one MCMC chain of one (beta, gamma) cell, run as a
-# series of segments with a checkpoint after each.
+# Hymenoptera CET pipeline (as the penguin pipeline's run-chain.R): one MCMC
+# chain of one (beta, gamma) cell, run as a series of segments with a
+# checkpoint after each.
 #
 #   Rscript data-raw/empirical/hymenoptera/cet/run-chain.R <cell> <rep>
 #
@@ -8,7 +9,9 @@
 # EvoTempo installed (or CET_LOAD_ALL=1 for pkgload::load_all()).  Environment:
 #   CET_OUT          output root (default cet-runs); the chain writes
 #                    <CET_OUT>/<label>_run<rep>/
-#   CET_START_TREE   starting tree (default cet/data/start-tree.nwk)
+#   CET_START_TREE   starting tree (default: production chain k's own draw,
+#                    data/start-trees/start-tree-<kk>.nwk, else the reference
+#                    tree data/start-tree.nwk; common.R, StartTreeFor())
 #   CET_NITER        sampling iterations in total (default 100000)
 #   CET_BURNIN       burn-in iterations, with step-size adaptation (default 2000)
 #   CET_THIN         thinning (default 50)
@@ -26,20 +29,21 @@
 #   CET_SEED         RNG seed (default 1000 * cell + rep)
 #   CET_NSLICE       frozen-model time slices (default 20)
 #   CET_TREE_MOVES   scale of the tree-move counts (default 1)
+#   CET_FBD_BLOCK    rounds of FBD block moves per iteration (default 1)
 #   CET_NBIN, CET_ZMAX   tempo grid (default 26 bins, z in [-5, 5])
 #   CET_STATES       "true" (default) to save per-sample states for
 #                    bayes-factors.R
-# Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples plus charLL,
-# the Mkv-corrected character log-likelihood at power 1; treeTerm, the
-# Holometabola constraint and calibration term, which logPost includes;
-# logPrior, the log prior of the parameters (joint FBD-rate prior included),
-# as in bayes-factors.R's cross.csv; logRootPrior, the log prior of the root
-# age, which TempoMCMC()'s logPost also includes; holoAge, hymCrownAge,
+# Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples, alpha
+# included, plus charLL, the Mkv-corrected character log-likelihood (Gamma
+# mixture included) at power 1; treeTerm, the Holometabola constraint and
+# calibration term, which logPost includes; logPrior, the log prior of the
+# parameters (joint FBD-rate prior and the alpha prior included), as in
+# bayes-factors.R's cross.csv; logRootPrior, the log prior of the root age,
+# which TempoMCMC()'s logPost also includes; holoAge, hymCrownAge,
 # hymTotalAge, the ages of the comparator's monitored clades; and the
-# iteration),
-# seg<k>_trees.nwk,
-# seg<k>_states.rds; acceptance.csv (per segment); checkpoint.rds (state at the
-# end of the last complete segment; written atomically); progress.txt.
+# iteration), seg<k>_trees.nwk, seg<k>_states.rds; acceptance.csv (per
+# segment); checkpoint.rds (state at the end of the last complete segment;
+# written atomically); progress.txt.
 t0 <- proc.time()[["elapsed"]]
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
@@ -57,13 +61,22 @@ if (grepl("^[0-9]+$", cellArg)) {
   gamma <- cells$gamma[cell]
 } else {
   cell <- 0L
-  beta <- as.numeric(sub("^b([0-9.]+)g.*$", "\\1", cellArg))
-  gamma <- as.numeric(sub("^b[0-9.]+g([0-9.]+)$", "\\1", cellArg))
+  # Plain decimal notation only: "b1e-04g1" would give beta NA (#75)
+  if (!grepl("^b[0-9.]+g[0-9.]+$", cellArg)) {
+    stop("cannot parse cell label '", cellArg, "': use b<beta>g<gamma> in plain decimal notation")
+  }
+  beta <- suppressWarnings(as.numeric(sub("^b([0-9.]+)g.*$", "\\1", cellArg)))
+  gamma <- suppressWarnings(as.numeric(sub("^b[0-9.]+g([0-9.]+)$", "\\1", cellArg)))
+  if (anyNA(c(beta, gamma))) stop("cannot parse cell label '", cellArg, "'")
 }
 mkv <- .cet$mkv
 label <- paste0(CellLabel(beta, gamma), MkvSuffix(mkv))
 power <- EnvNum("CET_POWER", 1)
-if (power != 1) label <- sprintf("%s_t%s", label, format(power))
+# FormatValue(): plain decimal notation that reads back as exactly `power`, so
+# that bayes-factors.R's ParseLabel() recovers it (#75)
+if (power != 1) label <- sprintf("%s_t%s", label, FormatValue(power))
+parsed <- ParseLabel(sprintf("%s_run%d", label, rep))
+stopifnot(parsed$beta == beta, parsed$gamma == gamma, parsed$power == power, parsed$mkv == mkv)
 outDir <- file.path(Sys.getenv("CET_OUT", "cet-runs"), sprintf("%s_run%d", label, rep))
 dir.create(outDir, recursive = TRUE, showWarnings = FALSE)
 nIter <- EnvNum("CET_NITER", 100000)
@@ -76,9 +89,19 @@ saveStates <- Sys.getenv("CET_STATES", "true") == "true"
 stopifnot(seg %% thin == 0, nIter %% seg == 0)
 .cet$power <- power
 
-dat <- LoadHymenoptera(Sys.getenv("CET_START_TREE", file.path(cetDir, "data", "start-tree.nwk")))
+# Start tree (#89 review, R89-5): production chain k = 4 (rep - 1) + cell
+# starts from its own draw from the comparator's posterior (common.R,
+# StartTreeFor()).  The tree and its md5 go into the checkpoint, and a resumed
+# chain must use the same file: the character rows follow the start tree's
+# tip order (LoadHymenoptera()).
+chainK <- ChainIndex(cell, rep)
+startSrc <- StartTreeFor(chainK)
+startTree <- startSrc$file
+startTreeMd5 <- unname(tools::md5sum(startTree))
+dat <- LoadHymenoptera(startTree)
 model <- CetModel(beta, gamma)
 priors <- CetPriors()
+charPriors <- CetCharPriors()
 moves <- CetMoves(dat$tree, dat$characters, model)
 Progress <- function(...) {
   cat(sprintf(...), "\n", file = file.path(outDir, "progress.txt"), append = TRUE)
@@ -95,13 +118,40 @@ if (file.exists(ckpFile)) {
                  ckpFile, ckpMkv, format(ckp$power), format(ckp$beta), format(ckp$gamma),
                  mkv, format(power), format(beta), format(gamma)))
   }
+  if (!identical(ckp$nRateCat, .cet$nRateCat)) {
+    stop(sprintf("%s holds a chain with %s Gamma rate categories; this run has %d", ckpFile,
+                 format(ckp$nRateCat), .cet$nRateCat))
+  }
+  if (!identical(ckp$startTree, startTree) || !identical(ckp$startTreeMd5, startTreeMd5)) {
+    stop(sprintf("%s started from %s (md5 %s); this run would load %s (md5 %s)", ckpFile,
+                 format(ckp$startTree), format(ckp$startTreeMd5), startTree, startTreeMd5))
+  }
+  if (!identical(ckp$captured$st$tree$tipLabel, rownames(dat$cells))) {
+    stop("the checkpoint's tip order differs from the character rows of ", startTree)
+  }
   Progress("%s resuming after segment %d", format(Sys.time()), ckp$segment)
 } else {
   set.seed(EnvNum("CET_SEED", 1000 * cell + rep))
   ckp <- NULL
-  Progress("%s start %s rep %d (beta %g, gamma %g, power %g, mkv %s): nIter %d, burnin %d, thin %d, seg %d; moves %s",
-           format(Sys.time()), label, rep, beta, gamma, power, mkv, nIter, burnin, thin, seg,
-           paste(names(moves), moves, sep = "=", collapse = " "))
+  if (is.null(startSrc$sample)) {
+    stop("no comparator sample for the start tree ", startTree, " (CET_START_TREE given, or ",
+         "data/start-tree-sample.csv missing): CetStart() needs its parameters")
+  }
+  # Starting parameters of the comparator sample that gave the start tree;
+  # theta and s seeded by chain (production chain k) or by replicate (other
+  # labels), redrawn while the start log posterior is not finite
+  startIndex <- if (is.na(chainK)) rep else chainK
+  startPar <- CetStart(startIndex, startSrc$sample, dat$tree, model, dat$characters, priors,
+                       nSlice)
+  startInfo <- attributes(startPar)[c("attempts", "logPost")]
+  startPar <- as.list(stats::setNames(unlist(startPar), names(startPar)))
+  Progress("%s start %s rep %d (beta %g, gamma %g, power %g, mkv %s, %d Gamma categories): nIter %d, burnin %d, thin %d, seg %d; moves %s",
+           format(Sys.time()), label, rep, beta, gamma, power, mkv, .cet$nRateCat, nIter, burnin,
+           thin, seg, paste(names(moves), moves, sep = "=", collapse = " "))
+  Progress("%s start tree %s (md5 %s; comparator run%d iteration %d); start parameters (CetStart(%d), %d draw(s), start logPost %.2f): %s",
+           format(Sys.time()), startTree, startTreeMd5, as.integer(startSrc$sample$run),
+           as.integer(startSrc$sample$Iteration), startIndex, startInfo$attempts, startInfo$logPost,
+           paste(names(startPar), signif(unlist(startPar), 5), sep = "=", collapse = " "))
 }
 nSeg <- nIter %/% seg
 first <- if (is.null(ckp)) 1L else ckp$segment + 1L
@@ -112,15 +162,16 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   .cet$blockAcc[] <- 0
   tSeg <- proc.time()[["elapsed"]]
   if (is.null(ckp)) {
-    run <- TempoMCMC(dat$tree, model, CetStart(rep), priors, nIter = seg, burnin = burnin,
+    run <- TempoMCMC(dat$tree, model, startPar, priors, nIter = seg, burnin = burnin,
                      thin = thin, nSlice = nSlice, moves = moves,
-                     characters = dat$characters, agePriors = CetAgePriors())
+                     characters = dat$characters, agePriors = CetAgePriors(),
+                     charPriors = charPriors)
   } else {
     .cet$resume <- ckp$captured
     run <- TempoMCMC(ckp$captured$st$tree, model, ckp$captured$st$par, priors,
                      nIter = seg, burnin = 0, thin = thin, nSlice = nSlice,
                      moves = ckp$captured$moves, characters = dat$characters,
-                     agePriors = CetAgePriors())
+                     agePriors = CetAgePriors(), charPriors = charPriors)
     stopifnot(.cet$injected)
   }
   secs <- proc.time()[["elapsed"]] - tSeg
@@ -129,9 +180,9 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   smp <- run$samples
   smp$charLL <- vapply(rec, `[[`, 0, "charLL")
   smp$treeTerm <- vapply(rec, `[[`, 0, "treeTerm")
-  # logPrior: the parameters only, as cross.csv; the root age prior, which
-  # the chain's logPost includes, is a separate column (#74)
-  smp$logPrior <- vapply(rec, function(r) CetLogPrior(r$state$par, priors), 0)
+  # logPrior: the parameters only (alpha included), as cross.csv; the root age
+  # prior, which the chain's logPost includes, is a separate column (#74)
+  smp$logPrior <- vapply(rec, function(r) CetLogPrior(r$state$par, priors, charPriors), 0)
   smp$logRootPrior <- vapply(rec, function(r) CetAgePriors()$root(
     r$state$tree$age[[r$state$tree$root]]), 0)
   ages <- do.call(rbind, lapply(rec, `[[`, "ages"))
@@ -154,13 +205,16 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),
                      append = file.exists(accFile))
   ckp <- list(segment = k, captured = .cet$captured, label = label, beta = beta, gamma = gamma,
-              power = power, mkv = mkv, rep = rep, thin = thin, seg = seg)
+              power = power, mkv = mkv, nRateCat = .cet$nRateCat, rep = rep, thin = thin,
+              seg = seg, startTree = startTree, startTreeMd5 = startTreeMd5,
+              start = if (is.null(ckp)) list(par = startPar, info = startInfo,
+                                             sample = startSrc$sample) else ckp$start)
   tmp <- paste0(ckpFile, ".tmp")
   saveRDS(ckp, tmp)
   file.rename(tmp, ckpFile)
-  Progress("%s segment %d/%d done: %.1f s (%.3f s/iteration incl. %d burn-in); logPost %.2f, charLL %.2f",
+  Progress("%s segment %d/%d done: %.1f s (%.3f s/iteration incl. %d burn-in); logPost %.2f, charLL %.2f, alpha %.4g",
            format(Sys.time()), k, nSeg, secs, secs / (seg + acc$burnin[1]), acc$burnin[1],
-           utils::tail(smp$logPost, 1), utils::tail(smp$charLL, 1))
+           utils::tail(smp$logPost, 1), utils::tail(smp$charLL, 1), utils::tail(smp$alpha, 1))
   if ((proc.time()[["elapsed"]] - t0) / 3600 > hours && k < nSeg) {
     Progress("%s stopping after %.1f h; resubmit to continue", format(Sys.time()), hours)
     break

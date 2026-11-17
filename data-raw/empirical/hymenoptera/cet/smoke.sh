@@ -4,13 +4,17 @@
 #
 #   sbatch -J evotempo-hymcet-smoke --array=1-5 smoke.sh
 #
-# From a checkout at $SRC with EvoTempo installed in $LIB.  Tasks 1-4: cells
+# From a checkout at $SRC with EvoTempo installed in $LIB (defaults: $W/src and
+# $W/lib-<first 7 characters of $W/out/build-sha.txt>).  Tasks 1-4: cells
 # (0,0), (0,1), (1,0), (1,1), CET_NITER (default 40) sampling iterations after
-# CET_BURNIN (default 10), thin 2, in two segments (so the second resumes
-# from the checkpoint).  Task 5: cell (1,1) again in one segment; its last
-# samples must equal task 4's segment 2 (exact continuation; check-smoke.R).
+# CET_BURNIN (default 40, so that the step sizes adapt twice, at burn-in
+# iterations 20 and 40), thin 2, in two segments (so the second resumes from
+# the checkpoint).  Each is replicate 1, so chains 1-4 start from their own
+# start-tree draws (data/start-trees/).  Task 5: cell (1,1) again in one
+# segment; its last samples must equal task 4's segment 2 (exact
+# continuation, with the adapted step sizes restored; check-smoke.R).
 # The defaults are smaller than the penguin smoke (200 + 40) because an
-# iteration here costs several seconds; SMOKE_* override them, e.g. a pilot:
+# iteration here costs seconds; SMOKE_* override them, e.g. a pilot:
 #   --export=ALL,SMOKE_NITER=400,SMOKE_BURNIN=100,SMOKE_SEG=200,SMOKE_THIN=4,SMOKE_OUT=$W/pilot
 # Partition and time: `test` (15 min) fits the default smoke; use
 # `-p shared -t <hours>` for a pilot.
@@ -29,7 +33,7 @@ SRC=${SRC:-$W/src}
 LIB=${LIB:-$W/lib-$(head -c 7 $W/out/build-sha.txt)}
 export R_LIBS=$LIB:/nobackup/pjjg18/evotempo-dev/lib
 cd $SRC
-export CET_NITER=${SMOKE_NITER:-40} CET_BURNIN=${SMOKE_BURNIN:-10} CET_THIN=${SMOKE_THIN:-2}
+export CET_NITER=${SMOKE_NITER:-40} CET_BURNIN=${SMOKE_BURNIN:-40} CET_THIN=${SMOKE_THIN:-2}
 export CET_SEG=${SMOKE_SEG:-20} CET_OUT=${SMOKE_OUT:-$W/smoke}
 cell=$SLURM_ARRAY_TASK_ID
 if [ "$cell" = 5 ]; then cell=4; export CET_SEG=$CET_NITER CET_OUT=$CET_OUT-identity; fi

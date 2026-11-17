@@ -1,0 +1,11 @@
+ok   no cap: every segment 
+ok   no cap: completeness from progress.txt 
+ok   production cell capped at CET_MAX_SEG 
+ok   rung and power chains capped at CET_MAX_SEG_RUNG 
+ok   the cap keeps the first segments 
+ok   capped: complete when the capped set is full (12 < 20 is not) 
+ok   fingerprint reads the capped rows 
+ok   a different cap gives a different fingerprint 
+ok   CET_MAX_SEG_RUNG defaults to CET_MAX_SEG 
+ok   a non-numeric cap stops 
+check-segcap.R: all checks passed

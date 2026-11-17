@@ -83,13 +83,21 @@
 # also records its tolerance (evalTol), and combine applies the stricter of it
 # and its own CET_BF_TOL.
 # CET_MAX_SEG / CET_MAX_SEG_RUNG cap the segments read (common.R, SegCap();
-# #107 review, R107-9); eval and combine must use the same caps, which the
-# fingerprint check enforces.
+# #107 review, R107-9): exactly segments 1..m, all present; a whole number
+# >= 1, or unset.  Under a cap a chain is complete when its checkpoint has
+# reached segment m.  eval records its cap (evalMaxSeg), and combine refuses a
+# cross.csv evaluated under another cap, naming the mismatch (#105 delta
+# review, C1-C4); ladder chains, which have no cross.csv, are fingerprinted
+# before and after combine reads them.
 # eval: no earlier cross.csv survives any stop of this run, including one
 # before the package loads or the tolerances are read (#105 review, R105-1)
 local({
   a <- commandArgs(trailingOnly = TRUE)
-  if (length(a) >= 2L && identical(a[[1]], "eval")) unlink(file.path(a[[2]], "cross.csv"))
+  # only for a chain directory (#105 delta review, R105b-7)
+  if (length(a) >= 2L && identical(a[[1]], "eval") && dir.exists(a[[2]]) &&
+      grepl("^b[0-9.]+g[0-9.]+(_mkv(allTips|none))?(_t[0-9.]+)?_run[0-9]+$", basename(a[[2]]))) {
+    unlink(file.path(a[[2]], "cross.csv"))
+  }
 })
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
@@ -223,10 +231,15 @@ if (args[[1]] == "eval") {
                        "charLL by %.3g (CET_BF_TOL_CHAR = %g); no cross.csv written"),
                  worst, tol, worstChar, tolChar))
   }
+  out$evalMaxSeg <- SegCap(me$label)  # the cap eval read under (C3)
   tmp <- tempfile("cross-", tmpdir = dir, fileext = ".csv")
-  on.exit(unlink(tmp), add = TRUE)  # R105-2: no temporary file survives a failed write or rename
-  utils::write.csv(out, tmp, row.names = FALSE)
-  stopifnot(file.rename(tmp, crossFile))
+  # No temporary file survives a failed write or rename (R105-2).  tryCatch,
+  # not on.exit: at the top level of an Rscript on.exit does nothing (#105
+  # delta review, R105b-1)
+  tryCatch({
+    utils::write.csv(out, tmp, row.names = FALSE)
+    if (!file.rename(tmp, crossFile)) stop("could not rename ", tmp, " to ", crossFile)
+  }, finally = unlink(tmp))
   quit(save = "no")
 }
 
@@ -497,7 +510,14 @@ for (i in seq_len(nrow(pw))) {
   stopifnot(ladder[1] == 0, ladder[length(ladder)] == 1, length(ladder) >= 3L)
   logL <- lapply(ladder, function(t) {
     unlist(lapply(ch$dir[sel & ch$power == t], function(d) {
+      # A ladder chain has no cross.csv: guard its read with the fingerprint,
+      # before and after (#105 delta review, C1)
+      fp <- SegmentFingerprint(d)
       s <- LoadSamples(d)
+      if (!identical(fp, SegmentFingerprint(d)) || fp$samples != nrow(s$samples)) {
+        stop(sprintf("%s: the segment files changed while combine read them; no marginal reported", basename(d)),
+             call. = FALSE)
+      }
       s$samples$charLL[s$keep]
     }))
   })

@@ -40,11 +40,11 @@ ok   F2b: no b0g1 -> b1g1 edge from the interior rungs alone (before: -2.0)
 ok   F2b: combine names both missing end points
 nonexistent root, exit 1: Error: combine: <run root> does not exist
 ok   combine stops on a run root that does not exist
-#101 4 cells x 2 with launch.csv, exit 0: Expected chains (mkv pattern): 8 (/tmp/Rtmpi7MhVc/sete0a88c7b46b7/launch.csv); found 8; missing 0; not complete 0; not in the launch record 0
+#101 4 cells x 2 with launch.csv, exit 0: Expected chains (mkv pattern): 8 (/tmp/Rtmp1s78vt/set30ffdb33d048e3/launch.csv); found 8; missing 0; not complete 0; not in the launch record 0
 ok   #101: complete chain set, combine exits 0 with 4 edges
-#101 b1g0_run2/cross.csv removed, exit 1: Expected chains (mkv pattern): 8 (/tmp/Rtmpi7MhVc/sete0a88c7b46b7/launch.csv); found 8; missing 1; not complete 0; not in the launch record 0 /   no cross.csv (eval failed or was not run): b1g0_run2
+#101 b1g0_run2/cross.csv removed, exit 1: Expected chains (mkv pattern): 8 (/tmp/Rtmp1s78vt/set30ffdb33d048e3/launch.csv); found 8; missing 1; not complete 0; not in the launch record 0 /   no cross.csv (eval failed or was not run): b1g0_run2
 ok   #101: a missing cross.csv stops combine, naming b1g0_run2 (before: exit 0, dropped)
-#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit 0: Expected chains (mkv pattern): 8 (/tmp/Rtmpi7MhVc/sete0a88c7b46b7/launch.csv); found 8; missing 1; not complete 0; not in the launch record 0 / Left out on request (CET_BF_ALLOW_MISSING): b1g0_run2 (from bridges and stepping-stone)
+#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit 0: Expected chains (mkv pattern): 8 (/tmp/Rtmp1s78vt/set30ffdb33d048e3/launch.csv); found 8; missing 1; not complete 0; not in the launch record 0 / Left out on request (CET_BF_ALLOW_MISSING): b1g0_run2 (from bridges and stepping-stone)
 ok   #101: explicit opt-out, exit 0 and b1g0_run2 reported as left out
 ok   #101: an opt-out naming an unexpected chain stops
 ok   #101: a chain not in the launch record stops combine
@@ -68,13 +68,19 @@ ok   #104/#105: no evalTol column stops combine, naming b0g1_run1
 ok   #104/#105: evalTol NA stops combine, naming b0g1_run1
 #104/#105 evalTol "abc", exit 1:   b0g1_run1: cross.csv records evalTol abc and evalTolChar 1e-08; both must be positive numbers; rerun eval
 ok   #104/#105: evalTol "abc" stops combine, naming b0g1_run1
+#104/#105 no evalMaxSeg column (C3), exit 1:   b0g1_run1: cross.csv does not record eval's segment cap (written before the #105 delta review); rerun eval
+ok   #104/#105: no evalMaxSeg column (C3) stops combine, naming b0g1_run1
+#104/#105 evalMaxSeg 1 while combine runs uncapped (C3), exit 1:   b0g1_run1: segment cap mismatch: eval read with cap 1, combine runs with cap 0 (0 = none); set the same CET_MAX_SEG / CET_MAX_SEG_RUNG or rerun eval
+ok   #104/#105: evalMaxSeg 1 while combine runs uncapped (C3) stops combine, naming b0g1_run1
+#104/#105 evalMaxSeg 0 while combine runs with CET_MAX_SEG=1 (C3), exit 1:   b0g1_run1: segment cap mismatch: eval read with cap 0, combine runs with cap 1 (0 = none); set the same CET_MAX_SEG / CET_MAX_SEG_RUNG or rerun eval
+ok   #104/#105: evalMaxSeg 0 while combine runs with CET_MAX_SEG=1 (C3) stops combine, naming b0g1_run1
 ok   #105: |check| 1e-7 is within CET_BF_TOL (1e-4): accepted
 ok   #104: CET_BF_TOL = 0.01 accepts |check| = 1e-3 in a file eval checked at 0.01
 #104 b1g1_run2 cross.csv without checkChar, exit 1:   b1g1_run2: cross.csv has no check or checkChar column (written before #104); rerun eval
 ok   #104: a cross.csv from before #104 (no checkChar) stops combine, naming b1g1_run2
 ok   #103: a complete run writes bayes-factors.csv, model-probabilities.csv, closure.txt, chains-used.csv
 ok   R103-3: a stop leaves none of the earlier outputs (before: all three, unchanged)
-R103-2 b0g1_run2 unfinished, exit 1: Expected chains (mkv pattern): 8 (/tmp/Rtmpi7MhVc/review103e0a886e478615/launch.csv); found 8; missing 0; not complete 1; not in the launch record 0
+R103-2 b0g1_run2 unfinished, exit 1: Expected chains (mkv pattern): 8 (/tmp/Rtmp1s78vt/review10330ffdb7189191f/launch.csv); found 8; missing 0; not complete 1; not in the launch record 0
 ok   R103-2: an unfinished chain stops combine
 ok   R103-2: CET_BF_ALLOW_INCOMPLETE=b0g1_run2 uses it and says so
 ok   R103-2: a segment added after eval stops combine

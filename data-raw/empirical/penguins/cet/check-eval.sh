@@ -14,11 +14,14 @@
 #    and leaves no temporary file behind.
 # 3. The record (#105 review, M9): evalSamples equals the rows of the chain's
 #    seg*_samples.csv, evalSegMd5 is "md5:..." and evalTol, evalTolChar equal
-#    CET_BF_TOL, CET_BF_TOL_CHAR (defaults 1e-4, 1e-8).
+#    CET_BF_TOL, CET_BF_TOL_CHAR (defaults 1e-4, 1e-8), and evalMaxSeg is 0 (no
+#    segment cap; #105 delta review, C3).
 # 4. charLL + 1e-3 in one kept state of seg*_samples.csv (M8): eval exits
 #    non-zero and leaves no cross.csv (checkChar, not check, catches it).
 # 5. After a good eval, an eval that stops early (CET_BF_TOL=abc) leaves no
 #    cross.csv (R105-1).
+# 6. With cross.csv a directory, the final rename fails: eval exits non-zero
+#    and leaves no temporary cross-*.csv (R105-2; #105 delta review, R105b-1).
 set -u
 d=$1
 out=${2:-/dev/stdout}
@@ -40,7 +43,7 @@ fail=0
   s3=$?
   ntmp=$(ls "$d" | grep -c '^cross-.*\.csv$')
   if [ "$s2" -eq 0 ] && [ "$s3" -eq 0 ] && [ "$ntmp" -eq 0 ]; then echo "ok   2. passing checks write cross.csv with check and checkChar, no temporary file"; else echo "FAIL 2. (eval exit $s2, column check $s3, temporary files $ntmp)"; fail=1; fi
-  Rscript -e 'd <- commandArgs(TRUE)[1]; x <- read.csv(file.path(d, "cross.csv")); n <- sum(vapply(Sys.glob(file.path(d, "seg*_samples.csv")), function(f) nrow(read.csv(f)), 0L)); ok <- all(c("evalSamples", "evalSegMd5", "evalTol", "evalTolChar") %in% names(x)) && all(x$evalSamples == n) && all(grepl("^md5:[0-9a-f]{32}$", x$evalSegMd5)) && all(x$evalTol == 1e-4) && all(x$evalTolChar == 1e-8); cat(sprintf("3. record: evalSamples %s (segment rows %d), evalSegMd5 %s, evalTol %s, evalTolChar %s\n", x$evalSamples[1], n, x$evalSegMd5[1], x$evalTol[1], x$evalTolChar[1])); quit(status = if (isTRUE(ok)) 0 else 1)' "$d"
+  Rscript -e 'd <- commandArgs(TRUE)[1]; x <- read.csv(file.path(d, "cross.csv")); n <- sum(vapply(Sys.glob(file.path(d, "seg*_samples.csv")), function(f) nrow(read.csv(f)), 0L)); ok <- all(c("evalSamples", "evalSegMd5", "evalTol", "evalTolChar", "evalMaxSeg") %in% names(x)) && all(x$evalSamples == n) && all(grepl("^md5:[0-9a-f]{32}$", x$evalSegMd5)) && all(x$evalTol == 1e-4) && all(x$evalTolChar == 1e-8) && all(x$evalMaxSeg == 0); cat(sprintf("3. record: evalSamples %s (segment rows %d), evalSegMd5 %s, evalTol %s, evalTolChar %s\n", x$evalSamples[1], n, x$evalSegMd5[1], x$evalTol[1], x$evalTolChar[1])); cat(sprintf("   evalMaxSeg %s\n", x$evalMaxSeg[1])); quit(status = if (isTRUE(ok)) 0 else 1)' "$d"
   if [ $? -eq 0 ]; then echo "ok   3. cross.csv records what eval read and its tolerances"; else echo "FAIL 3. cross.csv record"; fail=1; fi
   last=$(ls "$d"/seg*_samples.csv | tail -1)
   cp "$last" "$d/../check-eval-backup.csv"
@@ -57,6 +60,13 @@ fail=0
   s5b=$?
   if [ -e "$d/cross.csv" ]; then f5=present; else f5=absent; fi
   if [ "$s5a" -eq 0 ] && [ "$s5b" -ne 0 ] && [ "$f5" = absent ]; then echo "ok   5. an eval that stops early leaves no earlier cross.csv"; else echo "FAIL 5. (good eval exit $s5a, early stop exit $s5b, cross.csv $f5)"; fail=1; fi
+  mkdir "$d/cross.csv"
+  Rscript $C/bayes-factors.R eval "$d" > "$d/../check-eval-6.log" 2>&1
+  s6=$?
+  n6=$(ls "$d" | grep -c '^cross-.*\.csv$')
+  rmdir "$d/cross.csv"
+  tail -1 "$d/../check-eval-6.log"
+  if [ "$s6" -ne 0 ] && [ "$n6" -eq 0 ]; then echo "ok   6. a failed rename leaves no temporary file"; else echo "FAIL 6. (exit $s6, temporary files $n6)"; fail=1; fi
   if [ $fail -eq 0 ]; then echo "check-eval.sh: all checks passed"; else echo "check-eval.sh: FAILED"; fi
 } > "$out"
 exit $fail

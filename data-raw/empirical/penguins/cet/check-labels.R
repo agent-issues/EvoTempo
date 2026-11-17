@@ -38,6 +38,8 @@
 #    |checkChar| 1e-3 (M4) or 1e-7 (> CET_BF_TOL_CHAR 1e-8, while |check| 1e-7
 #    passes), with an NA check (M5), with no checkChar column (written before
 #    #104), with no evalTol column, or with evalTol NA or "abc" (R105-7/8);
+#    no evalMaxSeg column, or an evalMaxSeg other than combine's segment cap,
+#    named as a cap mismatch (#105 delta review, C3);
 #    CET_BF_TOL = 0.01 does not loosen a file eval checked at 1e-4, and accepts
 #    |check| 1e-3 in a file eval checked at 0.01.  eval's side (no cross.csv
 #    unless the checks pass, the record it writes) needs a real chain:
@@ -156,7 +158,7 @@ for (mkv in c("pattern", "allTips")) {
       fp <- SegmentFingerprint(d)
       if (t == 1) utils::write.csv(data.frame(sample = 1, check = 0, checkChar = 0,
                                               evalSamples = fp$samples, evalSegMd5 = fp$md5,
-                                              evalTol = 1e-4, evalTolChar = 1e-8),
+                                              evalTol = 1e-4, evalTolChar = 1e-8, evalMaxSeg = 0L),
                                    file.path(d, "cross.csv"),
                                    row.names = FALSE)
       truth[[length(truth) + 1L]] <- data.frame(mkv = mkv, power = t, rep = rep,
@@ -215,6 +217,7 @@ MakeChain <- function(root, label, rep, charLL = -1700, cross = FALSE,
   utils::write.csv(data.frame(logPost = ll, charLL = ll, iteration = seq_len(nSmp)),
                    file.path(d, "seg0001_samples.csv"), row.names = FALSE)
   if (!is.null(progress)) writeLines(progress, file.path(d, "progress.txt"))
+  saveRDS(list(segment = 1L), file.path(d, "checkpoint.rds"))
   if (cross) {
     z <- stats::rnorm(nSmp)
     x <- data.frame(sample = seq_len(nSmp))
@@ -230,6 +233,7 @@ MakeChain <- function(root, label, rep, charLL = -1700, cross = FALSE,
     x$evalSegMd5 <- fp$md5
     x$evalTol <- 1e-4      # the tolerances eval applied (#105 review)
     x$evalTolChar <- 1e-8
+    x$evalMaxSeg <- 0L     # the segment cap eval read under (none; #105 delta review, C3)
     utils::write.csv(x, file.path(d, "cross.csv"), row.names = FALSE)
   }
 }
@@ -407,6 +411,12 @@ bad <- good; bad$evalTol <- NA
 Refused(bad, "evalTol NA", "cross.csv records evalTol NA")
 bad <- good; bad$evalTol <- "abc"
 Refused(bad, "evalTol \"abc\"", "cross.csv records evalTol abc")
+bad <- good; bad$evalMaxSeg <- NULL
+Refused(bad, "no evalMaxSeg column (C3)", "cross.csv does not record eval's segment cap")
+bad <- good; bad$evalMaxSeg <- 1L
+Refused(bad, "evalMaxSeg 1 while combine runs uncapped (C3)", "segment cap mismatch: eval read with cap 1, combine runs with cap 0")
+Refused(good, "evalMaxSeg 0 while combine runs with CET_MAX_SEG=1 (C3)",
+        "segment cap mismatch: eval read with cap 0, combine runs with cap 1", "CET_MAX_SEG=1")
 bad <- good; bad$check[7] <- 1e-7
 utils::write.csv(bad, f, row.names = FALSE)
 res <- CombineEnv(root8)

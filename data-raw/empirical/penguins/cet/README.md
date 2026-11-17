@@ -37,7 +37,8 @@ posterior (see **Starting tree** and **Production runs**).
 | `run-array.sh` | Slurm array for the production chains (16 tasks = 4 cells x 4 replicates) |
 | `smoke.sh`, `check-smoke.R` | Smoke run on the `test` partition and its checks (timing, acceptance, exact resume) |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`) |
-| `check-labels.R` | Checks of chain labels (plain decimal notation, unparseable labels stop), of the Mkv-variant filter of `combine`'s stepping-stone (#75), and of `combine` on incomplete ladders and edges (#88), and of the expected chain set (launch record, #101); `smoke-results/check-labels.txt` |
+| `check-labels.R` | Checks of chain labels (plain decimal notation, unparseable labels stop), of the Mkv-variant filter of `combine`'s stepping-stone (#75), and of `combine` on incomplete ladders and edges (#88), of the expected chain set (launch record, #101; #103 review), and of `combine` refusing a `cross.csv` that failed `eval`'s checks (#104); `smoke-results/check-labels.txt` |
+| `check-eval.sh` | `eval`'s side of #104 on a copy of a real chain: no `cross.csv` unless the checks pass; `smoke-results/check-eval.txt` |
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
 | `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66) |
 | `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
@@ -338,10 +339,12 @@ launched chain directory missing from the record, and a record with no chain
 of the variant (R103-7 to R103-10); writes `chains-used.csv` (R103-12); and
 names a column missing from `cross.csv` (R103-13).  A `cross.csv` written
 before these fixes is refused: rerun `eval`.
-**Caveat (R103-6):** until #104, `eval` writes `cross.csv` before its
-self-check and never stops on it, and `combine` does not read the `check`
-column, so a chain scored against the wrong target would still be used.
-`check-labels.R` checks all of these.
+With #104, `eval` writes `cross.csv` only after its checks pass, records its
+tolerances (`evalTol`, `evalTolChar`), and `combine` refuses a `cross.csv` that
+fails the stricter of these and its own `CET_BF_TOL`, `CET_BF_TOL_CHAR` (R103-6
+is resolved by #104).  `check-labels.R` checks combine's side of all of these;
+eval's side (the gated write, the record, an early stop) is checked by
+`check-eval.sh` on a real chain (#105 review, R105-10).
 In `seg*_samples.csv`, `logPrior` is the log prior of the
 parameters (as in `cross.csv`), and `logOriginPrior` is that of the origin
 age; the chain's `logPost` includes both.  Before #74 the samples' `logPrior`
@@ -394,6 +397,24 @@ generalise:
   computable at every recorded state (`eval`; the chain's own value, with the
   origin age prior that `TempoMCMC()` has added to logPost since #56, is
   checked against its logPost: maximum residuals 4.6e-12 to 9.3e-8 over the 20 smoke states of each cell, `smoke-results/bf-eval.txt`, against a constant 5.075 = log 160 before #67).
+  Since #104, `eval` also recomputes the character log-likelihood
+  (`checkChar`, against the chain's charLL).
+  - It first deletes any earlier `cross.csv`, so no stop leaves one behind
+    (#105 review, R105-1).
+  - It writes `cross.csv` (temporary file, removed on exit, then rename)
+    only when every state's |`check`| is within `CET_BF_TOL` (default 1e-4)
+    and every |`checkChar`| within `CET_BF_TOL_CHAR` (default 1e-8).  The
+    file records both tolerances.
+  - `combine` refuses a `cross.csv` that fails these checks.  It also refuses
+    one with a non-finite check, with no `checkChar`, `evalTol` or
+    `evalTolChar` column, or with a recorded tolerance that is not a positive
+    number, naming the chain (`check-labels.R` section 8, `check-eval.sh`).
+  - Tolerances: the recomputed log posterior differs from the chain's by up to
+    1.86e-5 (a 200 000-iteration rung) and 1.11e-5 (the 400 000-iteration
+    production cells), about 1e-8 relative.  That is drift in the running
+    value, hence a tolerance wider than the trilobite 1e-6.  charLL is
+    recomputed exactly (max |`checkChar`| 5.0e-12 over the 40 chains), hence
+    1e-8.
 - Two-sample bridge sampling (Meng & Wong 1996; `BridgeTwo()` from rung 7)
   on the draws of both posteriors estimates log Z_B / Z_A: the Bayes factor
   for all the data (characters, tip ages, sampled ancestors), with the tree

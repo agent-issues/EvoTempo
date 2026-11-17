@@ -1,24 +1,32 @@
 == first process: one segment, CET_HOURS=0
 exit 0
-2026-11-17 09:27:13 stopping after 0.0 h (CET_HOURS); resubmit to continue 
+2026-11-17 10:09:32 stopping after 0.0 h (CET_HOURS); resubmit to continue 
 == A: install with another BUILD_SHA (must stop: evotempoSha)
 Error: /nobackup/pjjg18/evotempo-trilobite-gamma/guards/runs/b0g0_run1/checkpoint.rds holds a chain with another target; it differs in: evotempoSha (checkpoint bf8ce1c2315dbb483c795c4832a70e0e90e05bd3; this run 0000000)
 exit 1
-2026-11-17 09:27:13 stopping after 0.0 h (CET_HOURS); resubmit to continue 
+2026-11-17 10:09:32 stopping after 0.0 h (CET_HOURS); resubmit to continue 
 == B: characters.csv changed (must stop: charactersMd5)
 Error: /nobackup/pjjg18/evotempo-trilobite-gamma/guards/runs/b0g0_run1/checkpoint.rds holds a chain with another target; it differs in: charactersMd5 (checkpoint md5:84162afedf9e1978eb926f7c454b3f3d; this run md5:4441b7275497ee1a00dd27e016106c81)
 exit 1
-2026-11-17 09:27:13 stopping after 0.0 h (CET_HOURS); resubmit to continue 
+2026-11-17 10:09:32 stopping after 0.0 h (CET_HOURS); resubmit to continue 
 82:cetAlphaRate <- 2.5
 == C: alpha prior rate 2.5 (must stop: alphaPrior)
 Error: /nobackup/pjjg18/evotempo-trilobite-gamma/guards/runs/b0g0_run1/checkpoint.rds holds a chain with another target; it differs in: alphaPrior (checkpoint alpha ~ Exponential(rate 2); 4 Gamma categories; this run alpha ~ Exponential(rate 2.5); 4 Gamma categories)
 exit 1
-2026-11-17 09:27:13 stopping after 0.0 h (CET_HOURS); resubmit to continue 
-== D: identical copy of the install (must resume and complete)
+2026-11-17 10:09:32 stopping after 0.0 h (CET_HOURS); resubmit to continue 
+== F1: reinstall of the same commit (must stop: evotempoMd5)
+Error: /nobackup/pjjg18/evotempo-trilobite-gamma/guards/runs/b0g0_run1/checkpoint.rds holds a chain with another target; it differs in: evotempoMd5 (checkpoint md5:72a086483b7718f806af877fbc7b068e; this run md5:ca170b170cb29677170c7b95277d71f7)
+exit 1
+2026-11-17 10:09:32 stopping after 0.0 h (CET_HOURS); resubmit to continue 
+== F2: the same with CET_ALLOW_REINSTALL=1 (must resume)
 exit 0
-2026-11-17 09:27:35 complete 
+2026-11-17 10:09:59 stopping after 0.0 h (CET_HOURS); resubmit to continue 
+2026-11-17 10:09:44 CET_ALLOW_REINSTALL: same version 0.0.0.9000 and commit bf8ce1c2315dbb483c795c4832a70e0e90e05bd3, installed code md5 md5:ca170b170cb29677170c7b95277d71f7 (was md5:72a086483b7718f806af877fbc7b068e) 
+== D: identical copy of the install that wrote the last checkpoint (must resume and complete)
+exit 0
+2026-11-17 10:10:16 complete 
 == E: checkpoint from before Gamma rates (must stop: nRateCat (none))
 Error: /nobackup/pjjg18/evotempo-trilobite-gamma/guards/old/b0g0_run1/checkpoint.rds holds a chain with another target; it differs in: nRateCat (checkpoint (none); this run 4); alphaPrior (checkpoint (none); this run alpha ~ Exponential(rate 2); 4 Gamma categories); alphaPriorCode (checkpoint (none); this run md5:2848b1ebf5692b45c5e7a08d5e406fde); charactersMd5 (checkpoint (none); this run md5:84162afedf9e1978eb926f7c454b3f3d); partitionsMd5 (checkpoint (none); this run md5:a04d8a3ae602df0d354d1fa5a5b3236a); evotempoVersion (checkpoint (none); this run 0.0.0.9000); evotempoSha (checkpoint (none); this run bf8ce1c2315dbb483c795c4832a70e0e90e05bd3); evotempoMd5 (checkpoint (none); this run md5:72a086483b7718f806af877fbc7b068e)
 exit 1
-check-guards.sh: 5 of 5 guards behave as required
+check-guards.sh: 7 of 7 guards behave as required
 PASS

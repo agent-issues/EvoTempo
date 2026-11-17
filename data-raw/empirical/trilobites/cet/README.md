@@ -337,7 +337,9 @@ the EvoTempo build: `packageVersion()`, the commit SHA that the build step write
 (`<lib>/EvoTempo/BUILD_SHA`; **Running on Hamilton**) and an md5 over the installed code (review of
 #114, R114-3, R114-6).  A resubmission therefore resumes only under the same build, data and
 prior; a stop names the fields that differ (`smoke-results/guards.txt`).  A reinstall, even of the
-same commit, may change the md5: resume a chain with the library it started with.  The
+same commit, changes the md5 (`check-guards.sh` case F), so resume a chain with the library it
+started with; `CET_ALLOW_REINSTALL=1` resumes under a reinstall of the same commit, comparing the
+version and `BUILD_SHA` only, and notes it in `progress.txt` (#114 delta review, N2).  The
 checkpoint also records the start-draw index and the start tree (its md5, its path relative to `cet/`,
 and the full path); a run with any of them different, from a start tree with another md5, or whose
 tree has another tip order than the loaded characters, stops (#76; review of #91, F1).  The resume
@@ -406,11 +408,11 @@ gamma-acrv-97 at da4dbd0 with #103 merged; `lib-bf8ce1c`), work directory
 `/nobackup/pjjg18/evotempo-trilobite-gamma`.  Before it (PR #91): main 48e6bf7.
 
 **Smoke with Gamma rates** (`smoke.sh`, `test` partition, 40 burn-in + 2 x 100 iterations per
-chain; tasks 1-10, Slurm 19476399, checked by 19476400; `smoke-results/timing.csv`,
+chain; tasks 1-10, Slurm 19476688, checked by 19476698; `smoke-results/timing.csv`,
 `acceptance.csv`, `resume.txt`, `stop-resume.txt`, `eval.txt`, `peak-memory.csv`,
 `check-smoke.txt`): every cell ran from its own draw (01-04), plus cells (1, 1) and (0, 0) of
-replicate 2 (draws 08 and 05).  After burn-in: 0.77 s per iteration in (0, 0), 0.79 in (1, 0), 1.18
-in (0, 1) and 1.17 in (1, 1), with ten tasks sharing one node; the first smoke with Gamma (Slurm
+replicate 2 (draws 08 and 05).  After burn-in: 0.76 s per iteration in (0, 0), 0.77 in (1, 0), 1.11
+in (0, 1) and 1.12 in (1, 1), with ten tasks sharing one node; the first smoke with Gamma (Slurm
 19473061, seven tasks) gave 0.709, 0.724, 1.052 and 1.133 s, against 0.471, 0.487, 0.581 and 0.590 s
 before Gamma (same draws and seeds): x 1.49-1.51 with gamma = 0 and x 1.81-1.92 with gamma = 1, whose many
 local path moves each rescore the characters.  Acceptance of the alpha move 29-40%; the other moves
@@ -420,17 +422,22 @@ samples (maximum absolute difference 0 over 10 samples x 25 columns, alpha inclu
 trees.  **Resume in a second process** (task 8, review of #114, R114-2): stopped by `CET_HOURS=0`
 after segment 1 and resumed by a new `Rscript` from the checkpoint on disk, it equals task 4 and
 task 5 (0 over 20 samples x 26 columns; trees identical).  **Predictive stop** (task 9, R114-1):
-under a fake 0.02 h limit, the chain stopped before segment 2 (0.021 h elapsed + 1.5 x 0.020 h >
-0.020 h), and a second process resumed and completed it.  **Kill before a checkpoint** (task 10):
+under a fake 0.043 h limit, the chain stopped before segment 2 (0.018 h elapsed + 1.5 x 0.018 h >
+0.043 h), where elapsed + 1.0 x the last segment (0.036 h) would not have, so the test fails if the
+predictive term is broken (`check-smoke.R` checks this from the logged times; #114 delta review,
+N1: the first fake limit, 0.02 h, was below the elapsed time), and a second process resumed and
+completed it.  **Kill before a checkpoint** (task 10):
 killed after writing segment 2's `acceptance.csv` rows and before its checkpoint, then resumed:
 `acceptance.csv` holds each segment once, and the samples and trees equal task 9's (0 over 20 x 26).
 **`eval` on every smoke chain**, the two replicate-2 chains included: exit 0 and `cross.csv` written
 for all six; maximum |recomputed - logPost| 4.1e-12 to 4.7e-9 (the recomputation includes alpha's
 prior), maximum |recomputed - charLL| <= 5e-12.  Peak memory 171-185 MB per process
-(`peak-memory.csv`).  **Guards** (`check-guards.sh`, Slurm 19476428, `smoke-results/guards.txt`;
+(`peak-memory.csv`).  **Guards** (`check-guards.sh`, Slurm 19476662, `smoke-results/guards.txt`;
 R114-3, R114-6): a resume under an install with another `BUILD_SHA`, from changed `characters.csv`,
-with the alpha prior's rate changed, or from PR #91's pre-Gamma checkpoint stops, naming exactly the
-fields that differ; under an identical copy of the install it continues to completion (5 of 5).
+with the alpha prior's rate changed, under a reinstall of the same commit (other code md5), or from
+PR #91's pre-Gamma checkpoint stops, naming exactly the fields that differ; with
+`CET_ALLOW_REINSTALL=1` the reinstall resumes and says so in `progress.txt`, and an identical copy
+of the install continues to completion (7 of 7).
 **`check-combine.sh`** (#103's tiny real chains: `eval` and `combine` with a ladder rung, the
 expected chain set and the resume guard; Slurm 19476412-14) passes on this code
 (`smoke-results/check-combine.txt`), and so does `summarise.R` on the smoke chains and the
@@ -507,7 +514,8 @@ have been killed inside segment 16; b0g1 would have finished at 70.5-71.0 h insi
 10% slower it would have been killed in segment 19 (the reviewer and verifier agree to 0.1 h).
 `run-chain.R` now stops cleanly **before** a segment if the time elapsed plus 1.5 x the last
 segment's would pass `CET_WALL_HOURS - CET_WALL_MARGIN` (72 - 0.25 h), and keeps `CET_HOURS` as a
-hard cap, now 65 h (the launch sets it explicitly).  At the Gamma pilot's rates (burn-in 0.91,
+hard cap, now 65 h (the launch sets it explicitly).  `CET_WALL_HOURS` is not read from Slurm: it
+must match the job's `--time` (`run-array.sh`; #114 delta review, N3).  At the Gamma pilot's rates (burn-in 0.91,
 2.06, 0.85 and 1.47 s per iteration; segments 2.58, 3.47, 2.71 and 4.41 h) the chains of cells
 (0, 0) and (1, 0) complete in about 52 and 55 h; the chains of (0, 1) stop after segment 19 (about
 67 h) and those of (1, 1) after segment 15 (about 67 h), and each finishes in a second job of about
@@ -550,7 +558,12 @@ chains; remove them once `eval` has run.
     sbatch -J evotempo-trilobite-cet --array=1-16 \
       --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000,CET_HOURS=65 \
       data-raw/empirical/trilobites/cet/run-array.sh
-    # resubmit the same command for the chains that stopped before the limit (cells (0, 1), (1, 1))
+    # resubmit the same command for the chains that stopped before the limit (cells (0, 1), (1, 1));
+    # do NOT rebuild lib-<sha> while chains await resubmission: a reinstall, even of the same
+    # commit, changes the installed code's md5 and the resume stops; if it had to be rebuilt,
+    # resubmit with --export=ALL,...,CET_ALLOW_REINSTALL=1 (compares version and BUILD_SHA only).
+    # The predictive stop assumes --time=3-00:00:00 (CET_WALL_HOURS=72): with a shorter --time,
+    # export CET_WALL_HOURS to match.
     # launch record (only needed beyond the 4 x 4 production chains; one row per launched group):
     printf 'cell,reps\nb0g0,4\nb0g1,4\nb1g0,4\nb1g1,4\n' > $W/runs/launch.csv   # + e.g. b0.5g0,4 per rung
     # per chain, then once:

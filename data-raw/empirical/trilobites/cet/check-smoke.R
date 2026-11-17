@@ -104,6 +104,16 @@ checks <- c(
   "task 9: predictive stop before segment 2 under the fake wall limit" =
     isTRUE(grep("stopping before segment 2: .* would pass", pre$progress)[1] <
              grep("segment 2/4 done", pre$progress)[1]) && Has(pre, "segment 1/4 done"),
+  "task 9: only the 1.5 factor stopped it (elapsed + 1.0 x last segment < limit)" = local({
+    m <- regmatches(pre$progress, regexec(
+      "stopping before segment 2: ([0-9.]+) h elapsed \\+ 1\\.5 x ([0-9.]+) h .* would pass ([0-9.]+) h",
+      pre$progress))
+    m <- Filter(length, m)
+    length(m) == 1L && {
+      v <- as.numeric(m[[1]][2:4])
+      v[1] + v[2] < v[3] && v[1] + 1.5 * v[2] > v[3]
+    }
+  }),
   "task 9: resumed and completed (4 segments)" = Has(pre, "resuming after segment 1") && Complete(pre) &&
     max(pre$samples$segment) == 4,
   "task 10: killed after segment 2's acceptance.csv, before its checkpoint" =

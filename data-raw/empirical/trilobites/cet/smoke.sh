@@ -44,8 +44,11 @@ if [ "$task" = 7 ]; then cell=1; rep=2; fi
 #    segment 1, the second resumes; check-smoke.R compares it with task 4 (one
 #    process) and task 5 (one segment).
 # 9: cell (0, 0), segments of 50, with a fake wall limit in the first process
-#    (CET_WALL_HOURS=$SMOKE_FAKE_WALL, default 0.02 h; margin 0): the
-#    predictive stop must stop it before segment 2; the second process, with
+#    (CET_WALL_HOURS=$SMOKE_FAKE_WALL, default 0.043 h; margin 0), between
+#    the time elapsed at segment 1's end (~0.019 h) plus 1.0 and plus 1.5 x
+#    segment 1 (64-71 s: ~0.037-0.041 and ~0.046-0.051 h), so only the 1.5
+#    factor stops it (#114 delta review, N1; check-smoke.R checks this from
+#    the logged times): the predictive stop must stop it before segment 2; the second process, with
 #    the default limit, resumes and completes.
 # 10: as 9, but the first process is killed after writing segment 2's
 #    acceptance.csv rows and before its checkpoint (CET_TEST_KILL_SEGMENT=2):
@@ -66,7 +69,7 @@ for run in $(seq 1 $runs); do
   if [ "$runs" = 2 ] && [ "$run" = 1 ]; then
     case $task in
       8) first="CET_HOURS=0" ;;
-      9) first="CET_WALL_HOURS=${SMOKE_FAKE_WALL:-0.02} CET_WALL_MARGIN=0" ;;
+      9) first="CET_WALL_HOURS=${SMOKE_FAKE_WALL:-0.043} CET_WALL_MARGIN=0" ;;
       10) first="CET_TEST_KILL_SEGMENT=2" ;;
     esac
   fi

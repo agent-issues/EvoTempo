@@ -4,8 +4,8 @@
 #
 #   sbatch -J evotempo-trilobite-cet-guards data-raw/empirical/trilobites/cet/check-guards.sh
 #
-# Cell (0, 0) runs one segment of 20 iterations (CET_HOURS=0 stops it there),
-# then resumes:
+# Cell (0, 0), three segments of 20 iterations, runs one segment
+# (CET_HOURS=0 stops it there), then resumes:
 #   A. under a copy of the install with another BUILD_SHA: must stop (evotempoSha);
 #   B. from a copy of the trilobite data whose characters.csv has a changed
 #      byte (a trailing blank line, which read.csv skips): must stop
@@ -13,8 +13,14 @@
 #   C. with the alpha prior's rate changed in common.R (copy): must stop
 #      (alphaPrior; the code md5 alphaPriorCode catches edits to the
 #      functions themselves);
-#   D. under an identical copy of the install (same BUILD_SHA and files): must
-#      resume and complete;
+#   F. under a reinstall of the same commit (a copy of the install whose
+#      R/EvoTempo.rdb has one byte appended past the last object, so its md5
+#      changes and nothing it reads does): must stop (evotempoMd5) without
+#      CET_ALLOW_REINSTALL, and with CET_ALLOW_REINSTALL=1 resume, say so in
+#      progress.txt, run segment 2 and stop (CET_HOURS=0) (#114 delta review,
+#      N2);
+#   D. under an identical copy of the install that wrote the last checkpoint
+#      (F's): must resume and complete;
 #   E. a chain written before Gamma rates (PR #91's smoke chain b0g0_run1 at
 #      $OLD_CHAIN, copied): must stop, naming nRateCat and the new fields as
 #      "(none)".
@@ -36,7 +42,7 @@ CET=data-raw/empirical/trilobites/cet
 OUT=${OUT:-$SRC/$CET/smoke-results}
 G=$W/guards
 rm -rf $G; mkdir -p $G/runs
-export CET_OUT=$G/runs CET_NITER=40 CET_BURNIN=10 CET_THIN=10 CET_SEG=20
+export CET_OUT=$G/runs CET_NITER=60 CET_BURNIN=10 CET_THIN=10 CET_SEG=20
 F=$OUT/guards.txt
 Run() {  # label, R_LIBS, source dir, [env]
   echo "== $1" >> $F
@@ -56,8 +62,12 @@ Run "B: characters.csv changed (must stop: charactersMd5)" $LIB $G/srcB
 sed -i 's/^cetAlphaRate <- 2$/cetAlphaRate <- 2.5/' $G/srcC/$CET/common.R
 grep -n "^cetAlphaRate" $G/srcC/$CET/common.R >> $F
 Run "C: alpha prior rate 2.5 (must stop: alphaPrior)" $LIB $G/srcC
-cp -r $LIB $G/libD
-Run "D: identical copy of the install (must resume and complete)" $G/libD $SRC
+cp -r $LIB $G/libF; printf x >> $G/libF/EvoTempo/R/EvoTempo.rdb
+Run "F1: reinstall of the same commit (must stop: evotempoMd5)" $G/libF $SRC
+Run "F2: the same with CET_ALLOW_REINSTALL=1 (must resume)" $G/libF $SRC "CET_ALLOW_REINSTALL=1 CET_HOURS=0"
+grep "CET_ALLOW_REINSTALL" $G/runs/b0g0_run1/progress.txt | cut -c1-400 >> $F
+cp -r $G/libF $G/libD
+Run "D: identical copy of the install that wrote the last checkpoint (must resume and complete)" $G/libD $SRC
 OLD_CHAIN=${OLD_CHAIN:-/nobackup/pjjg18/evotempo-trilobite-cet/smoke/b0g0_run1}
 mkdir -p $G/old; cp -r $OLD_CHAIN $G/old/
 echo "== E: checkpoint from before Gamma rates (must stop: nRateCat (none))" >> $F
@@ -71,7 +81,10 @@ Line A | grep -q "differs in: evotempoSha (checkpoint [0-9a-f]*; this run 000000
 Line B | grep -q "differs in: charactersMd5 (checkpoint md5:[0-9a-f]*; this run md5:[0-9a-f]*)$" && pass=$((pass+1))
 Line C | grep -q "differs in: alphaPrior (checkpoint alpha ~ Exponential(rate 2); 4 Gamma categories; this run alpha ~ Exponential(rate 2.5); 4 Gamma categories)$" && pass=$((pass+1))
 grep -A3 "^== D" $F | grep -q "complete" && pass=$((pass+1))
+Line F1 | grep -q "differs in: evotempoMd5 (checkpoint md5:[0-9a-f]*; this run md5:[0-9a-f]*)$" && pass=$((pass+1))
+grep -A3 "^== F2" $F | grep -q "^exit 0" && grep -q "CET_ALLOW_REINSTALL: same version" $G/runs/b0g0_run1/progress.txt &&
+  grep -q "segment 2/3 done" $G/runs/b0g0_run1/progress.txt && pass=$((pass+1))
 Line E | grep -q "differs in: nRateCat (checkpoint (none); this run 4)" && pass=$((pass+1))
-echo "check-guards.sh: $pass of 5 guards behave as required" >> $F
-[ $pass = 5 ] && echo "PASS" >> $F || echo "FAIL" >> $F
-rm -rf $G/libA $G/libD $G/srcB $G/srcC $G/old
+echo "check-guards.sh: $pass of 7 guards behave as required" >> $F
+[ $pass = 7 ] && echo "PASS" >> $F || echo "FAIL" >> $F
+rm -rf $G/libA $G/libD $G/libF $G/srcB $G/srcC $G/old

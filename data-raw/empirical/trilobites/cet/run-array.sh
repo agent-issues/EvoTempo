@@ -28,6 +28,9 @@
 #SBATCH -c 1
 #SBATCH --mem=3G
 #SBATCH --time=3-00:00:00
+# run-chain.R's predictive stop assumes this limit (CET_WALL_HOURS, default 72):
+# with a shorter --time, export CET_WALL_HOURS to match, or Slurm can kill a
+# chain inside a segment (#114 delta review, N3)
 #SBATCH -o /nobackup/pjjg18/evotempo-trilobite-cet/logs/%x-%A_%a.out
 set +e; set +o pipefail
 source /etc/profile || true

@@ -22,12 +22,18 @@
 #   CET_HOURS        hard cap: stop cleanly after the segment that passes this
 #                    many hours (default 65); resubmit the same command to
 #                    continue from the checkpoint
-#   CET_WALL_HOURS   the job's wall-clock limit in hours (default 72, `shared`),
+#   CET_WALL_HOURS   the job's wall-clock limit in hours (default 72, `shared`;
+#                    it is not read from Slurm: set it to match a shorter
+#                    --time),
 #   CET_WALL_MARGIN  less this margin (default 0.25): before each segment, stop
 #                    cleanly if the time elapsed plus 1.5 x the last segment's
 #                    time would pass CET_WALL_HOURS - CET_WALL_MARGIN, so that
 #                    Slurm never kills a chain inside a segment (review of
 #                    #114, R114-1: a 10 000-iteration segment takes 2.6-4.4 h)
+#   CET_ALLOW_REINSTALL  1 to resume under a reinstall of the same commit:
+#                    compare EvoTempo's version and BUILD_SHA but not the md5
+#                    of the installed code (do not rebuild lib-<sha> while
+#                    chains await resubmission; this is the way out if it was)
 #   CET_TEST_KILL_SEGMENT  testing only (smoke.sh task 10): quit with status
 #                    137 after writing segment k's acceptance.csv rows and
 #                    before its checkpoint, as a kill in that window would
@@ -127,6 +133,18 @@ ckpFile <- file.path(outDir, "checkpoint.rds")
 if (file.exists(ckpFile)) {
   ckp <- readRDS(ckpFile)
   same <- vapply(names(target), function(n) identical(ckp[[n]], target[[n]]), TRUE)
+  # CET_ALLOW_REINSTALL=1: a reinstall of the same commit changes the code md5
+  # but not the version or SHA; compare those only (#114 delta review, N2).
+  # Refused when the SHA is unrecorded, which would leave nothing to compare
+  reinstall <- Sys.getenv("CET_ALLOW_REINSTALL") == "1" && !same[["evotempoMd5"]] &&
+    all(same[setdiff(names(same), "evotempoMd5")])
+  if (reinstall) {
+    if (identical(target$evotempoSha, "unrecorded")) {
+      stop("CET_ALLOW_REINSTALL needs the build's commit in <lib>/EvoTempo/BUILD_SHA; ",
+           "this install records none")
+    }
+    same[["evotempoMd5"]] <- TRUE
+  }
   if (!all(same)) {
     # Only the fields that differ (review of #114: the build and data fields
     # made the full list hard to read)
@@ -156,6 +174,11 @@ if (file.exists(ckpFile)) {
                  format(ckp$startTreeRel %||% ckp$startTree), ckp$startTreeMd5,
                  startTreeRel, startTreeMd5,
                  if (sameTree) ": tip orders differ" else ": a different start tree"))
+  }
+  if (reinstall) {
+    Progress("%s CET_ALLOW_REINSTALL: same version %s and commit %s, installed code md5 %s (was %s)",
+             format(Sys.time()), target$evotempoVersion, target$evotempoSha, target$evotempoMd5,
+             ckp$evotempoMd5)
   }
   Progress("%s resuming after segment %d", format(Sys.time()), ckp$segment)
 } else {

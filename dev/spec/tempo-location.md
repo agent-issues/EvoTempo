@@ -246,4 +246,14 @@ top-three-bin masses below 10⁻³. Otherwise, revise the window (z_max) or K in
   and s does not pile against its support edge.
 - Recheck that cell (1, 1) is qualitatively unchanged.
 
-The penguin and trilobite pipelines are not part of this plan until the maintainer answers the question in #116.
+**Scope (maintainer, 2026-11-25).** The aim is one model setup, with the same parameterisation and the same moves, for
+every dataset; there are to be no per-dataset variants. The mean-rate model therefore becomes the model for penguins,
+trilobites and Hymenoptera alike:
+- penguins are rerun under it, together with the rerun that the new tree moves (#110) require anyway;
+- trilobite production waits for it;
+- `location = "bm"` stays only as the Budd & Mann reproduction fixture for rung 1, never as an option for an empirical
+  analysis.
+
+If V0 or V5 shows that the mean-rate model does not work for one dataset, this spec is revised for all of them. No
+dataset-specific switch is added. The `CET_FBD_SCALE` and `CET_S_MAX` switches on `hymenoptera-cet-pipeline` are removed
+when that pipeline moves to the new model.

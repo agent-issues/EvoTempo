@@ -143,3 +143,21 @@ test_that("A rebound MkLikelihood() that splits the characters stays exact", {
   expect_equal(.MkCache()$entries, 3)
   expect_identical(cached$samples, Run(FALSE)$samples)
 })
+
+test_that("Cached chains match uncached chains with a free origin", {
+  set.seed(6)
+  chars <- matrix(sample(0:1, 5 * 4, replace = TRUE), 5)
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, gamma = 1,
+                     start = "origin")
+  priors <- c(rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  Run <- function(on) {
+    set.seed(7)
+    WithCache(on, TempoMCMC(cacheTree, model, cachePar, priors, nIter = 8,
+                            burnin = 0, nSlice = 4, characters = chars,
+                            moves = c(branch = 1, nodeAge = 2, originAge = 2),
+                            agePriors = list(origin = function(a) -a)))
+  }
+  cached <- Run(TRUE)
+  expect_gt(cached$acceptance[["originAge"]], 0)
+  expect_identical(cached$samples, Run(FALSE)$samples)
+})

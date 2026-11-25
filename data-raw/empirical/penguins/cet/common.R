@@ -71,6 +71,19 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
     return(0)
   }
   tree <- TempoTree(tree)
+  pat <- attr(characters, "mkv")
+  if (.hasMkSet && mkv == "pattern" && identical(engine, "cpp") && !is.null(pat) &&
+      !isFALSE(getOption("EvoTempo.mkCache"))) {
+    # Every partition and constant-pattern matrix in one C++ call; the values,
+    # and the order in which they are combined, are those of the route below
+    s <- MkSetFor(parts, pat, tree[["nTip"]])
+    v <- .mkSetLogLik(s$set, tree, lengths)
+    ll <- 0
+    for (i in s$part) {
+      ll <- ll + v[[i]]
+    }
+    return(power * (ll + -sum(pat$count * log1p(-pat$k * exp(v[s$pattern])))))
+  }
   ll <- 0
   for (p in parts) {
     ll <- ll + .mkOriginal(tree, p$x, lengths, p$k, engine)
@@ -78,7 +91,6 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
   ll <- ll + switch(
     mkv,
     pattern = {
-      pat <- attr(characters, "mkv")
       # Without the attribute, ConstantPatternLogLik() would return numeric(0)
       # and the correction would silently become 0 (#74)
       stopifnot("characters with \"parts\" need the \"mkv\" attribute (MkvPatterns())" =
@@ -91,6 +103,40 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
     none = 0,
     stop("`.cet$mkv` must be \"pattern\", \"allTips\" or \"none\""))
   power * ll
+}
+
+# Handle (.MkSet(), #110) to the cached pruners of the partitions `parts` and of
+# the constant-pattern matrices of `pat`, one per K; kept with the attributes it
+# was built from, and rebuilt when PartitionedMk() is given others.  `part` and
+# `pattern` index the values of .MkSetLogLik(): one per partition, then one per
+# pattern, in the order of `pat$k`.  Builds without .MkSet() use the route of
+# one call per matrix.
+.hasMkSet <- exists(".MkSetLogLik", .ns)
+if (.hasMkSet) {
+  .mkSetLogLik <- get(".MkSetLogLik", .ns)
+}
+MkSetFor <- function(parts, pat, nTip) {
+  s <- .cet$mkSet
+  if (is.null(s) || !identical(s$parts, parts) || !identical(s$pat, pat)) {
+    kU <- unique(pat$k)
+    pattern <- integer(length(pat$k))
+    at <- length(parts)
+    for (k in kU) {
+      i <- which(pat$k == k)
+      pattern[i] <- at + seq_along(i)
+      at <- at + length(i)
+    }
+    s <- list(
+      parts = parts, pat = pat, part = seq_along(parts), pattern = pattern,
+      set = get(".MkSet", .ns)(
+        nTip, c(lapply(parts, `[[`, "x"), unname(pat$const[as.character(kU)])),
+        c(vapply(parts, `[[`, 0, "k"), kU),
+        rep(c(FALSE, TRUE), c(length(parts), length(kU)))
+      )
+    )
+    .cet$mkSet <- s
+  }
+  s
 }
 
 # Distinct missing-data patterns within each K-partition: for every pattern,

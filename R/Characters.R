@@ -76,6 +76,39 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
          !isFALSE(getOption("EvoTempo.mkCache")))
 }
 
+# Handle to the cached pruners of character matrices that are always scored
+# together on one tree (the partitions of a dataset, each with its own number
+# of states): an environment, so that .MkSetLogLik() can renew the pointer,
+# which does not survive serialization.  `sites` marks the matrices that give
+# one value per character instead of their sum.
+.MkSet <- function(nTip, matrices, nState, sites = logical(length(matrices))) {
+  set <- new.env(parent = emptyenv())
+  set[["nTip"]] <- as.integer(nTip)
+  set[["matrices"]] <- lapply(matrices, function(x) {
+    storage.mode(x) <- "integer"
+    x
+  })
+  set[["nState"]] <- as.integer(nState)
+  set[["sites"]] <- as.logical(sites)
+  set[["ptr"]] <- .MkSetCpp(set[["nTip"]], set[["matrices"]], set[["nState"]],
+                            set[["sites"]])
+  set
+}
+
+# Values of every matrix of a .MkSet() in one call, concatenated in order: the
+# log-likelihood, or one per character where registered with `sites`; each is
+# bitwise that of .MkSiteLogLik().  EVOTEMPO_MK_CACHE_CHECK = 1 also checks
+# that `set$matrices` are the registered ones.
+.MkSetLogLik <- function(set, tree, lengths) {
+  out <- .MkSetLogLikCpp(set[["ptr"]], tree[["parent"]], lengths, set[["matrices"]])
+  if (is.null(out)) {
+    set[["ptr"]] <- .MkSetCpp(set[["nTip"]], set[["matrices"]], set[["nState"]],
+                              set[["sites"]])
+    out <- .MkSetLogLikCpp(set[["ptr"]], tree[["parent"]], lengths, set[["matrices"]])
+  }
+  out
+}
+
 # Number of cached character matrices and of partial likelihoods recomputed;
 # `clear = TRUE` empties the cache first
 .MkCache <- function(clear = FALSE) .MkCacheCpp(clear)

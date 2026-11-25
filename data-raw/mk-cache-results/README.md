@@ -39,6 +39,48 @@ bridges, `.LogAugmented()`, `.Messages()` on acceptance), which now dominates:
 the 20x per-proposal gap to RevBayes estimated in #110 is not in the character
 likelihood.
 
+## Fixed cost of an evaluation: one C++ call per character set
+
+A review of the cache (PR #119) found that about 70% of a cached evaluation did
+no pruning: twelve `.MkCpp()` calls, each with a content-keyed lookup and a copy
+of the tip states, behind three layers of R wrappers.  `PartitionedMk()` now
+registers the six partitions and six constant-pattern matrices once
+(`.MkSet()`) and scores them in one call (`.MkSetLogLik()`), with one diff of
+the tree for all twelve pruners.  The values and the order in which they are
+combined are unchanged, so chains are bitwise those of the earlier build.
+
+`data-raw/mk-set-benchmark.R micro 3000` (ms per `PartitionedMk()` call; laptop,
+other jobs running, so read the ratios; two runs each, less one disturbed
+measurement in each of the first two columns of the last row):
+
+| since the last call | before | thin R path, twelve C++ calls | one C++ call | of which C++ |
+|---|---|---|---|---|
+| nothing changed (no pruning) | 0.43-0.48 | 0.21-0.28 | 0.04-0.05 | 0.013-0.017 |
+| one tip edge changed | 0.69-0.74 | 0.44-0.50 | 0.26-0.27 | 0.23-0.24 |
+| every edge changed | 0.92 | 0.57-0.60 | 0.37-0.39 | 0.35 |
+
+So the R wrappers cost about 0.2-0.3 ms per evaluation and the eleven extra C++
+calls, with their lookups and copies, another 0.2 ms; about 0.03 ms of R and
+0.015 ms of glue remain.
+
+`mk-set-benchmark.R iter 40` (production b1g1 schedule, about 84 evaluations per
+iteration, same seed; ms per iteration, four runs each, alternating):
+
+| | ms per iteration | relative |
+|---|---|---|
+| before (PR #119) | 202-209 | 1 |
+| thin R path, twelve C++ calls (`twelve`) | 187-192 | 0.92 |
+| one C++ call | 164-196 | 0.86 |
+
+The two effects are about 8% (R wrappers) and 6% (single entry point) of an
+iteration.  The character likelihood falls from 33% to 16% of the profile
+(`Rprof`, 80 iterations), behind `.Messages()` (20%) and `.Precompute()` (18%).
+
+What is left of an evaluation is mostly `Pruner::set_tree()`, not pruning:
+`mk-set-benchmark.R phases 20000` gives 0.13-0.14 ms of a 0.20-0.23 ms
+evaluation with one tip edge changed (`checkpoint()`: 0.007 ms).
+`dev/plans/mk-edge-updates.md` proposes how to avoid it.
+
 Longer run (recommended on Hamilton, in a new library, not `lib-48e6bf7`):
 
     Rscript data-raw/mk-cache-benchmark.R 1 1 200 10 mk-cache-b1g1.csv

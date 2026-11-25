@@ -5,6 +5,14 @@
     .Call(`_EvoTempo_MkCpp`, tree, characters, lengths, nState, sites, cache)
 }
 
+.MkSetCpp <- function(nTip, matrices, nState, sites) {
+    .Call(`_EvoTempo_MkSetCpp`, nTip, matrices, nState, sites)
+}
+
+.MkSetLogLikCpp <- function(handle, parent, lengths, matrices) {
+    .Call(`_EvoTempo_MkSetLogLikCpp`, handle, parent, lengths, matrices)
+}
+
 .MkCacheCpp <- function(clear) {
     .Call(`_EvoTempo_MkCacheCpp`, clear)
 }

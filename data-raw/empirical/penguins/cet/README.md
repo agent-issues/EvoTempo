@@ -41,7 +41,7 @@ posterior (see **Starting tree** and **Production runs**).
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
 | `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66); `ML=true ML_MODE=stone` runs its stepping-stone one stone per Slurm task |
 | `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
-| `ml-ladder.sh`, `ml-root.sh`, `ml-summary.R` | CET character-power ladders, their run root, and the common-footing marginal likelihoods against the RevBayes comparator ("Common-footing marginal likelihoods") |
+| `ml-ladder.sh`, `ml-root.sh`, `ml-summary.R`, `ml-helpers.R` | CET character-power ladders, their run root, and the common-footing marginal likelihoods against the RevBayes comparator ("Common-footing marginal likelihoods"); `ml-helpers.R` holds the summary's tested helpers (`tests/testthat/test-PenguinMlHelpers.R`) |
 | `smoke-results/` | Smoke and pilot outputs quoted below |
 
 ## Data conversion (`prepare.R`)
@@ -636,9 +636,12 @@ What this does not check: node ages against an exact oracle.
   stay at their prior.  Each program therefore estimates
   log p(characters | tip-age intervals, model) = log E_prior[L(characters)],
   under its own normalised prior.
-- The constants by which the two tree densities differ cancel in that
-  normalisation: -log n!, the orientation factor 2^|V| (`TempoMCMC()` targets
-  the unoriented labelled tree), and the 1/width of the tip-age intervals.
+- The two tree densities differ by -log n! and the 1/width of the tip-age
+  intervals, which are constants and cancel in that normalisation.  The
+  orientation factor 2^|V| (`TempoMCMC()` targets the unoriented labelled
+  tree) is not constant: |V| = n - nSA - 1 varies with the number of sampled
+  ancestors.  It does not cancel, but both programs carry it identically
+  (`R/MCMC.R`; RevBayes `lnProbTreeShape`), so it is shared.
 - This is why the full-data evidences of "Bayes factors" are not comparable
   across programs, but these are.
 
@@ -654,8 +657,9 @@ conditioned on A = {no sampled ancestor at the root}, and
 
 Here P_RB(A) comes from the trees of RevBayes's power-0 stones (prior), and
 P_RB(A | characters) from the comparator's posterior trees.  The other
-known difference is CET's truncation of the lambda, mu and psi priors at
-+-4 sdlog, which is 6e-5 of prior mass each, so below 1e-3 nats.
+known difference is CET's truncation of its priors: lambda, mu, psi and rate at
++-4 sdlog (6e-5 of prior mass each), s on (0, 3]; theta has no RevBayes
+counterpart.  Together these are below 1e-3 nats.
 
 **Anchor.**  CET (0, 0) and RevBayes strict are the same model on that support.
 Their log Z must therefore differ by the predicted root-SA term, up to
@@ -684,8 +688,11 @@ branches and tip ages, and the FBD conditioning.
 
 **Design.**
 - **Powers.** t_k = (k/64)^5, k = 0..64, i.e. RevBayes's `cats = 65`,
-  `alpha = 0.2` schedule ((65 - k)/64)^5.  It is the same in both programs,
-  exactly: 1/0.2 evaluates to 5 and (k/64)^5 is a dyadic rational.
+  `alpha = 0.2` schedule ((65 - k)/64)^5.  The two programs agree closely,
+  not exactly: CET's powers are exact dyadic rationals, while RevBayes
+  computes its powers by bisection in `Beta::quantile`
+  (`DistributionBeta.cpp`), which matches to about 1e-6 relative and gives
+  1.2e-302 for power 0.  The effect on log Z is below 1e-3 nats.
   The estimates on every second power show the discretisation error.
 - **RevBayes.** fd807d10, strict and UCLN, 4 replicates, one Slurm task per
   stone (`runOneStone()`, then `summarize()`).
@@ -698,17 +705,31 @@ branches and tip ages, and the FBD conditioning.
   - Directories: `$W/rbml-fd807d10/<clock>_run<rep>/`.  Jobs:
     `evotempo-penguin-rbml-<clock>-<rep>` (arrays 1-65) and
     `...-summarize` (afterok).
-- **CET.** Cells (0, 0) and (1, 0), the 64 powers t < 1, 2 replicates each.
+- **CET.** Cells (0, 0) and (1, 0), the 64 powers t < 1, 4 replicates each
+  (Slurm arrays 1-128 for replicates 1-2, then 129-256 for replicates 3-4).
   - 100 000 iterations each, plus 2000 burn-in; thinning 100; 25% of
     samples discarded.  The t = 1 rung is the cell's production chains,
     linked into the ladder root by `ml-root.sh`.
   - Start tree: the production start tree of the same cell and replicate.
     Seed `ML_SEED` + 100 j + rep (700000 for (0, 0), 800000 for (1, 0)).
+  - Start parameters: `CetStart(rep)`, not production's `CetStart(k)`, so
+    both cells share them at a given replicate.  Every power of a replicate
+    starts from the same tree and parameters.
+  - Replicates 5 and above need start trees 17 and above, which are not yet
+    drawn (`ml-ladder.sh` header).
   - Code: the production scripts and build (921253b, `lib-48e6bf7`).
   - Root `$W/ml-runs`.  Jobs: `evotempo-penguin-cet-ml-<cell>`.
 - **Estimation.** `ml-summary.R` applies the same estimators to both programs:
   - stepping-stone with `bayes-factors.R`'s `SteppingStone()` variance,
-    per replicate and pooled;
+    per replicate and pooled.  The replicate is the unit: the SE of the
+    pooled CET estimate is max(estimator SE, sd/sqrt(n)) over the n
+    replicates (`CetPooledSe()`), as for the RevBayes mean and the bridge
+    edges;
+  - every replicate's ladder ends in all of the cell's production chains at
+    t = 1.  Stepping-stone does not use those draws, but path sampling does,
+    so the per-replicate path-sampling estimates are correlated;
+  - it stops if a ladder lacks the t = 1 rung or a power, or if a chain is
+    missing (dangling link) or incomplete (`ML_ALLOW_PARTIAL=1` warns instead);
   - path sampling (trapezoid) as a second estimator.
   - It also computes P(root SA) under the prior and the posterior, the anchor,
     and the comparison.

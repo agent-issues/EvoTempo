@@ -19,20 +19,24 @@
 # clock and FBD parameters stay at their prior, so each estimates
 #   log p(characters | tip-age intervals, model) = log E_prior[ L(characters) ],
 # the expectation under that program's normalised prior.  Normalising constants
-# of the tree density (-log n!, the 2^|V| orientation factor, the 1 / width of
-# tip-age intervals) do not enter.  The programs' priors differ in one known
+# of the tree density (-log n!, the 1 / width of tip-age intervals) do not
+# enter; the 2^|V| orientation factor varies with the number of sampled
+# ancestors, so it does not cancel, but both programs carry it identically
+# (R/MCMC.R; RevBayes lnProbTreeShape).  The programs' priors differ in one known
 # respect: EvoTempo does not allow a sampled ancestor at the root, RevBayes
 # does.  If the priors agree on every other tree, CET's prior is RevBayes's
 # conditioned on A = {no sampled ancestor at the root}, and
 #   log Z_CET = log Z_RB + log P_RB(A | characters) - log P_RB(A),
 # with P_RB(A) from the power-0 stones and P_RB(A | characters) from the
 # comparator's posterior.  The anchor checks this for CET (0, 0) against
-# RevBayes strict; the remaining CET lognormal truncation (+-4 sdlog on
-# lambda, mu, psi; 6e-5 of prior mass each) is below 1e-3 nats.
+# RevBayes strict; the remaining difference, CET's truncation of its priors
+# (+-4 sdlog on lambda, mu, psi and rate, 6e-5 of prior mass each; s on (0, 3];
+# theta has no RevBayes counterpart), is below 1e-3 nats.
 #
 # Estimators, the same for both programs: stepping-stone (Xie et al. 2011;
 # SteppingStone() of bayes-factors.R, with its per-stone variance) per
-# replicate and pooled over replicates, and path sampling (trapezoid rule over
+# replicate and pooled over replicates (SE of the pooled CET estimate:
+# max(estimator SE, sd / sqrt(n)) over replicates, CetPooledSe()), and path sampling (trapezoid rule over
 # the mean character log-likelihood at each power).  Burn-in: the first 25%
 # of each CET chain's samples (bayes-factors.R); RevBayes drops 25% of each
 # stone itself (runOneStone(burninFraction = 0.25)).
@@ -45,6 +49,7 @@ stopifnot(length(args) >= 5L)
 cetRoot <- args[[1]]; rbmlRoot <- args[[2]]; rbRoot <- args[[3]]; bfFile <- args[[4]]
 outDir <- args[[5]]
 burn <- 0.25
+source("data-raw/empirical/penguins/cet/ml-helpers.R")
 cats <- as.integer(Sys.getenv("ML_CATS", "65"))
 alpha <- as.numeric(Sys.getenv("ML_ALPHA", "0.2"))
 partial <- nzchar(Sys.getenv("ML_ALLOW_PARTIAL"))
@@ -105,13 +110,20 @@ Facts <- function(nwk) {
 Burn <- function(n) seq_len(n) > floor(burn * n)
 
 # ---- CET ladders ------------------------------------------------------------------
-dirs <- list.dirs(cetRoot, recursive = FALSE)
+# list.files, not list.dirs: a dangling link to a production chain must be seen
+dirs <- list.files(cetRoot, full.names = TRUE)
 lab <- basename(dirs)
 m <- regmatches(lab, regexec("^(b[0-9.]+g[0-9.]+)(_t([0-9.]+))?_run([0-9]+)$", lab))
 ok <- lengths(m) > 0
 cet <- data.frame(dir = dirs[ok], cell = vapply(m[ok], `[`, "", 2),
                   power = vapply(m[ok], function(x) if (nzchar(x[4])) as.numeric(x[4]) else 1, 0),
                   rep = as.integer(vapply(m[ok], `[`, "", 5)))
+cet$exists <- dir.exists(cet$dir)
+cet$complete <- vapply(file.path(cet$dir, "progress.txt"), function(f) {
+  if (!file.exists(f)) return(FALSE)
+  x <- readLines(f, warn = FALSE)
+  length(x) > 0 && grepl("complete[[:space:]]*$", x[length(x)])
+}, TRUE)
 LoadCet <- function(dir) {
   segs <- sort(Sys.glob(file.path(dir, "seg*_samples.csv")))
   if (!length(segs)) return(NULL)
@@ -120,11 +132,15 @@ LoadCet <- function(dir) {
 }
 expectPow <- (seq(0, cats - 2) / (cats - 1))^(1 / alpha)
 stones <- list(); est <- list(); cetPrior <- NULL
-for (cell in unique(cet$cell[cet$power != 1])) {
+ladderCells <- unique(cet$cell[cet$power != 1])
+problems <- CetLadderProblems(cet[cet$cell %in% ladderCells, ], expectPow)
+if (length(problems)) {
+  msg <- paste0("CET ladder(s) incomplete:\n  ", paste(problems, collapse = "\n  "))
+  if (partial) warning(msg, call. = FALSE) else stop(msg, call. = FALSE)
+}
+cet <- cet[cet$exists, ]
+for (cell in ladderCells) {
   sel <- cet[cet$cell == cell, ]
-  pw <- sort(unique(sel$power))
-  missing <- setdiff(signif(expectPow, 12), signif(pw, 12))
-  if (length(missing) && !partial) stop(sprintf("CET %s: %d powers missing", cell, length(missing)))
   ladderReps <- sort(unique(sel$rep[sel$power != 1]))
   data <- lapply(seq_len(nrow(sel)), function(i) LoadCet(sel$dir[i]))
   have <- !vapply(data, is.null, TRUE)
@@ -135,6 +151,9 @@ for (cell in unique(cet$cell[cet$power != 1])) {
       power = sel$power[i], n = length(L), meanL = mean(L), sdL = stats::sd(L), essL = Ess(L))
   }
   pw <- sort(unique(sel$power))
+  # Every replicate's ladder ends in all of the cell's production chains at t = 1.
+  # The stepping-stone never uses the t = 1 draws, but path sampling does, so the
+  # per-replicate path-sampling estimates are correlated (review of #111, N-1).
   repSets <- c(as.list(ladderReps), if (length(ladderReps) > 1) list(ladderReps))
   for (r in repSets) {
     lad <- lapply(pw, function(t) lapply(which(sel$power == t & (sel$power == 1 | sel$rep %in% r)),
@@ -145,7 +164,8 @@ for (cell in unique(cet$cell[cet$power != 1])) {
     est[[length(est) + 1]] <- data.frame(program = "CET", model = cell,
       rep = if (length(r) > 1 || length(ladderReps) == 1) "pooled" else as.character(r), stones = sum(keep) - 1L,
       logZ_ss = ss$logZ, se_ss = ss$se, logZ_ps = PathSampling(pw[keep], meanL),
-      logZ_ss_even = SteppingStone(pw[keep][c(TRUE, FALSE)], lad[keep][c(TRUE, FALSE)])$logZ)
+      logZ_ss_even = with(list(ev = EvenPowers(pw[keep], expectPow)),
+                          SteppingStone(pw[keep][ev], lad[keep][ev])$logZ))
   }
   # Prior samples (t = 0) of this cell, for the prior check
   for (i in which(sel$power == 0)) {
@@ -258,7 +278,7 @@ rsa <- do.call(rbind, rsa)
 utils::write.csv(rsa, file.path(outDir, "root-sa.csv"), row.names = FALSE)
 Pool <- function(pattern) {
   x <- rsa[grepl(pattern, rsa$source), ]
-  c(p = sum(x$pRootSA * x$n) / sum(x$n), se = stats::sd(x$pRootSA) / sqrt(nrow(x)))
+  PoolProportion(x$pRootSA, x$n)
 }
 pi0 <- Pool("power 0$")
 post <- list(strict = Pool("strict posterior"), ucln = Pool("ucln posterior"))
@@ -288,7 +308,8 @@ if (!is.null(cetPrior) && !is.null(rbPrior)) {
 Get <- function(program, model) {
   e <- est[est$program == program & est$model == model & est$rep %in% c("pooled", "mean"), ]
   if (!nrow(e)) return(c(NA, NA))
-  se <- if (program == "RevBayes") e$se_ss else sqrt(e$se_ss^2 + (e$sdReplicates^2 / 2))
+  perRep <- est$logZ_ss[est$program == program & est$model == model & !est$rep %in% c("pooled", "mean")]
+  se <- if (program == "RevBayes") e$se_ss else CetPooledSe(e$se_ss, perRep)
   c(e$logZ_ss, se)
 }
 bf <- if (file.exists(bfFile)) utils::read.csv(bfFile) else NULL

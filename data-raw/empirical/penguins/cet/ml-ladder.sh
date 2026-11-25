@@ -10,11 +10,17 @@
 # ML_NPOW = 64).  These are exactly the powers of the RevBayes comparator's
 # 65-stone schedule (cats = 65, alpha = 0.2: ((65 - k) / 64)^5), so the two
 # programs can be compared on the same ladder (and on its every second power).  t = 1 is the cell's
-# production chains, which `bayes-factors.R combine` finds under the same run
-# root (symbolic links; ml-root.sh).
+# production chains, which ml-summary.R finds under the same run root
+# (symbolic links; ml-root.sh).
 # Start tree: the production start tree of the same cell and replicate
 # (start-tree-<k>, k = 4 (rep - 1) + cell index); CET_SEED = ML_SEED + 100 j + rep.
-# Settings as the production chains except CET_NITER (default 100000).
+# Start parameters: CetStart(rep), not production's CetStart(k): a ladder label
+# is not a production cell, so run-chain.R seeds the start by replicate, and
+# cells (0, 0) and (1, 0) share it at a given replicate (review of #111, R111-2).
+# Otherwise settings as the production chains, except CET_NITER (default 100000).
+# Replicates 5 and above need start trees k >= 17: draw them first
+# (draw-start-trees.R with n = 32 and the same seed keeps draws 1-16, then
+# prepare.R); the task stops if the tree is missing (R111-13).
 #SBATCH -p shared
 #SBATCH -c 1
 #SBATCH --mem=3G
@@ -40,6 +46,10 @@ export CET_POWER=$(Rscript -e "cat(format(($j / $NPOW)^5, digits = 17, scientifi
 export CET_SEED=$(( ML_SEED + 100 * j + rep ))
 export CET_START_TREE=data-raw/empirical/penguins/cet/data/start-trees/start-tree-$(printf %02d $(( 4 * (rep - 1) + k0 ))).nwk
 cd $SRC
+if [ ! -f "$CET_START_TREE" ]; then
+  echo "$CET_START_TREE is missing: replicate $rep needs start tree $(( 4 * (rep - 1) + k0 )) (see header)"
+  exit 2
+fi
 echo "$(date) src $(git rev-parse HEAD) cell $CET_CELL rep $rep power $CET_POWER seed $CET_SEED start $CET_START_TREE host $(hostname)"
 Rscript data-raw/empirical/penguins/cet/run-chain.R $CET_CELL $rep \
   >> $W/out/ml-$CET_CELL-t$j-$rep.txt 2>&1

@@ -101,17 +101,26 @@ checks <- c(
     Has(two, "resuming after segment 1") && Complete(two),
   "task 8: = task 4 (two segments, one process), every column and tree" = c1$diff == 0 && c1$trees,
   "task 8: = task 5 (one segment), every column but segment, and every tree" = c2$diff == 0 && c2$trees,
-  "task 9: predictive stop before segment 2 under the fake wall limit" =
-    isTRUE(grep("stopping before segment 2: .* would pass", pre$progress)[1] <
-             grep("segment 2/4 done", pre$progress)[1]) && Has(pre, "segment 1/4 done"),
-  "task 9: only the 1.5 factor stopped it (elapsed + 1.0 x last segment < limit)" = local({
-    m <- regmatches(pre$progress, regexec(
-      "stopping before segment 2: ([0-9.]+) h elapsed \\+ 1\\.5 x ([0-9.]+) h .* would pass ([0-9.]+) h",
-      pre$progress))
+  # Task 9's progress: segment 1, stop (CET_HOURS), resume, predictive stop
+  # before segment 2 (no segment run in that process), resume, segments 2-4
+  "task 9: a resumed process stopped before its first segment (predictive stop)" = local({
+    p <- pre$progress
+    iStop <- grep("stopping before segment 2: .* would pass", p)
+    iRes <- grep("resuming after segment 1", p)
+    iDone2 <- grep("segment 2/4 done", p)
+    length(iStop) == 1L && length(iRes) == 2L && length(iDone2) == 1L &&
+      iRes[1] == iStop - 1L && iStop < iRes[2] && iRes[2] < iDone2 &&
+      Has(pre, "segment 1/4 done") && Has(pre, "stopping after .* \\(CET_HOURS\\)")
+  }),
+  "task 9: only the 1.5 factor stopped it, with segment 1's time from the checkpoint" = local({
+    p <- pre$progress
+    s1 <- as.numeric(sub("^.*segment 1/4 done: ([0-9.]+) s .*$", "\\1", grep("segment 1/4 done", p, value = TRUE)))
+    m <- regmatches(p, regexec(paste0("stopping before segment 2: ([0-9.]+) h elapsed \\+ 1\\.5 x ",
+                                      "([0-9.]+) h .*CET_WALL_HOURS ([0-9.e-]+) "), p))
     m <- Filter(length, m)
-    length(m) == 1L && {
-      v <- as.numeric(m[[1]][2:4])
-      v[1] + v[2] < v[3] && v[1] + 1.5 * v[2] > v[3]
+    length(s1) == 1L && length(m) == 1L && {
+      v <- as.numeric(m[[1]][2:4])  # elapsed (h, 3 decimals), last segment (h), limit (h)
+      abs(v[2] - s1 / 3600) < 0.0006 && v[1] + s1 / 3600 < v[3] && v[1] + 1.5 * s1 / 3600 > v[3]
     }
   }),
   "task 9: resumed and completed (4 segments)" = Has(pre, "resuming after segment 1") && Complete(pre) &&

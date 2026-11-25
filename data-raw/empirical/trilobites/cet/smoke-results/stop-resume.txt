@@ -2,33 +2,35 @@ task 8 vs task 4: max |difference| 0 over 20 samples x 26 columns; trees identic
 task 8 vs task 5: max |difference| 0 over 20 samples x 26 columns; trees identical TRUE
 task 10 vs task 9: max |difference| 0 over 20 samples x 26 columns; trees identical TRUE
 task 9 progress:
-  2026-11-17 10:16:07 segment 1/4 done: 63.7 s (0.708 s/iteration incl. 40 burn-in); logPost -3813.87, charLL -2389.29 
-  2026-11-17 10:16:07 stopping before segment 2: 0.018 h elapsed + 1.5 x 0.018 h (last segment) would pass 0.043 h (CET_WALL_HOURS 0.043 - CET_WALL_MARGIN 0); resubmit to continue 
-  2026-11-17 10:16:09 resuming after segment 1 
-  2026-11-17 10:16:46 segment 2/4 done: 36.3 s (0.725 s/iteration incl. 0 burn-in); logPost -4091.34, charLL -2389.64 
-  2026-11-17 10:17:21 segment 3/4 done: 35.2 s (0.704 s/iteration incl. 0 burn-in); logPost -3651.92, charLL -2395.75 
-  2026-11-17 10:17:57 segment 4/4 done: 35.6 s (0.712 s/iteration incl. 0 burn-in); logPost -3574.56, charLL -2403.34 
-  2026-11-17 10:17:57 complete 
+  2026-11-17 10:47:49 segment 1/4 done: 66.9 s (0.743 s/iteration incl. 40 burn-in); logPost -3813.87, charLL -2389.29 
+  2026-11-17 10:47:49 stopping after 0.0 h (CET_HOURS); resubmit to continue 
+  2026-11-17 10:47:52 resuming after segment 1 
+  2026-11-17 10:47:52 stopping before segment 2: 0.001 h elapsed + 1.5 x 0.019 h (last segment) would pass 0.025 h (CET_WALL_HOURS 0.0246059 - CET_WALL_MARGIN 0); resubmit to continue 
+  2026-11-17 10:47:54 resuming after segment 1 
+  2026-11-17 10:48:32 segment 2/4 done: 37.6 s (0.753 s/iteration incl. 0 burn-in); logPost -4091.34, charLL -2389.64 
+  2026-11-17 10:49:09 segment 3/4 done: 36.6 s (0.732 s/iteration incl. 0 burn-in); logPost -3651.92, charLL -2395.75 
+  2026-11-17 10:49:46 segment 4/4 done: 36.9 s (0.737 s/iteration incl. 0 burn-in); logPost -3574.56, charLL -2403.34 
+  2026-11-17 10:49:46 complete 
 task 10 progress:
-  2026-11-17 10:16:07 segment 1/4 done: 63.4 s (0.704 s/iteration incl. 40 burn-in); logPost -3813.87, charLL -2389.29 
-  2026-11-17 10:16:43 test kill after segment 2's acceptance.csv, before its checkpoint (CET_TEST_KILL_SEGMENT) 
-  2026-11-17 10:16:45 resuming after segment 1 
-  2026-11-17 10:17:22 segment 2/4 done: 36.1 s (0.722 s/iteration incl. 0 burn-in); logPost -4091.34, charLL -2389.64 
-  2026-11-17 10:17:57 segment 3/4 done: 35.0 s (0.699 s/iteration incl. 0 burn-in); logPost -3651.92, charLL -2395.75 
-  2026-11-17 10:18:30 segment 4/4 done: 33.2 s (0.664 s/iteration incl. 0 burn-in); logPost -3574.56, charLL -2403.34 
-  2026-11-17 10:18:30 complete 
+  2026-11-17 10:47:49 segment 1/4 done: 66.6 s (0.740 s/iteration incl. 40 burn-in); logPost -3813.87, charLL -2389.29 
+  2026-11-17 10:48:27 test kill after segment 2's acceptance.csv, before its checkpoint (CET_TEST_KILL_SEGMENT) 
+  2026-11-17 10:48:29 resuming after segment 1 
+  2026-11-17 10:49:07 segment 2/4 done: 37.8 s (0.755 s/iteration incl. 0 burn-in); logPost -4091.34, charLL -2389.64 
+  2026-11-17 10:49:44 segment 3/4 done: 36.5 s (0.729 s/iteration incl. 0 burn-in); logPost -3651.92, charLL -2395.75 
+  2026-11-17 10:50:18 segment 4/4 done: 34.2 s (0.685 s/iteration incl. 0 burn-in); logPost -3574.56, charLL -2403.34 
+  2026-11-17 10:50:18 complete 
 task 8 progress:
-  2026-11-17 10:17:53 segment 1/2 done: 169.6 s (1.211 s/iteration incl. 40 burn-in); logPost -3829.06, charLL -2381.90 
-  2026-11-17 10:17:53 stopping after 0.0 h (CET_HOURS); resubmit to continue 
-  2026-11-17 10:17:55 resuming after segment 1 
-  2026-11-17 10:19:49 segment 2/2 done: 113.9 s (1.139 s/iteration incl. 0 burn-in); logPost -3898.79, charLL -2373.14 
-  2026-11-17 10:19:49 complete 
+  2026-11-17 10:49:29 segment 1/2 done: 166.7 s (1.191 s/iteration incl. 40 burn-in); logPost -3829.06, charLL -2381.90 
+  2026-11-17 10:49:29 stopping after 0.0 h (CET_HOURS); resubmit to continue 
+  2026-11-17 10:49:31 resuming after segment 1 
+  2026-11-17 10:51:19 segment 2/2 done: 107.5 s (1.075 s/iteration incl. 0 burn-in); logPost -3898.79, charLL -2373.14 
+  2026-11-17 10:51:19 complete 
 ok   task 8: first process stopped at CET_HOURS = 0 after segment 1
 ok   task 8: second process resumed from the checkpoint on disk and completed
 ok   task 8: = task 4 (two segments, one process), every column and tree
 ok   task 8: = task 5 (one segment), every column but segment, and every tree
-ok   task 9: predictive stop before segment 2 under the fake wall limit
-ok   task 9: only the 1.5 factor stopped it (elapsed + 1.0 x last segment < limit)
+ok   task 9: a resumed process stopped before its first segment (predictive stop)
+ok   task 9: only the 1.5 factor stopped it, with segment 1's time from the checkpoint
 ok   task 9: resumed and completed (4 segments)
 ok   task 10: killed after segment 2's acceptance.csv, before its checkpoint
 ok   task 10: acceptance.csv holds each segment once

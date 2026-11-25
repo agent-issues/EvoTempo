@@ -408,11 +408,11 @@ gamma-acrv-97 at da4dbd0 with #103 merged; `lib-bf8ce1c`), work directory
 `/nobackup/pjjg18/evotempo-trilobite-gamma`.  Before it (PR #91): main 48e6bf7.
 
 **Smoke with Gamma rates** (`smoke.sh`, `test` partition, 40 burn-in + 2 x 100 iterations per
-chain; tasks 1-10, Slurm 19476688, checked by 19476698; `smoke-results/timing.csv`,
+chain; tasks 1-10, Slurm 19477325, checked by 19477335; `smoke-results/timing.csv`,
 `acceptance.csv`, `resume.txt`, `stop-resume.txt`, `eval.txt`, `peak-memory.csv`,
 `check-smoke.txt`): every cell ran from its own draw (01-04), plus cells (1, 1) and (0, 0) of
-replicate 2 (draws 08 and 05).  After burn-in: 0.76 s per iteration in (0, 0), 0.77 in (1, 0), 1.11
-in (0, 1) and 1.12 in (1, 1), with ten tasks sharing one node; the first smoke with Gamma (Slurm
+replicate 2 (draws 08 and 05).  After burn-in: 0.72 s per iteration in (0, 0), 0.76 in (1, 0), 1.11
+in (0, 1) and 1.15 in (1, 1), with ten tasks sharing one node; the first smoke with Gamma (Slurm
 19473061, seven tasks) gave 0.709, 0.724, 1.052 and 1.133 s, against 0.471, 0.487, 0.581 and 0.590 s
 before Gamma (same draws and seeds): x 1.49-1.51 with gamma = 0 and x 1.81-1.92 with gamma = 1, whose many
 local path moves each rescore the characters.  Acceptance of the alpha move 29-40%; the other moves
@@ -421,17 +421,21 @@ in two segments of 100 in one process (task 4) and in one segment of 200 (task 5
 samples (maximum absolute difference 0 over 10 samples x 25 columns, alpha included) and identical
 trees.  **Resume in a second process** (task 8, review of #114, R114-2): stopped by `CET_HOURS=0`
 after segment 1 and resumed by a new `Rscript` from the checkpoint on disk, it equals task 4 and
-task 5 (0 over 20 samples x 26 columns; trees identical).  **Predictive stop** (task 9, R114-1):
-under a fake 0.043 h limit, the chain stopped before segment 2 (0.018 h elapsed + 1.5 x 0.018 h >
-0.043 h), where elapsed + 1.0 x the last segment (0.036 h) would not have, so the test fails if the
-predictive term is broken (`check-smoke.R` checks this from the logged times; #114 delta review,
-N1: the first fake limit, 0.02 h, was below the elapsed time), and a second process resumed and
-completed it.  **Kill before a checkpoint** (task 10):
+task 5 (0 over 20 samples x 26 columns; trees identical).  **Predictive stop** (task 9, R114-1): three processes.  The first stopped after segment 1
+(`CET_HOURS=0`), whose time the checkpoint records (`segSecs`, 66.9 s).  The second resumed under a
+fake limit set from that measured time, `CET_WALL_HOURS` = (1.25 x 66.865 + 5) / 3600 = 0.0246 h,
+and stopped before its first segment by the predictive term with the carried-over segment time
+(0.001 h elapsed + 1.5 x 0.019 h > 0.0246 h), as a resubmitted job must; elapsed + 1.0 x the
+segment would not have stopped it, so a broken predictive term fails the test, on a node of any
+speed (`check-smoke.R` checks both from the logged times).  The third resumed and completed it.
+(#114 delta and follow-up checks, N1: fixed fake limits of 0.02 h and 0.043 h were below the
+elapsed time, or failed unmodified code on slower nodes.)  **Kill before a checkpoint** (task 10):
 killed after writing segment 2's `acceptance.csv` rows and before its checkpoint, then resumed:
 `acceptance.csv` holds each segment once, and the samples and trees equal task 9's (0 over 20 x 26).
 **`eval` on every smoke chain**, the two replicate-2 chains included: exit 0 and `cross.csv` written
 for all six; maximum |recomputed - logPost| 4.1e-12 to 4.7e-9 (the recomputation includes alpha's
-prior), maximum |recomputed - charLL| <= 5e-12.  Peak memory 171-185 MB per process
+prior), maximum |recomputed - charLL| <= 5e-12.  Peak memory 156-185 MB per process (156 MB: task 9's second process,
+which stops before running a segment)
 (`peak-memory.csv`).  **Guards** (`check-guards.sh`, Slurm 19476662, `smoke-results/guards.txt`;
 R114-3, R114-6): a resume under an install with another `BUILD_SHA`, from changed `characters.csv`,
 with the alpha prior's rate changed, under a reinstall of the same commit (other code md5), or from

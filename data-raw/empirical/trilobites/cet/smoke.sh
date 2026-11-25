@@ -38,25 +38,29 @@ task=$SLURM_ARRAY_TASK_ID; cell=$task; rep=1; runs=1
 if [ "$task" = 5 ]; then cell=4; export CET_SEG=$CET_NITER CET_OUT=$CET_OUT-identity; fi
 if [ "$task" = 6 ]; then cell=4; rep=2; fi
 if [ "$task" = 7 ]; then cell=1; rep=2; fi
-# Tasks 8-10 (review of #114, R114-1, R114-2): each runs run-chain.R twice, as
-# two Rscript processes, so the second resumes from the checkpoint on disk.
+# Tasks 8-10 (review of #114, R114-1, R114-2): each runs run-chain.R in two or
+# three Rscript processes, so each later one resumes from the checkpoint on disk.
 # 8: cell (1, 1) as task 4 with CET_HOURS=0: the first process stops after
 #    segment 1, the second resumes; check-smoke.R compares it with task 4 (one
 #    process) and task 5 (one segment).
-# 9: cell (0, 0), segments of 50, with a fake wall limit in the first process
-#    (CET_WALL_HOURS=$SMOKE_FAKE_WALL, default 0.043 h; margin 0), between
-#    the time elapsed at segment 1's end (~0.019 h) plus 1.0 and plus 1.5 x
-#    segment 1 (64-71 s: ~0.037-0.041 and ~0.046-0.051 h), so only the 1.5
-#    factor stops it (#114 delta review, N1; check-smoke.R checks this from
-#    the logged times): the predictive stop must stop it before segment 2; the second process, with
-#    the default limit, resumes and completes.
+# 9: cell (0, 0), segments of 50, in three processes.  The first stops after
+#    segment 1 (CET_HOURS=0) and its checkpoint records that segment's time,
+#    segSecs.  The second resumes with a fake wall limit from that measured
+#    time, CET_WALL_HOURS = (1.25 x segSecs + 5 s) / 3600 (margin 0): at its
+#    start the time elapsed is a few seconds, so elapsed + 1.5 x segSecs passes
+#    the limit and elapsed + 1.0 x segSecs does not (while elapsed < 0.25 x
+#    segSecs + 5 s), whatever the node's speed.  It must therefore stop before
+#    its first segment, by the predictive term with the segSecs carried over
+#    in the checkpoint (a resubmitted job's first segment).  The third resumes
+#    with the default limit and completes.  (#114 follow-up check: a fixed fake
+#    limit of 0.043 h falsely failed unmodified code on slower nodes.)
 # 10: as 9, but the first process is killed after writing segment 2's
 #    acceptance.csv rows and before its checkpoint (CET_TEST_KILL_SEGMENT=2):
 #    the second redoes segment 2; acceptance.csv must hold each segment once,
 #    and the samples must equal task 9's.
 case $task in
   8) cell=4; runs=2; export CET_OUT=$CET_OUT-twoproc ;;
-  9) cell=1; runs=2; export CET_SEG=50 CET_OUT=$CET_OUT-predict ;;
+  9) cell=1; runs=3; export CET_SEG=50 CET_OUT=$CET_OUT-predict ;;
   10) cell=1; runs=2; export CET_SEG=50 CET_OUT=$CET_OUT-kill ;;
 esac
 labels=(x b0g0 b0g1 b1g0 b1g1)
@@ -66,12 +70,17 @@ log=$W/out/$(basename $CET_OUT)-${labels[$cell]}${sfx}_run$rep-$task
 rm -f $log.txt $log.err
 for run in $(seq 1 $runs); do
   first=""
-  if [ "$runs" = 2 ] && [ "$run" = 1 ]; then
+  if [ "$run" = 1 ]; then
     case $task in
-      8) first="CET_HOURS=0" ;;
-      9) first="CET_WALL_HOURS=${SMOKE_FAKE_WALL:-0.043} CET_WALL_MARGIN=0" ;;
+      8|9) first="CET_HOURS=0" ;;
       10) first="CET_TEST_KILL_SEGMENT=2" ;;
     esac
+  fi
+  if [ "$task" = 9 ] && [ "$run" = 2 ]; then
+    secs=$(Rscript -e "cat(readRDS('$CET_OUT/${labels[$cell]}${sfx}_run$rep/checkpoint.rds')\$segSecs)")
+    wall=$(awk -v s="$secs" 'BEGIN { printf "%.8f", (1.25 * s + 5) / 3600 }')
+    echo "segSecs from the checkpoint: $secs; CET_WALL_HOURS = (1.25 x $secs + 5) / 3600 = $wall" >> $log.txt
+    first="CET_WALL_HOURS=$wall CET_WALL_MARGIN=0"
   fi
   echo "process $run of $runs: $first" >> $log.txt
   env $first /usr/bin/time -v Rscript data-raw/empirical/trilobites/cet/run-chain.R $cell $rep \

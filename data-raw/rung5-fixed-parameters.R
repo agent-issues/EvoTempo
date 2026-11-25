@@ -11,6 +11,8 @@ fixed <- as.list(exp(meanlog5))
 topology <- Sys.getenv("EVOTEMPO_RUNG5_TOPOLOGY", "slide")
 stopifnot(topology %in% c("slide", "fnpr", "wfnpr"))
 topologyMoves <- setNames(2, topology)
+# The start tree is that of the rung 5 run on the same grid, whatever the move
+gridSuffix <- suffix
 if (topology != "slide") suffix <- paste0(suffix, "-", topology)
 SimFixed <- function(seed, n) {
   set.seed(seed); out <- list(); set <- .Setup(fixed, model5)
@@ -25,7 +27,7 @@ SimFixed <- function(seed, n) {
   }
   do.call(rbind, out)
 }
-r5 <- readRDS(paste0("data-raw/rung5-results/rung5", suffix, ".rds"))
+r5 <- readRDS(paste0("data-raw/rung5-results/rung5", gridSuffix, ".rds"))
 tt5 <- TempoTree(r5$startTree, present = crown)
 tt5 <- TempoTree(r5$startTree, present = crown, ranges = cbind(0, ifelse(tt5$tipType == "extant", 0, crown)))
 cl <- makeCluster(16); invisible(clusterCall(cl, function() suppressMessages(pkgload::load_all(".", quiet = TRUE))))

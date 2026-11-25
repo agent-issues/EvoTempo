@@ -11,6 +11,7 @@
 #include <Rcpp.h>
 #include <MkPrime/MkPrime.h>
 #include <climits>
+#include <cstring>
 #include <cmath>
 #include <cstdlib>
 #include <memory>
@@ -54,13 +55,14 @@ struct MkEntry {
   bool open = false;  // a checkpoint awaits accept() or reject()
   MkTree last, prev;
   std::vector<double> lastSite, prevSite;
-  unsigned long tick = 0;
+  unsigned long long tick = 0;
 };
 
 const std::size_t kMaxEntries = 32;
 std::vector<std::unique_ptr<MkEntry> > registry;
-unsigned long useCount = 0;
+unsigned long long useCount = 0;
 double nRecomputed = 0;
+int nCheckFailures = 0;
 
 std::unique_ptr<MkPruner> NewPruner(int nState, int nTip, int nChar,
                                     const std::vector<int>& states) {
@@ -161,8 +163,14 @@ double LogSum(const std::vector<double>& site) {
   return logLik;
 }
 
-// Exact agreement of the cached partials (re-read, not recomputed) and the
-// returned site likelihoods with a one-shot evaluation
+bool SameBits(const std::vector<double>& a, const std::vector<double>& b) {
+  return a.size() == b.size() &&
+    std::memcmp(a.data(), b.data(), a.size() * sizeof(double)) == 0;
+}
+
+// Bitwise agreement of the cached partials (re-read, not recomputed) and the
+// returned site likelihoods with a one-shot evaluation; failures are counted,
+// so that a caller that catches the error cannot hide them
 void Check(MkEntry& e, const MkTree& x, const std::vector<double>& site) {
   std::vector<double> reread(site.size()), fresh(site.size());
   e.pruner->site_likelihoods(reread.data());
@@ -170,11 +178,10 @@ void Check(MkEntry& e, const MkTree& x, const std::vector<double>& site) {
                                                 e.pruner->n_char(), e.states);
   SetTree(*oneShot, x);
   oneShot->site_likelihoods(fresh.data());
-  // # nocov start
-  if (reread != fresh || site != fresh) {
+  if (!SameBits(reread, fresh) || !SameBits(site, fresh)) {
+    ++nCheckFailures;
     throw std::logic_error("cached Mk likelihood differs from a fresh evaluation");
   }
-  // # nocov end
 }
 
 }  // namespace
@@ -187,14 +194,16 @@ NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths,
                     int nState, bool sites, bool cache) {
   const int nTip = as<int>(tree["nTip"]);
   if (characters.nrow() != nTip) {
-    stop("`characters` needs one row per tip");  // # nocov
+    stop("`characters` needs one row per tip");
   }
   const int nChar = characters.ncol();
   if (nChar == 0) return sites ? NumericVector(0) : NumericVector::create(0.0);
+  if (nTip < 2) stop("Mk likelihood needs at least two tips");
   const IntegerVector par = tree["parent"];
+  if (lengths.size() < par.size()) stop("`lengths` needs one value per node");
   MkTree x;
   for (int v = 0; v < par.size(); ++v) {
-    if (par[v] == NA_INTEGER) continue;
+    if (par[v] == NA_INTEGER || par[v] < 1) continue;  // the root
     x.parent.push_back(par[v]);
     x.child.push_back(v + 1);
     x.len.push_back(lengths[v]);
@@ -220,7 +229,7 @@ NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths,
   } catch (const std::exception& e) {
     // A failed evaluation may leave the entry part-way through an update
     if (entry) Forget(entry);
-    stop(e.what());
+    stop("%s", e.what());
   }
   if (!sites) return NumericVector::create(LogSum(site));
   NumericVector out(nChar);
@@ -228,12 +237,20 @@ NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths,
   return out;
 }
 
+// `corrupt` (for tests of the self-check) alters every entry's stored result
 // [[Rcpp::export(name = ".MkCacheCpp")]]
-List MkCacheCpp(bool clear) {
+List MkCacheCpp(bool clear, bool corrupt) {
   if (clear) {
     registry.clear();
     nRecomputed = 0;
+    nCheckFailures = 0;
+  }
+  if (corrupt) {
+    for (std::size_t i = 0; i < registry.size(); ++i) {
+      for (double& v : registry[i]->lastSite) v *= 0.5;
+    }
   }
   return List::create(_["entries"] = static_cast<int>(registry.size()),
-                      _["recomputed"] = nRecomputed);
+                      _["recomputed"] = nRecomputed,
+                      _["checkFailures"] = nCheckFailures);
 }

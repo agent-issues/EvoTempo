@@ -5,8 +5,8 @@
     .Call(`_EvoTempo_MkCpp`, tree, characters, lengths, nState, sites, cache)
 }
 
-.MkCacheCpp <- function(clear) {
-    .Call(`_EvoTempo_MkCacheCpp`, clear)
+.MkCacheCpp <- function(clear, corrupt) {
+    .Call(`_EvoTempo_MkCacheCpp`, clear, corrupt)
 }
 
 .PiecesCpp <- function(tree, set, v) {

@@ -27,13 +27,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // MkCacheCpp
-List MkCacheCpp(bool clear);
-RcppExport SEXP _EvoTempo_MkCacheCpp(SEXP clearSEXP) {
+List MkCacheCpp(bool clear, bool corrupt);
+RcppExport SEXP _EvoTempo_MkCacheCpp(SEXP clearSEXP, SEXP corruptSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< bool >::type clear(clearSEXP);
-    rcpp_result_gen = Rcpp::wrap(MkCacheCpp(clear));
+    Rcpp::traits::input_parameter< bool >::type corrupt(corruptSEXP);
+    rcpp_result_gen = Rcpp::wrap(MkCacheCpp(clear, corrupt));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -416,7 +417,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_MkCpp", (DL_FUNC) &_EvoTempo_MkCpp, 6},
-    {"_EvoTempo_MkCacheCpp", (DL_FUNC) &_EvoTempo_MkCacheCpp, 1},
+    {"_EvoTempo_MkCacheCpp", (DL_FUNC) &_EvoTempo_MkCacheCpp, 2},
     {"_EvoTempo_PiecesCpp", (DL_FUNC) &_EvoTempo_PiecesCpp, 3},
     {"_EvoTempo_SliceExpCpp", (DL_FUNC) &_EvoTempo_SliceExpCpp, 3},
     {"_EvoTempo_MessagesCpp", (DL_FUNC) &_EvoTempo_MessagesCpp, 2},

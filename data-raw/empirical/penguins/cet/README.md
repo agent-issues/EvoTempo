@@ -297,6 +297,12 @@ every chain.  The hook depends on `TempoMCMC()` internals (local variable
 names, the pre-loop `.TreeStats()` call), so it must be rechecked
 (`smoke.sh` task 5) after any engine change; the engine issue below asks for
 this as API.
+Exact continuation also needs the same EvoTempo build for every segment.
+From #110 (PR #119), builds that provide `.MkSiteLogLik()` compute the Mkv
+correction in C++ (`PatternLogLik()`), which differs from the R
+`ConstantPatternLogLik()` of older builds by round-off (about 1e-13 in the log
+likelihood); the checkpoint does not record the build, so a chain resumed across
+that change continues a valid chain, but not bitwise.
 
 Chain labels and sample columns (#74).  A chain's directory is
 `<cell>[_mkv<variant>][_t<power>]_run<rep>`: the Mkv variant appears only when

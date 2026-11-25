@@ -8,7 +8,7 @@ character likelihood, instead of pruning all characters on the whole tree.
 | piece | ms per call |
 |---|---|
 | rebound `MkLikelihood()` (`PartitionedMk()`), total | 4.4 |
-| C++ pruning of the six K-partitions (`.MkLikelihoodCpp`) | 0.6 |
+| C++ pruning of the six K-partitions (one-shot, the then `.MkLikelihoodCpp`) | 0.6 |
 | R Mkv correction, 132 constant patterns (`ConstantPatternLogLik()`) | 3.4 |
 
 Whole proposals cost 3-12 ms (slide 5.9, nodeAge 5.6, fossilAge 6.3, path moves
@@ -127,3 +127,12 @@ called, and a change of `rate` reaches the pruner as a change of every length.
 
 Cached == one-shot, bitwise, at every evaluation (debug check); identical seeded
 R/C++ chains (`test-Engine.R`); 100% coverage of new lines.
+
+## Outcome (after review)
+
+Measured after implementation (`data-raw/mk-cache-results/README.md`): the
+cache itself saves 5-15% of an iteration on the penguin data; moving the Mkv
+correction into C++ gives most of the 1.7-1.9x.  One changed edge dirties about
+30% of the internal nodes of this tree, and most of a cached call is fixed
+cost.  Larger trees, or fewer, larger character matrices, would gain more from
+the cache.

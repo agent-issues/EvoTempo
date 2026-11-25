@@ -2,8 +2,12 @@
 # Run from the package root with EvoTempo installed. Each section can run as a
 # separate process: EVOTEMPO_SECTION = branches, dcet1..3, cet1..3, sampling;
 # then EVOTEMPO_SECTION = combine assembles data-raw/rung2-results/rung2.rds.
+# EVOTEMPO_LOCATION = mean runs both simulators and the numerics under the
+# mean-rate tempo location (#116) and writes data-raw/rung2-results-mean/;
+# the default, bm, is Budd & Mann's parameterization.
 library("EvoTempo")
-outDir <- "data-raw/rung2-results"
+loc <- Sys.getenv("EVOTEMPO_LOCATION", "bm")
+outDir <- if (loc == "bm") "data-raw/rung2-results" else paste0("data-raw/rung2-results-", loc)
 dir.create(outDir, showWarnings = FALSE)
 section <- Sys.getenv("EVOTEMPO_SECTION", "all")
 Run <- function(name) section %in% c("all", name)
@@ -11,7 +15,7 @@ Progress <- function(...) message(format(Sys.time(), "%H:%M:%S "), ...)
 lambda <- 0.51
 mu <- 0.5
 theta <- 0.01
-grid <- TempoGrid(101, c(-5, 5), location = "bm")
+grid <- TempoGrid(101, c(-5, 5), location = loc)
 Q <- TempoGenerator(grid, theta)
 rates <- BinRates(grid, lambda, mu)
 starts <- c(-2, 0, 2)
@@ -35,7 +39,7 @@ Branches <- function(n, k, beta = 1) {
 }
 ContinuousBranches <- function(n, x0) {
   t(vapply(seq_len(n), function(i) {
-    h <- SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = x0, location = "bm")
+    h <- SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = x0, location = loc)
     c(w = BranchClock(h, 1), duration = h$edges$end[1])
   }, numeric(2)))
 }
@@ -60,7 +64,7 @@ if (Run("durations")) {
     SimulateDCET(1e9, grid$x, Q, 0, end, start = startBin[3])$edges$end[1]
   }, 0)
   cetD <- vapply(seq_len(30000), function(i) {
-    SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = 2, location = "bm")$edges$end[1]
+    SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = 2, location = loc)$edges$end[1]
   }, 0)
   saveRDS(list(dcet = dcetD, cet = cetD), file.path(outDir, "durations.rds"))
 }
@@ -87,7 +91,7 @@ for (i in 1:3) {
   if (Run(paste0("cet", i))) {
     set.seed(20 + i)
     clades <- Clades(nClade[i], function() {
-      SimulateCET(horizon, theta, 1, lambda, mu, x0 = starts[i], maxEdges = 1e7, location = "bm")
+      SimulateCET(horizon, theta, 1, lambda, mu, x0 = starts[i], maxEdges = 1e7, location = loc)
     })
     saveRDS(clades, file.path(outDir, paste0("cet", i, ".rds")))
   }
@@ -108,7 +112,7 @@ if (Run("sampling")) {
 }
 
 if (Run("combine")) {
-fine <- TempoGrid(401, c(-10, 10), location = "bm")
+fine <- TempoGrid(401, c(-10, 10), location = loc)
 fineQ <- TempoGenerator(fine, theta)
 fineRates <- BinRates(fine, lambda, mu)
 fineBin <- vapply(starts, function(x0) which.min(abs(fine$x - x0)), 1L)
@@ -128,7 +132,7 @@ Numerics <- function(x, Qm, bins) {
 numerics <- Numerics(grid$x, Q, startBin)
 convergedNumerics <- Numerics(fine$x, fineQ, fineBin)
 coarse <- lapply(c(0.4, 0.2), function(h) {
-  g <- TempoGrid(round(10 / h) + 1, c(-5, 5), location = "bm")
+  g <- TempoGrid(round(10 / h) + 1, c(-5, 5), location = loc)
   Numerics(g$x, TempoGenerator(g, theta),
            vapply(starts, function(x0) which.min(abs(g$x - x0)), 1L))
 })

@@ -34,7 +34,8 @@ model are almost never accepted, so \code{tree} and \code{joint} are omitted, an
 \code{node}, \code{tip} and \code{branch} moves are run for a fraction \code{local} of the
 internal nodes, the tips with paths and the branches with paths
 respectively (rounded up), with one \code{shift}.
-Tree moves (\code{nodeAge}, \code{fossilAge}, \code{slide}, \code{fnpr}, \code{saJump}) are not included;
+Tree moves (\code{nodeAge}, \code{fossilAge}, \code{slide}, \code{fnpr}, \code{wfnpr}, \code{saJump}) are not
+included;
 add them to the returned vector.
 }
 \examples{

@@ -42,7 +42,7 @@ Inference has two layers:
   Moves (argument `moves`): `tree`, `node`, `tip`, `branch` (path redraws); `joint` (a parameter
   together with a fresh draw of every path; makes theta mix without characters); `shift` (every bin
   +/-1, with `rate`, `lambda`, `mu`, `psi`, `theta` rescaled by their tempo exponents so that the
-  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `fnpr` (fixed-height local prune and regraft, #110; `dev/plans/local-fnpr.md`), `saJump` (tree moves); `rootAge`, `originAge` (start-age moves,
+  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `fnpr` (fixed-height local prune and regraft, #110; `dev/plans/local-fnpr.md`), `wfnpr` (`fnpr` with the target chosen in proportion to the exact target density over a bounded candidate set; every candidate's character likelihood comes from `.CandidateLogLik()`; `dev/spec/weighted-regraft.md`), `saJump` (tree moves); `rootAge`, `originAge` (start-age moves,
   with priors in `agePriors`; #18); plus a scale sweep over parameters. The default schedule is `TempoMoves()`: with characters (and
   gamma != 0) it omits `tree` and `joint`, whose whole-tree draws ignore the characters and are
   almost never accepted, and runs `node`, `tip` and `branch` at 0.25 x the nodes, tips and branches
@@ -183,6 +183,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
 | `data-raw/rung4b-shift-fixed.R` | Shift move at fixed parameters: root-bin posterior given the rung 4b tree and character vs the exact posterior from point-mass start priors (#19) |
 | `data-raw/mixing-schedule.R` | ESS per CPU hour of `TempoMCMC()` under the pre-#19 schedule and `TempoMoves()` on the `dev/mixing/` fixed trees; results and the shift-move oracles in `data-raw/mixing-results/README.md` |
+| `data-raw/wfnpr-validation.R` | `wfnpr` at fixed ages and parameters on a five-tip tree with a sampled ancestor: topology frequencies vs exact probabilities (gamma = 0) and vs `fnpr` chains (gamma = 1); results in `data-raw/wfnpr-results/` |
 | `data-raw/rung5-age-oracle.R` | Start-age moves on a fixed tree at fixed parameters vs the exact 1-D posterior of the root or origin age (prior x `TreeLikelihood()` on a grid) (#18), with extant, joint or survival conditioning (#54) |
 | `data-raw/rung5-age-validation.R` | Rung 5 with a free start age (#18): prior-only MCMC vs rejection simulation for a free crown age, a fixed origin and a free origin, at fixed or free parameters; results in `data-raw/rung5-age-results/README.md` |
 | `data-raw/rung5-age-pool.R` | Pools independent replicates of `rung5-age-validation.R` per case (all chains vs all simulated trees); the 240-replicate check of the `originFree` flag in `data-raw/rung5-age-results/README.md` |

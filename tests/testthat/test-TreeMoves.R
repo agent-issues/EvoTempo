@@ -75,7 +75,7 @@ test_that("Each tree move proposes valid trees", {
   st <- list(tree = moveTree, set = set, paths = d$paths, bin = d$bin)
   seen <- character(0)
   for (i in 1:60) {
-    for (move in c("nodeAge", "fossilAge", "slide", "fnpr", "saJump")) {
+    for (move in c("nodeAge", "fossilAge", "slide", "fnpr", "wfnpr", "saJump")) {
       prop <- .ProposeTreeMove(move, st$tree, set, st)
       if (is.null(prop)) next
       seen <- c(seen, move)
@@ -97,7 +97,7 @@ test_that("Each tree move proposes valid trees", {
       }
     }
   }
-  expect_setequal(unique(seen), c("nodeAge", "fossilAge", "slide", "fnpr", "saJump"))
+  expect_setequal(unique(seen), c("nodeAge", "fossilAge", "slide", "fnpr", "wfnpr", "saJump"))
   expect_true(any(st$tree$tipType == "ancestor") || any(seen == "saJump"))
 })
 
@@ -108,7 +108,7 @@ test_that("Tree moves with no candidates return NULL", {
   set <- .AddSlices(cherry, .Precompute(cherry, movePar, moveModel), 4)
   d <- .SampleTree(cherry, set, .Messages(cherry, set))
   st <- list(tree = cherry, set = set, paths = d$paths, bin = d$bin)
-  for (move in c("nodeAge", "fossilAge", "slide", "fnpr")) {
+  for (move in c("nodeAge", "fossilAge", "slide", "fnpr", "wfnpr")) {
     expect_null(.ProposeTreeMove(move, cherry, set, st))
   }
   # Fossil tip whose parent is the root
@@ -144,12 +144,12 @@ test_that("saJump leaves a tree without fossils unchanged", {
 })
 
 test_that("TempoMCMC() runs every move with characters", {
-  set.seed(3)
+  set.seed(4)
   chars <- matrix(sample(0:1, 5 * 6, TRUE), 5)
   run <- TempoMCMC(moveTree, moveModel, movePar,
                    TempoPriors()[c("lambda", "theta")], nIter = 6, nSlice = 4,
                    moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 1,
-                             fossilAge = 1, slide = 1, fnpr = 1, saJump = 1, joint = 1),
+                             fossilAge = 1, slide = 1, fnpr = 1, wfnpr = 1, saJump = 1, joint = 1),
                    characters = chars)
   expect_true(all(run$acceptance[c(names(run$moves), "parameters")] > 0))
   expect_true(all(is.finite(run$samples$logPost)))
@@ -274,4 +274,182 @@ test_that("fnpr keeps node ages and changes the topology", {
     changed <- changed + !identical(prop$tree$parent, moveTree$parent)
   }
   expect_gt(changed, 0)
+})
+
+# State of `moveTree` with characters that depend on tempo, for wfnpr
+WfnprState <- function(seed) {
+  set <- .AddSlices(moveTree, .Precompute(moveTree, movePar, moveModel), 6)
+  set.seed(seed)
+  msg <- .Messages(moveTree, set)
+  d <- .SampleTree(moveTree, set, msg)
+  chars <- matrix(sample(0:1, 5 * 4, TRUE), 5)
+  CharLL <- function(tr, paths, p, s) {
+    MkLikelihood(tr, chars, .CharacterLengths(tr, s$grid$x, paths, p$rate, 1))
+  }
+  list(tree = moveTree, par = movePar, set = set, msg = msg, paths = d$paths,
+       bin = d$bin, CharLL = CharLL, charLL = CharLL(moveTree, d$paths, movePar, set))
+}
+
+test_that("wfnpr weights satisfy detailed balance between every pair of members", {
+  st <- WfnprState(6)
+  set <- st$set
+  # Exact target of a member, and the fnpr proposal density of its four
+  # redrawn branches when it is reached from the member attached at `from`
+  Member <- function(m, v, from) {
+    tr <- m$tree
+    p <- tr$parent[[v]]
+    lw <- .NodeLogWeights(tr, set, p, set$lambda, m$bin[[tr$parent[[p]]]],
+                          c(m$y, v), m$bin[c(m$y, v)])
+    c(target = .LogAugmented(tr, set, m$paths, m$bin) +
+        st$CharLL(tr, m$paths, movePar, set),
+      q = .LogBridges(tr, set, c(p, m$y, v, from), m$paths) + lw[[m$bin[[p]]]] -
+        .LogSumExp(lw))
+  }
+  nMember <- integer(0)
+  # v: fossil tip a (1), tips c and d (4, 5), sampled-ancestor node (8)
+  for (v in .SlideNodes(moveTree)) {
+    p <- moveTree$parent[[v]]
+    sib <- setdiff(moveTree$kids[p - moveTree$nTip, ], v)
+    targets <- sort(.FnprTargets(moveTree, p, sib, .Descendants(moveTree, v), Inf))
+    members <- c(
+      list(list(y = sib, tree = moveTree, bin = st$bin, paths = st$paths, logW = 0)),
+      .WfnprEnsemble(moveTree, set, st, v, targets)
+    )
+    nMember <- c(nMember, length(members))
+    for (a in seq_along(members)) {
+      for (b in seq_along(members)[-a]) {
+        # The shared path on the old sibling's branch puts every member one
+        # fnpr move away from every other
+        ma <- Member(members[[a]], v, members[[b]]$y)
+        mb <- Member(members[[b]], v, members[[a]]$y)
+        expect_equal(members[[b]]$logW - members[[a]]$logW,
+                     mb[["target"]] - ma[["target"]] + ma[["q"]] - mb[["q"]],
+                     tolerance = 1e-8)
+      }
+    }
+  }
+  expect_gt(max(nMember), 2)
+})
+
+test_that("wfnpr bounds its candidates and rejects when none has weight", {
+  tr <- TempoTree(ape::read.tree(
+    text = "((((a:1,b:1):1,c:2):2,(d:3,e:3):1):1,(g:1.5,h:1.5):3.5);"
+  ))
+  set <- .AddSlices(tr, .Precompute(tr, movePar, moveModel), 4)
+  set.seed(7)
+  d <- .SampleTree(tr, set, .Messages(tr, set))
+  st <- list(tree = tr, set = set, paths = d$paths, bin = d$bin)
+  nTarget <- integer(0)
+  Ensemble <- .WfnprEnsemble
+  local_mocked_bindings(
+    .wfnprMax = 3L,
+    .WfnprEnsemble = function(tree, set, st, v, targets) {
+      nTarget <<- c(nTarget, length(targets))
+      expect_false(is.unsorted(targets))
+      Ensemble(tree, set, st, v, targets)
+    }
+  )
+  props <- lapply(1:40, function(i) .ProposeTreeMove("wfnpr", tr, set, st))
+  expect_equal(max(nTarget), 2)
+  expect_true(any(vapply(props, is.null, TRUE)))
+  kept <- Filter(Negate(is.null), props)
+  expect_true(all(vapply(kept, function(prop) {
+    is.finite(prop$logRatio) && identical(sort(prop$tree$age), sort(tr$age)) &&
+      !identical(prop$tree$parent, tr$parent)
+  }, TRUE)))
+  # Candidates of zero target density are never chosen
+  local_mocked_bindings(.CandidateLogLik = function(...) -Inf)
+  full <- WfnprState(8)
+  set.seed(9)
+  for (i in 1:10) {
+    expect_null(.ProposeTreeMove("wfnpr", moveTree, full$set, full))
+    expect_false(.TreeMove("wfnpr", full, full$CharLL)$accepted)
+  }
+})
+
+test_that("wfnpr samples topologies with their exact probabilities", {
+  # Ages and parameters fixed, characters independent of tempo: the topology
+  # has probability proportional to TreeLikelihood() times the Mk likelihood
+  model <- DCETModel(nBin = 5, zRange = c(-2, 2), gamma = 0, rho = 0.7)
+  set.seed(11)
+  chars <- matrix(sample(0:1, 5 * 2, TRUE), 5)
+  Mk <- function(tr) {
+    nodes <- .PathNodes(tr)
+    len <- numeric(9)
+    len[nodes] <- movePar$rate * (tr$age[tr$parent[nodes]] - tr$age[nodes])
+    MkLikelihood(tr, chars, len)
+  }
+  Key <- function(tr) paste(tr$parent, collapse = " ")
+  # Every topology that fixed-height regrafts reach from `moveTree`
+  trees <- list(moveTree)
+  names(trees) <- Key(moveTree)
+  todo <- trees
+  while (length(todo)) {
+    tr <- todo[[1]]
+    todo <- todo[-1]
+    for (v in .SlideNodes(tr)) {
+      p <- tr$parent[[v]]
+      sib <- setdiff(tr$kids[p - tr$nTip, ], v)
+      for (y in .FnprTargets(tr, p, sib, .Descendants(tr, v), Inf)) {
+        new <- tr
+        new$parent[sib] <- tr$parent[[p]]
+        new$parent[p] <- new$parent[[y]]
+        new$parent[y] <- p
+        new <- .Rebuild(new)
+        if (is.null(trees[[Key(new)]])) {
+          trees[[Key(new)]] <- todo[[Key(new)]] <- new
+        }
+      }
+    }
+  }
+  expect_gt(length(trees), 4)
+  logP <- vapply(trees, function(tr) TreeLikelihood(tr, movePar, model) + Mk(tr), 0)
+  exact <- exp(logP - .LogSumExp(logP))
+  CharLL <- function(tr, paths, p, s) Mk(tr)
+  set <- .AddSlices(moveTree, .Precompute(moveTree, movePar, model), 4)
+  msg <- .Messages(moveTree, set)
+  set.seed(12)
+  d <- .SampleTree(moveTree, set, msg)
+  st <- list(tree = moveTree, par = movePar, set = set, msg = msg, paths = d$paths,
+             bin = d$bin, charLL = Mk(moveTree))
+  nIter <- 1500
+  visits <- character(nIter)
+  accepted <- 0
+  for (i in seq_len(nIter)) {
+    st <- .PathMove("tree", st, CharLL)$state
+    res <- .TreeMove("wfnpr", st, CharLL)
+    st <- res$state
+    accepted <- accepted + res$accepted
+    visits[[i]] <- Key(st$tree)
+  }
+  expect_true(all(visits %in% names(trees)))
+  expect_gt(accepted / nIter, 0.2)
+  observed <- table(factor(visits, names(trees))) / nIter
+  # Four standard errors, with the variance inflated threefold for autocorrelation
+  possible <- exact > 0
+  expect_true(any(possible) && all(observed[!possible] == 0))
+  z <- (observed - exact) / sqrt(3 * exact * (1 - exact) / nIter)
+  expect_lt(max(abs(z[possible])), 4)
+})
+
+test_that("wfnpr leaves the prior over trees invariant", {
+  # No characters, fixed parameters: tree statistics with and without the move
+  Run <- function(seed, moves) {
+    set.seed(seed)
+    TempoMCMC(moveTree, DCETModel(nBin = 5, zRange = c(-2, 2), rho = 0.7), movePar,
+              list(), nIter = 1200, burnin = 100, thin = 2, nSlice = 4,
+              moves = c(tree = 1, nodeAge = 1, fossilAge = 1, saJump = 1, moves),
+              minAcceptance = 0)
+  }
+  with <- Run(13, c(wfnpr = 2))
+  without <- Run(14, c(slide = 1, fnpr = 1))
+  expect_gt(with$acceptance[["wfnpr"]], 0.1)
+  for (stat in c("nAncestor", "cherries", "treeLength", "youngestFossil")) {
+    # Batch means: 20 batches of 30 draws
+    Batch <- function(run) colMeans(matrix(run$samples[[stat]], 30))
+    a <- Batch(with)
+    b <- Batch(without)
+    z <- (mean(a) - mean(b)) / sqrt(var(a) / 20 + var(b) / 20)
+    expect_lt(abs(z), 3.5)
+  }
 })

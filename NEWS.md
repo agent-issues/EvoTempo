@@ -87,6 +87,10 @@
   stops on a start age outside the support of its prior, and
   `TempoMCMC()` and `SampleTempoPaths()` on a sampled ancestor at the root
   ([#55](https://github.com/agent-issues/EvoTempo/issues/55)).
+- `TempoMCMC()` tree move `wfnpr`: a likelihood-weighted `fnpr`. Up to seven of
+  `fnpr`'s regraft targets are scored by the exact target density, characters
+  included, and one is chosen by Metropolized Gibbs sampling
+  (`dev/spec/weighted-regraft.md`; #110). Off unless added to `moves`.
 - `TempoMCMC()` tree move `fnpr`: fixed-node-height prune and regraft onto a
   nearby lineage, chosen within a log-uniform MRCA-age threshold, so that it
   mixes local (narrow-exchange-like) and global rearrangements

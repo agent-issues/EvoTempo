@@ -167,7 +167,11 @@ attachment point, in the tree without the subtree, is younger than a
 threshold that, with probability 1/2, admits every branch and otherwise is
 drawn log-uniformly between just above the parent and the root, so that
 it mixes local and global rearrangements (as RevBayes's \code{mvFNPR}
-and \code{mvNarrow}); \code{saJump} converts a fossil tip to a sampled ancestor
+and \code{mvNarrow}); \code{wfnpr} scores up to seven of \code{fnpr}'s targets, chosen
+uniformly, by the exact target density with the characters, and chooses
+among them and the current position in proportion to those scores
+(Metropolized Gibbs sampling), at the cost of one character likelihood per
+target; \code{saJump} converts a fossil tip to a sampled ancestor
 or back (Gavryushkina et al. 2014).
 Each redraws affected node bins and paths from the frozen model, with
 proposal densities in the Hastings ratio.

@@ -202,7 +202,11 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' threshold that, with probability 1/2, admits every branch and otherwise is
 #' drawn log-uniformly between just above the parent and the root, so that
 #' it mixes local and global rearrangements (as RevBayes's `mvFNPR`
-#' and `mvNarrow`); `saJump` converts a fossil tip to a sampled ancestor
+#' and `mvNarrow`); `wfnpr` scores up to seven of `fnpr`'s targets, chosen
+#' uniformly, by the exact target density with the characters, and chooses
+#' among them and the current position in proportion to those scores
+#' (Metropolized Gibbs sampling), at the cost of one character likelihood per
+#' target; `saJump` converts a fossil tip to a sampled ancestor
 #' or back (Gavryushkina et al. 2014).
 #' Each redraws affected node bins and paths from the frozen model, with
 #' proposal densities in the Hastings ratio.
@@ -305,7 +309,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   tree <- .NoRootAncestor(.ForModel(TempoTree(tree), model))
   origin <- .Origin(tree)
   moveNames <- c("tree", "node", "tip", "branch", "joint", "shift", "nodeAge",
-                 "fossilAge", "slide", "fnpr", "saJump", "rootAge", "originAge")
+                 "fossilAge", "slide", "fnpr", "wfnpr", "saJump", "rootAge", "originAge")
   if (is.null(moves)) {
     moves <- TempoMoves(tree, characters, model)
   }
@@ -382,7 +386,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   branchX <- matrix(NA_real_, nKeep, length(pathNodes))
   moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L),
                                  c(moveNames, "parameters"))
-  treeMoves <- c("nodeAge", "fossilAge", "slide", "fnpr", "saJump")
+  treeMoves <- c("nodeAge", "fossilAge", "slide", "fnpr", "wfnpr", "saJump")
   # Character lengths below the root, for the clock statistics
   Below <- function(tr, gamma) {
     replace(.CharacterLengths(tr, st[["set"]][["grid"]][["x"]], st[["paths"]], 1,
@@ -534,7 +538,8 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 #' `node`, `tip` and `branch` moves are run for a fraction `local` of the
 #' internal nodes, the tips with paths and the branches with paths
 #' respectively (rounded up), with one `shift`.
-#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `fnpr`, `saJump`) are not included;
+#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `fnpr`, `wfnpr`, `saJump`) are not
+#' included;
 #' add them to the returned vector.
 #'
 #' @param tree A [`TempoTree`][TempoTree()], or a tree that it accepts.
@@ -720,18 +725,26 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
 .TreeMove <- function(move, st, CharLL) {
   tree <- st[["tree"]]
   set <- st[["set"]]
-  prop <- tryCatch(.ProposeTreeMove(move, tree, set, st),
-                   infeasibleProposal = function(e) NULL)
+  # `wfnpr` scores its candidates itself, and returns the complete `logRatio`
+  prop <- tryCatch(
+    .ProposeTreeMove(move, tree, set, c(st, if (move == "wfnpr") list(CharLL = CharLL))),
+    infeasibleProposal = function(e) NULL
+  )
   if (is.null(prop)) {
     return(list(state = st, accepted = FALSE))
   }
   newTree <- prop[["tree"]]
-  newChar <- CharLL(newTree, prop[["paths"]], st[["par"]], set)
   nBif <- function(tr) sum(!tr[["sampled"]])
-  logRatio <- .LogAugmented(newTree, set, prop[["paths"]], prop[["bin"]]) -
-    .LogAugmented(tree, set, st[["paths"]], st[["bin"]]) +
-    (nBif(newTree) - nBif(tree)) * log(2) + newChar - st[["charLL"]] +
-    prop[["logHastings"]]
+  if (is.null(prop[["logRatio"]])) {
+    newChar <- CharLL(newTree, prop[["paths"]], st[["par"]], set)
+    logRatio <- .LogAugmented(newTree, set, prop[["paths"]], prop[["bin"]]) -
+      .LogAugmented(tree, set, st[["paths"]], st[["bin"]]) +
+      (nBif(newTree) - nBif(tree)) * log(2) + newChar - st[["charLL"]] +
+      prop[["logHastings"]]
+  } else {
+    newChar <- prop[["charLL"]]
+    logRatio <- prop[["logRatio"]]
+  }
   if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
     st[["tree"]] <- newTree
     st[["paths"]] <- prop[["paths"]]

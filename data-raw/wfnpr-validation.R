@@ -11,12 +11,15 @@
 # 2. gamma = 1 (no exact oracle): `wfnpr` chains against `fnpr` chains.
 #
 # Run from the package root with the package installed:
-#   Rscript data-raw/wfnpr-validation.R [nChain] [nIter]
-# Results: data-raw/wfnpr-results/wfnpr-validation.csv
+#   Rscript data-raw/wfnpr-validation.R [nChain] [nIter] [case] [seed offset]
+# Results: data-raw/wfnpr-results/wfnpr-validation.csv, or with a case (prior,
+# characters or tempoCharacters) wfnpr-validation-<case>-<seed offset>.csv
 suppressMessages(library("EvoTempo"))
-args <- as.numeric(commandArgs(TRUE))
-nChain <- if (length(args) > 0) args[[1]] else 8
-nIter <- if (length(args) > 1) args[[2]] else 20000
+args <- commandArgs(TRUE)
+nChain <- if (length(args) > 0) as.numeric(args[[1]]) else 8
+nIter <- if (length(args) > 1) as.numeric(args[[2]]) else 20000
+only <- if (length(args) > 2) args[[3]] else NULL
+offset <- if (length(args) > 3) as.numeric(args[[4]]) else 0
 ns <- asNamespace("EvoTempo")
 for (f in c(".PathNodes", ".SlideNodes", ".FnprTargets", ".Descendants", ".Rebuild",
             ".AddSlices", ".Precompute", ".Messages", ".SampleTree", ".PathMove",
@@ -85,7 +88,8 @@ cases <- list(
   characters = list(gamma = 0, chars = TRUE),
   tempoCharacters = list(gamma = 1, chars = TRUE)
 )
-out <- do.call(rbind, lapply(names(cases), function(case) {
+stopifnot(is.null(only) || only %in% names(cases))
+out <- do.call(rbind, lapply(if (is.null(only)) names(cases) else only, function(case) {
   model <- DCETModel(nBin = 7, zRange = c(-2, 2), gamma = cases[[case]]$gamma, rho = 0.7)
   CharLL <- function(tr, paths, p, s) {
     if (!cases[[case]]$chars) {
@@ -101,7 +105,8 @@ out <- do.call(rbind, lapply(names(cases), function(case) {
   }
   runs <- lapply(c(wfnpr = "wfnpr", fnpr = "fnpr"), function(move) {
     vapply(seq_len(nChain), function(i) {
-      Chain(move, model, CharLL, 1000 * match(case, names(cases)) + 10 * i + (move == "fnpr"))
+      Chain(move, model, CharLL,
+            offset + 1000 * match(case, names(cases)) + 10 * i + (move == "fnpr"))
     }, numeric(length(trees) + 1L))
   })
   Mean <- function(move) rowMeans(runs[[move]])
@@ -124,5 +129,12 @@ out <- do.call(rbind, lapply(names(cases), function(case) {
   )
 }))
 out[-(1:2)] <- signif(out[-(1:2)], 4)
-write.csv(out, "data-raw/wfnpr-results/wfnpr-validation.csv", row.names = FALSE)
+write.csv(
+  out,
+  paste0(
+    "data-raw/wfnpr-results/wfnpr-validation",
+    if (!is.null(only)) paste0("-", only, "-", offset), ".csv"
+  ),
+  row.names = FALSE
+)
 print(out)

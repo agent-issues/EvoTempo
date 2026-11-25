@@ -11,7 +11,7 @@ Progress <- function(...) message(format(Sys.time(), "%H:%M:%S "), ...)
 lambda <- 0.51
 mu <- 0.5
 theta <- 0.01
-grid <- TempoGrid(101, c(-5, 5))
+grid <- TempoGrid(101, c(-5, 5), location = "bm")
 Q <- TempoGenerator(grid, theta)
 rates <- BinRates(grid, lambda, mu)
 starts <- c(-2, 0, 2)
@@ -35,7 +35,7 @@ Branches <- function(n, k, beta = 1) {
 }
 ContinuousBranches <- function(n, x0) {
   t(vapply(seq_len(n), function(i) {
-    h <- SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = x0)
+    h <- SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = x0, location = "bm")
     c(w = BranchClock(h, 1), duration = h$edges$end[1])
   }, numeric(2)))
 }
@@ -60,7 +60,7 @@ if (Run("durations")) {
     SimulateDCET(1e9, grid$x, Q, 0, end, start = startBin[3])$edges$end[1]
   }, 0)
   cetD <- vapply(seq_len(30000), function(i) {
-    SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = 2)$edges$end[1]
+    SimulateCET(1e9, theta, 1, 0, lambda + mu, x0 = 2, location = "bm")$edges$end[1]
   }, 0)
   saveRDS(list(dcet = dcetD, cet = cetD), file.path(outDir, "durations.rds"))
 }
@@ -87,7 +87,7 @@ for (i in 1:3) {
   if (Run(paste0("cet", i))) {
     set.seed(20 + i)
     clades <- Clades(nClade[i], function() {
-      SimulateCET(horizon, theta, 1, lambda, mu, x0 = starts[i], maxEdges = 1e7)
+      SimulateCET(horizon, theta, 1, lambda, mu, x0 = starts[i], maxEdges = 1e7, location = "bm")
     })
     saveRDS(clades, file.path(outDir, paste0("cet", i, ".rds")))
   }
@@ -108,7 +108,7 @@ if (Run("sampling")) {
 }
 
 if (Run("combine")) {
-fine <- TempoGrid(401, c(-10, 10))
+fine <- TempoGrid(401, c(-10, 10), location = "bm")
 fineQ <- TempoGenerator(fine, theta)
 fineRates <- BinRates(fine, lambda, mu)
 fineBin <- vapply(starts, function(x0) which.min(abs(fine$x - x0)), 1L)
@@ -128,7 +128,7 @@ Numerics <- function(x, Qm, bins) {
 numerics <- Numerics(grid$x, Q, startBin)
 convergedNumerics <- Numerics(fine$x, fineQ, fineBin)
 coarse <- lapply(c(0.4, 0.2), function(h) {
-  g <- TempoGrid(round(10 / h) + 1, c(-5, 5))
+  g <- TempoGrid(round(10 / h) + 1, c(-5, 5), location = "bm")
   Numerics(g$x, TempoGenerator(g, theta),
            vapply(starts, function(x0) which.min(abs(g$x - x0)), 1L))
 })

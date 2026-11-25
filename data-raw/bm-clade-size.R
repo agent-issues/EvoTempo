@@ -19,7 +19,7 @@ message("B&M grid: ", format(Sys.time() - t0))
 }
 # Converged reference on z in +-5, h = 0.1 (mean clade size within 0.06% of
 # K = 401 on +-10; see convergence.csv); K = 161 on +-8 costs ~15x more.
-grid <- TempoGrid(101, c(-5, 5))
+grid <- TempoGrid(101, c(-5, 5), location = "bm")
 rates <- BinRates(grid, 0.51, 0.5)
 t0 <- Sys.time()
 pC <- CladeSizeDistribution(500, TempoGenerator(grid, 0.01), rates$lambda, rates$mu,

@@ -124,7 +124,7 @@ EvoTempoRun <- function(x, Q, start = which.min(abs(x)), truncate5 = FALSE) {
 bmCode <- BuddMannRun(bmEnv)
 bmGen <- BuddMannGenerator()
 bmOurs <- EvoTempoRun(bmGen$x, bmGen$Q)
-fine <- TempoGrid(401, c(-10, 10))
+fine <- TempoGrid(401, c(-10, 10), location = "bm")
 converged <- EvoTempoRun(fine$x, TempoGenerator(fine, theta))
 saveRDS(list(code = bmCode, ours = bmOurs, converged = converged),
         file.path(outDir, "bm-columns.rds"))
@@ -150,7 +150,7 @@ for (scheme in c("central", "upwind", "sqra")) {
   for (zMax in c(5, 10)) {
     for (h in c(0.4, 0.2, 0.1, 0.05)) {
       if (scheme == "central" && h * zMax > 2) next
-      grid <- TempoGrid(round(2 * zMax / h) + 1, c(-zMax, zMax))
+      grid <- TempoGrid(round(2 * zMax / h) + 1, c(-zMax, zMax), location = "bm")
       q <- Quantities(grid$x, TempoGenerator(grid, theta, scheme = scheme))
       rows[[length(rows) + 1]] <- data.frame(scheme, zMax, h, K = length(grid$x), t(q))
     }
@@ -163,7 +163,7 @@ for (nCell in c(51, 101, 201, 401, 801)) {
                                          K = nCell, t(q))
 }
 for (zMax in c(3, 4, 5, 6, 8)) {
-  grid <- TempoGrid(round(2 * zMax / 0.1) + 1, c(-zMax, zMax))
+  grid <- TempoGrid(round(2 * zMax / 0.1) + 1, c(-zMax, zMax), location = "bm")
   q <- Quantities(grid$x, TempoGenerator(grid, theta))
   rows[[length(rows) + 1]] <- data.frame(scheme = "central-range", zMax, h = 0.1,
                                          K = length(grid$x), t(q))

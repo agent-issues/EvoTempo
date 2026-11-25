@@ -23,8 +23,7 @@ evaluation in which one edge changed, more than the pruning it saves, because
 for every Pruner it validates the whole tree, builds a vector of child vectors,
 diffs it against the last tree and rebuilds the postorder. With the R and Rcpp
 glue now at about 0.03 ms, `set_tree()` is the largest fixed cost left: about
-0.13 ms of the 0.26 ms of a `PartitionedMk()` call, or roughly 11 ms of a
-175 ms production iteration (84 evaluations).
+0.13 ms of the 0.26 ms of a `PartitionedMk()` call in which a length changed.
 
 ## Proposal
 
@@ -51,8 +50,10 @@ ancestors), so the result stays bitwise that of a one-shot evaluation.
    sweep) gains little: there `set_tree()` is a third or so of the cost and
    the pruning the rest.
 
-Expected gain: about 0.13 ms on 74 of 84 evaluations per iteration, 9-10 ms of
-175 ms (5%). Cost: a dozen lines in `Evaluate()`, no change to MkPrime, R or any
+Expected gain: at most 0.13 ms on the roughly 70 evaluations per iteration that
+change lengths but not topology (the path and age moves and the `rate` update;
+the other parameter updates change no length and already return before
+`set_tree()`), so up to 9 ms of 175 ms (5%). Cost: a dozen lines in `Evaluate()`, no change to MkPrime, R or any
 move.
 
 ## Tests it would need

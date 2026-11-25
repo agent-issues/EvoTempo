@@ -102,6 +102,12 @@ registers the six partitions and six constant-pattern matrices once
 the tree for all twelve pruners.  The values and the order in which they are
 combined are unchanged, so chains are bitwise those of the earlier build.
 
+These tables come from another session and load than those above, so compare
+figures within a table only.  "Before" is commit 803f036 with its own
+`common.R`; "one C++ call" is 157ff4e.  A repeat after merging the review fixes
+(a9ef454 against f081cd3), on a busier machine, gave the same ordering: 227-305,
+189-227 and 176-223 ms per iteration.
+
 `data-raw/mk-set-benchmark.R micro 3000` (ms per `PartitionedMk()` call; laptop,
 other jobs running, so read the ratios; two runs each, less one disturbed
 measurement in each of the first two columns of the last row):

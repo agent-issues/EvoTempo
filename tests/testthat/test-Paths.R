@@ -190,8 +190,10 @@ stiffTree <- TempoTree(structure(
   ),
   class = "phylo"
 ))
+# Budd & Mann's location: its top bins sit 3s above x = 0, which is stiff
 stiffModel <- DCETModel(
-  nBin = 16, zRange = c(-3, 3), rho = 0.5, beta = 1, gamma = 0
+  nBin = 16, zRange = c(-3, 3), rho = 0.5, beta = 1, gamma = 0,
+  location = "bm"
 )
 okPar <- list(lambda = 0.47, mu = 0.136, psi = 0.029, theta = 0.306, s = 0.84)
 # Top-bin rates too stiff for the C++ E solver

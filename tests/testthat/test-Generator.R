@@ -1,20 +1,20 @@
 test_that("TempoGrid() validates input", {
-  expect_error(TempoGrid(1), "nBin")
-  expect_error(TempoGrid(NA), "nBin")
-  expect_error(TempoGrid(5, c(1, -1)), "increasing")
-  expect_error(TempoGrid(5, 1), "increasing")
-  expect_error(TempoGrid(5, s = 0), "positive")
-  grid <- TempoGrid(5, c(-2, 2), s = 2)
+  expect_error(TempoGrid(1, location = "bm"), "nBin")
+  expect_error(TempoGrid(NA, location = "bm"), "nBin")
+  expect_error(TempoGrid(5, c(1, -1), location = "bm"), "increasing")
+  expect_error(TempoGrid(5, 1, location = "bm"), "increasing")
+  expect_error(TempoGrid(5, s = 0, location = "bm"), "positive")
+  grid <- TempoGrid(5, c(-2, 2), s = 2, location = "bm")
   expect_s3_class(grid, "TempoGrid")
   expect_equal(grid$x, 2 * grid$z)
   expect_equal(grid$h, 1)
 })
 
 test_that("TempoGenerator() returns valid generators", {
-  grid <- TempoGrid(41, c(-4, 4))
+  grid <- TempoGrid(41, c(-4, 4), location = "bm")
   expect_error(TempoGenerator(list(), 0.01), "TempoGrid")
   expect_error(TempoGenerator(grid, -1), "theta")
-  expect_error(TempoGenerator(TempoGrid(11, c(-8, 8)), 0.01), "h \\* max")
+  expect_error(TempoGenerator(TempoGrid(11, c(-8, 8), location = "bm"), 0.01), "h \\* max")
   for (scheme in c("central", "upwind", "sqra")) {
     Q <- TempoGenerator(grid, 0.01, scheme = scheme)
     expect_equal(rowSums(Q), numeric(41), tolerance = 1e-12)
@@ -24,7 +24,7 @@ test_that("TempoGenerator() returns valid generators", {
 })
 
 test_that("Central and upwind drift is exact in the interior", {
-  grid <- TempoGrid(41, c(-4, 4), s = 1.5)
+  grid <- TempoGrid(41, c(-4, 4), s = 1.5, location = "bm")
   interior <- 2:40
   for (scheme in c("central", "upwind")) {
     A <- TempoGenerator(grid, 0.02, alpha = 0, scheme = scheme)
@@ -38,7 +38,7 @@ test_that("Central and upwind drift is exact in the interior", {
 })
 
 test_that("SqRA stationary law is the grid Gaussian", {
-  grid <- TempoGrid(33, c(-4, 4))
+  grid <- TempoGrid(33, c(-4, 4), location = "bm")
   A <- TempoGenerator(grid, 0.01, alpha = 0, scheme = "sqra")
   p <- TempoEquilibrium(A)$p
   gauss <- exp(-grid$z^2 / 2)
@@ -71,5 +71,5 @@ test_that("BinRates() scales rates by tempo", {
   expect_equal(rates$lambda, 2 * exp(c(-1, 0, 1)))
   expect_equal(rates$mu, exp(c(-1, 0, 1)))
   expect_equal(rates$psi, rep(0.5, 3))
-  expect_equal(BinRates(TempoGrid(3, c(-1, 1)), 2, 1)$mu, exp(c(-1, 0, 1)))
+  expect_equal(BinRates(TempoGrid(3, c(-1, 1), location = "bm"), 2, 1)$mu, exp(c(-1, 0, 1)))
 })

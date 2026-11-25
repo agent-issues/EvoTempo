@@ -1,7 +1,7 @@
-coreGrid <- function(nBin = 161, zMax = 8) TempoGrid(nBin, c(-zMax, zMax))
+coreGrid <- function(nBin = 161, zMax = 8) TempoGrid(nBin, c(-zMax, zMax), location = "bm")
 
 test_that("Diversity moments match the constant-rate birth-death process", {
-  Q <- TempoGenerator(TempoGrid(11, c(-2, 2)), 0.1)
+  Q <- TempoGenerator(TempoGrid(11, c(-2, 2), location = "bm"), 0.1)
   t <- c(0, 10, 100)
   lambda <- 0.6
   mu <- 0.4
@@ -46,12 +46,12 @@ test_that("Equilibrium mean is 0 when r = theta (corrected A.28)", {
 
 test_that("Equilibrium mean is -alpha s^2 when r = 0 (A.26)", {
   for (s in c(0.5, 1, 2)) {
-    grid <- TempoGrid(201, c(-10, 10), s = s)
+    grid <- TempoGrid(201, c(-10, 10), s = s, location = "bm")
     Q <- TempoGenerator(grid, 0.01, scheme = "sqra")
     p <- TempoEquilibrium(Q)$p
     expect_equal(sum(p * grid$x), -s^2, tolerance = 1e-8)
   }
-  grid <- TempoGrid(161, c(-8, 8))
+  grid <- TempoGrid(161, c(-8, 8), location = "bm")
   p <- TempoEquilibrium(TempoGenerator(grid, 0.01, alpha = 0.5,
                                        scheme = "sqra"))$p
   expect_equal(sum(p * grid$x), -0.5, tolerance = 1e-8)
@@ -95,7 +95,7 @@ test_that("Branch w is Exp(lambda + mu) in every bin (eq. 12)", {
 })
 
 test_that("Branch-duration density integrates to one, with the right mean", {
-  grid <- TempoGrid(41, c(-4, 4))
+  grid <- TempoGrid(41, c(-4, 4), location = "bm")
   Q <- TempoGenerator(grid, 0.01)
   rates <- BinRates(grid, 0.51, 0.5)
   out <- rates$lambda + rates$mu
@@ -108,7 +108,7 @@ test_that("Branch-duration density integrates to one, with the right mean", {
 })
 
 test_that("SurvivorDiversity() matches the birth-death generating function", {
-  Q <- TempoGenerator(TempoGrid(7, c(-2, 2)), 0.1)
+  Q <- TempoGenerator(TempoGrid(7, c(-2, 2), location = "bm"), 0.1)
   lambda <- 0.6
   mu <- 0.4
   horizon <- 20
@@ -134,7 +134,7 @@ test_that("SurvivorDiversity() matches the birth-death generating function", {
 })
 
 test_that("AncestralTempo() weights the prior by expected descendants", {
-  grid <- TempoGrid(41, c(-4, 4))
+  grid <- TempoGrid(41, c(-4, 4), location = "bm")
   Q <- TempoGenerator(grid, 0.01)
   rates <- BinRates(grid, 0.51, 0.5)
   oneHot <- replace(numeric(41), 25, 1)

@@ -16,7 +16,8 @@ SimulateCET(
   rho = 1,
   removal = 0,
   dw = 0.01,
-  maxEdges = 1e+05
+  maxEdges = 1e+05,
+  location = c("mean", "bm")
 )
 }
 \arguments{
@@ -29,7 +30,7 @@ tempo-time.}
 log-tempo.}
 
 \item{lambda, mu, psi}{Non-negative numerics giving speciation, extinction
-and fossil-sampling rates at unit tempo.}
+and fossil-sampling rates at log-tempo 0.}
 
 \item{delta}{Integer specifying the coupling of fossil sampling:
 \itemize{
@@ -48,6 +49,9 @@ lineage is removed.}
 
 \item{maxEdges}{Integer giving the largest number of branches to simulate
 before stopping with an error.}
+
+\item{location}{Character string specifying the tempo location: \code{mean} or
+\code{bm} (see Details).}
 }
 \value{
 \code{SimulateCET()} returns a \code{TempoHistory} (see \code{\link[=SimulateDCET]{SimulateDCET()}}),
@@ -65,6 +69,12 @@ with exact transitions on steps of \code{dw}.
 Real time, \eqn{\int e^{-x} dw}, is integrated by the trapezoid rule on
 those steps; it places fossils (when \code{delta = 0}) and the present.
 With \code{delta = 1}, fossil sampling has constant rate in tempo-time too.
+
+With \code{location = "mean"} (default) the Ornstein-Uhlenbeck mean is
+\eqn{s^2/2}, so that lineage-time log-tempo is stationary at
+\eqn{N(-s^2/2, s^2)} and \code{lambda}, \code{mu} and \code{psi} (with \code{delta = 1}) are
+lineage-mean rates; with \code{location = "bm"} it is 0, as in Budd & Mann
+(see \code{\link[=TempoGrid]{TempoGrid()}}).
 }
 \examples{
 set.seed(1)

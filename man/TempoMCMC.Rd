@@ -160,7 +160,14 @@ uniformly between its children and parent (with \code{start = "origin"}, the
 root's too, between its children and the origin); \code{fossilAge} redraws a fossil's
 age within its stratigraphic range (see \code{\link[=TempoTree]{TempoTree()}}); \code{slide} prunes a
 subtree and regrafts it at a uniform height onto a uniformly chosen branch
-crossing that height; \code{saJump} converts a fossil tip to a sampled ancestor
+crossing that height; \code{fnpr} prunes a subtree and regrafts its parent, at
+its unchanged age, onto a nearby branch crossing that age: one chosen
+uniformly among those whose most recent common ancestor with the old
+attachment point, in the tree without the subtree, is younger than a
+threshold that, with probability 1/2, admits every branch and otherwise is
+drawn log-uniformly between just above the parent and the root, so that
+it mixes local and global rearrangements (as RevBayes's \code{mvFNPR}
+and \code{mvNarrow}); \code{saJump} converts a fossil tip to a sampled ancestor
 or back (Gavryushkina et al. 2014).
 Each redraws affected node bins and paths from the frozen model, with
 proposal densities in the Hastings ratio.

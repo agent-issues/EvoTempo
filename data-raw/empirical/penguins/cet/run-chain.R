@@ -27,6 +27,8 @@
 #   CET_SEED         RNG seed (default 1000 * cell + rep)
 #   CET_NSLICE       frozen-model time slices (default 20)
 #   CET_TREE_MOVES   scale of the tree-move counts (default 1)
+#   CET_FNPR         fnpr moves (#110) per iteration as a multiple of 0.15 of the
+#                    bifurcations (default 0: none, as in the stage-1 chains)
 #   CET_NBIN, CET_ZMAX   tempo grid (default 26 bins, z in [-5, 5])
 #   CET_STATES       "true" (default) to save per-sample states for
 #                    bayes-factors.R

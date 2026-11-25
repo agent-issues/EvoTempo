@@ -195,7 +195,14 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' root's too, between its children and the origin); `fossilAge` redraws a fossil's
 #' age within its stratigraphic range (see [TempoTree()]); `slide` prunes a
 #' subtree and regrafts it at a uniform height onto a uniformly chosen branch
-#' crossing that height; `saJump` converts a fossil tip to a sampled ancestor
+#' crossing that height; `fnpr` prunes a subtree and regrafts its parent, at
+#' its unchanged age, onto a nearby branch crossing that age: one chosen
+#' uniformly among those whose most recent common ancestor with the old
+#' attachment point, in the tree without the subtree, is younger than a
+#' threshold that, with probability 1/2, admits every branch and otherwise is
+#' drawn log-uniformly between just above the parent and the root, so that
+#' it mixes local and global rearrangements (as RevBayes's `mvFNPR`
+#' and `mvNarrow`); `saJump` converts a fossil tip to a sampled ancestor
 #' or back (Gavryushkina et al. 2014).
 #' Each redraws affected node bins and paths from the frozen model, with
 #' proposal densities in the Hastings ratio.
@@ -298,7 +305,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   tree <- .NoRootAncestor(.ForModel(TempoTree(tree), model))
   origin <- .Origin(tree)
   moveNames <- c("tree", "node", "tip", "branch", "joint", "shift", "nodeAge",
-                 "fossilAge", "slide", "saJump", "rootAge", "originAge")
+                 "fossilAge", "slide", "fnpr", "saJump", "rootAge", "originAge")
   if (is.null(moves)) {
     moves <- TempoMoves(tree, characters, model)
   }
@@ -375,7 +382,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   branchX <- matrix(NA_real_, nKeep, length(pathNodes))
   moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L),
                                  c(moveNames, "parameters"))
-  treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
+  treeMoves <- c("nodeAge", "fossilAge", "slide", "fnpr", "saJump")
   # Character lengths below the root, for the clock statistics
   Below <- function(tr, gamma) {
     replace(.CharacterLengths(tr, st[["set"]][["grid"]][["x"]], st[["paths"]], 1,
@@ -527,7 +534,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 #' `node`, `tip` and `branch` moves are run for a fraction `local` of the
 #' internal nodes, the tips with paths and the branches with paths
 #' respectively (rounded up), with one `shift`.
-#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `saJump`) are not included;
+#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `fnpr`, `saJump`) are not included;
 #' add them to the returned vector.
 #'
 #' @param tree A [`TempoTree`][TempoTree()], or a tree that it accepts.

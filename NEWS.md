@@ -87,3 +87,7 @@
   stops on a start age outside the support of its prior, and
   `TempoMCMC()` and `SampleTempoPaths()` on a sampled ancestor at the root
   ([#55](https://github.com/agent-issues/EvoTempo/issues/55)).
+- `TempoMCMC()` tree move `fnpr`: fixed-node-height prune and regraft onto a
+  nearby lineage, chosen within a log-uniform MRCA-age threshold, so that it
+  mixes local (narrow-exchange-like) and global rearrangements
+  ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).

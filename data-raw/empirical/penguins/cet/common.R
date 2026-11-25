@@ -402,13 +402,16 @@ CetStart <- function(index, tree = NULL, model = NULL, characters = NULL, priors
 # shift with gamma != 0; whole-tree draws and joint sweeps with gamma = 0)
 # plus tree moves in proportion to the tree, scaled by CET_TREE_MOVES
 CetMoves <- function(tt, characters, model,
-                     scale = as.numeric(Sys.getenv("CET_TREE_MOVES", "1"))) {
+                     scale = as.numeric(Sys.getenv("CET_TREE_MOVES", "1")),
+                     fnpr = as.numeric(Sys.getenv("CET_FNPR", "0"))) {
   nBif <- sum(!tt$sampled)
   nFossil <- sum(tt$tipType != "extant")
   c(TempoMoves(tt, characters, model),
     nodeAge = ceiling(scale * 0.25 * nBif), fossilAge = ceiling(scale * 0.25 * nFossil),
     slide = ceiling(scale * 0.15 * nBif), saJump = ceiling(scale * 0.1 * nFossil),
-    originAge = 1)
+    originAge = 1,
+    # fnpr (#110): only when CET_FNPR > 0, 0.15 of the bifurcations per unit
+    if (fnpr > 0) c(fnpr = ceiling(fnpr * 0.15 * nBif)))
 }
 
 # ---- Utilities -------------------------------------------------------------------

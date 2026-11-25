@@ -75,7 +75,7 @@ test_that("Each tree move proposes valid trees", {
   st <- list(tree = moveTree, set = set, paths = d$paths, bin = d$bin)
   seen <- character(0)
   for (i in 1:60) {
-    for (move in c("nodeAge", "fossilAge", "slide", "saJump")) {
+    for (move in c("nodeAge", "fossilAge", "slide", "fnpr", "saJump")) {
       prop <- .ProposeTreeMove(move, st$tree, set, st)
       if (is.null(prop)) next
       seen <- c(seen, move)
@@ -97,7 +97,7 @@ test_that("Each tree move proposes valid trees", {
       }
     }
   }
-  expect_setequal(unique(seen), c("nodeAge", "fossilAge", "slide", "saJump"))
+  expect_setequal(unique(seen), c("nodeAge", "fossilAge", "slide", "fnpr", "saJump"))
   expect_true(any(st$tree$tipType == "ancestor") || any(seen == "saJump"))
 })
 
@@ -108,7 +108,7 @@ test_that("Tree moves with no candidates return NULL", {
   set <- .AddSlices(cherry, .Precompute(cherry, movePar, moveModel), 4)
   d <- .SampleTree(cherry, set, .Messages(cherry, set))
   st <- list(tree = cherry, set = set, paths = d$paths, bin = d$bin)
-  for (move in c("nodeAge", "fossilAge", "slide")) {
+  for (move in c("nodeAge", "fossilAge", "slide", "fnpr")) {
     expect_null(.ProposeTreeMove(move, cherry, set, st))
   }
   # Fossil tip whose parent is the root
@@ -149,7 +149,7 @@ test_that("TempoMCMC() runs every move with characters", {
   run <- TempoMCMC(moveTree, moveModel, movePar,
                    TempoPriors()[c("lambda", "theta")], nIter = 6, nSlice = 4,
                    moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 1,
-                             fossilAge = 1, slide = 1, saJump = 1, joint = 1),
+                             fossilAge = 1, slide = 1, fnpr = 1, saJump = 1, joint = 1),
                    characters = chars)
   expect_true(all(run$acceptance[c(names(run$moves), "parameters")] > 0))
   expect_true(all(is.finite(run$samples$logPost)))
@@ -218,4 +218,60 @@ test_that("Joint parameter-path moves run and adapt", {
   res <- .JointSweep(st, TempoPriors()["theta"], c(theta = 1), moveModel, 4,
                      function(...) 0, Draw = function(...) .Infeasible())
   expect_false(res$accepted[["theta"]])
+})
+
+test_that("fnpr targets are symmetric and local", {
+  # Tips a-e, g, h are 1-7; all extant
+  phy <- ape::read.tree(text = "((((a:1,b:1):1,c:2):2,(d:3,e:3):1):1,(g:1.5,h:1.5):3.5);")
+  tr <- TempoTree(phy)
+  nTip <- tr$nTip
+  ab <- tr$parent[[1]]
+  abc <- tr$parent[[ab]]
+  gh <- tr$parent[[6]]
+  # Prune c (parent abc, sibling ab): lineages crossing age(abc) = 2 in the
+  # pruned tree are ab, d, e and gh; ab's MRCA with d and e is 4, with gh 5
+  clade <- .Descendants(tr, 3)
+  expect_setequal(.FnprTargets(tr, abc, ab, clade, Inf), c(4, 5, gh))
+  expect_setequal(.FnprTargets(tr, abc, ab, clade, 4), c(4, 5))
+  expect_length(.FnprTargets(tr, abc, ab, clade, 3.9), 0)
+  pruned <- .PrunedParent(tr, abc)
+  expect_equal(pruned[[ab]], tr$parent[[abc]])
+  expect_equal(.MRCAAge(tr, pruned, ab, c(4, gh)), c(4, 5))
+  # Regraft onto d: the reverse target set, around d, has the same size
+  newTree <- tr
+  newTree$parent[ab] <- tr$parent[[abc]]
+  newTree$parent[abc] <- tr$parent[[4]]
+  newTree$parent[4] <- abc
+  newTree <- .Rebuild(newTree)
+  for (h in c(4, 4.5, 5, Inf)) {
+    expect_equal(length(.FnprTargets(newTree, abc, 4, clade, h)),
+                 length(.FnprTargets(tr, abc, ab, clade, h)))
+  }
+  # No other lineage alive at age(p): a and d are fossils older than (b, c)
+  lone <- TempoTree(ape::read.tree(text = "((a:0.4,(b:0.5,c:0.5):0.5):1,d:0.2);"))
+  bc <- lone$parent[[2]]
+  expect_length(.FnprTargets(lone, bc, 3, .Descendants(lone, 2), Inf), 0)
+  # A threshold just above the parent leaves no target: no proposal
+  set <- .AddSlices(tr, .Precompute(tr, movePar, moveModel), 4)
+  d <- .SampleTree(tr, set, .Messages(tr, set))
+  st <- list(tree = tr, set = set, paths = d$paths, bin = d$bin)
+  local_mocked_bindings(.fnprSpan = 1e9)
+  set.seed(1)
+  nulls <- vapply(1:20, function(i) is.null(.ProposeTreeMove("fnpr", tr, set, st)), TRUE)
+  expect_true(any(nulls))
+})
+
+test_that("fnpr keeps node ages and changes the topology", {
+  set <- .AddSlices(moveTree, .Precompute(moveTree, movePar, moveModel), 6)
+  set.seed(5)
+  d <- .SampleTree(moveTree, set, .Messages(moveTree, set))
+  st <- list(tree = moveTree, set = set, paths = d$paths, bin = d$bin)
+  changed <- 0
+  for (i in 1:30) {
+    prop <- .ProposeTreeMove("fnpr", moveTree, set, st)
+    if (is.null(prop)) next
+    expect_equal(sort(prop$tree$age), sort(moveTree$age))
+    changed <- changed + !identical(prop$tree$parent, moveTree$parent)
+  }
+  expect_gt(changed, 0)
 })

@@ -120,6 +120,12 @@ test_that("Tree moves with no candidates return NULL", {
   d <- .SampleTree(rootFossil, set, .Messages(rootFossil, set))
   st <- list(tree = rootFossil, set = set, paths = d$paths, bin = d$bin)
   expect_null(.ProposeTreeMove("saJump", rootFossil, set, st))
+  # A slide whose regraft age crosses no branch
+  set <- .AddSlices(moveTree, .Precompute(moveTree, movePar, moveModel), 4)
+  d <- .SampleTree(moveTree, set, .Messages(moveTree, set))
+  st <- list(tree = moveTree, set = set, paths = d$paths, bin = d$bin)
+  local_mocked_bindings(.Crossing = function(...) integer(0))
+  expect_null(.ProposeTreeMove("slide", moveTree, set, st))
 })
 
 test_that("saJump leaves a tree without fossils unchanged", {

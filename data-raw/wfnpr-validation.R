@@ -13,7 +13,9 @@
 # Run from the package root with the package installed:
 #   Rscript data-raw/wfnpr-validation.R [nChain] [nIter] [case] [seed offset]
 # Results: data-raw/wfnpr-results/wfnpr-validation.csv, or with a case (prior,
-# characters or tempoCharacters) wfnpr-validation-<case>-<seed offset>.csv
+# characters or tempoCharacters) wfnpr-validation-<case>-<seed offset>.csv.
+# WFNPR_MAX sets .wfnprMax (2: one candidate, drawn uniformly, per proposal, so
+# that the subsampling bound is exercised); results get the suffix -max<n>.
 suppressMessages(library("EvoTempo"))
 args <- commandArgs(TRUE)
 nChain <- if (length(args) > 0) as.numeric(args[[1]]) else 8
@@ -25,6 +27,11 @@ for (f in c(".PathNodes", ".SlideNodes", ".FnprTargets", ".Descendants", ".Rebui
             ".AddSlices", ".Precompute", ".Messages", ".SampleTree", ".PathMove",
             ".TreeMove", ".LogSumExp", ".CharacterLengths")) {
   assign(f, get(f, ns))
+}
+
+maxCandidates <- Sys.getenv("WFNPR_MAX", "")
+if (nzchar(maxCandidates)) {
+  utils::assignInNamespace(".wfnprMax", as.integer(maxCandidates), ns = "EvoTempo")
 }
 
 # ((a:2,(b:1.5,f:0):1.5):1,(c:1.2,d:3.3):0.7); a, c fossils; f sampled ancestor
@@ -133,7 +140,8 @@ write.csv(
   out,
   paste0(
     "data-raw/wfnpr-results/wfnpr-validation",
-    if (!is.null(only)) paste0("-", only, "-", offset), ".csv"
+    if (!is.null(only)) paste0("-", only, "-", offset),
+    if (nzchar(maxCandidates)) paste0("-max", maxCandidates), ".csv"
   ),
   row.names = FALSE
 )

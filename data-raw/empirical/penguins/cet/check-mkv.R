@@ -19,8 +19,9 @@
 #    (that file now holds the round-4 tree; issue #65).  Tolerance 1e-3.
 # 2. The earlier all-tips-observed variant (.cet$mkv = "allTips") must still
 #    give the values that the verifier reproduced for it.
-# 3. ConstantPatternLogLik() must equal MkLikelihood() on each pattern's
-#    constant column (unobserved tips unknown), in both engines, to 1e-10.
+# 3. ConstantPatternLogLik() and PatternLogLik() (the cached C++ route) must
+#    equal MkLikelihood() on each pattern's constant column (unobserved tips
+#    unknown), in both engines, to 1e-10.
 # 4. The correction is inside the powered term: power t gives t x lnL.
 # 5. Cost of one PartitionedMk() evaluation per variant and engine
 #    (milliseconds, mean of CET_MKV_REPS evaluations, default 200).
@@ -62,6 +63,7 @@ for (i in seq_len(nrow(oracle))) {
            none = PartitionedMk(tt, chars, len, engine = eng, power = 1, mkv = "none"))
     half <- PartitionedMk(tt, chars, len, engine = eng, power = 0.5, mkv = "pattern")
     lc <- ConstantPatternLogLik(tt, pat, len)
+    lcEngine <- PatternLogLik(tt, pat, len, eng)
     ref <- vapply(seq_along(pat$k), function(j) {
       col <- matrix(ifelse(pat$observed[, j], 0L, NA_integer_), ncol = 1)
       .mkOriginal(tt, col, len, pat$k[j], eng)
@@ -74,7 +76,7 @@ for (i in seq_len(nrow(oracle))) {
       diffAllTips = v[["allTips"]] - oracle$allTipsBefore[i], none = v[["none"]],
       correctionPattern = v[["pattern"]] - v[["none"]],
       correctionAllTips = v[["allTips"]] - v[["none"]],
-      maxDiffConstColumn = max(abs(lc - ref)), powerHalfDiff = half - 0.5 * v[["pattern"]])
+      maxDiffConstColumn = max(abs(c(lc, lcEngine) - ref)), powerHalfDiff = half - 0.5 * v[["pattern"]])
   }
 }
 res <- do.call(rbind, rows)

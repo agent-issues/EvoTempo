@@ -83,7 +83,7 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
       # and the correction would silently become 0 (#74)
       stopifnot("characters with \"parts\" need the \"mkv\" attribute (MkvPatterns())" =
                   !is.null(pat))
-      -sum(pat$count * log1p(-pat$k * exp(ConstantPatternLogLik(tree, pat, lengths))))
+      -sum(pat$count * log1p(-pat$k * exp(PatternLogLik(tree, pat, lengths, engine))))
     },
     allTips = -sum(vapply(parts, function(p) {
       ncol(p$x) * log1p(-p$k * exp(.mkOriginal(tree, p$const, lengths, p$k, engine)))
@@ -113,6 +113,10 @@ MkvPatterns <- function(x, nState) {
   # A pattern with fewer than two observed tips is constant whatever the
   # states, so its correction would be log(0)
   stopifnot(all(colSums(pat$observed) >= 2), sum(pat$count) == ncol(x))
+  # Constant columns per K (observed tips in state 0, the rest unknown)
+  pat$const <- lapply(split(seq_along(pat$k), pat$k), function(i) {
+    ifelse(pat$observed[, i, drop = FALSE], 0L, NA_integer_)
+  })
   pat
 }
 
@@ -124,6 +128,21 @@ MkvPatterns <- function(x, nState) {
 # patterns of all partitions are pruned together.  Same recursion and
 # per-node rescaling as the R engine of MkLikelihood(); check-mkv.R checks it
 # against MkLikelihood() column by column.
+# ConstantPatternLogLik() by the C++ engine, whose pruner caches partial
+# likelihoods between calls (#110), one constant matrix per K.  Builds without
+# .MkSiteLogLik() (before #110) use the R route.
+PatternLogLik <- function(tree, pat, lengths, engine) {
+  if (TempoEngine(engine) != "cpp" || !exists(".MkSiteLogLik", .ns)) {
+    return(ConstantPatternLogLik(tree, pat, lengths))
+  }
+  out <- numeric(length(pat$k))
+  for (k in unique(pat$k)) {
+    i <- which(pat$k == k)
+    out[i] <- get(".MkSiteLogLik", .ns)(tree, pat$const[[as.character(k)]], lengths, k)
+  }
+  out
+}
+
 ConstantPatternLogLik <- function(tree, pat, lengths) {
   nTip <- tree[["nTip"]]
   k <- pat$k

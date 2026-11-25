@@ -164,7 +164,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `src/tree_likelihood.cpp` | C++ tree pruning, `ExtinctionProbability()`, E grid |
 | `src/paths.cpp`, `src/paths.h`, `src/frozen.h`, `src/tree.h` | C++ frozen messages, FFBS, bridges, augmented density, weights; read-only views of `set` and `TempoTree` |
 | `src/tree_moves.cpp` | C++ kernels of the tree moves: transfer rows, bridge densities and draws, node and tip bin weights, `.Rebuild()` |
-| `src/characters.cpp` | `MkLikelihood()` via `MkPrime::Pruner<JCModel>` |
+| `src/characters.cpp` | `MkLikelihood()` and `.MkSiteLogLik()` via `MkPrime::Pruner<JCModel>`, with partial likelihoods cached per character matrix between calls (`dev/plans/mk-likelihood-cache.md`; `EVOTEMPO_MK_CACHE_CHECK=1` checks each result against a one-shot evaluation, `options(EvoTempo.mkCache = FALSE)` disables it) |
 | `R/TreeMoves.R` | Node-age, fossil-age, subtree-slide and sampled-ancestor moves with frozen-model bin and path proposals |
 | `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
 | `data-raw/rung2-validation.R`, `data-raw/validation-report.R` | Monte Carlo validation and the rung 1-2 report |
@@ -178,6 +178,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/empirical/trilobites/cet/` | Trilobite CET pipeline (morphology only, all-fossil tree): as the penguin pipeline, with ages before the end of the Cambrian sampling window (485.4 Ma, rho = 0, survival from the origin), ordered and ambiguous characters scored as in the RevBayes comparator (`prune.cpp`), the ingroup constraint enforced on tree proposals, priors matched to `../revbayes/`, and checks against RevBayes (`check-mkv.R`) and forward simulation (`check-window.R`); README.md |
 | `manuscript/` | Quarto manuscript (build-ignored; rendered by `render-manuscript.yaml`). Not in `vignettes/`: R CMD check treats a `.qmd` there as a vignette without an engine |
 | `tests/testthat/test-Engine.R` | C++ vs R agreement for every ported function, and identical seeded chains in both engines |
+| `data-raw/mk-cache-benchmark.R` | Time per proposal by move type on the penguin data, with and without the cached character likelihood; smoke results in `data-raw/mk-cache-results/` |
 | `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |
 | `data-raw/rung5-fixed-parameters.R` | Rung 5 at fixed parameters (tree moves only) vs rejection simulation; regression check for tree-move Hastings ratios |
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |

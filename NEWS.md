@@ -87,3 +87,8 @@
   stops on a start age outside the support of its prior, and
   `TempoMCMC()` and `SampleTempoPaths()` on a sampled ancestor at the root
   ([#55](https://github.com/agent-issues/EvoTempo/issues/55)).
+- The C++ engine of `MkLikelihood()` caches partial likelihoods per character
+  matrix between calls, so a `TempoMCMC()` proposal recomputes only the nodes
+  whose subtree or child branch lengths changed; results are bitwise those of a
+  full evaluation.  `options(EvoTempo.mkCache = FALSE)` turns the cache off
+  ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).

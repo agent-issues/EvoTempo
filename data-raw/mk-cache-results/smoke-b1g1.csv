@@ -1,0 +1,11 @@
+"beta","gamma","move","msBefore","msAfter","speedUp","same"
+1,1,"slide",5.92,3.13,1.89,TRUE
+1,1,"saJump",3.48,2.24,1.55,TRUE
+1,1,"nodeAge",5.58,2.94,1.9,TRUE
+1,1,"fossilAge",6.31,4.72,1.33,TRUE
+1,1,"originAge",11.93,10.15,1.17,TRUE
+1,1,"node",4.68,3.22,1.45,TRUE
+1,1,"tip",4.27,1.98,2.15,TRUE
+1,1,"branch",3.07,1.15,2.68,TRUE
+1,1,"shift",2.8,1.48,1.89,TRUE
+1,1,"parameters",8.15,5.57,1.46,TRUE

@@ -34,8 +34,7 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
     stop("`characters` needs one row per tip")
   }
   if (TempoEngine(engine) == "cpp") {
-    states <- matrix(as.integer(characters), nTip)
-    return(.MkLikelihoodCpp(tree, states, as.double(lengths), as.integer(nState)))
+    return(.MkSiteLogLik(tree, characters, lengths, nState, sites = FALSE))
   }
   nChar <- ncol(characters)
   partial <- vector("list", nTip + tree[["nNode"]])
@@ -63,6 +62,23 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
   }
   sum(log(colSums(partial[[tree[["root"]]]]) / nState)) + logScale
 }
+
+# C++ Mk log-likelihood (`sites = FALSE`) or log-likelihood per character, from
+# partial likelihoods cached per character matrix
+# (dev/plans/mk-likelihood-cache.md); `options(EvoTempo.mkCache = FALSE)`
+# disables the cache, and the environment variable EVOTEMPO_MK_CACHE_CHECK = 1
+# checks every cached result against a one-shot evaluation
+.MkSiteLogLik <- function(tree, characters, lengths, nState, sites = TRUE) {
+  if (!is.integer(characters) || !is.matrix(characters)) {
+    characters <- matrix(as.integer(characters), tree[["nTip"]])
+  }
+  .MkCpp(tree, characters, as.double(lengths), as.integer(nState), sites,
+         !isFALSE(getOption("EvoTempo.mkCache")))
+}
+
+# Number of cached character matrices and of partial likelihoods recomputed;
+# `clear = TRUE` empties the cache first
+.MkCache <- function(clear = FALSE) .MkCacheCpp(clear)
 
 # Tempo-weighted branch lengths c * sum_k exp(gamma x_k) dwell_k, per node
 # (with an origin, the root's is the stem's, which MkLikelihood() ignores)

@@ -11,8 +11,9 @@ character likelihood, instead of pruning all characters on the whole tree.
 | C++ pruning of the six K-partitions (`.MkLikelihoodCpp`) | 0.6 |
 | R Mkv correction, 132 constant patterns (`ConstantPatternLogLik()`) | 3.4 |
 
-Whole proposals cost 5-12 ms (slide 12.5, nodeAge and fossilAge 7, path moves
-4-5), so the character likelihood is 35-90% of a proposal, and **most of it is the
+Whole proposals cost 3-12 ms (slide 5.9, nodeAge 5.6, fossilAge 6.3, path moves
+3-5, originAge 12; `data-raw/mk-cache-results/`), so the character likelihood is
+a third to most of a proposal, and **most of it is the
 R-level Mkv correction, not the C++ pruning**. Caching the C++ partials alone saves
 at most 0.6 ms per proposal. The plan therefore caches both, by running the
 constant-pattern columns through the same cached pruner. Even with a free
@@ -87,7 +88,7 @@ None needs code. What each changes, and so what the diff marks dirty:
 | `originAge` / `rootAge` | stem (ignored) and root-adjacent lengths; with gamma = 1 the redrawn start-branch paths | root region |
 | `node`, `tip`, `branch` | with gamma != 0, lengths of the redrawn branches; with gamma = 0 lengths change only by round-off of the dwell sums | their ancestors (often nothing) |
 | `tree`, `joint` | every path, so (gamma != 0) every length | everything |
-| `shift` | every length is rescaled, and `rate` with it; the character likelihood is invariant and `.ShiftMove()` does not call it | - |
+| `shift` | with `rate` free (or gamma = 0) the character likelihood is invariant and `.ShiftMove()` does not call it; with `rate` fixed and gamma != 0, every length changes | - / everything |
 | parameter sweep | only `rate` changes lengths (all of them) | everything; other parameters leave lengths unchanged, so the call returns the stored result |
 | FNPR (move 1) | like `slide` | like `slide` |
 
@@ -119,7 +120,8 @@ called, and a change of `rate` reaches the pruner as a change of every length.
   in all four (beta, gamma) cells, with `slide`, `saJump`, `rate` changes and a
   two-partition rebinding wrapper.
 - `options(EvoTempo.mkCache = FALSE)` turns the cache off (one-shot path), for
-  benchmarks and as a fallback. `.MkCacheClear()` empties the registry.
+  benchmarks and as a fallback. `.MkCache(clear = TRUE)` empties the registry; `.MkCache()` reports its size and
+  the number of partials recomputed.
 
 ## Correctness criterion
 

@@ -22,7 +22,14 @@ run, `nIter = 8`, 5 proposals per iteration (40 proposals; the parameter sweep:
 | tree | - | - | - | 6.81 | 3.11 | 2.2 |
 | parameters | 8.15 | 5.57 | 1.5 | 5.88 | 5.05 | 1.2 |
 
-(ms per proposal; CSVs `smoke-b1g1.csv`, `smoke-b0g0.csv`.)
+(ms per proposal; CSVs `smoke-b1g1.csv`, `smoke-b0g0.csv`.)  `shift` calls the
+character likelihood only because the benchmark fixes `rate`; with `rate` free, as
+in production, the move is character-invariant and unaffected.
+
+Weighted by the production b1g1 schedule (`node` 14, `tip` 11, `branch` 24,
+`shift` 1, `nodeAge` 10, `fossilAge` 9, `slide` 6, `saJump` 4, `originAge` 1, and
+a 6-parameter sweep), with `shift` unchanged: 412 ms -> 240 ms of move work per
+iteration, 1.7x.
 
 The character likelihood itself fell from 4.4 ms to 0.4-0.7 ms per call. Most of
 that came from moving the Mkv correction (3.4 ms in R) into the C++ pruner; the

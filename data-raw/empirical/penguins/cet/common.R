@@ -35,7 +35,8 @@
 #    the first call of a run (TempoMCMC() calls .TreeStats() once before its
 #    loop) it can inject a captured state, so a chain runs as a series of
 #    segments that continue each other exactly (run-chain.R; tested in
-#    smoke.sh).
+#    smoke.sh).  With Metropolis-coupled chains it captures and injects
+#    TempoMCMC()'s `mc3` too (every level's state and tuning).
 # 4. Priors are independent per parameter, so the FBD prior of the source
 #    analysis (on net diversification, turnover and sampling proportion) cannot
 #    be expressed; independent priors on lambda, mu, psi are used instead, and
@@ -166,6 +167,17 @@ RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
       for (v in c("st", "step", "jointStep", "ageStep", "moves")) {
         assign(v, r[[v]], envir = pf)
       }
+      if (!is.null(r[["mc3"]])) {
+        # Coupled chains (CET_NCHAIN > 1): the state at every slot and the
+        # tuning of every level; acceptance and swap counters restart
+        m <- get("mc3", envir = pf, inherits = FALSE)
+        m[c("chain", "slot")] <- r[["mc3"]][c("chain", "slot")]
+        keep <- c("step", "jointStep", "ageStep", "moves")
+        for (level in seq_along(m[["tune"]])) {
+          m[["tune"]][[level]][keep] <- r[["mc3"]][["tune"]][[level]][keep]
+        }
+        assign("mc3", m, envir = pf)
+      }
       assign(".Random.seed", r[["seed"]], envir = globalenv())
       .cet$resume <- NULL
       .cet$injected <- TRUE
@@ -188,6 +200,7 @@ RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
       state = st[c("tree", "par", "paths", "bin")])
     .cet$captured <- list(st = st, step = get("step", pf), jointStep = get("jointStep", pf),
                           ageStep = get("ageStep", pf), moves = get("moves", pf),
+                          mc3 = get("mc3", pf),
                           seed = get(".Random.seed", globalenv()))
   }
   .statsOriginal(tree, lengths, inverse)

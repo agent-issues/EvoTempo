@@ -27,6 +27,11 @@
 #   CET_SEED         RNG seed (default 1000 * cell + rep)
 #   CET_NSLICE       frozen-model time slices (default 20)
 #   CET_TREE_MOVES   scale of the tree-move counts (default 1)
+#   CET_NCHAIN       Metropolis-coupled chains (default 1: none); with
+#                    CET_DELTA_HEAT (default 0.1) and CET_SWAP (iterations
+#                    between swap attempts, default 1); TempoMCMC()'s nChain,
+#                    deltaHeat and swapInterval.  Only the cold chain is
+#                    written; swaps.csv holds the swap rates per segment
 #   CET_NBIN, CET_ZMAX   tempo grid (default 26 bins, z in [-5, 5])
 #   CET_STATES       "true" (default) to save per-sample states for
 #                    bayes-factors.R
@@ -79,6 +84,9 @@ seg <- EnvNum("CET_SEG", 2000)
 hours <- EnvNum("CET_HOURS", 70)
 nSlice <- EnvNum("CET_NSLICE", 20)
 saveStates <- Sys.getenv("CET_STATES", "true") == "true"
+nChain <- EnvNum("CET_NCHAIN", 1)
+deltaHeat <- EnvNum("CET_DELTA_HEAT", 0.1)
+swapInterval <- EnvNum("CET_SWAP", 1)
 stopifnot(seg %% thin == 0, nIter %% seg == 0)
 .cet$power <- power
 
@@ -127,6 +135,12 @@ if (file.exists(ckpFile)) {
     stop(sprintf("%s started from %s (md5 %s); this run would load %s (md5 %s)", ckpFile,
                  ckp$startTree, ckp$startTreeMd5, startTree, startTreeMd5))
   }
+  ckpChains <- if (is.null(ckp$captured$mc3)) 1 else length(ckp$captured$mc3$heats)
+  if (ckpChains != nChain ||
+      (nChain > 1 && !isTRUE(all.equal(ckp$captured$mc3$heats[[2]], 1 / (1 + deltaHeat))))) {
+    stop(sprintf("%s holds %d coupled chain(s) on another ladder than CET_NCHAIN = %d, CET_DELTA_HEAT = %g",
+                 ckpFile, ckpChains, nChain, deltaHeat))
+  }
   if (!identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
     stop("the checkpoint's tip order differs from the character rows of ", startTree)
   }
@@ -157,13 +171,15 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   if (is.null(ckp)) {
     run <- TempoMCMC(dat$tree, model, startPar, priors, nIter = seg, burnin = burnin,
                      thin = thin, nSlice = nSlice, moves = moves,
-                     characters = dat$characters, agePriors = CetAgePriors())
+                     characters = dat$characters, agePriors = CetAgePriors(),
+                     nChain = nChain, deltaHeat = deltaHeat, swapInterval = swapInterval)
   } else {
     .cet$resume <- ckp$captured
     run <- TempoMCMC(ckp$captured$st$tree, model, ckp$captured$st$par, priors,
                      nIter = seg, burnin = 0, thin = thin, nSlice = nSlice,
                      moves = ckp$captured$moves, characters = dat$characters,
-                     agePriors = CetAgePriors())
+                     agePriors = CetAgePriors(), nChain = nChain, deltaHeat = deltaHeat,
+                     swapInterval = swapInterval)
     stopifnot(.cet$injected)
   }
   secs <- proc.time()[["elapsed"]] - tSeg
@@ -191,6 +207,11 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   accFile <- file.path(outDir, "acceptance.csv")
   utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),
                      append = file.exists(accFile))
+  if (nChain > 1) {
+    swapFile <- file.path(outDir, "swaps.csv")
+    utils::write.table(cbind(segment = k, run$swaps), swapFile, sep = ",", row.names = FALSE,
+                       col.names = !file.exists(swapFile), append = file.exists(swapFile))
+  }
   ckp <- list(segment = k, captured = .cet$captured, label = label, beta = beta, gamma = gamma,
               power = power, mkv = mkv, rep = rep, thin = thin, seg = seg,
               startTree = startTree, startTreeMd5 = startTreeMd5,

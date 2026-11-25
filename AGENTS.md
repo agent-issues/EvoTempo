@@ -156,6 +156,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `R/TreeLikelihood.R` | `TempoTree()` (ages, tip types), `DCETModel()`, marginal likelihood by joint E/D integration, closed-form FBD |
 | `R/Paths.R` | Tempo paths: exact augmented density (E and its integral on a Hermite grid), frozen-E slices, FFBS messages, direct-sampling bridges, importance weights |
 | `R/MCMC.R` | `TempoMCMC()` (data augmentation), `MarginalMCMC()`, `SampleTempoPaths()`, priors and parameter moves |
+| `R/Mc3.R` | Metropolis-coupled chains of `TempoMCMC()`: heat ladder, per-slot states, per-level tuning, swaps (design in `dev/plans/mc3.md`) |
 | `R/Characters.R` | `MkLikelihood()` (Mk pruning on tempo-weighted lengths; the C++ engine uses MkPrime kernels) |
 | `R/Engine.R` | `TempoEngine()`: `engine = "cpp"` (default) / `"R"` switch, option `EvoTempo.engine`; R is the reference oracle |
 | `R/Integrate.R` | Thin wrappers over `deSolve` (`lsode`) for the R engine |
@@ -188,6 +189,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung5-age-pool.R` | Pools independent replicates of `rung5-age-validation.R` per case (all chains vs all simulated trees); the 240-replicate check of the `originFree` flag in `data-raw/rung5-age-results/README.md` |
 | `data-raw/rung5-age-batches.R` | Per-batch summaries (mean, sd and Stouffer sum of the per-replicate z of the means) of the 240 `originFree` replicates, from the committed `rung5-age-pooled-per-run.csv` (#57) |
 | `data-raw/rung4b-theta-identity.R` | Importance-sampling identity (augmented to marginal likelihood) across theta, with or without the character |
+| `data-raw/mc3-validation.R` | Metropolis-coupled chains (#110): exact oracle on a steep ladder, swap mutants it must reject, and single against coupled chains with tree moves; results in `data-raw/mc3-results/` |
 | `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
 | `data-raw/rung6-sbc-full*.{R,sh,py}` | Rung 6 full size (#21): SBC with tree moves, 200 replicates per cell as Slurm array tasks on Hamilton; results and verdict in `data-raw/rung6-full-results/` |
 | `data-raw/rung7-power.R`, `-array.sh`, `-summary.R`, `-figure.py` | Rung 7: power of (beta, gamma) model selection by marginal likelihoods on fixed true trees (quadrature, bridge sampling, character-power stepping-stone, posterior-to-posterior bridge); results and caveats in `data-raw/rung7-results/README.md` |
@@ -200,6 +202,18 @@ the Hastings ratio (`prod p' / p` for multiplicative parameter changes), and mus
 proposals that leave the grid. The exact one-parameter oracle (`data-raw/rung4b-one-parameter.R`,
 seventh argument `shift`) checks each compensation separately; batch-means z-scores there scatter
 by about +/-2 at 8 chains, so use 16 or more.
+
+## Metropolis-coupled chains
+
+`TempoMCMC(nChain = N)` (#110; `dev/plans/mc3.md`) runs N levels with heats 1 / (1 + deltaHeat (r - 1))
+on the **character likelihood only**: `CharLL()` returns heat x log-likelihood, so `st$charLL` of a
+heated state is heated, and no move changes. States live in slots (`mc3$chain`), tuning in levels
+(`mc3$tune`); a swap exchanges two entries of `mc3$slot` and re-evaluates the two stored `charLL`,
+so anything cached with a state (a persistent pruner) stays valid. The levels share R's one
+random-number stream: levels in order within an iteration, then two uniforms per swap attempt.
+`nChain = 1` must stay bit-identical to an uncoupled chain; anything a level carries between
+iterations must be listed in `tuneNames`, or the levels will share it. A swap mutant (wrong sign,
+always accept) must fail `OracleMc3()` (`data-raw/mc3-validation.R`).
 
 ## Origin start and start-age moves
 

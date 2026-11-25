@@ -225,6 +225,24 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' \eqn{\ell_e = c \int_e e^{\gamma x} dt}, with \eqn{c} the parameter `rate`
 #' and \eqn{\gamma} from `model`; see [MkLikelihood()].
 #'
+#' With `nChain > 1` the chains are Metropolis-coupled (Geyer 1991).
+#' Level \eqn{r} of a ladder of `nChain` levels raises the character
+#' likelihood to the heat \eqn{h_r = 1 / (1 + \Delta (r - 1))}, \eqn{\Delta}
+#' being `deltaHeat`; the priors and the augmented density of the tree and
+#' its paths are not heated, so every move proposes as it does in the cold
+#' chain.
+#' In each iteration every level runs the move schedule in turn, coldest
+#' first; then, every `swapInterval` iterations, the states at one pair of
+#' adjacent levels \eqn{a, b}, chosen uniformly, exchange levels with
+#' probability \eqn{\min(1, (L_b / L_a)^{h_a - h_b})}, \eqn{L} being their
+#' character likelihoods.
+#' Step sizes, and the moves dropped after burn-in, belong to a level, not to
+#' a state.
+#' Only the cold level (\eqn{h = 1}) is sampled, so the cost per iteration
+#' is `nChain` times that of a single chain.
+#' All levels draw from one stream of random numbers, and `nChain = 1` draws
+#' exactly the numbers of an uncoupled chain.
+#'
 #' @inheritParams MarginalMCMC
 #' @inheritParams MkLikelihood
 #' @param nSlice Integer giving the number of time slices of the proposal.
@@ -241,6 +259,12 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' the root age (`root`; with `start = "root"`) and of the origin age
 #' (`origin`; with `start = "origin"`), needed by the `rootAge` and
 #' `originAge` moves.
+#' @param nChain Integer specifying the number of Metropolis-coupled chains,
+#' of which one is cold.
+#' @param deltaHeat Numeric specifying the increment \eqn{\Delta} of the
+#' heat ladder (see Details).
+#' @param swapInterval Integer specifying the number of iterations between
+#' attempts to swap two adjacent levels.
 #' @returns `TempoMCMC()` returns a list with elements
 #' - `samples`: data frame with one column per free parameter, `logPost`
 #'   (log augmented density, plus character log-likelihood, log prior of the
@@ -266,8 +290,19 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' - `burninAcceptance`: acceptance rate of each move during burn-in, or
 #'   `NULL` without burn-in;
 #' - `moves`: the move counts used after burn-in;
-#' - `state`: the final state.
+#' - `state`: the final state;
+#' - with `nChain > 1`, `heats`, the heat of each level, and `swaps`, a data
+#'   frame with one row per pair of adjacent levels giving their heats
+#'   (`hotter`, `colder`) and the swaps attempted (`tries`) and `accepted`
+#'   after burn-in, with their `rate`.
+#'
+#' Acceptance rates, move counts and the state are those of the cold level.
 #' @references
+#' Geyer CJ (1991). Markov chain Monte Carlo maximum likelihood. In Keramidas
+#' EM (ed.), Computing Science and Statistics: Proceedings of the 23rd
+#' Symposium on the Interface, pp. 156--163. Interface Foundation, Fairfax
+#' Station.
+#'
 #' Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference
 #' of sampled ancestor trees for epidemiology and fossil calibration. PLoS
 #' Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}
@@ -291,11 +326,22 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                       nSlice = 20, moves = NULL, characters = NULL,
                       nState = 2L, updateParameters = TRUE, minAcceptance = 0.01,
-                      agePriors = list(),
+                      agePriors = list(), nChain = 1L, deltaHeat = 0.1,
+                      swapInterval = 1L,
                       engine = getOption("EvoTempo.engine", "cpp")) {
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
   tree <- .NoRootAncestor(.ForModel(TempoTree(tree), model))
+  Count <- function(n) is.numeric(n) && length(n) == 1L && isTRUE(n >= 1 & n == floor(n))
+  if (!Count(nChain) || !Count(swapInterval)) {
+    stop("`nChain` and `swapInterval` must be positive whole numbers")
+  }
+  if (nChain > 1 && NCOL(characters) == 0) {
+    stop("`nChain > 1` needs `characters`: heat applies to their likelihood")
+  }
+  if (!is.numeric(deltaHeat) || !isTRUE(is.finite(deltaHeat) & deltaHeat > 0)) {
+    stop("`deltaHeat` must be a single positive number")
+  }
   origin <- .Origin(tree)
   moveNames <- c("tree", "node", "tip", "branch", "joint", "shift", "nodeAge",
                  "fossilAge", "slide", "saJump", "rootAge", "originAge")
@@ -331,13 +377,15 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   ageStep <- c(rootAge = 1, originAge = 1)
   ageHits <- 0 * ageStep
   par <- as.list(start)
-  CharLL <- function(tr, paths, p, set) {
+  # Heat of the level being updated: the power on the character likelihood
+  heat <- 1
+  CharLL <- function(tr, paths, p, set, h = heat) {
     if (is.null(characters)) {
       return(0)
     }
-    MkLikelihood(tr, characters,
-                 .CharacterLengths(tr, set[["grid"]][["x"]], paths, p[["rate"]],
-                                   model[["gamma"]]), nState)
+    h * MkLikelihood(tr, characters,
+                     .CharacterLengths(tr, set[["grid"]][["x"]], paths, p[["rate"]],
+                                       model[["gamma"]]), nState)
   }
   set <- .AddSlices(tree, .Precompute(tree, par, model), nSlice)
   msg <- .Messages(tree, set)
@@ -359,6 +407,12 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   hits <- numeric(length(priors))
   jointStep <- step
   jointHits <- hits
+  moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L),
+                                 c(moveNames, "parameters"))
+  burninAcceptance <- NULL
+  tuneNames <- c("step", "hits", "jointStep", "jointHits", "ageStep", "ageHits",
+                 "moves", "moveTry", "moveAcc", "burninAcceptance")
+  mc3 <- if (nChain > 1) .Mc3Init(st, nChain, deltaHeat, mget(tuneNames), CharLL)
   pathNodes <- .PathNodes(tree)
   nKeep <- nIter %/% thin
   statNames <- c(names(.TreeStats(tree)), if (origin) c("originAge", "originBin"))
@@ -373,8 +427,6 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                                             "meanX", statNames)))
   occupancy <- matrix(NA_real_, nKeep, model[["nBin"]])
   branchX <- matrix(NA_real_, nKeep, length(pathNodes))
-  moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L),
-                                 c(moveNames, "parameters"))
   treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
   # Character lengths below the root, for the clock statistics
   Below <- function(tr, gamma) {
@@ -383,8 +435,16 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   }
   free <- if (updateParameters) names(priors) else character(0)
   jointRuns <- updateParameters && length(priors) > 0
-  burninAcceptance <- NULL
-  for (i in seq_len(burnin + nIter)) {
+  level <- 1L
+  # Levels of the ladder take turns within an iteration, coldest first
+  for (turn in seq_len((burnin + nIter) * nChain)) {
+    i <- (turn - 1L) %/% nChain + 1L
+    if (nChain > 1) {
+      level <- (turn - 1L) %% nChain + 1L
+      heat <- mc3[["heats"]][[level]]
+      st <- mc3[["chain"]][[mc3[["slot"]][[level]]]]
+      list2env(mc3[["tune"]][[level]], environment())
+    }
     for (move in moveNames[moves > 0]) {
       for (rep in seq_len(.MoveCount(moves[[move]]))) {
         if (move == "shift") {
@@ -454,9 +514,27 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       ageHits <- 0 * ageHits
     }
     if (i == burnin) {
-      moves <- .DropMoves(moves, moveAcc, moveTry, minAcceptance, jointRuns)
+      # Heated levels drop moves by the same rule, silently
+      moves <- (if (level > 1) suppressWarnings else identity)(
+        .DropMoves(moves, moveAcc, moveTry, minAcceptance, jointRuns)
+      )
       burninAcceptance <- moveAcc / pmax(moveTry, 1)
       moveTry[] <- moveAcc[] <- 0
+    }
+    if (nChain > 1) {
+      mc3[["chain"]][[mc3[["slot"]][[level]]]] <- st
+      mc3[["tune"]][[level]] <- mget(tuneNames)
+      if (level < nChain) next
+      if (i %% swapInterval == 0) {
+        mc3 <- .SwapHeats(mc3, CharLL)
+      }
+      if (i == burnin) {
+        mc3[["swapTry"]][] <- mc3[["swapAcc"]][] <- 0
+      }
+      # The cold level is the one sampled and returned
+      heat <- 1
+      st <- mc3[["chain"]][[mc3[["slot"]][[1]]]]
+      list2env(mc3[["tune"]][[1]], environment())
     }
     j <- i - burnin
     if (j > 0 && j %% thin == 0) {
@@ -476,10 +554,13 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       }
     }
   }
-  list(
-    samples = as.data.frame(samples), occupancy = occupancy, branchX = branchX,
-    acceptance = moveAcc / pmax(moveTry, 1),
-    burninAcceptance = burninAcceptance, moves = moves[moves > 0], state = st
+  c(
+    list(
+      samples = as.data.frame(samples), occupancy = occupancy, branchX = branchX,
+      acceptance = moveAcc / pmax(moveTry, 1),
+      burninAcceptance = burninAcceptance, moves = moves[moves > 0], state = st
+    ),
+    if (nChain > 1) list(heats = mc3[["heats"]], swaps = .SwapTable(mc3))
   )
 }
 

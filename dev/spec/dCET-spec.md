@@ -27,7 +27,14 @@ Inference augments the tempo path on the branches of the reconstructed (sampled)
 through extinction probabilities E_k(τ), and scores characters by pruning on branch lengths
 ℓ_e = c Σ_k e^{γx_k}·(dwell of e in bin k).
 
-**Fixed choices** (from memo §2.7 and this document): the OU mean is fixed at 0 (§9.1); the removal-after-sampling probability
+**Tempo location (change, #116).** The default model becomes the *centred* model of [tempo-location.md](tempo-location.md):
+OU mean m = αs², so that the lineage-time stationary law of x is N(0, s²) and the rate parameters are rates at the median
+lineage tempo. The default scheme becomes SqRA. The m = 0 model below stays available as `location = "bm"` and is exactly
+related to the centred one by tempo-location.md (L.3). Sections 1, 5, 9.1 and 12 describe the m = 0 model unless they say
+otherwise.
+
+**Fixed choices** (from memo §2.7 and this document): the OU mean is fixed at 0 (§9.1; m = αs² in the centred default,
+tempo-location.md); the removal-after-sampling probability
 r_rm is fixed, default 0 (Truman et al.: unidentifiable if free); ρ is fixed from external richness. α = 1 by default; see §7.3 and open issue 1.
 
 ---
@@ -517,6 +524,12 @@ e^{−δd}, e^{−γd}. This is the reparameterisation above with a = d applied 
 lengths are unchanged exactly; the acceptance ratio carries the change in the augmented density (generator drift, start
 prior and conditioning, which depend on z) and the Jacobian Π p′/p.
 
+**Fixing m = 0 ties location to spread.** With m = 0 the lineage-stationary mean is −αs² (§5.2), so the weak direction above
+is coupled to s. When the tree favours larger s, the tempo level falls and λ rises as e^{αβs²}. That is the runaway in
+Hymenoptera cell (1, 0) (#116). The centred default fixes m = αs² instead, a choice of a = a(s) in the map above, so the
+level no longer moves with s. See [tempo-location.md](tempo-location.md), which also gives the map, the Jacobian and the
+validation plan. The `shift` move is unchanged under it.
+
 ### 9.2 Time scale
 
 dCET is time-homogeneous. Scaling all ages by κ and all rates (λ, μ, ψ, θ, c) by 1/κ leaves the law of 𝒯 in rescaled time and of the
@@ -709,17 +722,17 @@ Items 1–5 were checked against rendered crops of the typeset PDF ([bm-equation
 
 | Symbol | Meaning | Status |
 |---|---|---|
-| λ, μ | speciation/extinction at τ = 1 | free |
+| λ, μ | speciation/extinction at τ = 1 (centred default: at the median lineage tempo, tempo-location.md) | free |
 | θ | mean-reversion rate (per unit tempo-time) | free |
 | s | stationary sd of log-tempo (OU in tempo-time) | free |
-| c | character rate at τ = 1 | free (one per partition) |
+| c | character rate at τ = 1 (centred default: at the median lineage tempo) | free (one per partition) |
 | ψ | fossil sampling rate (at τ = 1 if δ = 1) | free |
 | ρ | extant sampling probability | fixed (external); random vs diversified sampling as sensitivity |
 | r_rm | removal after sampling | fixed 0 |
 | α | tempo self-rate exponent | fixed 1 (open issue 1) |
 | β, γ | couplings | {0, 1} per model cell; γ ∈ [0, 1] stretch |
 | δ | fossil-sampling coupling | {0, 1} sensitivity axis |
-| m | OU mean | fixed 0 (§9.1) |
+| m | OU mean | fixed: αs² (centred default, tempo-location.md) or 0 (`location = "bm"`, §9.1) |
 | K, z_min, z_max, scheme | discretisation | not parameters; convergence-checked (BDS protocol + §1.3 bound) |
 | π | start-bin prior | §5.4 option (open issue 2) |
 

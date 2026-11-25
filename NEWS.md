@@ -98,5 +98,5 @@
   dataset) can be registered once and scored in one C++ call (internal
   `.MkSet()`, `.MkSetLogLik()`), which removes most of the fixed cost of a
   cached evaluation; the penguin pipeline uses it, to the same values bit for
-  bit, and runs about 14% faster per iteration
+  bit, and runs 14-28% faster per iteration (two machines)
   ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).

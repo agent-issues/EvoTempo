@@ -41,7 +41,9 @@ NumericVector Phases(IntegerVector parent, List matrices, IntegerVector nState,
     if (mode == 1) {
       for (int j = 0; j < nEdge; ++j) l2[j] = len[j] * (1 + 1e-6 * (r + 1));
     } else {
-      l2 = len;
+      // One edge differs from the tree the pruners hold: the last tree if it
+      // was accepted, the starting tree if it was rejected
+      if (reject) l2 = len;
       l2[e] = len[e] * (1 + 1e-3 * (1 + r % 7));
     }
     Clock::time_point t0 = Clock::now();

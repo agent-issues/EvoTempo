@@ -72,17 +72,30 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
   }
   tree <- TempoTree(tree)
   pat <- attr(characters, "mkv")
+  oneCall <- NULL
   if (.hasMkSet && mkv == "pattern" && identical(engine, "cpp") && !is.null(pat) &&
       !isFALSE(getOption("EvoTempo.mkCache"))) {
     # Every partition and constant-pattern matrix in one C++ call; the values,
     # and the order in which they are combined, are those of the route below
     s <- MkSetFor(parts, pat, tree[["nTip"]])
-    v <- .mkSetLogLik(s$set, tree, lengths)
+    checking <- !Sys.getenv("EVOTEMPO_MK_CACHE_CHECK") %in% c("", "0")
+    v <- if (checking) {
+      # The handle against the matrices and numbers of states of this call
+      kU <- unique(pat$k)
+      .mkSetLogLik(s$set, tree, lengths,
+                   c(lapply(parts, function(p) p$x), unname(pat$const[as.character(kU)])),
+                   as.integer(c(vapply(parts, function(p) p$k, 0), kU)))
+    } else {
+      .mkSetLogLik(s$set, tree, lengths)
+    }
     ll <- 0
     for (i in s$part) {
       ll <- ll + v[[i]]
     }
-    return(power * (ll + -sum(pat$count * log1p(-pat$k * exp(v[s$pattern])))))
+    oneCall <- power * (ll + -sum(pat$count * log1p(-pat$k * exp(v[s$pattern]))))
+    if (!checking) {
+      return(oneCall)
+    }
   }
   ll <- 0
   for (p in parts) {
@@ -102,6 +115,12 @@ PartitionedMk <- function(tree, characters, lengths, nState = 2L,
     }, 0)),
     none = 0,
     stop("`.cet$mkv` must be \"pattern\", \"allTips\" or \"none\""))
+  # Under EVOTEMPO_MK_CACHE_CHECK both routes run: this also checks the handle's
+  # index maps (MkSetFor()), which the C++ check cannot see
+  if (!is.null(oneCall) && !identical(oneCall, power * ll)) {
+    stop("the character likelihood in one call (", format(oneCall, digits = 17),
+         ") differs from one call per matrix (", format(power * ll, digits = 17), ")")
+  }
   power * ll
 }
 

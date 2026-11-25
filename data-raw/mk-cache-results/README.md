@@ -96,48 +96,57 @@ RevBayes estimated in #110.** Removing the likelihood entirely would give about
 
 As above, about 70% of a cached evaluation did no pruning: twelve `.MkCpp()`
 calls, each with a content-keyed lookup and a copy of the tip states, behind
-three layers of R wrappers.  `PartitionedMk()` now
-registers the six partitions and six constant-pattern matrices once
-(`.MkSet()`) and scores them in one call (`.MkSetLogLik()`), with one diff of
-the tree for all twelve pruners.  The values and the order in which they are
-combined are unchanged, so chains are bitwise those of the earlier build.
+three layers of R wrappers.  `PartitionedMk()` now registers the six partitions
+and six constant-pattern matrices once (`.MkSet()`) and scores them in one call
+(`.MkSetLogLik()`), with one diff of the tree for all twelve pruners.  The
+values and the order in which they are combined are unchanged, so chains are
+bitwise those of the earlier build.
 
-These tables come from another session and load than those above, so compare
-figures within a table only.  "Before" is commit 803f036 with its own
-`common.R`; "one C++ call" is 157ff4e.  A repeat after merging the review fixes
-(a9ef454 against f081cd3), on a busier machine, gave the same ordering: 227-305,
-189-227 and 176-223 ms per iteration.
+The two effects are measured apart by a middle variant, `twelve`
+(`data-raw/mk-set-benchmark.R`): a thin R function that makes the same twelve
+`.MkCpp()` calls directly.  "Before" to `twelve` is the cost of the R wrappers;
+`twelve` to "one C++ call" is the cost of the eleven extra C++ calls with their
+lookups and copies.  `twelve` omits `TempoTree()`, the attribute lookups,
+`MkSetFor()` and the power, which the real route keeps, so the second effect
+is a lower bound.  "Before" is #119 at `a9ef454` with its own `common.R`.  All
+figures are from laptops with other jobs running and come from other sessions
+than the tables above: compare within a table only.
 
-`data-raw/mk-set-benchmark.R micro 3000` (ms per `PartitionedMk()` call; laptop,
-other jobs running, so read the ratios; two runs each, less one disturbed
-measurement in each of the first two columns of the last row):
+Per iteration of the production b1g1 schedule (`iter 40`, same seed, same
+samples in every variant; ms, alternating rounds):
+
+| | author, five rounds | mean | relative | reviewer (#122), four rounds | mean | relative |
+|---|---|---|---|---|---|---|
+| before | 242, 223, 209, 217, 231 | 224 | 1 | 354, 320, 348, 349 | 343 | 1 |
+| thin R path, twelve C++ calls | 193, 193, 195, 201, 205 | 197 | 0.88 | 276, 281, 244, 264 | 266 | 0.78 |
+| one C++ call | 180, 178, 181, 246, 183 | 193 (median 181) | 0.86 (0.81) | 281, 248, 232, 229 | 247 | 0.72 |
+
+So the whole change is worth 14-19% of an iteration by the author's rounds and
+28% by the reviewer's: 12% and 22% from the R wrappers, and 2-7% and 7% from
+the single entry point.  The two machines disagree mostly about the R wrappers,
+whose cost is interpreter time; an earlier set of author's rounds (`803f036`
+against `157ff4e`) gave 206, 189 and 177 ms.  A run on a quiet node would
+settle the size; the direction is the same in every round but one.
+
+Per `PartitionedMk()` call (`micro 3000`; ms, author's two runs; the reviewer
+measured 0.06 / 0.54 / 0.88 for one C++ call against 0.27 / 0.96 / 1.23 for
+`twelve`).  Each call differs from the one before, so it is treated as an
+accepted proposal:
 
 | since the last call | before | thin R path, twelve C++ calls | one C++ call | of which C++ |
 |---|---|---|---|---|
-| nothing changed (no pruning) | 0.43-0.48 | 0.21-0.28 | 0.04-0.05 | 0.013-0.017 |
-| one tip edge changed | 0.69-0.74 | 0.44-0.50 | 0.26-0.27 | 0.23-0.24 |
-| every edge changed | 0.92 | 0.57-0.60 | 0.37-0.39 | 0.35 |
+| nothing changed (no pruning) | 0.49-0.55 | 0.22-0.23 | 0.06 | 0.013-0.017 |
+| one tip edge changed | 0.74-0.80 | 0.48-0.51 | 0.29 | 0.24-0.26 |
+| every edge changed | 0.84-0.89 | 0.61-0.63 | 0.41-0.47 | 0.38 |
 
-So the R wrappers cost about 0.2-0.3 ms per evaluation and the eleven extra C++
-calls, with their lookups and copies, another 0.2 ms; about 0.03 ms of R and
-0.015 ms of glue remain.
-
-`mk-set-benchmark.R iter 40` (production b1g1 schedule, about 84 evaluations per
-iteration, same seed; ms per iteration, four runs each, alternating):
-
-| | ms per iteration | relative |
-|---|---|---|
-| before (the cached build above) | 202-209 | 1 |
-| thin R path, twelve C++ calls (`twelve`) | 187-192 | 0.92 |
-| one C++ call | 164-196 | 0.86 |
-
-The two effects are about 8% (R wrappers) and 6% (single entry point) of an
-iteration.  The character likelihood falls from 33% to 16% of the profile
-(`Rprof`, 80 iterations), behind `.Messages()` (20%) and `.Precompute()` (18%).
+In the author's `Rprof` of 80 iterations the character likelihood falls from
+33% to 16% of the samples, behind `.Messages()` (20%) and `.Precompute()`
+(18%); the reviewer did not repeat the profile.
 
 What is left of an evaluation is mostly `Pruner::set_tree()`, not pruning:
-`mk-set-benchmark.R phases 20000` gives 0.13-0.14 ms of a 0.20-0.23 ms
-evaluation with one tip edge changed (`checkpoint()`: 0.007 ms).
+`mk-set-benchmark.R phases 20000` (one tip edge differing from the tree the
+pruners hold, timed inside the Pruner, all twelve) gives 0.13-0.14 ms of a
+0.20-0.25 ms evaluation, against 0.007 ms for `checkpoint()`.
 `dev/plans/mk-edge-updates.md` proposes how to avoid it.
 
 ## Longer run

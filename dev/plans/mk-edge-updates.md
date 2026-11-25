@@ -23,7 +23,8 @@ evaluation in which one edge changed, more than the pruning it saves, because
 for every Pruner it validates the whole tree, builds a vector of child vectors,
 diffs it against the last tree and rebuilds the postorder. With the R and Rcpp
 glue now at about 0.03 ms, `set_tree()` is the largest fixed cost left: about
-0.13 ms of the 0.26 ms of a `PartitionedMk()` call in which a length changed.
+0.13 ms of an evaluation in which one length changed (0.29 ms as a whole
+`PartitionedMk()` call, by `micro`, where each call is an accepted proposal).
 
 ## Proposal
 
@@ -46,14 +47,15 @@ ancestors), so the result stays bitwise that of a one-shot evaluation.
    `set_tree()`. They are about 10 of 84 proposals in the production schedule.
    Making those cheap is a change to MkPrime (a `set_tree()` that reuses its
    buffers, or a regraft call), not to EvoTempo.
-4. A proposal that rescales every length (the `rate` update of the parameter
-   sweep) gains little: there `set_tree()` is a third or so of the cost and
+4. A proposal that changes every length (the `rate` update of the parameter
+   sweep, and the `s` update when gamma != 0) gains little: there `set_tree()` is a third or so of the cost and
    the pruning the rest.
 
 Expected gain: at most 0.13 ms on the roughly 70 evaluations per iteration that
-change lengths but not topology (the path and age moves and the `rate` update;
-the other parameter updates change no length and already return before
-`set_tree()`), so up to 9 ms of 175 ms (5%). Cost: a dozen lines in `Evaluate()`, no change to MkPrime, R or any
+change lengths but not topology (the path and age moves, and the `rate` and,
+with gamma != 0, `s` updates, which change every length; the `lambda`, `mu`,
+`psi` and `theta` updates change none and already return before `set_tree()`),
+so up to 9 ms of 175 ms (5%). Cost: a dozen lines in `Evaluate()`, no change to MkPrime, R or any
 move.
 
 ## Tests it would need

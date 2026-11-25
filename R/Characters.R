@@ -98,20 +98,34 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 
 # Values of every matrix of a .MkSet() in one call, concatenated in order: the
 # log-likelihood, or one per character where registered with `sites`; each is
-# bitwise that of .MkSiteLogLik().  EVOTEMPO_MK_CACHE_CHECK = 1 also checks
-# that `set$matrices` are the registered ones.
-.MkSetLogLik <- function(set, tree, lengths) {
-  out <- .MkSetLogLikCpp(set[["ptr"]], tree[["parent"]], lengths, set[["matrices"]])
+# bitwise that of .MkSiteLogLik().  `options(EvoTempo.mkCache = FALSE)` and
+# EVOTEMPO_MK_CACHE_CHECK = 1 act as there.  The check can only vouch for the
+# data it is given: a caller that passes the `matrices` (integer) and `nState`
+# it means to score has the handle checked against them; by default the handle
+# is checked against its own copy.
+.MkSetLogLik <- function(set, tree, lengths, matrices = set[["matrices"]],
+                         nState = set[["nState"]]) {
+  if (isFALSE(getOption("EvoTempo.mkCache"))) {
+    tree <- list(nTip = set[["nTip"]], parent = tree[["parent"]])
+    sites <- set[["sites"]]
+    return(unlist(lapply(seq_along(sites), function(i) {
+      .MkCpp(tree, set[["matrices"]][[i]], as.double(lengths),
+             set[["nState"]][[i]], sites[[i]], FALSE)
+    })))
+  }
+  out <- .MkSetLogLikCpp(set[["ptr"]], tree[["parent"]], lengths, matrices, nState)
   if (is.null(out)) {
     set[["ptr"]] <- .MkSetCpp(set[["nTip"]], set[["matrices"]], set[["nState"]],
                               set[["sites"]])
-    out <- .MkSetLogLikCpp(set[["ptr"]], tree[["parent"]], lengths, set[["matrices"]])
+    out <- .MkSetLogLikCpp(set[["ptr"]], tree[["parent"]], lengths, matrices, nState)
   }
   out
 }
 
-# Number of cached character matrices, of partial likelihoods recomputed and of
-# failed self-checks; `clear = TRUE` empties the cache and resets the counts
+# Number of cached character matrices (those of .MkSet() handles apart), of
+# partial likelihoods recomputed and of failed self-checks; `clear = TRUE`
+# empties the cache, the handles' partial likelihoods included, and resets the
+# counts
 .MkCache <- function(clear = FALSE) .MkCacheCpp(clear, FALSE)
 
 # Tempo-weighted branch lengths c * sum_k exp(gamma x_k) dwell_k, per node

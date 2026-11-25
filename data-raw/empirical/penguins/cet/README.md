@@ -306,6 +306,11 @@ that change continues a valid chain, but not bitwise.
 Builds that also provide `.MkSet()` score the partitions and the constant
 patterns in one C++ call (`MkSetFor()`); its values are bitwise those of
 `.MkSiteLogLik()`, so a chain may be resumed across that change exactly.
+With `EVOTEMPO_MK_CACHE_CHECK=1`, `PartitionedMk()` hands the C++ check the
+matrices of the call, so a handle built for other data is an error, and also
+runs the route of one call per matrix and stops unless the two values are
+identical, which covers the handle's index maps; `check-mkset.R` shows both
+checks firing.
 
 Chain labels and sample columns (#74).  A chain's directory is
 `<cell>[_mkv<variant>][_t<power>]_run<rep>`: the Mkv variant appears only when

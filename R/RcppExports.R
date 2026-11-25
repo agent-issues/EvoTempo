@@ -9,8 +9,8 @@
     .Call(`_EvoTempo_MkSetCpp`, nTip, matrices, nState, sites)
 }
 
-.MkSetLogLikCpp <- function(handle, parent, lengths, matrices) {
-    .Call(`_EvoTempo_MkSetLogLikCpp`, handle, parent, lengths, matrices)
+.MkSetLogLikCpp <- function(handle, parent, lengths, matrices, nState) {
+    .Call(`_EvoTempo_MkSetLogLikCpp`, handle, parent, lengths, matrices, nState)
 }
 
 .MkCacheCpp <- function(clear, corrupt) {

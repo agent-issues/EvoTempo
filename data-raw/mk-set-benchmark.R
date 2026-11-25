@@ -6,15 +6,20 @@
 # Run from the package root with EvoTempo installed (and on .libPaths()).
 # mode:
 #   micro   ms per PartitionedMk() call over `n` calls, with no edge, one tip
-#           edge or every edge changed since the last call; beside it the same
-#           evaluation by twelve direct .MkCpp() calls behind a thin R wrapper
-#           (`thinTwelve`), by the bare C++ calls (`direct12`, `directSet`), and
-#           the cost of making the lengths (`lengthsOnly`)
-#   iter    ms per iteration of the production schedule over `n` iterations
+#           edge or every edge changed since the last call (each call is then
+#           an accepted proposal); beside it the same evaluation by twelve
+#           direct .MkCpp() calls behind a thin R wrapper (`thinTwelve`), by the
+#           bare C++ calls (`direct12`, `directSet`), and the cost of making the
+#           lengths (`lengthsOnly`)
+#   iter    ms per iteration of the production schedule over `n` iterations,
+#           and a checksum of the samples, which must agree between variants
 #   phases  ms per evaluation inside MkPrime::Pruner, by phase, over `n`
 #           proposals (data-raw/mk-set-phases.cpp; needs a compiler)
 # variant "twelve" rebinds the likelihood to `thinTwelve`: the thinner R path
-# alone, without the single C++ entry point.  `common.R` is the pipeline file to
+# alone, without the single C++ entry point.  `thinTwelve` is thinner than the
+# real fast path, which keeps TempoTree(), the attribute lookups, MkSetFor() and
+# the power, so the difference between the two understates what the single
+# entry point saves.  `common.R` is the pipeline file to
 # source: give that of an earlier commit, with a build of it, for a baseline.
 a <- commandArgs(trailingOnly = TRUE)
 mode <- a[[1]]
@@ -57,13 +62,16 @@ if (mode == "iter") {
     set.seed(1)
     .cet$records <- list()
     t0 <- proc.time()[[3]]
-    TempoMCMC(tree, model, par, CetPriors(), nIter = nIter, burnin = 0, thin = 1,
-              nSlice = 20, moves = CetMoves(tree, chars, model), characters = chars,
-              agePriors = CetAgePriors(), minAcceptance = 0)
-    proc.time()[[3]] - t0
+    run <- TempoMCMC(tree, model, par, CetPriors(), nIter = nIter, burnin = 0, thin = 1,
+                     nSlice = 20, moves = CetMoves(tree, chars, model), characters = chars,
+                     agePriors = CetAgePriors(), minAcceptance = 0)
+    list(secs = proc.time()[[3]] - t0,
+         checksum = format(sum(vapply(run$samples, sum, 0)), digits = 17))
   }
   Run(2)
-  cat(variant, round(1000 * Run(n) / n, 1), "ms per iteration\n")
+  res <- Run(n)
+  cat(variant, round(1000 * res$secs / n, 1), "ms per iteration; checksum",
+      res$checksum, "\n")
 } else if (mode == "micro") {
   Time <- function(Call) {
     Call(1L)
@@ -71,12 +79,13 @@ if (mode == "iter") {
     for (i in seq_len(n)) Call(i)
     1000 * (proc.time()[[3]] - t0) / n
   }
+  # `oneTipEdge` changes one edge of the lengths of the previous call
+  running <- len
   Lengths <- list(
     unchanged = function(i) len,
     oneTipEdge = function(i) {
-      l2 <- len
-      l2[1 + i %% 50] <- len[1 + i %% 50] * (1 + 1e-3 * (1 + i %% 7))
-      l2
+      running[1 + i %% 50] <<- len[1 + i %% 50] * (1 + 1e-3 * (1 + i %% 7))
+      running
     },
     allEdges = function(i) len * (1 + 1e-6 * i)
   )
@@ -92,7 +101,7 @@ if (mode == "iter") {
     if (exists(".MkSetLogLikCpp", .ns)) {
       s <- MkSetFor(parts, pat, tree$nTip)$set
       SetCpp <- get(".MkSetLogLikCpp", .ns)
-      row[["directSet"]] <- Time(function(i) SetCpp(s$ptr, tree$parent, L(i), s$matrices))
+      row[["directSet"]] <- Time(function(i) SetCpp(s$ptr, tree$parent, L(i), s$matrices, s$nState))
     }
     row
   }, numeric(5)))

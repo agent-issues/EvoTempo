@@ -41,8 +41,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // MkSetLogLikCpp
-SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths, List matrices);
-RcppExport SEXP _EvoTempo_MkSetLogLikCpp(SEXP handleSEXP, SEXP parentSEXP, SEXP lengthsSEXP, SEXP matricesSEXP) {
+SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths, List matrices, IntegerVector nState);
+RcppExport SEXP _EvoTempo_MkSetLogLikCpp(SEXP handleSEXP, SEXP parentSEXP, SEXP lengthsSEXP, SEXP matricesSEXP, SEXP nStateSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -50,7 +50,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type parent(parentSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type lengths(lengthsSEXP);
     Rcpp::traits::input_parameter< List >::type matrices(matricesSEXP);
-    rcpp_result_gen = Rcpp::wrap(MkSetLogLikCpp(handle, parent, lengths, matrices));
+    Rcpp::traits::input_parameter< IntegerVector >::type nState(nStateSEXP);
+    rcpp_result_gen = Rcpp::wrap(MkSetLogLikCpp(handle, parent, lengths, matrices, nState));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -446,7 +447,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_MkCpp", (DL_FUNC) &_EvoTempo_MkCpp, 6},
     {"_EvoTempo_MkSetCpp", (DL_FUNC) &_EvoTempo_MkSetCpp, 4},
-    {"_EvoTempo_MkSetLogLikCpp", (DL_FUNC) &_EvoTempo_MkSetLogLikCpp, 4},
+    {"_EvoTempo_MkSetLogLikCpp", (DL_FUNC) &_EvoTempo_MkSetLogLikCpp, 5},
     {"_EvoTempo_MkCacheCpp", (DL_FUNC) &_EvoTempo_MkCacheCpp, 2},
     {"_EvoTempo_PiecesCpp", (DL_FUNC) &_EvoTempo_PiecesCpp, 3},
     {"_EvoTempo_SliceExpCpp", (DL_FUNC) &_EvoTempo_SliceExpCpp, 3},

@@ -58,6 +58,7 @@ struct MkSet {
   bool open = false;  // a checkpoint awaits accept() or reject()
   MkTree last, prev, next;
   std::size_t nOut = 0;
+  unsigned long long generation = 0;  // of the cache, when last evaluated
 
   int NChar(std::size_t i) const {
     return static_cast<int>(states[i].size() / nTip);
@@ -97,6 +98,7 @@ std::vector<std::unique_ptr<MkEntry> > registry;
 unsigned long long useCount = 0;
 double nRecomputed = 0;
 int nCheckFailures = 0;
+unsigned long long generation = 0;  // advanced when the cache is cleared
 
 MkEntry& Lookup(int nTip, int nState, const std::vector<int>& states) {
   for (std::size_t i = 0; i < registry.size(); ++i) {
@@ -206,11 +208,12 @@ bool CheckRequested() {
 }
 
 // Bitwise agreement of the cached partials (re-read, not recomputed) and the
-// returned site likelihoods with a one-shot evaluation of `states`, the tip
-// states that the caller holds; failures are counted, so that a caller that
-// catches the error cannot hide them
-void Check(MkSet& s, const std::vector<std::vector<int> >& states) {
-  if (states != s.states) {
+// returned site likelihoods with a one-shot evaluation of `states` and `nState`,
+// the tip states and numbers of states that the caller holds; failures are
+// counted, so that a caller that catches the error cannot hide them
+void Check(MkSet& s, const std::vector<std::vector<int> >& states,
+           const std::vector<int>& nState) {
+  if (nState != s.nState || states != s.states) {
     ++nCheckFailures;
     throw std::logic_error("character matrices differ from those registered");
   }
@@ -281,7 +284,7 @@ NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths,
       entry = &Lookup(nTip, nState, states);
       Evaluate(entry->set, x);
       site = entry->set.lastSite[0];
-      if (CheckRequested()) Check(entry->set, entry->set.states);
+      if (CheckRequested()) Check(entry->set, entry->set.states, entry->set.nState);
     } else {
       MkSet oneShot;
       oneShot.nTip = nTip;
@@ -309,12 +312,15 @@ SEXP MkSetCpp(int nTip, List matrices, IntegerVector nState, LogicalVector sites
   if (nState.size() != matrices.size() || sites.size() != matrices.size()) {
     stop("`nState` and `sites` need one entry per matrix");
   }
+  if (nTip < 2) stop("Mk likelihood needs at least two tips");
+  if (is_true(any(is_na(sites)))) stop("`sites` must be TRUE or FALSE");
   std::unique_ptr<MkSet> set(new MkSet());
   set->nTip = nTip;
+  set->generation = generation;
   try {
     for (R_xlen_t i = 0; i < matrices.size(); ++i) {
       const IntegerMatrix m = matrices[i];
-      if (nTip < 2 || m.nrow() != nTip) stop("each matrix needs one row per tip");
+      if (m.nrow() != nTip) stop("each matrix needs one row per tip");
       set->Add(nState[i], TipStates(m), sites[i]);
     }
   } catch (const std::invalid_argument& e) {
@@ -327,15 +333,20 @@ SEXP MkSetCpp(int nTip, List matrices, IntegerVector nState, LogicalVector sites
 // For each matrix of the set, in order: the log-likelihood, or where registered
 // with `sites` one value per character.  One diff of the tree serves every
 // matrix.  NULL if `handle` is not a live handle (they do not survive
-// serialization).  `matrices` is read only by the EVOTEMPO_MK_CACHE_CHECK check.
+// serialization).  `matrices` and `nState`, the data that the caller means, are
+// read only by the EVOTEMPO_MK_CACHE_CHECK check.
 // [[Rcpp::export(name = ".MkSetLogLikCpp")]]
 SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths,
-                    List matrices) {
+                    List matrices, IntegerVector nState) {
   if (TYPEOF(handle) != EXTPTRSXP || R_ExternalPtrTag(handle) != SetTag() ||
       !R_ExternalPtrAddr(handle)) {
     return R_NilValue;
   }
   MkSet& s = *static_cast<MkSet*>(R_ExternalPtrAddr(handle));
+  if (s.generation != generation) {
+    s.Reset();
+    s.generation = generation;
+  }
   ReadTree(parent, lengths, s.next);
   try {
     Evaluate(s, s.next);
@@ -344,7 +355,7 @@ SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths,
       for (R_xlen_t i = 0; i < matrices.size(); ++i) {
         states.push_back(TipStates(as<IntegerMatrix>(matrices[i])));
       }
-      Check(s, states);
+      Check(s, states, std::vector<int>(nState.begin(), nState.end()));
     }
   } catch (const std::exception& e) {
     s.Reset();
@@ -368,6 +379,7 @@ SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths,
 List MkCacheCpp(bool clear, bool corrupt) {
   if (clear) {
     registry.clear();
+    ++generation;
     nRecomputed = 0;
     nCheckFailures = 0;
   }

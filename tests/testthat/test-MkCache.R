@@ -271,8 +271,8 @@ test_that("A set survives serialization, bad input and a failed evaluation", {
   expect_identical(value, OneByOne(fix, tr, len))
 
   copy <- unserialize(serialize(set, NULL))
-  expect_null(.MkSetLogLikCpp(copy$ptr, tr$parent, len, copy$matrices))
-  expect_null(.MkSetLogLikCpp(NULL, tr$parent, len, copy$matrices))
+  expect_null(.MkSetLogLikCpp(copy$ptr, tr$parent, len, copy$matrices, copy$nState))
+  expect_null(.MkSetLogLikCpp(NULL, tr$parent, len, copy$matrices, copy$nState))
   expect_identical(.MkSetLogLik(copy, tr, len), value)
   expect_identical(.MkSetLogLik(copy, tr, len / 2), OneByOne(fix, tr, len / 2))
 
@@ -283,11 +283,17 @@ test_that("A set survives serialization, bad input and a failed evaluation", {
   expect_identical(.MkSetLogLik(set, tr, len), value)
   WithCache(TRUE, {
     expect_identical(.MkSetLogLik(set, tr, len * 2), OneByOne(fix, tr, len * 2))
-    set$matrices[[1]] <- 1L - set$matrices[[1]]
-    before <- .MkCache()$checkFailures
-    expect_error(.MkSetLogLik(set, tr, len), "differ from those registered")
-    expect_equal(.MkCache()$checkFailures, before + 1)
   })
+
+  # The cache switched off, and cleared
+  WithCache(FALSE, {
+    before <- .MkCache()$recomputed
+    expect_identical(.MkSetLogLik(set, tr, len * 2), OneByOne(fix, tr, len * 2))
+    expect_equal(.MkCache()$recomputed, before)
+  })
+  .MkCache(clear = TRUE)
+  expect_identical(.MkSetLogLik(set, tr, len * 2), OneByOne(fix, tr, len * 2))
+  expect_equal(.MkCache()$recomputed, 3 * tr$nNode)
 
   expect_error(.MkSet(nTip, fix$matrices, fix$nState[-1], fix$sites),
                "one entry per matrix")
@@ -295,8 +301,36 @@ test_that("A set survives serialization, bad input and a failed evaluation", {
                "one entry per matrix")
   expect_error(.MkSet(nTip + 1L, fix$matrices, fix$nState, fix$sites),
                "one row per tip")
-  expect_error(.MkSet(1L, list(matrix(0L, 1, 1)), 2), "one row per tip")
+  expect_error(.MkSet(1L, list(), integer(0)), "two tips")
+  expect_error(.MkSet(nTip, fix$matrices, fix$nState, c(NA, fix$sites[-1])),
+               "TRUE or FALSE")
   expect_error(.MkSet(nTip, fix$matrices, c(2, 2, 2, 4), fix$sites), "exceeds")
+})
+
+test_that("The self-check fires when a handle is not for the caller's data", {
+  tr <- list(nTip = 4L, parent = c(5L, 5L, 6L, 6L, 7L, 7L, NA))
+  len <- c(0.1, 0.2, 0.3, 0.4, 0.2, 0.1, 0)
+  A <- matrix(c(0L, 0L, 1L, 1L, 0L, 1L, 0L, 1L), 4)
+  B <- matrix(c(0L, 1L, 1L, 1L, 2L, 1L, 0L, NA), 4)
+  .MkCache(clear = TRUE)
+  handle <- .MkSet(4L, list(A), 3L)
+  WithCache(TRUE, {
+    forA <- .MkSetLogLik(handle, tr, len, list(A), 3L)
+    expect_identical(forA, .MkCpp(tr, A, len, 3L, FALSE, FALSE))
+    expect_false(identical(forA, .MkCpp(tr, B, len, 3L, FALSE, FALSE)))
+    expect_equal(.MkCache()$checkFailures, 0)
+    expect_error(.MkSetLogLik(handle, tr, len, list(B), 3L),
+                 "differ from those registered")
+    expect_error(.MkSetLogLik(handle, tr, len, list(A), 2L),
+                 "differ from those registered")
+    expect_error(.MkSetLogLik(handle, tr, len, list(A, B), c(3L, 3L)),
+                 "differ from those registered")
+    expect_equal(.MkCache()$checkFailures, 3)
+    expect_identical(.MkSetLogLik(handle, tr, len, list(A), 3L), forA)
+  })
+  # Without the check nothing compares the handle with the caller's data
+  WithCache(TRUE, check = FALSE,
+            expect_identical(.MkSetLogLik(handle, tr, len, list(B), 3L), forA))
 })
 
 test_that("A rebound MkLikelihood() that scores a set gives the same chain", {

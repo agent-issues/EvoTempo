@@ -9,6 +9,13 @@ moveTree <- TempoTree(movePhylo, ranges = moveRanges)
 movePar <- list(lambda = 0.5, mu = 0.2, psi = 0.1, theta = 0.3, s = 1, rate = 0.3)
 moveModel <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7)
 
+# ((((a:1,b:1):1,c:2):2,(d:3,e:3):1):1,(g:1.5,h:1.5):3.5); tips a-e, g, h are 1-7
+sevenPhylo <- structure(
+  list(edge = rbind(c(8, 9), c(9, 10), c(10, 11), c(11, 1), c(11, 2), c(10, 3),
+                    c(9, 12), c(12, 4), c(12, 5), c(8, 13), c(13, 6), c(13, 7)),
+       edge.length = c(1, 2, 1, 1, 1, 2, 1, 3, 3, 3.5, 1.5, 1.5),
+       tip.label = c("a", "b", "c", "d", "e", "g", "h"), Nnode = 6), class = "phylo")
+
 test_that("MkLikelihood() matches a two-tip closed form", {
   cherry <- structure(list(edge = rbind(c(3, 1), c(3, 2)), edge.length = c(1, 1),
                            tip.label = c("a", "b"), Nnode = 1), class = "phylo")
@@ -221,9 +228,8 @@ test_that("Joint parameter-path moves run and adapt", {
 })
 
 test_that("fnpr targets are symmetric and local", {
-  # Tips a-e, g, h are 1-7; all extant
-  phy <- ape::read.tree(text = "((((a:1,b:1):1,c:2):2,(d:3,e:3):1):1,(g:1.5,h:1.5):3.5);")
-  tr <- TempoTree(phy)
+  # All extant
+  tr <- TempoTree(sevenPhylo)
   nTip <- tr$nTip
   ab <- tr$parent[[1]]
   abc <- tr$parent[[ab]]
@@ -248,7 +254,11 @@ test_that("fnpr targets are symmetric and local", {
                  length(.FnprTargets(tr, abc, ab, clade, h)))
   }
   # No other lineage alive at age(p): a and d are fossils older than (b, c)
-  lone <- TempoTree(ape::read.tree(text = "((a:0.4,(b:0.5,c:0.5):0.5):1,d:0.2);"))
+  # ((a:0.4,(b:0.5,c:0.5):0.5):1,d:0.2);
+  lone <- TempoTree(structure(
+    list(edge = rbind(c(5, 6), c(6, 1), c(6, 7), c(7, 2), c(7, 3), c(5, 4)),
+         edge.length = c(1, 0.4, 0.5, 0.5, 0.5, 0.2),
+         tip.label = c("a", "b", "c", "d"), Nnode = 3), class = "phylo"))
   bc <- lone$parent[[2]]
   expect_length(.FnprTargets(lone, bc, 3, .Descendants(lone, 2), Inf), 0)
   # A threshold just above the parent leaves no target: no proposal
@@ -346,9 +356,7 @@ test_that("wfnpr weights satisfy detailed balance between every pair of members"
 })
 
 test_that("wfnpr bounds its candidates and rejects when none has weight", {
-  tr <- TempoTree(ape::read.tree(
-    text = "((((a:1,b:1):1,c:2):2,(d:3,e:3):1):1,(g:1.5,h:1.5):3.5);"
-  ))
+  tr <- TempoTree(sevenPhylo)
   set <- .AddSlices(tr, .Precompute(tr, movePar, moveModel), 4)
   set.seed(7)
   d <- .SampleTree(tr, set, .Messages(tr, set))

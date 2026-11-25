@@ -261,27 +261,100 @@ test_that("fnpr targets are symmetric and local", {
          tip.label = c("a", "b", "c", "d"), Nnode = 3), class = "phylo"))
   bc <- lone$parent[[2]]
   expect_length(.FnprTargets(lone, bc, 3, .Descendants(lone, 2), Inf), 0)
-  # A threshold just above the parent leaves no target: no proposal
+  # With no target there is no proposal
   set <- .AddSlices(tr, .Precompute(tr, movePar, moveModel), 4)
   d <- .SampleTree(tr, set, .Messages(tr, set))
   st <- list(tree = tr, set = set, paths = d$paths, bin = d$bin)
-  local_mocked_bindings(.fnprSpan = 1e9)
-  set.seed(1)
-  nulls <- vapply(1:20, function(i) is.null(.ProposeTreeMove("fnpr", tr, set, st)), TRUE)
-  expect_true(any(nulls))
+  local_mocked_bindings(.FnprTargets = function(...) integer(0))
+  expect_null(.ProposeTreeMove("fnpr", tr, set, st))
 })
 
-test_that("fnpr keeps node ages and changes the topology", {
-  set <- .AddSlices(moveTree, .Precompute(moveTree, movePar, moveModel), 6)
-  set.seed(5)
-  d <- .SampleTree(moveTree, set, .Messages(moveTree, set))
-  st <- list(tree = moveTree, set = set, paths = d$paths, bin = d$bin)
-  changed <- 0
-  for (i in 1:30) {
-    prop <- .ProposeTreeMove("fnpr", moveTree, set, st)
-    if (is.null(prop)) next
-    expect_equal(sort(prop$tree$age), sort(moveTree$age))
-    changed <- changed + !identical(prop$tree$parent, moveTree$parent)
+# Fixtures for fnpr: moveTree with a crown start, and with an origin 0.6 above
+FnprStates <- function(seed) {
+  originModel <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, start = "origin")
+  stemmed <- structure(c(unclass(movePhylo), root.edge = 0.6), class = "phylo")
+  fixtures <- list(
+    list(tree = moveTree, model = moveModel),
+    list(tree = .ForModel(TempoTree(stemmed, ranges = moveRanges), originModel),
+         model = originModel)
+  )
+  lapply(fixtures, function(f) {
+    set <- .AddSlices(f$tree, .Precompute(f$tree, movePar, f$model), 6)
+    set.seed(seed)
+    d <- .SampleTree(f$tree, set, .Messages(f$tree, set))
+    list(tree = f$tree, model = f$model, set = set, paths = d$paths, bin = d$bin)
+  })
+}
+
+# Clades of a tree, as sorted tip sets
+Clades <- function(tr) {
+  sort(vapply(tr$postorder, function(u) {
+    tips <- .Descendants(tr, u)
+    paste(sort(tips[tips <= tr$nTip]), collapse = ",")
+  }, ""))
+}
+
+test_that("fnpr Hastings ratio matches the proposal densities in both directions", {
+  # Recomputes log q(reverse) - log q(forward) from the definition of the move
+  # (dev/plans/local-fnpr.md): choice of v, uniform target among the targets
+  # at the drawn threshold, bin of p from its frozen conditional, and frozen
+  # bridges on the four branches whose top changes.  A wrong or missing term
+  # in .ProposeTreeMove()'s ratio fails this test
+  nChecked <- 0
+  for (st in FnprStates(7)) {
+    set <- st$set
+    for (i in 1:40) {
+      prop <- .ProposeTreeMove("fnpr", st$tree, set, st)
+      if (is.null(prop)) next
+      old <- st$tree
+      new <- prop$tree
+      v <- prop$fnpr$v
+      y <- prop$fnpr$y
+      h <- prop$fnpr$threshold
+      p <- old$parent[[v]]
+      pp <- old$parent[[p]]
+      sib <- setdiff(old$kids[p - old$nTip, ], v)
+      x <- old$parent[[y]]
+      clade <- .Descendants(old, v)
+      expect_equal(new$parent[c(p, y, sib)], c(x, p, pp))
+      expect_equal(new$age, old$age)
+      fwdT <- .FnprTargets(old, p, sib, clade, h)
+      revT <- .FnprTargets(new, p, y, clade, h)
+      expect_true(y %in% fwdT)
+      expect_true(sib %in% revT)
+      BinQ <- function(tr, kTop, kids, bins, k) {
+        lw <- .NodeLogWeights(tr, set, p, set$lambda, kTop, kids, bins[kids])
+        lw[[k]] - .LogSumExp(lw)
+      }
+      Bridges <- function(tr, paths) {
+        sum(vapply(c(p, y, v, sib), function(u) .LogBridge(tr, set, u, paths[[u]]), 0))
+      }
+      logFwd <- -log(length(.SlideNodes(old))) - log(length(fwdT)) +
+        BinQ(new, st$bin[[x]], c(y, v), prop$bin, prop$bin[[p]]) +
+        Bridges(new, prop$paths)
+      logRev <- -log(length(.SlideNodes(new))) - log(length(revT)) +
+        BinQ(old, st$bin[[pp]], c(sib, v), st$bin, st$bin[[p]]) +
+        Bridges(old, st$paths)
+      expect_equal(prop$logHastings, logRev - logFwd, tolerance = 1e-8)
+      expect_false(identical(Clades(new), Clades(old)))
+      nChecked <- nChecked + 1
+      # Move on half the time, so later checks start from other states
+      if (i %% 2 == 0) {
+        st$tree <- new
+        st$paths <- prop$paths
+        st$bin <- prop$bin
+      }
+    }
   }
-  expect_gt(changed, 0)
+  expect_gt(nChecked, 20)
+})
+
+test_that("fnpr runs from an origin start", {
+  st <- FnprStates(8)[[2]]
+  set.seed(9)
+  run <- TempoMCMC(st$tree, st$model, movePar, TempoPriors()["lambda"], nIter = 20,
+                   nSlice = 4, moves = c(node = 1, fnpr = 2), minAcceptance = 0)
+  expect_gt(run$acceptance[["fnpr"]], 0)
+  expect_equal(run$state$tree$age, st$tree$age)
+  expect_equal(.StartAge(run$state$tree), .StartAge(st$tree))
 })

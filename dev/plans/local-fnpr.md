@@ -41,9 +41,10 @@ H, since age(p) and R are unchanged) and target sib.
 - **Same pruned tree.** Removing v's clade and p from the proposed state gives the same pruned
   tree, with the same node ages. Hence the same crossing set C and the same MRCA ages.
 - **Equal target counts.** "MRCA_pruned(a, b) has age <= H" is an equivalence relation on C, by the
-  ultrametric property of ancestor ages in a rooted tree: if MRCA(a, b) and MRCA(b, c) are both
-  <= H, both lie on b's ancestral path below H, so MRCA(a, c) is the older of the two and is also
-  <= H. sib and y are in the same class, so T_fwd = class \ {sib} and T_rev = class \ {y} have
+  three-point inequality of ancestor ages in a rooted tree:
+  age(MRCA(a, c)) <= max(age(MRCA(a, b)), age(MRCA(b, c))). Both MRCAs lie on b's ancestral path,
+  so the older of them is a common ancestor of a and c. MRCA(a, c) is that node or a younger one,
+  for instance when the two MRCAs are the same node. So if both ages are <= H, so is age(MRCA(a, c)). sib and y are in the same class, so T_fwd = class \ {sib} and T_rev = class \ {y} have
   the same size. The 1/|T| terms cancel.
 - **Height.** No new height is drawn. The density of H is the same in both directions, since H is a
   function of U, age(p) and R only, so it cancels; the move is a mixture over U of reversible kernels.
@@ -59,7 +60,8 @@ Putting these together:
 
     log H = [log q_bridges_old(p, sib, v, y) + log q_bin_old(bin[p])]
           - [log q_bridges_new(p, y, v, sib) + log q_bin_new(bin'[p])]
-          + log|T_fwd| - log|T_rev|        (= 0; kept in code as a guard)
+          (|T_fwd| = |T_rev|, so the count terms are omitted; the code asserts the equality
+           and that the old sib is a reverse target with `stopifnot`)
 
 This is `slide`'s Hastings ratio without its height draw: in `slide`, `at` is uniform on
 [age(v), R] in both directions and cancels. `.TreeMove()` adds the exact augmented density, the
@@ -92,7 +94,7 @@ once.
 
 ## Files
 
-- `R/TreeMoves.R`: `.PrunedParent()`, `.PrunedMRCAAge()`, and the `fnpr` branch of `.ProposeTreeMove`.
+- `R/TreeMoves.R`: `.PrunedParent()`, `.MRCAAge()`, `.FnprTargets()`, and the `fnpr` branch of `.ProposeTreeMove`.
 - `R/MCMC.R`: `fnpr` in `moveNames` and `treeMoves`; documentation.
 - `tests/testthat/test-TreeMoves.R`, `test-Engine.R`: validity, symmetry of target counts, and
   engine identity.
@@ -107,8 +109,15 @@ once.
    topology move: tree statistics, including `cherries`, agree with rejection simulation
    (|z| < 3 across statistics).
 2. Seeded R and C++ chains with `fnpr` are identical.
-3. Unit test: for random states, the reverse target count equals the forward one, and the proposed
-   paths are consistent with the bins.
+3. Unit test (`test-TreeMoves.R`, "fnpr Hastings ratio matches the proposal densities in both
+   directions"): over a random walk of states, with crown and origin starts, `logHastings` equals
+   log q(reverse) - log q(forward), recomputed from the definition of the move. The test also checks
+   that the target counts are equal, that the old sib is a reverse target, that ages are unchanged
+   and that the topology changes. It fails under each of the review's Hastings mutants (#118):
+   - reverse bin term dropped;
+   - sib's reverse bridge dropped;
+   - a constant added;
+   - forward bridges dropped.
 4. Afterwards, on Hamilton: SBC as in #21, and the penguin payoff (clade spread per CPU-hour).
 
 ## Review of the derivation

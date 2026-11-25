@@ -157,15 +157,27 @@ ConstantPatternLogLik <- function(tree, pat, lengths) {
   log((L0[, root] + (k - 1) * L1[, root]) / k) + logScale
 }
 
+# Saved move counts on the move names of the running TempoMCMC()
+AlignMoves <- function(saved, current) {
+  unknown <- setdiff(names(saved), names(current))
+  if (length(unknown)) {
+    stop("checkpoint has moves this EvoTempo does not know: ", toString(unknown))
+  }
+  replace(setNames(numeric(length(current)), names(current)), names(saved), saved)
+}
+
 RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
   pf <- parent.frame()
   if (is.null(lengths)) {
     r <- .cet$resume
     if (!is.null(r)) {
       # First call of a resumed segment: continue the captured chain
-      for (v in c("st", "step", "jointStep", "ageStep", "moves")) {
+      for (v in c("st", "step", "jointStep", "ageStep")) {
         assign(v, r[[v]], envir = pf)
       }
+      # TempoMCMC() selects moves by position in its move names: align the
+      # saved counts by name, as a checkpoint may predate a move (#118)
+      assign("moves", AlignMoves(r[["moves"]], get("moves", envir = pf)), envir = pf)
       assign(".Random.seed", r[["seed"]], envir = globalenv())
       .cet$resume <- NULL
       .cet$injected <- TRUE

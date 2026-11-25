@@ -198,11 +198,12 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' crossing that height; `fnpr` prunes a subtree and regrafts its parent, at
 #' its unchanged age, onto a nearby branch crossing that age: one chosen
 #' uniformly among those whose most recent common ancestor with the old
-#' attachment point, in the tree without the subtree, is younger than a
-#' threshold that, with probability 1/2, admits every branch and otherwise is
-#' drawn log-uniformly between just above the parent and the root, so that
-#' it mixes local and global rearrangements (as RevBayes's `mvFNPR`
-#' and `mvNarrow`); `saJump` converts a fossil tip to a sampled ancestor
+#' attachment point, in the tree without the subtree, is no older than a
+#' threshold \eqn{H}.  With probability 1/2, \eqn{H} admits every branch
+#' (as RevBayes's `mvFNPR`); otherwise \eqn{H - t_p} is log-uniform on
+#' \eqn{[(R - t_p) / 100, R - t_p]}, with \eqn{t_p} the parent's age and
+#' \eqn{R} the root age, which gives local rearrangements (as `mvNarrow`);
+#' `saJump` converts a fossil tip to a sampled ancestor
 #' or back (Gavryushkina et al. 2014).
 #' Each redraws affected node bins and paths from the frozen model, with
 #' proposal densities in the Hastings ratio.

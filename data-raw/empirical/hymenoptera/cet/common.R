@@ -158,6 +158,7 @@ FbdLogPrior <- function(par, beta = 0) {
   # the density of (lambda, mu, psi) is that of (k lambda, k mu, psi) under the
   # comparator's prior, times k^2 (the Jacobian), with k = LineageMean(s, beta)
   k <- if (beta != 0 && .cet$fbdScale == "lineage") LineageMean(par[["s"]], beta) else 1
+  if (!isTRUE(k > 0)) return(-Inf)
   l <- k * l
   m <- k * m
   d <- l - m
@@ -177,7 +178,7 @@ stopifnot("CET_FBD_SCALE must be \"none\" or \"lineage\"" = .cet$fbdScale %in% c
 stopifnot("CET_S_MAX must be a positive number" = isTRUE(.cet$sMax > 0))
 LineageMean <- function(s, beta, nBin = as.integer(Sys.getenv("CET_NBIN", "26")),
                         zMax = as.numeric(Sys.getenv("CET_ZMAX", "5"))) {
-  if (!is.finite(s) || s <= 0) return(NA_real_)
+  if (!is.finite(s) || s <= 0 || s > .cet$sMax) return(NA_real_)
   grid <- TempoGrid(nBin, c(-zMax, zMax), s)
   p <- TempoEquilibrium(TempoGenerator(grid, 1, 1, "central"))$p
   sum(p * exp(beta * grid$x))
@@ -828,7 +829,14 @@ CetPriors <- function(beta = 0) {
   scaled <- beta != 0 && .cet$fbdScale == "lineage"
   force(beta)
   JP <- if (scaled) {
-    function(par) FbdLogPrior(par, beta) + sPrior(par[["s"]])
+    # s outside its prior's support is rejected before LineageMean() builds the
+    # generator, which overflows for large s (eigen(): "infinite or missing
+    # values"; prior check with s free, chain 803)
+    function(par) {
+      ls <- sPrior(par[["s"]])
+      if (!is.finite(ls)) return(-Inf)
+      FbdLogPrior(par, beta) + ls
+    }
   } else {
     FbdLogPrior
   }

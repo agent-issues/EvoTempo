@@ -17,6 +17,9 @@
 #                               links the clock across partitions the same way)
 #                "te-separate"  morphology + DNA, independent UCLN clocks
 #                "morph"        morphology only (like-for-like with CET runs)
+#                "morph-strict" morphology only, strict clock: every branch rate
+#                               is clock_rate (the comparator for CET's
+#                               gamma = 0 cells; no ucld_sd, no z_mult)
 #   rep          replicate number (seeds the chain; names the output)
 #   n_gen        MCMC iterations (each = one sweep of the move list)
 #   sample_every thinning of the monitors
@@ -32,7 +35,7 @@
 
 seed(rep * 7919 + 211)
 out_stem = "output/hymenoptera_" + config + "_run" + rep
-use_dna = (config != "morph")
+use_dna = (config != "morph" && config != "morph-strict")
 
 moves    = VectorMoves()
 monitors = VectorMonitors()
@@ -160,6 +163,12 @@ if (config == "te-separate") {
     morph_branch_rates[j] := clock_morph * exp(ucld_sd_morph * z_morph[j] - ucld_sd_morph * ucld_sd_morph / 2)
     dna_branch_rates[j] := clock_dna * exp(ucld_sd_dna * z_dna[j] - ucld_sd_dna * ucld_sd_dna / 2)
   }
+} else if (config == "morph-strict") {
+  # strict clock: one rate for every branch, the same prior as the UCLN base rate
+  clock_rate ~ dnLognormal(-7.1, 0.5)
+  clock_rate.setValue(0.0008)
+  moves.append( mvScale(clock_rate, lambda = 0.3, tune = true, weight = 10) )
+  morph_branch_rates := clock_rate
 } else {
   clock_rate ~ dnLognormal(-7.1, 0.5)
   ucld_sd ~ dnExponential(1 / 0.587405)
@@ -278,7 +287,7 @@ if (config == "te-separate") {
   monitors.append( mnExtNewick(filename = out_stem + "_rates.trees", printgen = sample_every,
                                append = resume, isNodeParameter = false, fbd_tree, morph_branch_rates,
                                dna_branch_rates) )
-} else {
+} else if (config != "morph-strict") {
   monitors.append( mnExtNewick(filename = out_stem + "_rates.trees", printgen = sample_every,
                                append = resume, isNodeParameter = false, fbd_tree, morph_branch_rates) )
 }

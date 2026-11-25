@@ -25,10 +25,11 @@ smoke run of the four cells (timing, exact resume), and a pilot that found
 two problems to resolve before production (**Smoke run and cost
 projection**), now diagnosed (**Diagnosis of the pilot's two problems**):
 the runaway of cell (1, 0) is a weakly identified ridge in (lambda, s,
-theta), for which a fix is proposed and piloted (`CET_FBD_SCALE =
-"lineage"` with `CET_S_MAX = 2`; not yet the default); the old roots come
-from the strict (and tempo) clock's fit to the characters, not from the
-tree prior, which agrees with the comparator's under the calibration.  The joint-prior check
+theta), to be removed by reparameterising the tempo process in the package
+(maintainer decision 2026-11-25; the pipeline-level fix C piloted here is
+superseded); the old roots come from the strict (and tempo) clock's fit to
+the characters, not from the tree prior: RevBayes with a strict clock
+(`morph-strict`) gives the same old roots (576 Ma against CET's 565 Ma).  The joint-prior check
 (`check-prior.R`) is from the previous version: it uses no characters, so the
 change of character model does not touch it.  Production is not launched.
 
@@ -51,7 +52,7 @@ change of character model does not touch it.  Production is not launched.
 | `pilot-summary.R` | ESS per 1000 iterations of a pilot, for the cost projection |
 | `bayes-factors.R` | Cross-model evaluation of recorded states (`eval`) and bridge-sampling Bayes factors (`combine`), as the penguin pipeline |
 | `check-labels.R`, `check-segcap.R`, `check-eval.sh` | Checks of labels, the expected chain set and `combine`'s refusals (synthetic roots), of the segment caps, and of `eval`'s gate on a real chain (ports of the penguin scripts) |
-| `diag-ridge.R`, `diag-atol.R`, `diag-prior-scale.R`, `diag-rootage.R`, `diag-clock.R` | Diagnosis of the pilot's two problems (**Diagnosis of the pilot's two problems**); outputs in `smoke-results/diagnostics/` |
+| `diag-ridge.R`, `diag-atol.R`, `diag-prior-scale.R`, `diag-rootage.R`, `diag-clock.R`, `check-prior-scale.R`, `summarise-rbstrict.R` | Diagnosis of the pilot's two problems (**Diagnosis of the pilot's two problems**); outputs in `smoke-results/diagnostics/` |
 | `smoke-results/` | `prior-check*.csv`; `mkv-check-*.csv`, `revbayes-check-mkv-fd807d10-*.txt`, `revbayes-data-check.txt`; smoke and pilot outputs; check outputs |
 
 ## Data conversion (`prepare.R`)
@@ -546,15 +547,31 @@ burn-in, bulk ESS):
 - C keeps lambda near the comparator's range (median 119; lambda <e^x> 86
   against the comparator's lambda of about 44), keeps s away from the bound,
   and mixes best; segment cost stays at 128-135 s.
-- **Proposed fix: C**, for every cell (the bound on s must be common to the
-  four cells, which share one state space; P(s > 2) under the Exp(mean
-  0.587) prior is 3.3%, against 0.61% above 3; the gamma = 1 cells' s
-  posteriors, 1.3-1.6, lie below it).  With C the prior depends on beta, so
-  `bayes-factors.R eval` writes each beta's log prior (`prior_b<beta>`) and
-  the bridges use it; with the default the columns equal `logPrior`.
-- **Before adopting C**: a prior check of the lineage-averaged prior with s
-  free (as `check-prior.R`, which fixes s), and a longer pilot; the ridge is
-  bounded, not removed, and lambda's ESS is still 3.8 in 2250 iterations.
+- **Decision (maintainer, 2026-11-25): fix C is superseded and must not
+  become a default.**  The tempo process is to be reparameterised in the
+  package so that its location is identified (for example a stationary mean
+  of 0, or lambda defined at the tempo mean).  The switches
+  `CET_FBD_SCALE` and `CET_S_MAX` stay as diagnostic options, off by default.
+- Longer pilot of C (for the record; Slurm 19477859, `$W/fixC-long`): cell
+  (1, 0), 2 chains (draws 3 and 7), 1000 burn-in + 20 000 iterations, thin
+  10, last 75% (`fixC-long.txt`, `fixC-long.csv`).  Both completed; 1.3-1.6
+  s per iteration (median segment 660-813 s per 500 iterations, slowest
+  2481 s).  Quantiles 5/50/95%: log lambda 3.71 / 5.20 / 6.82 (lambda
+  41 / 181 / 914), s 0.83 / 1.35 / 1.88 (P(s > 1.9) = 4.1%), lambda <e^x>
+  39.5 / 73.9 / 145, root age 550 / 649 / 770 Ma, clock rate
+  0.000988 / 0.001148 / 0.001333; R-hat 1.006-1.065 for parameters and
+  ages, 1.155 for charLL (bulk ESS 9.5); window medians of lambda 125-255
+  and s 1.21-1.52, no runaway.
+- Prior check of C with s free (`check-prior-scale.R`; oracle in
+  (log dbar, logit turnover, logit sampling, log s) with `TreeLikelihood()`,
+  negative control without the 2 log k Jacobian): **not completed**.  The
+  first run (40 000 iterations per chain) exceeded its 10-h limit; the second
+  (Slurm 19502537) finished 11 of 12 chains and failed on CET chain 803, where
+  a proposal of s beyond the bound reached `LineageMean()`, whose generator
+  overflowed (`eigen()`: "infinite or missing values"); `CetPriors()` now
+  rejects s outside its support before computing k.  The rerun for chain 803
+  (Slurm 19566813) was cancelled when C was superseded.  The 11 chains are in
+  `$W/prior-check-scale-v2/chain-*.rds`; no statistics were computed.
 - `diag-prior-scale.R` (unit checks): the default prior is unchanged
   (beta 0 against beta 1: 0; against the hand sum: 1.8e-15);
   `LineageMean(s, 1)` / e^(-s^2 / 2) = 1.0000, 1.0002, 1.0033, 1.0166 at
@@ -577,9 +594,9 @@ burn-in, bulk ESS):
 - **Prior-only runs.**  CET: cell (0, 0) at power 0 (`CET_POWER = 0`: the
   tree term only), 2 chains x 20 000 iterations from draws 1 and 5, with
   and without the calibration (`CET_HOLO_CAL`).  RevBayes: the comparator
-  (`config = "morph"`, a2a8e2db) with `under_prior = true`, 2 chains,
-  68 000 of 150 000 generations so far (`$W/rbprior`).  RevBayes's
-  `ignoreAllData()` also ignores the clamped calibration node: 35% of its
+  (`config = "morph"`, a2a8e2db) with `under_prior = true`, 2 chains x
+  150 000 generations (`$W/rbprior`, Slurm 19476129-19476130).  RevBayes's
+  `ignoreAllData()` also ignores the clamped calibration node: 40% of its
   prior samples have Holometabola younger than 302 Ma, impossible under the
   calibration; reweighting by the calibration density restores it.
   Quantiles 5/50/95% after 25% burn-in (`diag-rootage.R`, `rootage.csv`):
@@ -587,9 +604,9 @@ burn-in, bulk ESS):
 | Source | Samples (bulk ESS of root age) | Root age (Ma) | Holometabola age (Ma) |
 |---|---|---|---|
 | CET prior, calibration | 1500 (748) | 316 / 328 / 362 | 303 / 313 / 335 |
-| RevBayes prior, reweighted by the calibration | 2037 (841; Kish 296) | 316 / 328 / 364 | 303 / 313 / 332 |
+| RevBayes prior, reweighted by the calibration | 4502 (1155; Kish 911) | 316 / 328 / 368 | 303 / 313 / 339 |
 | CET prior, no calibration | 1500 (724) | 316 / 325 / 355 | 251 / 288 / 324 |
-| RevBayes prior, no calibration | 2037 (841) | 317 / 393 / 1444 | 261 / 352 / 1403 |
+| RevBayes prior, no calibration | 4502 (1155) | 316 / 339 / 1393 | 260 / 314 / 1351 |
 | RevBayes posterior | 11 934 (1518) | 321 / 357 / 428 | 310 / 341 / 403 |
 | CET pilot (0, 0), Gamma(4) | 225 (15) | 506 / 565 / 659 | 495 / 553 / 636 |
 | CET pilot (0, 0), no Gamma (`CET_NRATECAT = 1`, same start) | 225 (10) | 551 / 622 / 694 | 535 / 594 / 661 |
@@ -598,14 +615,14 @@ burn-in, bulk ESS):
 | previous CET pilot (0, 0), no Gamma, reference start | 225 (29) | 386 / 429 / 487 | 370 / 420 / 464 |
 
 - **With the calibration, the two priors agree** (root median 328 Ma in
-  both), and the comparator's posterior (357 Ma) stays near it.  The CET
+  both; 95% quantile 362 against 368 Ma), and the comparator's posterior (357 Ma) stays near it.  The CET
   posteriors lie 230-290 Myr above the prior, so the old roots come from
   CET's likelihood, not from its tree prior, root prior, calibration or
   conditioning.
 - **Without the calibration they differ, in mode-finding, not in density**
   (`prior-parameters.txt`): RevBayes's prior has a second mode with low
-  turnover (0.19-0.61) and old roots (half its samples are older than
-  600 Ma; correlation of root age with log lambda -0.975), which CET's prior
+  turnover (0.21-0.84 among samples older than 600 Ma, which are 39% of its
+  samples; correlation of root age with log lambda -0.974), which CET's prior
   chains, started at turnover about 1, never visit (turnover 1 throughout,
   root at most 425 Ma): CET's moves act on logit turnover, where the two
   modes are about 10 units apart, while RevBayes slides turnover on (0, 1).
@@ -624,15 +641,42 @@ burn-in, bulk ESS):
   comparator's posterior trees (root 346 Ma, tree length 7204 Myr, best rate
   0.00142) and -6303.0 on CET (0, 0) trees (root 582 Ma, 9226 Myr, best rate
   0.00115); the expected number of changes, rate x tree length, is about the
-  same (10.40 and 10.52).  The difference is in how time is distributed over
-  the branches: the comparator's UCLN absorbs among-branch rate variation in
-  branch rates and keeps its ages near the prior; CET's strict clock (gamma
-  = 0) cannot, and its tempo clock (gamma = 1; cell (1, 1) roots 605 Ma)
-  does not either.  This is a model difference (the clock), not a prior or
-  conditioning bug.  The decisive check, not run here, is the comparator
-  with a strict clock (a `morph-strict` configuration of
-  `hymenoptera_fbd.Rev`): if its roots are also 550-650 Ma, CET (0, 0)
-  reproduces it.
+  same (10.40 and 10.52).
+- **RevBayes with a strict clock reproduces CET's old roots.**  The
+  comparator with every branch rate equal to `clock_rate` (config
+  `morph-strict` of `../revbayes/hymenoptera_fbd.Rev`; otherwise unchanged:
+  FBD prior, root prior, constraint, calibration, Mkv + Gamma(4) with alpha
+  ~ Exp(1), clock_rate ~ LogNormal(-7.1, 0.5)), RevBayes fd807d10, 4 chains
+  x 500 000 generations, sampled every 100, 25% burn-in
+  (Slurm 19479952-19479955, `evotempo-hym-rbstrict-<k>`, 54 h each;
+  `summarise-rbstrict.R`, `rbstrict-summary.csv`, `rb-morph-lnl.txt`):
+
+| | RevBayes strict | CET (0, 0), Gamma(4) (pilot, 1 chain) | RevBayes UCLN (the comparator) |
+|---|---|---|---|
+| Root age, median (95%) | 575.9 (476.0-707.3) Ma | 565.2 (498.9-675.7) | 357.3 (318.4-445.3) |
+| Holometabola age, median | 558.2 Ma | 552.5 | 341.4 |
+| Clock rate, median (95%) | 0.001142 (0.000930-0.001389) | 0.001135 (0.000943-0.001331) | 0.001919 (0.001383-0.002738) |
+| Morphology lnL, median (95%) | -6292.3 (-6313.2 to -6274.2) | -6304.6 (-6328.5 to -6290.6) | -6138.9 (-6166.5 to -6114.8) |
+| alpha, median | 1.178 | 1.157 | 1.090 |
+| lambda, median | 33.3 | 33.6 | 42.4 |
+| R-hat (root, clock, lnL) | 1.0006, 1.0011, 1.0002 | (one chain) | 1.0061, 1.0041, 1.0018 |
+| Bulk ESS (root, clock, lnL) | 3109, 3370, 8529 | 15, 14, 12 | 1128, 1163, 3232 |
+
+  RevBayes's `Likelihood` column includes the clamped calibration node
+  `holo_cal` (median -7.27 strict, -4.96 UCLN); the morphology lnL above
+  subtracts it (CET's `charLL` excludes the calibration).  Every R-hat of
+  the strict chains is <= 1.0011 and every bulk ESS >= 3039.
+  **So the old roots are what this model gives with a strict clock**:
+  CET (0, 0), which has the comparator's tree prior and character model
+  with a strict clock, agrees with RevBayes's strict clock (root 565 against
+  576 Ma, clock rate 0.001135 against 0.001142; CET's single pilot chain has
+  ESS 12-15, so its 12-nat lower lnL is within its uncertainty).  The
+  comparator's young roots come from UCLN: its branch rates gain about 154
+  nats of morphology log-likelihood (-6138.9 against -6292.3) and let the
+  tree stay near the prior's ages.  Neither CET clock (strict, gamma = 0;
+  tempo, gamma = 1) does this on these data.  The like-for-like comparator
+  of CET's gamma = 0 cells is therefore `morph-strict`, and of its gamma = 1
+  cells a question for the model, not a bug.
 - **#90.**  Nothing in this diagnosis depends on `TreeLikelihood()` at the
   default atol: `diag-ridge.R` reports both atols, `diag-atol.R` clears
   `check-prior.R`, and the prior-only runs use `TempoMCMC()`'s target.

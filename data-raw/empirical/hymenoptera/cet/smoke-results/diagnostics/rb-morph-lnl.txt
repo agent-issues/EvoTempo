@@ -1,0 +1,2 @@
+strict: Likelihood (morph + holo_cal) median -6299.60; holo_cal median -7.269; morphology lnL mean -6292.61 median -6292.29 95% -6313.23 to -6274.23; R-hat 1.0002; bulk ESS 8529
+ucln: Likelihood (morph + holo_cal) median -6143.90; holo_cal median -4.959; morphology lnL mean -6139.39 median -6138.89 95% -6166.52 to -6114.80; R-hat 1.0018; bulk ESS 3232

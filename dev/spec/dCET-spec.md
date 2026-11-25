@@ -27,13 +27,13 @@ Inference augments the tempo path on the branches of the reconstructed (sampled)
 through extinction probabilities E_k(τ), and scores characters by pruning on branch lengths
 ℓ_e = c Σ_k e^{γx_k}·(dwell of e in bin k).
 
-**Tempo location (change, #116).** The default model becomes the *centred* model of [tempo-location.md](tempo-location.md):
-OU mean m = αs², so that the lineage-time stationary law of x is N(0, s²) and the rate parameters are rates at the median
-lineage tempo. The default scheme becomes SqRA. The m = 0 model below stays available as `location = "bm"` and is exactly
-related to the centred one by tempo-location.md (L.3). Sections 1, 5, 9.1 and 12 describe the m = 0 model unless they say
+**Tempo location (change, #116).** The default model becomes the *mean-rate* model of [tempo-location.md](tempo-location.md):
+OU mean m = (α − ½)s², so that the lineage-time stationary law of x is N(−s²/2, s²), E[e^x] = 1, and every rate parameter
+is a lineage-time mean rate; the z-window is centred on that law and the default scheme becomes SqRA. The m = 0 model below
+stays available as `location = "bm"` and is exactly related to the new one by tempo-location.md (L.3). Sections 1, 5, 9.1 and 12 describe the m = 0 model unless they say
 otherwise.
 
-**Fixed choices** (from memo §2.7 and this document): the OU mean is fixed at 0 (§9.1; m = αs² in the centred default,
+**Fixed choices** (from memo §2.7 and this document): the OU mean is fixed at 0 (§9.1; m = (α − ½)s² in the mean-rate default,
 tempo-location.md); the removal-after-sampling probability
 r_rm is fixed, default 0 (Truman et al.: unidentifiable if free); ρ is fixed from external richness. α = 1 by default; see §7.3 and open issue 1.
 
@@ -526,8 +526,8 @@ prior and conditioning, which depend on z) and the Jacobian Π p′/p.
 
 **Fixing m = 0 ties location to spread.** With m = 0 the lineage-stationary mean is −αs² (§5.2), so the weak direction above
 is coupled to s. When the tree favours larger s, the tempo level falls and λ rises as e^{αβs²}. That is the runaway in
-Hymenoptera cell (1, 0) (#116). The centred default fixes m = αs² instead, a choice of a = a(s) in the map above, so the
-level no longer moves with s. See [tempo-location.md](tempo-location.md), which also gives the map, the Jacobian and the
+Hymenoptera cell (1, 0) (#116). The mean-rate default fixes m = (α − ½)s² instead, a choice of a = a(s) in the map above,
+so that the rate parameters are lineage means whose meaning no longer depends on s. See [tempo-location.md](tempo-location.md), which also gives the map, the Jacobian and the
 validation plan. The `shift` move is unchanged under it.
 
 ### 9.2 Time scale
@@ -722,17 +722,17 @@ Items 1–5 were checked against rendered crops of the typeset PDF ([bm-equation
 
 | Symbol | Meaning | Status |
 |---|---|---|
-| λ, μ | speciation/extinction at τ = 1 (centred default: at the median lineage tempo, tempo-location.md) | free |
+| λ, μ | speciation/extinction at τ = 1 (mean-rate default: lineage-mean rates, tempo-location.md) | free |
 | θ | mean-reversion rate (per unit tempo-time) | free |
 | s | stationary sd of log-tempo (OU in tempo-time) | free |
-| c | character rate at τ = 1 (centred default: at the median lineage tempo) | free (one per partition) |
+| c | character rate at τ = 1 (mean-rate default: lineage-mean rate) | free (one per partition) |
 | ψ | fossil sampling rate (at τ = 1 if δ = 1) | free |
 | ρ | extant sampling probability | fixed (external); random vs diversified sampling as sensitivity |
 | r_rm | removal after sampling | fixed 0 |
 | α | tempo self-rate exponent | fixed 1 (open issue 1) |
 | β, γ | couplings | {0, 1} per model cell; γ ∈ [0, 1] stretch |
 | δ | fossil-sampling coupling | {0, 1} sensitivity axis |
-| m | OU mean | fixed: αs² (centred default, tempo-location.md) or 0 (`location = "bm"`, §9.1) |
+| m | OU mean | fixed: (α − ½)s² (mean-rate default, tempo-location.md) or 0 (`location = "bm"`, §9.1) |
 | K, z_min, z_max, scheme | discretisation | not parameters; convergence-checked (BDS protocol + §1.3 bound) |
 | π | start-bin prior | §5.4 option (open issue 2) |
 

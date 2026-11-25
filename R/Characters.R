@@ -70,7 +70,8 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
 # checks every cached result against a one-shot evaluation
 .MkSiteLogLik <- function(tree, characters, lengths, nState, sites = TRUE) {
   if (!is.integer(characters) || !is.matrix(characters)) {
-    characters <- matrix(as.integer(characters), tree[["nTip"]])
+    characters <- as.matrix(characters)
+    characters <- matrix(as.integer(characters), nrow(characters))
   }
   .MkCpp(tree, characters, as.double(lengths), as.integer(nState), sites,
          !isFALSE(getOption("EvoTempo.mkCache")))
@@ -109,9 +110,9 @@ MkLikelihood <- function(tree, characters, lengths, nState = 2L,
   out
 }
 
-# Number of cached character matrices and of partial likelihoods recomputed;
-# `clear = TRUE` empties the cache first
-.MkCache <- function(clear = FALSE) .MkCacheCpp(clear)
+# Number of cached character matrices, of partial likelihoods recomputed and of
+# failed self-checks; `clear = TRUE` empties the cache and resets the counts
+.MkCache <- function(clear = FALSE) .MkCacheCpp(clear, FALSE)
 
 # Tempo-weighted branch lengths c * sum_k exp(gamma x_k) dwell_k, per node
 # (with an origin, the root's is the stem's, which MkLikelihood() ignores)

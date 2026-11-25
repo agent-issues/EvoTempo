@@ -276,7 +276,7 @@ test_that("A set survives serialization, bad input and a failed evaluation", {
   expect_identical(.MkSetLogLik(copy, tr, len), value)
   expect_identical(.MkSetLogLik(copy, tr, len / 2), OneByOne(fix, tr, len / 2))
 
-  expect_error(.MkSetLogLik(set, tr, len[-1]), "one entry per node")
+  expect_error(.MkSetLogLik(set, tr, len[-1]), "one value per node")
   bad <- tr
   bad$parent[[1]] <- 2L
   expect_error(.MkSetLogLik(set, bad, len), "tip has children")
@@ -284,7 +284,9 @@ test_that("A set survives serialization, bad input and a failed evaluation", {
   WithCache(TRUE, {
     expect_identical(.MkSetLogLik(set, tr, len * 2), OneByOne(fix, tr, len * 2))
     set$matrices[[1]] <- 1L - set$matrices[[1]]
+    before <- .MkCache()$checkFailures
     expect_error(.MkSetLogLik(set, tr, len), "differ from those registered")
+    expect_equal(.MkCache()$checkFailures, before + 1)
   })
 
   expect_error(.MkSet(nTip, fix$matrices, fix$nState[-1], fix$sites),
@@ -326,4 +328,123 @@ test_that("A rebound MkLikelihood() that scores a set gives the same chain", {
   together <- Run(Together)
   expect_gt(sum(together$acceptance[c("nodeAge", "slide", "saJump")]), 0)
   expect_identical(together$samples, Run(Split)$samples)
+})
+
+test_that("Malformed input is an error, and the self-check fires on a stale result", {
+  tr <- cacheTree
+  len <- rep(0.3, tr$nTip + tr$nNode)
+  chars <- matrix(c(0L, 1L, 0L, 1L, 1L), 5)
+  expect_error(.MkSiteLogLik(tr, matrix(c(0, 1, 0, 1), 2), len, 2L), "one row per tip")
+  expect_error(.MkCpp(list(nTip = 0L, parent = integer(0)), matrix(0L, 0, 1),
+                      numeric(0), 2L, FALSE, TRUE), "two tips")
+  expect_error(MkLikelihood(tr, chars, len[-1], 2L), "one value per node")
+  zeroRoot <- replace(tr, "parent", list(replace(tr$parent, tr$root, 0L)))
+  expect_identical(MkLikelihood(zeroRoot, chars, len, 2L), MkLikelihood(tr, chars, len, 2L))
+
+  # NaN lengths give NaN, not a false alarm
+  nanTree <- list(nTip = 3L, parent = c(4L, 4L, 5L, 5L, NA))
+  WithCache(TRUE, expect_identical(
+    .MkCpp(nanTree, matrix(c(0L, 1L, 0L), 3), c(NaN, 0.2, 0.3, 0.1, 0), 2L, FALSE, TRUE),
+    NaN
+  ))
+
+  .MkCache(clear = TRUE)
+  first <- WithCache(TRUE, MkLikelihood(tr, chars, len, 2L))
+  .MkCacheCpp(FALSE, TRUE)
+  expect_equal(WithCache(TRUE, MkLikelihood(tr, chars, len, 2L), check = FALSE),
+                   first + log(0.5) * ncol(chars))
+  .MkCacheCpp(FALSE, TRUE)
+  expect_error(WithCache(TRUE, MkLikelihood(tr, chars, len, 2L)), "differs")
+  expect_equal(.MkCache()$checkFailures, 1)
+  expect_equal(.MkCache()$entries, 0)  # the failed entry is dropped
+  expect_identical(WithCache(TRUE, MkLikelihood(tr, chars, len, 2L)), first)
+})
+
+test_that("Random call sequences give the one-shot result, bitwise", {
+  RandomTree <- function(n) {
+    parent <- rep(NA_integer_, 2 * n - 1)
+    roots <- seq_len(n)
+    for (lab in sample(n + seq_len(n - 1))) {
+      pick <- sample(length(roots), 2)
+      parent[roots[pick]] <- lab
+      roots <- c(roots[-pick], lab)
+    }
+    parent
+  }
+  Subtree <- function(parent, v) {
+    out <- v
+    repeat {
+      kids <- setdiff(which(parent %in% out), out)
+      if (!length(kids)) return(out)
+      out <- c(out, kids)
+    }
+  }
+  # Prune v with its parent p and regraft p above a node t outside the subtree;
+  # moving the root's child changes which node is the root
+  Spr <- function(parent) {
+    cand <- which(!is.na(parent))
+    v <- cand[sample(length(cand), 1)]
+    p <- parent[v]
+    parent[setdiff(which(parent == p), v)] <- parent[p]
+    parent[p] <- NA
+    ok <- setdiff(seq_along(parent), c(Subtree(parent, v), p))
+    t <- ok[sample(length(ok), 1)]
+    parent[p] <- parent[t]
+    parent[t] <- p
+    parent[v] <- p
+    parent
+  }
+  Relabel <- function(st, n) {
+    perm <- c(seq_len(n), n + sample(n - 1))
+    parent <- st$parent
+    parent[perm] <- perm[st$parent]
+    len <- st$len
+    len[perm] <- st$len
+    list(parent = parent, len = len)
+  }
+  Propose <- function(st, n) {
+    N <- length(st$parent)
+    switch(sample(c("len1", "all", "spr", "relabel", "zero"), 1, prob = c(4, 1, 4, 1, 1)),
+           len1 = st$len[sample(N, 1)] <- stats::rexp(1, 3),
+           all = st$len <- st$len * exp(stats::runif(1, -1, 1)),
+           spr = st$parent <- Spr(st$parent),
+           relabel = st <- Relabel(st, n),
+           zero = st$len[sample(N, 1)] <- 0)
+    st
+  }
+  nRoot <- 0
+  Eval <- function(st, chars, n, k) {
+    tree <- list(nTip = n, parent = as.integer(st$parent))
+    expect_identical(.MkCpp(tree, chars, st$len, k, TRUE, TRUE),
+                     .MkCpp(tree, chars, st$len, k, TRUE, FALSE))
+  }
+  set.seed(9)
+  .MkCache(clear = TRUE)
+  WithCache(TRUE, for (n in c(4, 12)) for (k in 2:3) {
+    chars <- matrix(sample(c(0:(k - 1), NA), n * 5, replace = TRUE), n)
+    storage.mode(chars) <- "integer"
+    # Two chains interleaved on one cache entry
+    chains <- lapply(1:2, function(i) {
+      list(parent = RandomTree(n), len = stats::rexp(2 * n - 1, 3))
+    })
+    history <- list()
+    for (i in 1:60) {
+      ch <- if (i %% 20 < 14) 1 else sample(2, 1)
+      cur <- chains[[ch]]
+      prop <- Propose(cur, n)
+      nRoot <- nRoot + (which(is.na(prop$parent)) != which(is.na(cur$parent)))
+      Eval(prop, chars, n, k)
+      u <- stats::runif(1)
+      if (u < 0.35) {
+        chains[[ch]] <- prop
+        history[[length(history) + 1]] <- cur
+      } else if (u < 0.5) {
+        Eval(cur, chars, n, k)
+      } else if (u < 0.6 && length(history)) {
+        Eval(history[[sample(length(history), 1)]], chars, n, k)
+      }
+    }
+  })
+  expect_gt(nRoot, 0)
+  expect_equal(.MkCache()$checkFailures, 0)
 })

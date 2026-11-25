@@ -89,13 +89,14 @@ struct MkSet {
 
 struct MkEntry {
   MkSet set;  // one matrix
-  unsigned long tick = 0;
+  unsigned long long tick = 0;
 };
 
 const std::size_t kMaxEntries = 32;
 std::vector<std::unique_ptr<MkEntry> > registry;
-unsigned long useCount = 0;
+unsigned long long useCount = 0;
 double nRecomputed = 0;
+int nCheckFailures = 0;
 
 MkEntry& Lookup(int nTip, int nState, const std::vector<int>& states) {
   for (std::size_t i = 0; i < registry.size(); ++i) {
@@ -195,7 +196,8 @@ double LogSum(const std::vector<double>& site) {
 }
 
 bool SameBits(const std::vector<double>& a, const std::vector<double>& b) {
-  return std::memcmp(a.data(), b.data(), a.size() * sizeof(double)) == 0;
+  return a.size() == b.size() &&
+    std::memcmp(a.data(), b.data(), a.size() * sizeof(double)) == 0;
 }
 
 bool CheckRequested() {
@@ -203,11 +205,13 @@ bool CheckRequested() {
   return check && *check && std::string(check) != "0";
 }
 
-// Exact agreement of the cached partials (re-read, not recomputed) and the
+// Bitwise agreement of the cached partials (re-read, not recomputed) and the
 // returned site likelihoods with a one-shot evaluation of `states`, the tip
-// states that the caller holds
+// states that the caller holds; failures are counted, so that a caller that
+// catches the error cannot hide them
 void Check(MkSet& s, const std::vector<std::vector<int> >& states) {
   if (states != s.states) {
+    ++nCheckFailures;
     throw std::logic_error("character matrices differ from those registered");
   }
   for (std::size_t i = 0; i < s.pruner.size(); ++i) {
@@ -218,11 +222,10 @@ void Check(MkSet& s, const std::vector<std::vector<int> >& states) {
     std::unique_ptr<MkPruner> oneShot = s.NewPruner(i, states[i]);
     SetTree(*oneShot, s.last);
     oneShot->site_likelihoods(fresh.data());
-    // # nocov start
     if (!SameBits(reread, fresh) || !SameBits(site, fresh)) {
+      ++nCheckFailures;
       throw std::logic_error("cached Mk likelihood differs from a fresh evaluation");
     }
-    // # nocov end
   }
 }
 
@@ -236,11 +239,12 @@ std::vector<int> TipStates(const IntegerMatrix& characters) {
 
 // One edge per non-root node
 void ReadTree(const IntegerVector& par, const NumericVector& lengths, MkTree& x) {
+  if (lengths.size() < par.size()) stop("`lengths` needs one value per node");
   x.parent.clear();
   x.child.clear();
   x.len.clear();
   for (int v = 0; v < par.size(); ++v) {
-    if (par[v] == NA_INTEGER) continue;
+    if (par[v] == NA_INTEGER || par[v] < 1) continue;  // the root
     x.parent.push_back(par[v]);
     x.child.push_back(v + 1);
     x.len.push_back(lengths[v]);
@@ -262,10 +266,11 @@ NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths,
                     int nState, bool sites, bool cache) {
   const int nTip = as<int>(tree["nTip"]);
   if (characters.nrow() != nTip) {
-    stop("`characters` needs one row per tip");  // # nocov
+    stop("`characters` needs one row per tip");
   }
   const int nChar = characters.ncol();
   if (nChar == 0) return sites ? NumericVector(0) : NumericVector::create(0.0);
+  if (nTip < 2) stop("Mk likelihood needs at least two tips");
   MkTree x;
   ReadTree(tree["parent"], lengths, x);
   const std::vector<int> states = TipStates(characters);
@@ -288,7 +293,7 @@ NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths,
   } catch (const std::exception& e) {
     // A failed evaluation may leave the entry part-way through an update
     if (entry) Forget(entry);
-    stop(e.what());
+    stop("%s", e.what());
   }
   if (!sites) return NumericVector::create(LogSum(site));
   NumericVector out(nChar);
@@ -313,7 +318,7 @@ SEXP MkSetCpp(int nTip, List matrices, IntegerVector nState, LogicalVector sites
       set->Add(nState[i], TipStates(m), sites[i]);
     }
   } catch (const std::invalid_argument& e) {
-    stop(e.what());
+    stop("%s", e.what());
   }
   XPtr<MkSet> handle(set.release(), true, SetTag());
   return handle;
@@ -331,7 +336,6 @@ SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths,
     return R_NilValue;
   }
   MkSet& s = *static_cast<MkSet*>(R_ExternalPtrAddr(handle));
-  if (lengths.size() != parent.size()) stop("`lengths` needs one entry per node");
   ReadTree(parent, lengths, s.next);
   try {
     Evaluate(s, s.next);
@@ -344,7 +348,7 @@ SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths,
     }
   } catch (const std::exception& e) {
     s.Reset();
-    stop(e.what());
+    stop("%s", e.what());
   }
   NumericVector out(s.nOut);
   R_xlen_t at = 0;
@@ -359,12 +363,20 @@ SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths,
   return out;
 }
 
+// `corrupt` (for tests of the self-check) alters every entry's stored result
 // [[Rcpp::export(name = ".MkCacheCpp")]]
-List MkCacheCpp(bool clear) {
+List MkCacheCpp(bool clear, bool corrupt) {
   if (clear) {
     registry.clear();
     nRecomputed = 0;
+    nCheckFailures = 0;
+  }
+  if (corrupt) {
+    for (std::size_t i = 0; i < registry.size(); ++i) {
+      for (double& v : registry[i]->set.lastSite[0]) v *= 0.5;
+    }
   }
   return List::create(_["entries"] = static_cast<int>(registry.size()),
-                      _["recomputed"] = nRecomputed);
+                      _["recomputed"] = nRecomputed,
+                      _["checkFailures"] = nCheckFailures);
 }

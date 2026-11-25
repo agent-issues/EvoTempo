@@ -213,7 +213,11 @@ write.csv(fbd, file.path(outDir, "fbd-check.csv"), row.names = FALSE)
 len <- 0.0236 * dur
 cm <- attr(dat$characters, "cet")
 nRep <- as.integer(Sys.getenv("CET_MKV_REPS", "200"))
+# Without the partial-likelihood cache (#110), which would make every repetition
+# on the same tree a cache hit
 Ms <- function(f) {
+  old <- options(EvoTempo.mkCache = FALSE)
+  on.exit(options(old))
   f()
   1000 * system.time(for (i in seq_len(nRep)) f())[["elapsed"]] / nRep
 }

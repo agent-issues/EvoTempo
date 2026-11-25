@@ -13,8 +13,8 @@
     .Call(`_EvoTempo_MkSetLogLikCpp`, handle, parent, lengths, matrices)
 }
 
-.MkCacheCpp <- function(clear) {
-    .Call(`_EvoTempo_MkCacheCpp`, clear)
+.MkCacheCpp <- function(clear, corrupt) {
+    .Call(`_EvoTempo_MkCacheCpp`, clear, corrupt)
 }
 
 .PiecesCpp <- function(tree, set, v) {

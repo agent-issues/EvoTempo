@@ -90,5 +90,13 @@
 - The C++ engine of `MkLikelihood()` caches partial likelihoods per character
   matrix between calls, so a `TempoMCMC()` proposal recomputes only the nodes
   whose subtree or child branch lengths changed; results are bitwise those of a
-  full evaluation.  `options(EvoTempo.mkCache = FALSE)` turns the cache off
+  full evaluation.  `options(EvoTempo.mkCache = FALSE)` turns the cache off.
+  On the penguin data the cache saves 5-15% of an iteration; the penguin
+  pipeline's Mkv correction, now computed in C++, gives most of a 1.7-1.9x
+  speed-up ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).
+- Character matrices that are always scored together (the partitions of a
+  dataset) can be registered once and scored in one C++ call (internal
+  `.MkSet()`, `.MkSetLogLik()`), which removes most of the fixed cost of a
+  cached evaluation; the penguin pipeline uses it, to the same values bit for
+  bit, and runs about 14% faster per iteration
   ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).

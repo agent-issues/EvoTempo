@@ -91,7 +91,11 @@ if (engDiff > 1e-8 * max(abs(res$pattern))) fail <- c(fail, "engines disagree")
 
 # Cost per evaluation, at the rate of the start values (0.017)
 len <- 0.017 * dur
+# Without the partial-likelihood cache (#110), which would make every repetition
+# on the same tree a cache hit
 Ms <- function(f) {
+  old <- options(EvoTempo.mkCache = FALSE)
+  on.exit(options(old))
   f()
   1000 * system.time(for (r in seq_len(nRep)) f())[["elapsed"]] / nRep
 }

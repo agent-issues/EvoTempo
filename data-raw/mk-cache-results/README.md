@@ -1,49 +1,102 @@
-# Cached character likelihood: time per proposal (#110 move 2)
+# Cached character likelihood and C++ Mkv correction: time per proposal (#110 move 2)
 
-`data-raw/mk-cache-benchmark.R` on the penguin data (55 tips, 201 characters in
-six K-partitions, 132 Mkv constant patterns), fixed parameters, one move type per
-run, `nIter = 8`, 5 proposals per iteration (40 proposals; the parameter sweep:
-6 proposals per iteration).  "before": one-shot pruning and the R Mkv correction
-(`ConstantPatternLogLik()`); "after": cached pruner for both.  Laptop smoke test
-(Windows, R-devel), about 10 s per cell, so each figure is good to perhaps
-+/-20%; `same` = samples of the two modes agree to 1e-10.
+`data-raw/mk-cache-benchmark.R` on the penguin data: 55 tips; 201 characters in
+six K-partitions; 132 Mkv constant patterns. Parameters are fixed, each move type
+runs alone, `nIter = 8` with 5 proposals per iteration (40 proposals), and the
+parameter sweep makes 6 proposals per iteration. PR #119 makes two changes, and
+the three modes keep them apart:
 
-| move | b1g1 before | after | speed-up | b0g0 before | after | speed-up |
+| mode | pruning | Mkv correction |
+|---|---|---|
+| `main` (the code path before #119) | one-shot | R (`ConstantPatternLogLik()`) |
+| `cppMkv` | one-shot | C++ (`PatternLogLik()` → `.MkSiteLogLik()`) |
+| `cached` | cached | C++ |
+
+These are laptop smoke tests (Windows, R-devel, other jobs running) of about a
+minute per cell, so each figure is good to perhaps ±20-30%. `same` means that
+the samples of all three modes agree to 1e-10. CSVs: `smoke-b1g1.csv`,
+`smoke-b0g0.csv`, and `-call.csv` for the time per call.
+
+## Per iteration (production schedule, with the sweep)
+
+| cell | main | cppMkv | cached | Mkv in C++ | cache | total |
 |---|---|---|---|---|---|---|
-| slide | 5.92 | 3.13 | 1.9 | 5.47 | 2.84 | 1.9 |
-| saJump | 3.48 | 2.24 | 1.6 | 3.65 | 2.44 | 1.5 |
-| nodeAge | 5.58 | 2.94 | 1.9 | 6.60 | 3.73 | 1.8 |
-| fossilAge | 6.31 | 4.72 | 1.3 | 6.10 | 3.14 | 1.9 |
-| originAge | 11.93 | 10.15 | 1.2 | 10.27 | 9.09 | 1.1 |
-| node | 4.68 | 3.22 | 1.5 | 2.41 | 1.88 | 1.3 |
-| tip | 4.27 | 1.98 | 2.2 | 2.63 | 1.13 | 2.3 |
-| branch | 3.07 | 1.15 | 2.7 | 3.86 | 0.92 | 4.2 |
-| shift | 2.80 | 1.48 | 1.9 | - | - | - |
-| tree | - | - | - | 6.81 | 3.11 | 2.2 |
-| parameters | 8.15 | 5.57 | 1.5 | 5.88 | 5.05 | 1.2 |
+| b1g1 | 550 ms | 334 ms | 292 ms | 1.64x | 1.14x | 1.88x |
+| b0g0 | 474 ms | 323 ms | 283 ms | 1.47x | 1.14x | 1.67x |
 
-(ms per proposal; CSVs `smoke-b1g1.csv`, `smoke-b0g0.csv`.)  `shift` calls the
-character likelihood only because the benchmark fixes `rate`; with `rate` free, as
-in production, the move is character-invariant and unaffected.
+The independent review of #119 timed 40 iterations of the b1g1 production
+schedule on a quieter machine, with alternating runs. It measured 754 ms for
+`main` and 440 ms after (1.7x). In that run the cache alone was worth **about
+5%** of an iteration (3-7%: `cppMkv` 408 and 399 ms, cached 395 and 370 ms).
 
-Weighted by the production b1g1 schedule (`node` 14, `tip` 11, `branch` 24,
-`shift` 1, `nodeAge` 10, `fossilAge` 9, `slide` 6, `saJump` 4, `originAge` 1, and
-a 6-parameter sweep), with `shift` unchanged: 412 ms -> 240 ms of move work per
-iteration, 1.7x.
+Either way, **most of the gain comes from moving the Mkv correction into C++.
+The cache adds 5-15%.**
 
-The character likelihood itself fell from 4.4 ms to 0.4-0.7 ms per call. Most of
-that came from moving the Mkv correction (3.4 ms in R) into the C++ pruner; the
-caching of the 201 data columns, which cost 0.6 ms one-shot, saves less on a
-tree this small.  What remains of a proposal is R-level move work (proposal,
-bridges, `.LogAugmented()`, `.Messages()` on acceptance), which now dominates:
-the 20x per-proposal gap to RevBayes estimated in #110 is not in the character
-likelihood.
+## Per call of the character likelihood
 
-## Fixed cost of an evaluation: one C++ call per character set
+One `PartitionedMk()` call makes 12 `.MkCpp` calls: 6 partitions and 6
+constant-pattern matrices. In the cached mode, one tip edge changes per call.
 
-A review of the cache (PR #119) found that about 70% of a cached evaluation did
-no pruning: twelve `.MkCpp()` calls, each with a content-keyed lookup and a copy
-of the tip states, behind three layers of R wrappers.  `PartitionedMk()` now
+| | ms per call |
+|---|---|
+| main | 3.9-4.0 |
+| cppMkv | 1.1-1.3 |
+| cached | 1.0-1.1 |
+
+The review measured 5.8, 1.66 and 1.27 ms; the cached figure falls to 0.89 ms
+when nothing has changed. Caching does little per call on this tree, for two
+reasons:
+
+- **The changes reach a large share of the tree.** One changed tip edge dirties
+  about 30% of the internal nodes, and in the production schedule a call
+  recomputes 25% of them on average.
+- **Most of a cached call is fixed cost.** About 70% of it does no pruning: the
+  R wrappers, the 12 calls into C++, the key lookup and the checkpoint.
+
+## Per proposal (ms)
+
+| move | b1g1 main | cppMkv | cached | b0g0 main | cppMkv | cached |
+|---|---|---|---|---|---|---|
+| slide | 8.23 | 6.21 | 5.90 | 8.52 | 4.54 | 4.01 |
+| saJump | 6.07 | 4.43 | 3.43 | 5.30 | 3.33 | 2.28 |
+| nodeAge | 8.40 | 4.18 | 3.92 | 7.82 | 4.59 | 4.62 |
+| fossilAge | 9.19 | 6.52 | 5.51 | 8.20 | 4.43 | 5.28 |
+| originAge | 14.80 | 14.73 | 12.12 | 13.96 | 12.42 | 11.74 |
+| node | 4.78 | 4.00 | 4.09 | 3.95 | 3.22 | 2.88 |
+| tip | 5.60 | 4.93 | 3.30 | 5.11 | 3.07 | 2.44 |
+| branch | 3.42 | 2.38 | 1.37 | 4.01 | 3.09 | 0.75 |
+| shift | 4.91 | 2.53 | 1.93 | - | - | - |
+| tree | - | - | - | 8.96 | 6.01 | 3.21 |
+| parameters | 9.16 | 7.61 | 5.74 | 9.35 | 6.85 | 5.64 |
+
+`shift` calls the character likelihood only because the benchmark fixes
+`rate`. With `rate` free, as in production, the move is character-invariant and
+is unaffected.
+
+## What dominates now
+
+The review's Rprof of 80 iterations of the b1g1 production schedule, after
+#119:
+
+| item | share of the run |
+|---|---|
+| character likelihood (C++ call 17%, its R wrappers 12.5%, `.CharacterLengths()` 4%) | 34% |
+| `.Messages()` | 15% |
+| `.Precompute()` | 13.5% |
+| bridges and path draws | 11.5% |
+| `.LogAugmented()` | 5% |
+| `.LogWeight()` | 5% |
+
+About 70% of the run's self time is in C++ kernels. **The character likelihood
+is still the largest single item, but no single item holds the ~20x gap to
+RevBayes estimated in #110.** Removing the likelihood entirely would give about
+1.5x.
+
+## Fixed cost of an evaluation: one C++ call per character set (after #119)
+
+As above, about 70% of a cached evaluation did no pruning: twelve `.MkCpp()`
+calls, each with a content-keyed lookup and a copy of the tip states, behind
+three layers of R wrappers.  `PartitionedMk()` now
 registers the six partitions and six constant-pattern matrices once
 (`.MkSet()`) and scores them in one call (`.MkSetLogLik()`), with one diff of
 the tree for all twelve pruners.  The values and the order in which they are
@@ -68,7 +121,7 @@ iteration, same seed; ms per iteration, four runs each, alternating):
 
 | | ms per iteration | relative |
 |---|---|---|
-| before (PR #119) | 202-209 | 1 |
+| before (the cached build above) | 202-209 | 1 |
 | thin R path, twelve C++ calls (`twelve`) | 187-192 | 0.92 |
 | one C++ call | 164-196 | 0.86 |
 
@@ -81,6 +134,9 @@ What is left of an evaluation is mostly `Pruner::set_tree()`, not pruning:
 evaluation with one tip edge changed (`checkpoint()`: 0.007 ms).
 `dev/plans/mk-edge-updates.md` proposes how to avoid it.
 
-Longer run (recommended on Hamilton, in a new library, not `lib-48e6bf7`):
+## Longer run
+
+The longer run is recommended on Hamilton, in a new library (not
+`lib-48e6bf7`):
 
     Rscript data-raw/mk-cache-benchmark.R 1 1 200 10 mk-cache-b1g1.csv

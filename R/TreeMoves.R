@@ -405,8 +405,8 @@
       # Fixed-node-height prune and regraft onto a nearby lineage
       # (dev/plans/local-fnpr.md): p keeps its age; targets are the lineages
       # crossing age(p) whose MRCA with sib in the pruned tree is no older
-      # than a log-uniform threshold, so that forward and reverse target sets
-      # have the same size
+      # than a random threshold, so that forward and reverse target sets have
+      # the same size, and their counts cancel from the Hastings ratio
       cand <- .SlideNodes(tree)
       if (!length(cand)) return(NULL)
       v <- cand[[.Sample1(rep(1, length(cand)))]]
@@ -425,7 +425,9 @@
       newTree[["parent"]][p] <- x
       newTree[["parent"]][y] <- p
       newTree <- .Rebuild(newTree)
+      # The reverse move (target sib) exists, with as many targets
       revTargets <- .FnprTargets(newTree, p, y, clade, threshold)
+      stopifnot(sib %in% revTargets, length(revTargets) == length(fwdTargets))
       lwNew <- .NodeLogWeights(newTree, set, p, set[["lambda"]], bin[[x]],
                                c(y, v), bin[c(y, v)])
       lwOld <- .NodeLogWeights(tree, set, p, set[["lambda"]], bin[[pp]],
@@ -437,8 +439,8 @@
       fwd <- Redraw(newTree, nodes, newBin)
       list(tree = newTree, bin = newBin, paths = fwd[["paths"]],
            logHastings = OldQ(nodes) + lwOld[[bin[[p]]]] - .LogSumExp(lwOld) -
-             fwd[["logQ"]] - draw[["logQ"]] +
-             log(length(fwdTargets)) - log(length(revTargets)))
+             fwd[["logQ"]] - draw[["logQ"]],
+           fnpr = list(v = v, y = y, threshold = threshold))
     },
     wfnpr = {
       # Likelihood-weighted fnpr (dev/spec/weighted-regraft.md): at most

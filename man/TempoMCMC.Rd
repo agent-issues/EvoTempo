@@ -163,17 +163,19 @@ subtree and regrafts it at a uniform height onto a uniformly chosen branch
 crossing that height; \code{fnpr} prunes a subtree and regrafts its parent, at
 its unchanged age, onto a nearby branch crossing that age: one chosen
 uniformly among those whose most recent common ancestor with the old
-attachment point, in the tree without the subtree, is younger than a
-threshold that, with probability 1/2, admits every branch and otherwise is
-drawn log-uniformly between just above the parent and the root, so that
-it mixes local and global rearrangements (as RevBayes's \code{mvFNPR}
-and \code{mvNarrow}); \code{wfnpr} scores \code{fnpr}'s targets (seven of them, drawn
-uniformly, if there are more) by the exact target density with the
-characters, proposes one in proportion to its score \eqn{w}, and accepts it
-with probability \eqn{\min(1, (W - w_0) / (W - w))}{min(1, (W - w0) / (W - w))},
-where \eqn{W} sums the scores of the targets and of the current position,
-whose score is \eqn{w_0}{w0} (Metropolized Gibbs sampling; Liu 1996), at the
-cost of one character likelihood per target; \code{saJump} converts a fossil tip to a sampled ancestor
+attachment point, in the tree without the subtree, is no older than a
+threshold \eqn{H}.  With probability 1/2, \eqn{H} admits every branch
+(as RevBayes's \code{mvFNPR}); otherwise \eqn{H - t_p} is log-uniform on
+\eqn{[(R - t_p) / 100, R - t_p]}, with \eqn{t_p} the parent's age and
+\eqn{R} the root age, which gives local rearrangements (as \code{mvNarrow});
+\code{wfnpr} scores \code{fnpr}'s targets (seven of them, drawn uniformly, if there
+are more) by the exact target density with the characters, proposes one in
+proportion to its score \eqn{w}, and accepts it with probability
+\eqn{\min(1, (W - w_0) / (W - w))}{min(1, (W - w0) / (W - w))}, where
+\eqn{W} sums the scores of the targets and of the current position, whose
+score is \eqn{w_0}{w0} (Metropolized Gibbs sampling; Liu 1996), at the cost
+of one character likelihood per target;
+\code{saJump} converts a fossil tip to a sampled ancestor
 or back (Gavryushkina et al. 2014).
 Each redraws affected node bins and paths from the frozen model, with
 proposal densities in the Hastings ratio.

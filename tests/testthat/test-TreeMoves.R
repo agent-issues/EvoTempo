@@ -269,6 +269,14 @@ test_that("fnpr targets are symmetric and local", {
   expect_null(.ProposeTreeMove("fnpr", tr, set, st))
 })
 
+test_that("slide with no lineage at the regraft height proposes nothing", {
+  set <- .AddSlices(moveTree, .Precompute(moveTree, movePar, moveModel), 4)
+  d <- .SampleTree(moveTree, set, .Messages(moveTree, set))
+  st <- list(tree = moveTree, set = set, paths = d$paths, bin = d$bin)
+  local_mocked_bindings(.Crossing = function(...) integer(0))
+  expect_null(.ProposeTreeMove("slide", moveTree, set, st))
+})
+
 # Fixtures for fnpr: moveTree with a crown start, and with an origin 0.6 above
 FnprStates <- function(seed) {
   originModel <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, start = "origin")

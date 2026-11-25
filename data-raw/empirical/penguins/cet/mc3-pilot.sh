@@ -36,4 +36,6 @@ mkdir -p $CET_OUT $W/out
 cd $SRC
 echo "$(date) src $(git rev-parse HEAD) arm $ARM rep $rep seed $CET_SEED host $(hostname)"
 Rscript data-raw/empirical/penguins/cet/run-chain.R 1 $rep >> $W/out/pilot-$ARM-$rep.txt 2>&1
-echo "$(date) exit $?"
+status=$?
+echo "$(date) exit $status"
+exit $status

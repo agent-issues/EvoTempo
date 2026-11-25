@@ -667,3 +667,14 @@ test_that("wfnpr leaves the prior over trees invariant", {
     expect_lt(abs(z), 3.5)
   }
 })
+
+test_that("slide makes no proposal when no branch crosses the drawn height", {
+  # Possible when the pruned node's sibling is a fossil tip older than that
+  # height; forced here, as whether a seeded chain meets it depends on the
+  # random-number state
+  set <- .AddSlices(moveTree, .Precompute(moveTree, movePar, moveModel), 4)
+  d <- .SampleTree(moveTree, set, .Messages(moveTree, set))
+  st <- list(tree = moveTree, set = set, paths = d$paths, bin = d$bin)
+  local_mocked_bindings(.Crossing = function(...) integer(0))
+  expect_null(.ProposeTreeMove("slide", moveTree, set, st))
+})

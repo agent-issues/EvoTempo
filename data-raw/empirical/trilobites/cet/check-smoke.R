@@ -91,9 +91,26 @@ inProc <- ReadChain(file.path(W, "smoke", lab4))
 oneSeg <- ReadChain(file.path(W, "smoke-identity", lab4))
 pre <- ReadChain(file.path(W, "smoke-predict", lab1))
 kil <- ReadChain(file.path(W, "smoke-kill", lab1))
+fre <- ReadChain(file.path(W, "smoke-predict-fresh", lab1))
 c1 <- Compare(two, inProc)
 c2 <- Compare(two, oneSeg)
 c3 <- Compare(kil, pre)
+pre1 <- pre
+pre1$samples <- pre$samples[pre$samples$segment == 1, ]
+pre1$trees <- readLines(file.path(W, "smoke-predict", lab1, "seg0001_trees.nwk"))
+c4 <- Compare(fre, pre1)
+# Segment 1's time (s) from "segment 1/4 done: <secs> s"
+SegSecs <- function(p) {
+  as.numeric(sub("^.*segment 1/4 done: ([0-9.]+) s .*$", "\\1", grep("segment 1/4 done", p, value = TRUE)))
+}
+# Elapsed (h, 3 decimals), last segment (h, 3 decimals) and limit (h) from the
+# one predictive-stop line, or numeric(0)
+StopValues <- function(p) {
+  m <- Filter(length, regmatches(p, regexec(paste0(
+    "stopping before segment 2: ([0-9.]+) h elapsed \\+ 1\\.5 x ",
+    "([0-9.]+) h .*CET_WALL_HOURS ([0-9.e-]+) "), p)))
+  if (length(m) == 1L) as.numeric(m[[1]][2:4]) else numeric(0)
+}
 checks <- c(
   "task 8: first process stopped at CET_HOURS = 0 after segment 1" = Has(two, "segment 1/2 done") &&
     Has(two, "stopping after .* \\(CET_HOURS\\)"),
@@ -113,16 +130,39 @@ checks <- c(
       Has(pre, "segment 1/4 done") && Has(pre, "stopping after .* \\(CET_HOURS\\)")
   }),
   "task 9: only the 1.5 factor stopped it, with segment 1's time from the checkpoint" = local({
-    p <- pre$progress
-    s1 <- as.numeric(sub("^.*segment 1/4 done: ([0-9.]+) s .*$", "\\1", grep("segment 1/4 done", p, value = TRUE)))
-    m <- regmatches(p, regexec(paste0("stopping before segment 2: ([0-9.]+) h elapsed \\+ 1\\.5 x ",
-                                      "([0-9.]+) h .*CET_WALL_HOURS ([0-9.e-]+) "), p))
-    m <- Filter(length, m)
-    length(s1) == 1L && length(m) == 1L && {
-      v <- as.numeric(m[[1]][2:4])  # elapsed (h, 3 decimals), last segment (h), limit (h)
+    s1 <- SegSecs(pre$progress)
+    v <- StopValues(pre$progress)
+    length(s1) == 1L && length(v) == 3L &&
       abs(v[2] - s1 / 3600) < 0.0006 && v[1] + s1 / 3600 < v[3] && v[1] + 1.5 * s1 / 3600 > v[3]
-    }
   }),
+  # The fresh process (task 9's second; #114 delta review, D114-9a, 9b): a new
+  # chain that runs segment 1 and stops before segment 2 by the predictive
+  # term, with the segment time measured in the same process
+  "task 9 fresh: a new chain ran segment 1 and stopped before segment 2 (predictive stop)" = local({
+    p <- fre$progress
+    iStop <- grep("stopping before segment 2: .* would pass", p)
+    iDone1 <- grep("segment 1/4 done", p)
+    length(grep(" start b0g0", p)) == 1L && !Has(fre, "resuming") && length(iDone1) == 1L &&
+      length(iStop) == 1L && iDone1 < iStop && !Has(fre, "segment 2/4 done") &&
+      !Has(fre, "CET_HOURS") && max(fre$samples$segment) == 1
+  }),
+  "task 9 fresh: its last-segment time is its own segment 1's (in-process update)" = local({
+    s1 <- SegSecs(fre$progress)
+    v <- StopValues(fre$progress)
+    length(s1) == 1L && length(v) == 3L && abs(v[2] - s1 / 3600) < 0.0006
+  }),
+  "task 9 fresh: the elapsed term decided it (1.5 x last segment alone < limit)" = local({
+    s1 <- SegSecs(fre$progress)
+    v <- StopValues(fre$progress)
+    length(s1) == 1L && length(v) == 3L && 1.5 * s1 / 3600 < v[3] && v[1] + 1.5 * s1 / 3600 > v[3]
+  }),
+  "task 9 fresh: only the 1.5 factor stopped it (elapsed + 1.0 x last segment < limit)" = local({
+    s1 <- SegSecs(fre$progress)
+    v <- StopValues(fre$progress)
+    length(s1) == 1L && length(v) == 3L && v[1] + s1 / 3600 < v[3]
+  }),
+  "task 9 fresh: segment 1 = segment 1 of the first process, every column and tree" =
+    c4$diff == 0 && c4$trees,
   "task 9: resumed and completed (4 segments)" = Has(pre, "resuming after segment 1") && Complete(pre) &&
     max(pre$samples$segment) == 4,
   "task 10: killed after segment 2's acceptance.csv, before its checkpoint" =
@@ -137,7 +177,10 @@ stopMsg <- c(
           c2$diff, c2$n, c2$cols, c2$trees),
   sprintf("task 10 vs task 9: max |difference| %g over %d samples x %d columns; trees identical %s",
           c3$diff, c3$n, c3$cols, c3$trees),
+  sprintf("task 9 fresh vs task 9 segment 1: max |difference| %g over %d samples x %d columns; trees identical %s",
+          c4$diff, c4$n, c4$cols, c4$trees),
   "task 9 progress:", paste(" ", pre$progress[-1]),
+  "task 9 fresh progress:", paste(" ", fre$progress[-1]),
   "task 10 progress:", paste(" ", kil$progress[-1]),
   "task 8 progress:", paste(" ", two$progress[-1]),
   paste(ifelse(checks, "ok  ", "FAIL"), names(checks)))

@@ -167,11 +167,13 @@ attachment point, in the tree without the subtree, is younger than a
 threshold that, with probability 1/2, admits every branch and otherwise is
 drawn log-uniformly between just above the parent and the root, so that
 it mixes local and global rearrangements (as RevBayes's \code{mvFNPR}
-and \code{mvNarrow}); \code{wfnpr} scores up to seven of \code{fnpr}'s targets, chosen
-uniformly, by the exact target density with the characters, and chooses
-among them and the current position in proportion to those scores
-(Metropolized Gibbs sampling), at the cost of one character likelihood per
-target; \code{saJump} converts a fossil tip to a sampled ancestor
+and \code{mvNarrow}); \code{wfnpr} scores \code{fnpr}'s targets (seven of them, drawn
+uniformly, if there are more) by the exact target density with the
+characters, proposes one in proportion to its score \eqn{w}, and accepts it
+with probability \eqn{\min(1, (W - w_0) / (W - w))}{min(1, (W - w0) / (W - w))},
+where \eqn{W} sums the scores of the targets and of the current position,
+whose score is \eqn{w_0}{w0} (Metropolized Gibbs sampling; Liu 1996), at the
+cost of one character likelihood per target; \code{saJump} converts a fossil tip to a sampled ancestor
 or back (Gavryushkina et al. 2014).
 Each redraws affected node bins and paths from the frozen model, with
 proposal densities in the Hastings ratio.
@@ -215,6 +217,9 @@ run$samples
 Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference
 of sampled ancestor trees for epidemiology and fossil calibration. PLoS
 Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}
+
+Liu JS (1996). Peskun's theorem and a modified discrete-state Gibbs
+sampler. Biometrika 83:681--682. \doi{10.1093/biomet/83.3.681}
 
 Hobolth A, Stone EA (2009). Simulation from endpoint-conditioned,
 continuous-time Markov chains on a finite state space, with applications to

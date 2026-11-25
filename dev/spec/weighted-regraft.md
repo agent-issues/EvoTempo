@@ -155,8 +155,9 @@ The 2^(bifurcations) factor of `.TreeMove()` is the same for every candidate and
 - A bridge that underflows signals `infeasibleProposal`; the whole move is then rejected, as in
   every other move. In exact arithmetic every bridge is feasible, so this is a numerical guard and
   not part of the kernel. It is no more exact than in the other moves (which draws are needed
-  differs between members), and it fires more often per proposal: 2|A| + 1 bridges and |A| bin
-  draws, against four bridges and one bin draw for `fnpr`.
+  differs between members), and it fires more often per proposal: 3|A| + 1 bridges (p, y and v
+  per candidate, and the shared one) and |A| bin draws, against four bridges and one bin draw for
+  `fnpr`.
 - A candidate with a non-finite weight gets weight 0. If no candidate other than the current one
   has positive weight, the move returns NULL.
 - W - w_y is computed as a log-sum-exp over the other members, never by subtraction.

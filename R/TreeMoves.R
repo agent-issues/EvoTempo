@@ -281,9 +281,11 @@
     newBin <- bin
     newBin[p] <- draw[["k"]]
     split <- .DrawBridges(newTree, set, c(p, y, v), newBin, intact[["paths"]])
-    charLL <- .CandidateLogLik(st, newTree, split[["paths"]])
-    logTarget <- .LogAugmented(newTree, set, split[["paths"]], newBin) + charLL -
-      current
+    logTarget <- .LogAugmented(newTree, set, split[["paths"]], newBin)
+    # A candidate of zero density (no extant tip below a root daughter) is
+    # not scored
+    charLL <- if (logTarget == -Inf) 0 else .CandidateLogLik(st, newTree, split[["paths"]])
+    logTarget <- logTarget + charLL - current
     logW <- logTarget + logSplit + .LogBridges(tree, set, y, paths) -
       intact[["logQ"]] - split[["logQ"]] - draw[["logQ"]]
     list(y = y, tree = newTree, bin = newBin, paths = split[["paths"]],

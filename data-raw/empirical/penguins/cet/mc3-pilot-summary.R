@@ -31,7 +31,7 @@ Clades <- function(newick) {
 Arm <- function(dir) {
   runs <- list.files(dir, pattern = "_run[0-9]+$", full.names = TRUE)
   chains <- lapply(runs, function(run) {
-    files <- sort(list.files(run, pattern = "^seg[0-9]+_trees\.nwk$", full.names = TRUE))
+    files <- sort(list.files(run, pattern = "^seg[0-9]+_trees[.]nwk$", full.names = TRUE))
     trees <- unlist(lapply(files, readLines))
     acc <- utils::read.csv(file.path(run, "acceptance.csv"))
     swapFile <- file.path(run, "swaps.csv")
@@ -51,7 +51,7 @@ Arm <- function(dir) {
   open <- rowMeans(freq) >= 0.1 & rowMeans(freq) <= 0.9
   range <- apply(freq[open, , drop = FALSE], 1, function(f) max(f) - min(f))
   ess <- rowSums(vapply(ind, function(m) {
-    apply(m[open, , drop = FALSE], 1, function(x) if (length(unique(x)) > 1) Ess(x) else 0)
+    apply(m[open, , drop = FALSE], 1, function(x) if (length(unique(x)) > 1) Ess(as.numeric(x)) else 0)
   }, numeric(sum(open))))
   hours <- sum(vapply(chains, `[[`, 0, "hours"))
   swaps <- do.call(rbind, lapply(chains, `[[`, "swaps"))
@@ -75,7 +75,7 @@ arms <- lapply(list.dirs(root, recursive = FALSE), Arm)
 print(do.call(rbind, lapply(arms, `[[`, "row")), row.names = FALSE)
 for (a in arms) {
   cat("\n", a$row$arm, ": swap rates by colder heat ",
-      if (is.null(a$swaps)) "-" else paste(names(a$swaps), a$swaps, sep = ": ", collapse = "; "),
+      if (is.null(a$swaps)) "-" else paste(signif(as.numeric(names(a$swaps)), 3), a$swaps, sep = ": ", collapse = "; "),
       "\n", sep = "")
   a$freq$clade <- abbreviate(a$freq$clade, 40)
   print(a$freq, row.names = FALSE)

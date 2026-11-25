@@ -336,7 +336,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   if (!Count(nChain) || !Count(swapInterval)) {
     stop("`nChain` and `swapInterval` must be positive whole numbers")
   }
-  if (nChain > 1 && NCOL(characters) == 0) {
+  if (nChain > 1 && (is.null(characters) || NCOL(characters) == 0)) {
     stop("`nChain > 1` needs `characters`: heat applies to their likelihood")
   }
   if (!is.numeric(deltaHeat) || !isTRUE(is.finite(deltaHeat) & deltaHeat > 0)) {

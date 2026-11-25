@@ -30,7 +30,8 @@ It is also the power that the stepping-stone ladders use, so the two compose (be
   log ratio = (h_a - h_{a+1}) (log L_B - log L_A). The pair is uniform among the N - 1
   adjacent pairs, independently of the state, so the proposal is symmetric.
 - Schedule: every `swapInterval` iterations (default 1), one attempt, during burn-in too.
-- Conventions: ladder as MrBayes and RevBayes; `deltaHeat` default 0.1 (MrBayes `Temp`);
+- Conventions: ladder as RevBayes (`computeBeta()`; MrBayes's is the same by its manual, not
+  checked in its source); `deltaHeat` default 0.1 (MrBayes `Temp`);
   one attempt per interval (both); adjacent pair (RevBayes `swapMethod = "neighbor"`;
   MrBayes picks any pair by default); argument names from RevBayes. An iteration here is
   a full sweep of moves, so `swapInterval = 1` follows MrBayes `Swapfreq = 1`, not

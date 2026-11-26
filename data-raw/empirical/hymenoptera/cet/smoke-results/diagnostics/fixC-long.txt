@@ -1,0 +1,26 @@
+b1g0_run1 segments 40 ; s/segment median 813 max 2481 ; start tree data-raw/empirical/hymenoptera/cet/data/start-trees/start-tree-03.nwk 
+           window lambda    s meanX lamEX root  charLL
+ (-9.99,5.01e+03]    140 1.23 -1.28    73  609 -6296.7
+ (5.01e+03,1e+04]    125 1.21 -1.34    64  669 -6288.1
+  (1e+04,1.5e+04]    201 1.46 -1.70    78  629 -6291.6
+  (1.5e+04,2e+04]    182 1.29 -1.56    81  620 -6284.3
+b1g0_run2 segments 40 ; s/segment median 660 max 2277 ; start tree data-raw/empirical/hymenoptera/cet/data/start-trees/start-tree-07.nwk 
+           window lambda    s meanX lamEX root  charLL
+ (-9.99,5.01e+03]    178 1.29 -1.64    74  665 -6290.3
+ (5.01e+03,1e+04]    255 1.52 -1.80    87  633 -6287.5
+  (1e+04,1.5e+04]    169 1.42 -1.56    67  690 -6282.2
+  (1.5e+04,2e+04]    170 1.33 -1.55    70  631 -6278.7
+   quantity        q05        q50        q95  rhat essBulk essTail
+  logLambda  3.713e+00  5.200e+00  6.818e+00 1.029   96.90  524.20
+          s  8.261e-01  1.349e+00  1.876e+00 1.065   54.71  335.38
+      theta  1.541e-03  5.765e-03  2.028e-02 1.006  384.16 1280.35
+      meanX -2.962e+00 -1.540e+00 -2.645e-01 1.018  165.61 1127.93
+      lamEX  3.950e+01  7.386e+01  1.452e+02 1.051   57.25  282.52
+    rootAge  5.499e+02  6.485e+02  7.699e+02 1.030   60.43  210.68
+    holoAge  5.337e+02  6.271e+02  7.356e+02 1.032   55.36  152.77
+ treeLength  8.221e+03  9.263e+03  1.059e+04 1.057   32.46   69.84
+       rate  9.884e-04  1.148e-03  1.333e-03 1.044   45.01  141.28
+      alpha  8.876e-01  1.155e+00  1.471e+00 1.005 1510.27 2749.80
+     charLL -6.301e+03 -6.286e+03 -6.272e+03 1.155    9.49   47.29
+    logPost -9.436e+03 -8.320e+03 -7.806e+03 1.054   47.30  378.29
+P(s > 1.9): 0.041 

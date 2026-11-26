@@ -1,0 +1,4 @@
+source: /nobackup/pjjg18/evotempo-hym-cet/rbmorph (burn-in 0.25 of each chain; highest Posterior of the pooled remainder)
+candidates (best per chain): run1 it 83100 Posterior -7606.321 (n 1876); run2 it 122700 Posterior -7594.298 (n 2001); run3 it 106400 Posterior -7608.317 (n 1984); run4 it 84100 Posterior -7595.915 (n 1980); run5 it 132100 Posterior -7590.739 (n 1962); run6 it 184200 Posterior -7601.463 (n 2131)
+selected: run5 iteration 132100, Posterior -7590.739, Likelihood -6113.807, root_age 323.8376, holo_age 322.8180, lambda 69.5049, mu 69.4963, psi 1.64407e-06, clock_rate 0.00308017, alpha_morph 1.17191, ucld_sd 1.19157, num_samp_anc 0
+start tree: root 323.837621 Ma, 0 sampled ancestors, 0 changes, largest age change 0.000000 Myr

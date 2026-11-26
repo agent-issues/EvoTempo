@@ -1,0 +1,6 @@
+b1g0_run1 seg0001 max|diff| 0 trees identical TRUE 
+b1g0_run1 seg0002 max|diff| 0 trees identical TRUE 
+b1g1_run1 seg0001 max|diff| 0 trees identical TRUE 
+b1g1_run1 seg0002 max|diff| 0 trees identical TRUE 
+check-labels exit 0
+check-eval exit 0

@@ -1,0 +1,76 @@
+33-point ladder: 31 powers in (0, 1); format() wrote 2 in scientific notation (9.612435e-06, 9.688727e-05)
+ok   33-point ladder: FormatValue() never writes scientific notation
+ok   33-point ladder: ParseLabel() reads every power back exactly
+17-point ladder: 15 powers in (0, 1); format() wrote 1 in scientific notation (9.688727e-05)
+ok   17-point ladder: FormatValue() never writes scientific notation
+ok   17-point ladder: ParseLabel() reads every power back exactly
+#75 examples and others: 8 powers in (0, 1); format() wrote 6 in scientific notation (1e-05, 5e-05, 1e-04, 2e-04, 5e-04, 1e-10)
+ok   #75 examples and others: FormatValue() never writes scientific notation
+ok   #75 examples and others: ParseLabel() reads every power back exactly
+ok   CellLabel(1e-04, 1) is b0.0001g1
+ok   ParseLabel() reads a ladder-rung cell label
+ok   FormatValue() keeps the existing labels (b0g0 ... b1g1, 0.5)
+ok   production labels unchanged (CellLabel(0, 1) = b0g1)
+ok   ParseLabel() stops on b1g1_t1e-04_run1
+ok   ParseLabel() stops on b1e-04g1_run1
+ok   Chains() ignores summary/ and keeps b1g1_run1
+ok   Chains() stops on a chain directory it cannot parse
+synthetic ladder: expected pattern -1716.924, none -1679.912; both variants pooled -1681.301
+combine, CET_MKV=pattern: b1g1 (mkv pattern): log p(characters | tip ages) = -1716.924 (SE 0.733), 4 rungs, 8 chains
+ok   combine (CET_MKV=pattern) reports that variant's stepping-stone estimate
+ok   combine (CET_MKV=pattern) does not pool the two variants
+ok   combine (CET_MKV=pattern) names its variant and uses 4 rungs x 2 chains
+combine, CET_MKV=none: b1g1 (mkv none): log p(characters | tip ages) = -1679.912 (SE 0.434), 4 rungs, 8 chains
+ok   combine (CET_MKV=none) reports that variant's stepping-stone estimate
+ok   combine (CET_MKV=none) does not pool the two variants
+ok   combine (CET_MKV=none) names its variant and uses 4 rungs x 2 chains
+F1b (power ladder 0, 0.0001, 0.3 only), exit 1: Error: combine: incomplete character-power ladder(s); no marginal is reported. /   cell b1g1 (mkv pattern): power ladder 0, 0.0001, 0.3 lacks t = 1
+ok   F1b: combine stops when the ladder lacks t = 1
+ok   F1b: combine prints no marginal
+ok   F1b: combine names the cell and the missing rung t = 1
+F1a (none 0, 0.0001, 0.3 beside a complete pattern ladder): none exit 1 (  cell b1g1 (mkv none): power ladder 0, 0.0001, 0.3 lacks t = 1); pattern exit 0 (b1g1 (mkv pattern): log p(characters | tip ages) = -1723.607 (SE 0.104), 4 rungs, 8 chains)
+ok   F1a: CET_MKV=none stops, naming the missing t = 1, with no marginal
+ok   F1a: CET_MKV=pattern still reports its complete 4-rung ladder
+F2a (b0g0, b0g1, b1g0, rung b0.5g1, no b1g1), exit 0: Edge b0g1 -> b1g1: no chains with cross.csv at b1g1; edge left out / Edge b1g0 -> b1g1: no chains with cross.csv at b1g1; edge left out; edges b0g0->b1g0 -3.999 (2 points), b0g0->b0g1 -2.001 (2 points)
+ok   F2a: no b0g1 -> b1g1 edge without b1g1 chains (before: the b0g1 -> b0.5g1 bridge, -2)
+ok   F2a: combine says which end point of b0g1 -> b1g1 is missing
+ok   F2a: the two complete edges are reported (about -4 and -2)
+F2b (rungs b0.25g1, b0.75g1 only), exit 0: Edge b0g1 -> b1g1: no chains with cross.csv at b0g1 and b1g1; edge left out / Edge b0g0 -> b0g1: no chains with cross.csv at b0g1; edge left out / Edge b1g0 -> b1g1: no chains with cross.csv at b1g1; edge left out
+ok   F2b: no b0g1 -> b1g1 edge from the interior rungs alone (before: -2.0)
+ok   F2b: combine names both missing end points
+nonexistent root, exit 1: Error: combine: <run root> does not exist
+ok   combine stops on a run root that does not exist
+#101 4 cells x 2 with launch.csv, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19473175/RtmpPfVSyz/sete10f21f50f8/launch.csv); found 8; missing 0; not complete 0; not in the launch record 0
+ok   #101: complete chain set, combine exits 0 with 4 edges
+#101 b1g0_run2/cross.csv removed, exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19473175/RtmpPfVSyz/sete10f21f50f8/launch.csv); found 8; missing 1; not complete 0; not in the launch record 0 /   no cross.csv (eval failed or was not run): b1g0_run2
+ok   #101: a missing cross.csv stops combine, naming b1g0_run2 (before: exit 0, dropped)
+#101 ... with CET_BF_ALLOW_MISSING=b1g0_run2, exit 0: Expected chains (mkv pattern): 8 (/local/slurm.19473175/RtmpPfVSyz/sete10f21f50f8/launch.csv); found 8; missing 1; not complete 0; not in the launch record 0 / Left out on request (CET_BF_ALLOW_MISSING): b1g0_run2 (from bridges and stepping-stone)
+ok   #101: explicit opt-out, exit 0 and b1g0_run2 reported as left out
+ok   #101: an opt-out naming an unexpected chain stops
+ok   #101: a chain not in the launch record stops combine
+ok   #101: an expected chain with no directory stops combine
+#101 no launch.csv, 4 x 2 chains, exit 1: Expected chains (mkv pattern): 16 (no launch.csv: production default, 4 cells x 4 replicates); found 8; missing 8; not complete 0; not in the launch record 0 /   no complete segment (chain directory missing or empty): b0g0_run3, b0g0_run4, b0g1_run3, b0g1_run4, b1g0_run3, b1g0_run4, b1g1_run3, b1g1_run4
+ok   #101: without launch.csv the production default (4 x 4) applies; run3/run4 missing
+ok   #104: cross.csv files that pass their checks, combine exits 0 with 4 edges
+#104 one state with |check| = 1e-3, exit 1: Error: cross.csv fails eval's checks (|check| or |checkChar| > CET_BF_TOL = 1e-04 or the stricter evalTol it records, or no checkChar column) for: b0g1_run1; rerun eval on those chains
+ok   #104: |check| > CET_BF_TOL stops combine, naming b0g1_run1 (before: used)
+ok   #104: CET_BF_TOL = 0.01 accepts |check| = 1e-3
+#104 b1g1_run2 cross.csv without checkChar, exit 1: Error: cross.csv fails eval's checks (|check| or |checkChar| > CET_BF_TOL = 1e-04 or the stricter evalTol it records, or no checkChar column) for: b1g1_run2; rerun eval on those chains
+ok   #104: a cross.csv from before #104 (no checkChar) stops combine, naming b1g1_run2
+ok   #103: a complete run writes bayes-factors.csv, model-probabilities.csv, closure.txt, chains-used.csv
+ok   R103-3: a stop leaves none of the earlier outputs (before: all three, unchanged)
+R103-2 b0g1_run2 unfinished, exit 1: Expected chains (mkv pattern): 8 (/local/slurm.19473175/RtmpPfVSyz/review103e10f29347bc1/launch.csv); found 8; missing 0; not complete 1; not in the launch record 0
+ok   R103-2: an unfinished chain stops combine
+ok   R103-2: CET_BF_ALLOW_INCOMPLETE=b0g1_run2 uses it and says so
+ok   R103-2: a segment added after eval stops combine
+ok   R103-2: a cross.csv without eval's record stops combine
+ok   R103-7: two directories for one chain stop combine
+ok   R103-8: reps = 2.7 stops combine
+ok   R103-9: a launched directory with no segment, missing from the record, stops combine
+ok   R103-12: chains-used.csv lists the 8 chains, their role and eval's record
+R103-4 b1g1's power-1 chains opted out, exit 1:   cell b1g1 (mkv pattern): power ladder 0, 0.3 lacks t = 1 and has fewer than 3 rungs
+ok   R103-4: opting out the t = 1 rung stops combine with no marginal (before: stopifnot)
+ok   R103-13: a cross.csv without the rung's column names it (before: 'missing value where TRUE/FALSE needed')
+ok   R103-10: a record with no chain of the CET_MKV variant stops combine
+ok   R103-2: |check| 5e-5 within CET_BF_TOL 1e-4 but beyond the recorded evalTol 1e-5 stops combine
+ok   R103-2: the same check with evalTol 1e-4 passes

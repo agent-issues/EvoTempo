@@ -1,0 +1,6 @@
+           source  n rootAge treeLength maxLnLGamma rateHatGamma rateTimesTreeLength maxLnLNoGamma rateHatNoGamma
+  cet-b0g0-gamma4 20 582.340    9226.40    -6303.00  0.001153459             10.5205      -6474.50    0.001065966
+ cet-b0g0-nogamma 20 636.487   10903.78    -6303.92  0.000917101              9.8892      -6453.70    0.000874582
+  cet-b1g1-gamma4 20 618.315   12533.65    -6614.88  0.000900435             11.4118      -6796.46    0.000805463
+     rb-posterior 20 346.247    7204.01    -6540.51  0.001418852             10.4005      -6719.02    0.001317123
+exit 0

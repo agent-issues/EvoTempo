@@ -1,0 +1,54 @@
+ cell segment    secs iterations secsPerIteration finalLogPost finalCharLL
+ b0g0       1  82.682         60         1.378033    -9458.053   -6385.772
+ b0g0       2  25.626         20         1.281300    -8775.006   -6368.837
+ b0g1       1 143.458         60         2.390967   -10378.649   -6422.803
+ b0g1       2  46.971         20         2.348550   -10549.981   -6393.961
+ b1g0       1  82.704         60         1.378400    -9716.449   -6384.985
+ b1g0       2  26.993         20         1.349650   -12616.030   -6382.235
+ b1g1       1 143.781         60         2.396350   -13010.624   -6174.650
+ b1g1       2  46.556         20         2.327800   -12732.251   -6182.905
+ finalRootAge finalHoloAge finalLambda finalAlpha
+     389.4251     382.4834    37.63261  1.4240436
+     425.2991     419.3923    57.27908  1.2628170
+     585.0303     584.3433    36.21588  1.1620391
+     584.2592     562.7628    25.90177  1.5684529
+     381.8614     337.1114    38.65798  0.9677318
+     391.7399     374.3728    47.91607  0.8762969
+     580.6249     511.7959    33.84949  1.2696734
+     560.5428     511.7959    27.29882  1.0938081
+              move rate.b0g0 rate.b0g1 rate.b1g0 rate.b1g1
+              tree    1.0000    0.0000    0.8000     0.000
+              node    1.0000    0.8786    1.0000     0.536
+               tip    1.0000    0.9207    1.0000     0.764
+            branch    1.0000    0.9625    1.0000     0.804
+             joint    0.3250    0.0000    0.2333     0.000
+             shift    0.3500    0.2000    0.2000     0.000
+           nodeAge    0.5161    0.5036    0.4446     0.318
+         fossilAge    0.9042    0.8958    0.8708     0.808
+             slide    0.0147    0.0118    0.0206     0.000
+            saJump    0.0000    0.0000    0.0000     0.000
+           rootAge    0.8500    0.5000    0.8500     0.450
+         originAge    0.0000    0.0000    0.0000     0.000
+        parameters    0.1083    0.1833    0.1250     0.158
+             alpha    0.2000    0.3000    0.3500     0.200
+        fbdBlock_d    0.5000    0.4500    0.4500     0.300
+ fbdBlock_turnover    0.3000    0.2000    0.3500     0.250
+ fbdBlock_sampling    0.3000    0.4000    0.3000     0.350
+Resume check: 10 samples x 26 columns, max |difference| = 0; trees identical: TRUE; states identical: TRUE
+ cell         startTree      md5 nRateCat alphaStep
+ b0g0 start-tree-01.nwk fe5ae8e8        4  1.491825
+ b0g1 start-tree-02.nwk 699855f0        4  1.419068
+ b1g0 start-tree-03.nwk e46e0700        4  1.568312
+ b1g1 start-tree-04.nwk c3b17a5b        4  1.491825
+                                                          step        blockStep
+  lambda=0.549 mu=0.549 psi=1.49 theta=0.951 s=1.35 rate=0.741   1.11 1.05 1.35
+  lambda=0.549 mu=0.549 psi=1.35 theta=0.638 s=2.23 rate=0.741  0.905 1.11 1.65
+ lambda=0.549 mu=0.549 psi=1.35 theta=0.741 s=0.819 rate=0.819  0.951 1.35 1.35
+  lambda=0.549 mu=0.549 psi=1.57 theta=0.705 s=0.67 rate=0.905 0.861 0.905 1.49
+ alphaInSamples
+           TRUE
+           TRUE
+           TRUE
+           TRUE
+check-smoke.R: all checks passed
+check-smoke exit 0

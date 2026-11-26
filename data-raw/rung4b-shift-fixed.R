@@ -17,6 +17,12 @@ burnin <- 500L
 nSlice <- 20L
 r4b <- readRDS("data-raw/rung5-results/rung4b.rds")
 tt <- r4b$tt; model <- r4b$model; truth <- r4b$truth; character <- r4b$character
+# Fixtures saved before #116 carry no location; rebuild under EVOTEMPO_LOCATION
+# (default "mean", the package default), as in rung4b-one-parameter.R
+if (is.null(model$location)) {
+  model$location <- Sys.getenv("EVOTEMPO_LOCATION", "mean")
+  if (model$location == "mean") model$scheme <- "sqra"
+}
 K <- model$nBin
 
 # Exact posterior of the root bin

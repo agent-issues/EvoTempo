@@ -1,0 +1,43 @@
+Checking out /home/pjjg18/.beast/2.4/BEAST/lib
+File /nobackup/jre1.8.0_161.jre/Contents/Home  does not exists. Giving up
+No bundled JRE found
+Checking out /home/pjjg18/.beast/2.4/BEAST/lib
+Loaded URL file:/home/pjjg18/.beast/2.4/BEAST/lib/beast.jar
+jardir = /nobackup/pjjg18/beast-2.4.8/beast/lib/launcher.jar
+Loading package BEAST v2.4.8
+Loading package SA v1.1.7
+Loading package BEASTLabs v1.7.1
+Loading package MM v1.0.5
+Loading package BEAST v2.4.8
+File: penguins_8dnaR.xml seed: 203 threads: 1
+Loading package BEAST v2.4.8
+Loading package SA v1.1.7
+Loading package BEASTLabs v1.7.1
+Loading package MM v1.0.5
+Loading package BEAST v2.4.8
+Writing file Mkv_morph+dna.log
+Writing file Mkv_morph+dna.trees
+End likelihood: -19547.278088557505
+	Command being timed: "/nobackup/pjjg18/beast-2.4.8/beast/bin/beast -java -threads 1 -seed 203 -overwrite penguins_8dnaR.xml"
+	User time (seconds): 84145.35
+	System time (seconds): 123.93
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 23:37:41
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 146440
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 13448
+	Minor (reclaiming a frame) page faults: 2963387
+	Voluntary context switches: 2621413
+	Involuntary context switches: 1986451
+	Swaps: 0
+	File system inputs: 391248
+	File system outputs: 1530528
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

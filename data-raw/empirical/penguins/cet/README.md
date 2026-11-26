@@ -286,7 +286,9 @@ for the round-1 tree (27 sampled ancestors).  On the round-4 tree (16 sampled
 ancestors, so more bifurcations) they are, with gamma = 1, 14 `node`, 10 `tip`,
 23 `branch`, 1 `shift`, and, for every cell, `nodeAge` 10, `fossilAge` 9,
 `slide` 6, `saJump` 4, `originAge` 1 (gamma = 0 path moves unchanged;
-`progress.txt` of each chain).
+`progress.txt` of each chain).  `CET_FNPR` (default 0, as in the stage-1
+chains) adds `fnpr` moves, `ceiling(CET_FNPR x 0.15 x bifurcations)` per
+iteration (#110).
 
 `TempoMCMC()` returns neither per-sample trees nor a way to continue a chain,
 so `common.R` rebinds `.TreeStats()` (called by `TempoMCMC()` at every stored

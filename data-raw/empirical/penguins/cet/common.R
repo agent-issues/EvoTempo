@@ -157,15 +157,27 @@ ConstantPatternLogLik <- function(tree, pat, lengths) {
   log((L0[, root] + (k - 1) * L1[, root]) / k) + logScale
 }
 
+# Saved move counts on the move names of the running TempoMCMC()
+AlignMoves <- function(saved, current) {
+  unknown <- setdiff(names(saved), names(current))
+  if (length(unknown)) {
+    stop("checkpoint has moves this EvoTempo does not know: ", toString(unknown))
+  }
+  replace(setNames(numeric(length(current)), names(current)), names(saved), saved)
+}
+
 RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
   pf <- parent.frame()
   if (is.null(lengths)) {
     r <- .cet$resume
     if (!is.null(r)) {
       # First call of a resumed segment: continue the captured chain
-      for (v in c("st", "step", "jointStep", "ageStep", "moves")) {
+      for (v in c("st", "step", "jointStep", "ageStep")) {
         assign(v, r[[v]], envir = pf)
       }
+      # TempoMCMC() selects moves by position in its move names: align the
+      # saved counts by name, as a checkpoint may predate a move (#118)
+      assign("moves", AlignMoves(r[["moves"]], get("moves", envir = pf)), envir = pf)
       assign(".Random.seed", r[["seed"]], envir = globalenv())
       .cet$resume <- NULL
       .cet$injected <- TRUE
@@ -707,13 +719,16 @@ CetStart <- function(index, tree = NULL, model = NULL, characters = NULL, priors
 # shift with gamma != 0; whole-tree draws and joint sweeps with gamma = 0)
 # plus tree moves in proportion to the tree, scaled by CET_TREE_MOVES
 CetMoves <- function(tt, characters, model,
-                     scale = as.numeric(Sys.getenv("CET_TREE_MOVES", "1"))) {
+                     scale = as.numeric(Sys.getenv("CET_TREE_MOVES", "1")),
+                     fnpr = as.numeric(Sys.getenv("CET_FNPR", "0"))) {
   nBif <- sum(!tt$sampled)
   nFossil <- sum(tt$tipType != "extant")
   c(TempoMoves(tt, characters, model),
     nodeAge = ceiling(scale * 0.25 * nBif), fossilAge = ceiling(scale * 0.25 * nFossil),
     slide = ceiling(scale * 0.15 * nBif), saJump = ceiling(scale * 0.1 * nFossil),
-    originAge = 1)
+    originAge = 1,
+    # fnpr (#110): only when CET_FNPR > 0, 0.15 of the bifurcations per unit
+    if (fnpr > 0) c(fnpr = ceiling(fnpr * 0.15 * nBif)))
 }
 
 # ---- Utilities -------------------------------------------------------------------

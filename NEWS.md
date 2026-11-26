@@ -87,3 +87,32 @@
   stops on a start age outside the support of its prior, and
   `TempoMCMC()` and `SampleTempoPaths()` on a sampled ancestor at the root
   ([#55](https://github.com/agent-issues/EvoTempo/issues/55)).
+- `MkCharacters()` prepares empirical character matrices for `MkLikelihood()`
+  and `TempoMCMC()`: a number of states per character, ordered characters
+  (RevBayes `fnOrderedRateMatrix()`), ambiguity sets such as `{01}`, the Mkv
+  correction per missing-data mask (`coding = "variable"`, as RevBayes
+  `dnPhyloCTMC(coding = "variable")`), and discrete Gamma rates among
+  characters (`nRateCat`; `GammaRates()`, as RevBayes `fnDiscretizeGamma()`).
+  The C++ engine scores them with MkPrime `Pruner`s.  In `TempoMCMC()` the
+  Gamma shape is `start$alpha`, free with a prior in the new argument
+  `charPriors` and its own move, and is logged as the `alpha` column of
+  `samples`.  Chains on plain character matrices are unchanged
+  ([#97](https://github.com/agent-issues/EvoTempo/issues/97),
+  [#47](https://github.com/agent-issues/EvoTempo/issues/47)).
+- `TempoMCMC()` tree move `fnpr`: fixed-node-height prune and regraft onto a
+  nearby lineage, chosen within a log-uniform MRCA-age threshold, so that it
+  mixes local (narrow-exchange-like) and global rearrangements
+  ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).
+- The C++ engine of `MkLikelihood()` caches partial likelihoods per character
+  matrix between calls, so a `TempoMCMC()` proposal recomputes only the nodes
+  whose subtree or child branch lengths changed; results are bitwise those of a
+  full evaluation.  `options(EvoTempo.mkCache = FALSE)` turns the cache off.
+  On the penguin data the cache saves 5-15% of an iteration; the penguin
+  pipeline's Mkv correction, now computed in C++, gives most of a 1.7-1.9x
+  speed-up ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).
+- Character matrices that are always scored together (the partitions of a
+  dataset) can be registered once and scored in one C++ call (internal
+  `.MkSet()`, `.MkSetLogLik()`), which removes most of the fixed cost of a
+  cached evaluation; the penguin pipeline uses it, to the same values bit for
+  bit, and runs 14-28% faster per iteration (two machines)
+  ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).

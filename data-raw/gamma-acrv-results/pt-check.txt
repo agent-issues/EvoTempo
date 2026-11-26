@@ -1,0 +1,52 @@
+     dataset ordered nEval exactNonFinite cppNonFinite RNonFinite
+  trilobites   FALSE 18432              0           28          0
+ hymenoptera    TRUE   432              0            0          0
+  trilobites    TRUE  4608              0          281          0
+ maxRelCppExact maxRelRExact maxRelCppR
+           -Inf         -Inf   1.86e-05
+       5.66e-10     5.79e-10   7.31e-11
+            Inf     5.34e-10   8.29e-05
+Non-finite values (first 20):
+    dataset              tree  K ordered nChar  rate    scale alpha  cpp
+ trilobites start-tree-01.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-02.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-03.nwk 16   FALSE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-03.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-04.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-05.nwk 16   FALSE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-05.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-06.nwk 16   FALSE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-06.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-07.nwk 16   FALSE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-07.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-08.nwk 16   FALSE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-08.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-09.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-10.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-11.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-12.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-13.nwk 16   FALSE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-13.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+ trilobites start-tree-14.nwk  4    TRUE     1 1e-09 0.006738    NA -Inf
+       R   exact relCppExact relRExact relCppR
+  -937.5  -937.5         Inf 0.000e+00     Inf
+ -1022.2 -1022.2         Inf 0.000e+00     Inf
+  -766.7      NA          NA        NA     Inf
+ -1097.4 -1097.4         Inf 5.251e-11     Inf
+  -964.1  -964.1         Inf 0.000e+00     Inf
+  -757.2      NA          NA        NA     Inf
+  -980.1  -980.1         Inf 5.240e-11     Inf
+  -773.3      NA          NA        NA     Inf
+  -968.1  -968.1         Inf 5.813e-11     Inf
+  -761.9      NA          NA        NA     Inf
+  -994.1  -994.1         Inf 1.144e-16     Inf
+  -849.1      NA          NA        NA     Inf
+ -1126.7 -1126.7         Inf 5.862e-11     Inf
+ -1060.4 -1060.4         Inf 1.065e-10     Inf
+  -938.3  -938.3         Inf 5.341e-11     Inf
+  -968.8  -968.8         Inf 2.882e-10     Inf
+ -1057.0 -1057.0         Inf 2.015e-10     Inf
+  -738.7      NA          NA        NA     Inf
+ -1033.6 -1033.6         Inf 0.000e+00     Inf
+ -1065.7 -1065.7         Inf 1.735e-10     Inf
+23472 evaluations over 17 trees in 3.0 min

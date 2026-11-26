@@ -194,6 +194,46 @@
   nodes[top > at & tree[["age"]][nodes] < at]
 }
 
+# Span of the fnpr threshold: H - age(p) = (R - age(p)) * .fnprSpan ^ -U,
+# R the root age and U ~ U(-1, 1): with probability 1/2 every lineage is a
+# target (H > R), and otherwise H - age(p) is log-uniform on
+# [(R - age(p)) / .fnprSpan, R - age(p)]
+.fnprSpan <- 100
+
+# Parents in the pruned tree: node `p` removed, its children hanging from its
+# parent (the pruned clade below `p` is never visited)
+.PrunedParent <- function(tree, p) {
+  parent <- tree[["parent"]]
+  parent[parent == p] <- parent[[p]]
+  parent
+}
+
+# Age of the most recent common ancestor of `a` and each of `b`, in the tree
+# with parents `parent`
+.MRCAAge <- function(tree, parent, a, b) {
+  root <- tree[["root"]]
+  ancA <- a
+  while (ancA[[length(ancA)]] != root) {
+    ancA <- c(ancA, parent[[ancA[[length(ancA)]]]])
+  }
+  vapply(b, function(u) {
+    while (!(u %in% ancA)) {
+      u <- parent[[u]]
+    }
+    tree[["age"]][[u]]
+  }, 0)
+}
+
+# Targets of an fnpr move: lineages crossing age(p) in the pruned tree, other
+# than `sib`, whose MRCA with `sib` there is no older than `threshold`
+.FnprTargets <- function(tree, p, sib, clade, threshold) {
+  crossing <- setdiff(.Crossing(tree, tree[["age"]][[p]], p, clade), sib)
+  if (!length(crossing)) {
+    return(crossing)
+  }
+  crossing[.MRCAAge(tree, .PrunedParent(tree, p), sib, crossing) <= threshold]
+}
+
 .Descendants <- function(tree, v) {
   out <- v
   frontier <- v
@@ -300,6 +340,47 @@
              fwd[["logQ"]] - draw[["logQ"]] +
              log(length(fwdTargets)) - log(length(revTargets)) +
              log(length(cand)) - log(length(.SlideNodes(newTree))))
+    },
+    fnpr = {
+      # Fixed-node-height prune and regraft onto a nearby lineage
+      # (dev/plans/local-fnpr.md): p keeps its age; targets are the lineages
+      # crossing age(p) whose MRCA with sib in the pruned tree is no older
+      # than a random threshold, so that forward and reverse target sets have
+      # the same size, and their counts cancel from the Hastings ratio
+      cand <- .SlideNodes(tree)
+      if (!length(cand)) return(NULL)
+      v <- cand[[.Sample1(rep(1, length(cand)))]]
+      p <- parent[[v]]
+      pp <- parent[[p]]
+      sib <- setdiff(tree[["kids"]][p - nTip, ], v)
+      clade <- .Descendants(tree, v)
+      excess <- age[[tree[["root"]]]] - age[[p]]
+      threshold <- age[[p]] + excess * .fnprSpan ^ -stats::runif(1, -1, 1)
+      fwdTargets <- .FnprTargets(tree, p, sib, clade, threshold)
+      if (!length(fwdTargets)) return(NULL)
+      y <- fwdTargets[[.Sample1(rep(1, length(fwdTargets)))]]
+      newTree <- tree
+      newTree[["parent"]][sib] <- pp
+      x <- newTree[["parent"]][[y]]
+      newTree[["parent"]][p] <- x
+      newTree[["parent"]][y] <- p
+      newTree <- .Rebuild(newTree)
+      # The reverse move (target sib) exists, with as many targets
+      revTargets <- .FnprTargets(newTree, p, y, clade, threshold)
+      stopifnot(sib %in% revTargets, length(revTargets) == length(fwdTargets))
+      lwNew <- .NodeLogWeights(newTree, set, p, set[["lambda"]], bin[[x]],
+                               c(y, v), bin[c(y, v)])
+      lwOld <- .NodeLogWeights(tree, set, p, set[["lambda"]], bin[[pp]],
+                               c(sib, v), bin[c(sib, v)])
+      draw <- .DrawFromLog(lwNew)
+      newBin <- bin
+      newBin[p] <- draw[["k"]]
+      nodes <- c(p, y, v, sib)
+      fwd <- Redraw(newTree, nodes, newBin)
+      list(tree = newTree, bin = newBin, paths = fwd[["paths"]],
+           logHastings = OldQ(nodes) + lwOld[[bin[[p]]]] - .LogSumExp(lwOld) -
+             fwd[["logQ"]] - draw[["logQ"]],
+           fnpr = list(v = v, y = y, threshold = threshold))
     },
     saJump = {
       fossils <- which(tree[["tipType"]] != "extant")

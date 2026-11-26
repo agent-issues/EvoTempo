@@ -1,0 +1,8 @@
+penguins_separate_run13.trees: trees 3667, fossil ages outside range 0 (worst 0 Myr), root sampled ancestors 1518
+penguins_separate_run14.trees: trees 3667, fossil ages outside range 0 (worst 0 Myr), root sampled ancestors 1474
+penguins_separate_run15.trees: trees 3667, fossil ages outside range 0 (worst 0 Myr), root sampled ancestors 1598
+penguins_separate_run16.trees: trees 3667, fossil ages outside range 0 (worst 0 Myr), root sampled ancestors 1499
+penguins_shared_run13.trees: trees 2501, fossil ages outside range 0 (worst 0 Myr), root sampled ancestors 1032
+penguins_shared_run14.trees: trees 2501, fossil ages outside range 0 (worst 0 Myr), root sampled ancestors 1010
+penguins_shared_run15.trees: trees 2501, fossil ages outside range 0 (worst 0 Myr), root sampled ancestors 997
+penguins_shared_run16.trees: trees 2501, fossil ages outside range 0 (worst 0 Myr), root sampled ancestors 990

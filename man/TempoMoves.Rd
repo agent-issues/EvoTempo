@@ -9,8 +9,8 @@ TempoMoves(tree, characters = NULL, model = NULL, local = 0.25)
 \arguments{
 \item{tree}{A \code{\link{TempoTree}}, or a tree that it accepts.}
 
-\item{characters}{Optional matrix of character states, as for
-\code{\link[=TempoMCMC]{TempoMCMC()}}.}
+\item{characters}{Optional matrix of character states, or characters
+from \code{\link[=MkCharacters]{MkCharacters()}}, as for \code{\link[=TempoMCMC]{TempoMCMC()}}.}
 
 \item{model}{Optional \code{\link{DCETModel}}; only its \code{gamma} is used.}
 
@@ -34,7 +34,7 @@ model are almost never accepted, so \code{tree} and \code{joint} are omitted, an
 \code{node}, \code{tip} and \code{branch} moves are run for a fraction \code{local} of the
 internal nodes, the tips with paths and the branches with paths
 respectively (rounded up), with one \code{shift}.
-Tree moves (\code{nodeAge}, \code{fossilAge}, \code{slide}, \code{saJump}) are not included;
+Tree moves (\code{nodeAge}, \code{fossilAge}, \code{slide}, \code{fnpr}, \code{saJump}) are not included;
 add them to the returned vector.
 }
 \examples{
@@ -49,7 +49,9 @@ c(TempoMoves(tree), nodeAge = 2, slide = 1)
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=GammaRates]{GammaRates()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkCharacters]{MkCharacters()}},
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoEngine]{TempoEngine()}},

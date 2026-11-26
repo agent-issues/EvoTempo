@@ -1,0 +1,2 @@
+source: /nobackup/pjjg18/evotempo-penguin-cet/tmp-draw32/out/start-tree-30.nex
+root age 61.6521, origin 62.8104, sampled ancestors 9

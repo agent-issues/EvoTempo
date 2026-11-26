@@ -1,0 +1,12 @@
+R version 4.5.1 (2025-06-13)
+EvoTempo 0.0.0.9000 (/nobackup/pjjg18/evotempo-penguin-cet/lib-48e6bf7/EvoTempo)
+ape 5.8-1 (/nobackup/pjjg18/evotempo-dev/lib/ape)
+TreeTools 2.4.1.9000 (/nobackup/pjjg18/evotempo-dev/lib/TreeTools)
+ConsTree 1.0.1 (/nobackup/pjjg18/evotempo-penguin-cet/lib-tools/ConsTree)
+Quartet 1.4.0 (/nobackup/pjjg18/evotempo-penguin-cet/lib-tools/Quartet)
+MkPrime 0.0.0.9000 (/nobackup/pjjg18/evotempo-dev/lib/MkPrime)
+MkPrime:::.Rhat deparsed md5 24d609d589b9fd2d6bc18077de8cadc8
+MkPrime:::.EssBulk deparsed md5 2316d07dfa6cd6740f1afde33a21d0ca
+MkPrime:::.EssTail deparsed md5 1706b78407bbec3044c1db668e1048db
+EvoTempo build commit 48e6bf7
+CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20 CET_MAX_RB_ITER=

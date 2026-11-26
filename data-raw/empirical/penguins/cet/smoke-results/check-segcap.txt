@@ -1,0 +1,22 @@
+ok   no cap: every segment 
+ok   no cap: completeness from progress.txt 
+ok   production cell capped at CET_MAX_SEG 
+ok   rung capped at CET_MAX_SEG_RUNG 
+ok   the cap reads segments 1..m 
+ok   capped: complete when the checkpoint has reached the cap 
+ok   capped: a power chain with 12 < 20 segments is not complete, and reading it stops 
+ok   C1: segment 40 written but not checkpointed (checkpoint at 39): not complete under cap 40 
+ok   C2: seg0001 missing: reading under the cap stops, and the chain is not complete (before: segments 2..41) 
+ok   C2: the fingerprint stops too 
+ok   fingerprint reads the capped rows 
+ok   a different cap gives a different fingerprint 
+ok   CET_MAX_SEG_RUNG defaults to CET_MAX_SEG (41 > the rung's 23 segments: reading stops) 
+ok   C4: CET_MAX_SEG = '40.7' stops 
+ok   C4: CET_MAX_SEG = '-1' stops 
+ok   C4: CET_MAX_SEG = '0' stops 
+ok   C4: CET_MAX_SEG = '4e1' stops 
+ok   C4: CET_MAX_SEG = 'x' stops 
+ok   C4: CET_MAX_SEG = '40 x' stops 
+ok   C4: CET_MAX_SEG_RUNG = '2.5' stops for a rung (a production cell uses CET_MAX_SEG) 
+ok   empty means no cap 
+check-segcap.R: all checks passed

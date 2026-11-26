@@ -1,0 +1,17 @@
+P(node_2 common-ancestor age = crown age) = 0.385
+P(node_3 common-ancestor age = crown age) = 0.195
+P(node_4 common-ancestor age = crown age) = 0.001
+P(node_5 common-ancestor age = crown age) = 0.000
+P(node_6 common-ancestor age = crown age) = 0.000
+P(node_7 common-ancestor age = crown age) = 0.000
+P(node_8 common-ancestor age = crown age) = 0.000
+P(node_9 common-ancestor age = crown age) = 0.000
+P(node_10 common-ancestor age = crown age) = 0.000
+P(node_11 common-ancestor age = crown age) = 0.000
+P(node_12 common-ancestor age = crown age) = 0.000
+P(node_13 common-ancestor age = crown age) = 0.000
+P(node_14 common-ancestor age = crown age) = 0.000
+P(node_15 common-ancestor age = crown age) = 0.000
+P(node_16 common-ancestor age = crown age) = 0.000
+P(node_17 common-ancestor age = crown age) = 0.000
+P(node_18 common-ancestor age = crown age) = 0.000

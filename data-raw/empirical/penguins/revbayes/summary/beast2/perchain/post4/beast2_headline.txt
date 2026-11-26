@@ -1,0 +1,3 @@
+chains: /nobackup/pjjg18/evotempo-penguins-beast2/post4
+trees after burn-in: 9001
+P(S. muizoni is a sampled ancestor of the four extant Spheniscus): 0.609

@@ -10,6 +10,21 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// MkCharactersCpp
+double MkCharactersCpp(List tree, List partitions, NumericVector lengths, NumericVector rates, bool variable);
+RcppExport SEXP _EvoTempo_MkCharactersCpp(SEXP treeSEXP, SEXP partitionsSEXP, SEXP lengthsSEXP, SEXP ratesSEXP, SEXP variableSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type partitions(partitionsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type lengths(lengthsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type rates(ratesSEXP);
+    Rcpp::traits::input_parameter< bool >::type variable(variableSEXP);
+    rcpp_result_gen = Rcpp::wrap(MkCharactersCpp(tree, partitions, lengths, rates, variable));
+    return rcpp_result_gen;
+END_RCPP
+}
 // MkCpp
 NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths, int nState, bool sites, bool cache);
 RcppExport SEXP _EvoTempo_MkCpp(SEXP treeSEXP, SEXP charactersSEXP, SEXP lengthsSEXP, SEXP nStateSEXP, SEXP sitesSEXP, SEXP cacheSEXP) {
@@ -445,6 +460,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_EvoTempo_MkCharactersCpp", (DL_FUNC) &_EvoTempo_MkCharactersCpp, 5},
     {"_EvoTempo_MkCpp", (DL_FUNC) &_EvoTempo_MkCpp, 6},
     {"_EvoTempo_MkSetCpp", (DL_FUNC) &_EvoTempo_MkSetCpp, 4},
     {"_EvoTempo_MkSetLogLikCpp", (DL_FUNC) &_EvoTempo_MkSetLogLikCpp, 5},

@@ -110,3 +110,9 @@
   On the penguin data the cache saves 5-15% of an iteration; the penguin
   pipeline's Mkv correction, now computed in C++, gives most of a 1.7-1.9x
   speed-up ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).
+- Character matrices that are always scored together (the partitions of a
+  dataset) can be registered once and scored in one C++ call (internal
+  `.MkSet()`, `.MkSetLogLik()`), which removes most of the fixed cost of a
+  cached evaluation; the penguin pipeline uses it, to the same values bit for
+  bit, and runs 14-28% faster per iteration (two machines)
+  ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).

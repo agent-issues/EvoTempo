@@ -7,8 +7,10 @@
 // matrix, which recomputes only the nodes whose subtree or child edge lengths
 // changed since its last evaluation.  The cache never holds the chain state:
 // every call passes the whole tree and every length, so a cached result is
-// bitwise identical to a one-shot evaluation.  The partitions of MkCharacters()
-// (.MkCharactersCpp) are pruned afresh at every call.
+// bitwise identical to a one-shot evaluation.  Matrices that are always scored
+// together share one diff of the tree through a handle (.MkSetCpp,
+// .MkSetLogLikCpp).  The partitions of MkCharacters() (.MkCharactersCpp) are
+// pruned afresh at every call.
 
 #include <Rcpp.h>
 #include <MkPrime/MkPrime.h>
@@ -185,15 +187,50 @@ int NDiff(const MkTree& a, const MkTree& b) {
   return n;
 }
 
-struct MkEntry {
-  int nTip;
-  int nState;
-  std::vector<int> states;
-  std::unique_ptr<MkPruner> pruner;
+// Pruners of a fixed list of character matrices on one tree, evaluated together
+struct MkSet {
+  int nTip = 0;
+  std::vector<int> nState;
+  std::vector<char> sites;  // per matrix: one value per character, not their sum
+  std::vector<std::vector<int> > states;
+  std::vector<std::unique_ptr<MkPruner> > pruner;  // null for no characters
+  std::vector<std::vector<double> > lastSite, prevSite;
   bool built = false;
   bool open = false;  // a checkpoint awaits accept() or reject()
-  MkTree last, prev;
-  std::vector<double> lastSite, prevSite;
+  MkTree last, prev, next;
+  std::size_t nOut = 0;
+  unsigned long long generation = 0;  // of the cache, when last evaluated
+
+  int NChar(std::size_t i) const {
+    return static_cast<int>(states[i].size() / nTip);
+  }
+  std::unique_ptr<MkPruner> NewPruner(std::size_t i,
+                                      const std::vector<int>& tipStates) const {
+    return std::unique_ptr<MkPruner>(
+      new MkPruner(MkPrime::JCModel(nState[i]), nTip, NChar(i), tipStates.data()));
+  }
+  void Add(int k, const std::vector<int>& tipStates, bool bySite) {
+    nState.push_back(k);
+    sites.push_back(bySite);
+    states.push_back(tipStates);
+    const std::size_t i = states.size() - 1;
+    pruner.push_back(NChar(i) ? NewPruner(i, tipStates) : nullptr);
+    lastSite.push_back(std::vector<double>());
+    prevSite.push_back(std::vector<double>());
+    nOut += bySite ? NChar(i) : 1;
+  }
+  // A failed evaluation may leave a pruner part-way through an update
+  void Reset() {
+    for (std::size_t i = 0; i < pruner.size(); ++i) {
+      if (pruner[i]) pruner[i] = NewPruner(i, states[i]);
+    }
+    built = false;
+    open = false;
+  }
+};
+
+struct MkEntry {
+  MkSet set;  // one matrix
   unsigned long long tick = 0;
 };
 
@@ -202,26 +239,19 @@ std::vector<std::unique_ptr<MkEntry> > registry;
 unsigned long long useCount = 0;
 double nRecomputed = 0;
 int nCheckFailures = 0;
-
-std::unique_ptr<MkPruner> NewPruner(int nState, int nTip, int nChar,
-                                    const std::vector<int>& states) {
-  return std::unique_ptr<MkPruner>(
-    new MkPruner(MkPrime::JCModel(nState), nTip, nChar, states.data()));
-}
+unsigned long long generation = 0;  // advanced when the cache is cleared
 
 MkEntry& Lookup(int nTip, int nState, const std::vector<int>& states) {
   for (std::size_t i = 0; i < registry.size(); ++i) {
     MkEntry& e = *registry[i];
-    if (e.nTip == nTip && e.nState == nState && e.states == states) {
+    if (e.set.nTip == nTip && e.set.nState[0] == nState && e.set.states[0] == states) {
       e.tick = ++useCount;
       return e;
     }
   }
   std::unique_ptr<MkEntry> e(new MkEntry());
-  e->nTip = nTip;
-  e->nState = nState;
-  e->states = states;
-  e->pruner = NewPruner(nState, nTip, static_cast<int>(states.size() / nTip), states);
+  e->set.nTip = nTip;
+  e->set.Add(nState, states, true);
   e->tick = ++useCount;
   if (registry.size() >= kMaxEntries) {
     std::size_t oldest = 0;
@@ -248,48 +278,54 @@ void SetTree(MkPruner& pruner, const MkTree& x) {
                   static_cast<int>(x.len.size()));
 }
 
-void Score(MkPruner& pruner, std::vector<double>& site) {
-  site.resize(pruner.n_char());
-  pruner.site_likelihoods(site.data());
-  nRecomputed += pruner.n_recomputed();
+// Sets every pruner to tree `x` and reads the site likelihoods into `lastSite`
+void Score(MkSet& s, const MkTree& x) {
+  for (std::size_t i = 0; i < s.pruner.size(); ++i) {
+    if (!s.pruner[i]) continue;
+    MkPruner& pruner = *s.pruner[i];
+    SetTree(pruner, x);
+    s.lastSite[i].resize(pruner.n_char());
+    pruner.site_likelihoods(s.lastSite[i].data());
+    nRecomputed += pruner.n_recomputed();
+  }
+  s.last = x;
 }
 
-// Brings `e` to tree `x`, inferring from `x` whether the open proposal was
+// Brings `s` to tree `x`, inferring from `x` whether the open proposal was
 // accepted (x differs less from it) or rejected (x differs less from the state
 // before it); either guess gives the same result.
-const std::vector<double>& Evaluate(MkEntry& e, const MkTree& x) {
-  if (!e.built) {
-    SetTree(*e.pruner, x);
-    Score(*e.pruner, e.lastSite);
-    e.last = x;
-    e.built = true;
-    return e.lastSite;
+void Evaluate(MkSet& s, const MkTree& x) {
+  if (!s.built) {
+    Score(s, x);
+    s.built = true;
+    return;
   }
-  if (x == e.last) return e.lastSite;
-  if (e.open) {
-    e.open = false;
-    if (x == e.prev) {
-      e.pruner->reject();
-      std::swap(e.last, e.prev);
-      e.lastSite.swap(e.prevSite);
-      return e.lastSite;
+  if (x == s.last) return;
+  if (s.open) {
+    s.open = false;
+    const bool back = x == s.prev;
+    const bool rejected = back || NDiff(x, s.prev) < NDiff(x, s.last);
+    for (std::size_t i = 0; i < s.pruner.size(); ++i) {
+      if (!s.pruner[i]) continue;
+      if (rejected) {
+        s.pruner[i]->reject();
+      } else {
+        s.pruner[i]->accept();
+      }
     }
-    if (NDiff(x, e.prev) < NDiff(x, e.last)) {
-      e.pruner->reject();
-      std::swap(e.last, e.prev);
-      e.lastSite.swap(e.prevSite);
-    } else {
-      e.pruner->accept();
+    if (rejected) {
+      std::swap(s.last, s.prev);
+      s.lastSite.swap(s.prevSite);
+      if (back) return;
     }
   }
-  std::swap(e.prev, e.last);
-  e.prevSite.swap(e.lastSite);
-  e.pruner->checkpoint();
-  e.open = true;
-  SetTree(*e.pruner, x);
-  Score(*e.pruner, e.lastSite);
-  e.last = x;
-  return e.lastSite;
+  std::swap(s.prev, s.last);
+  s.prevSite.swap(s.lastSite);
+  for (std::size_t i = 0; i < s.pruner.size(); ++i) {
+    if (s.pruner[i]) s.pruner[i]->checkpoint();
+  }
+  s.open = true;
+  Score(s, x);
 }
 
 // Sum of log site likelihoods, as MkPrime's Pruner::log_likelihood()
@@ -307,20 +343,61 @@ bool SameBits(const std::vector<double>& a, const std::vector<double>& b) {
     std::memcmp(a.data(), b.data(), a.size() * sizeof(double)) == 0;
 }
 
+bool CheckRequested() {
+  const char* check = std::getenv("EVOTEMPO_MK_CACHE_CHECK");
+  return check && *check && std::string(check) != "0";
+}
+
 // Bitwise agreement of the cached partials (re-read, not recomputed) and the
-// returned site likelihoods with a one-shot evaluation; failures are counted,
-// so that a caller that catches the error cannot hide them
-void Check(MkEntry& e, const MkTree& x, const std::vector<double>& site) {
-  std::vector<double> reread(site.size()), fresh(site.size());
-  e.pruner->site_likelihoods(reread.data());
-  std::unique_ptr<MkPruner> oneShot = NewPruner(e.nState, e.nTip,
-                                                e.pruner->n_char(), e.states);
-  SetTree(*oneShot, x);
-  oneShot->site_likelihoods(fresh.data());
-  if (!SameBits(reread, fresh) || !SameBits(site, fresh)) {
+// returned site likelihoods with a one-shot evaluation of `states` and `nState`,
+// the tip states and numbers of states that the caller holds; failures are
+// counted, so that a caller that catches the error cannot hide them
+void Check(MkSet& s, const std::vector<std::vector<int> >& states,
+           const std::vector<int>& nState) {
+  if (nState != s.nState || states != s.states) {
     ++nCheckFailures;
-    throw std::logic_error("cached Mk likelihood differs from a fresh evaluation");
+    throw std::logic_error("character matrices differ from those registered");
   }
+  for (std::size_t i = 0; i < s.pruner.size(); ++i) {
+    if (!s.pruner[i]) continue;
+    const std::vector<double>& site = s.lastSite[i];
+    std::vector<double> reread(site.size()), fresh(site.size());
+    s.pruner[i]->site_likelihoods(reread.data());
+    std::unique_ptr<MkPruner> oneShot = s.NewPruner(i, states[i]);
+    SetTree(*oneShot, s.last);
+    oneShot->site_likelihoods(fresh.data());
+    if (!SameBits(reread, fresh) || !SameBits(site, fresh)) {
+      ++nCheckFailures;
+      throw std::logic_error("cached Mk likelihood differs from a fresh evaluation");
+    }
+  }
+}
+
+std::vector<int> TipStates(const IntegerMatrix& characters) {
+  std::vector<int> states(characters.begin(), characters.end());
+  for (int& s : states) {
+    if (s == NA_INTEGER || s < 0) s = -1;
+  }
+  return states;
+}
+
+// One edge per non-root node
+void ReadTree(const IntegerVector& par, const NumericVector& lengths, MkTree& x) {
+  if (lengths.size() < par.size()) stop("`lengths` needs one value per node");
+  x.parent.clear();
+  x.child.clear();
+  x.len.clear();
+  for (int v = 0; v < par.size(); ++v) {
+    if (par[v] == NA_INTEGER || par[v] < 1) continue;  // the root
+    x.parent.push_back(par[v]);
+    x.child.push_back(v + 1);
+    x.len.push_back(lengths[v]);
+  }
+}
+
+SEXP SetTag() {
+  static SEXP tag = Rf_install("EvoTempoMkSet");
+  return tag;
 }
 
 }  // namespace
@@ -392,32 +469,24 @@ NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths,
   const int nChar = characters.ncol();
   if (nChar == 0) return sites ? NumericVector(0) : NumericVector::create(0.0);
   if (nTip < 2) stop("Mk likelihood needs at least two tips");
-  const IntegerVector par = tree["parent"];
-  if (lengths.size() < par.size()) stop("`lengths` needs one value per node");
   MkTree x;
-  for (int v = 0; v < par.size(); ++v) {
-    if (par[v] == NA_INTEGER || par[v] < 1) continue;  // the root
-    x.parent.push_back(par[v]);
-    x.child.push_back(v + 1);
-    x.len.push_back(lengths[v]);
-  }
-  std::vector<int> states(characters.begin(), characters.end());
-  for (int& s : states) {
-    if (s == NA_INTEGER || s < 0) s = -1;
-  }
+  ReadTree(tree["parent"], lengths, x);
+  const std::vector<int> states = TipStates(characters);
   MkEntry* entry = nullptr;
   std::vector<double> site;
   try {
     if (cache) {
       entry = &Lookup(nTip, nState, states);
-      site = Evaluate(*entry, x);
-      const char* check = std::getenv("EVOTEMPO_MK_CACHE_CHECK");
-      if (check && *check && std::string(check) != "0") Check(*entry, x, site);
+      Evaluate(entry->set, x);
+      site = entry->set.lastSite[0];
+      if (CheckRequested()) Check(entry->set, entry->set.states, entry->set.nState);
     } else {
-      std::unique_ptr<MkPruner> pruner = NewPruner(nState, nTip, nChar, states);
-      SetTree(*pruner, x);
+      MkSet oneShot;
+      oneShot.nTip = nTip;
+      oneShot.Add(nState, states, true);
+      SetTree(*oneShot.pruner[0], x);
       site.resize(nChar);
-      pruner->site_likelihoods(site.data());
+      oneShot.pruner[0]->site_likelihoods(site.data());
     }
   } catch (const std::exception& e) {
     // A failed evaluation may leave the entry part-way through an update
@@ -430,17 +499,88 @@ NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths,
   return out;
 }
 
+// Registers character matrices (as `characters` of .MkCpp(), each with its own
+// number of states) whose likelihoods are always wanted together, and returns
+// a handle for .MkSetLogLikCpp()
+// [[Rcpp::export(name = ".MkSetCpp")]]
+SEXP MkSetCpp(int nTip, List matrices, IntegerVector nState, LogicalVector sites) {
+  if (nState.size() != matrices.size() || sites.size() != matrices.size()) {
+    stop("`nState` and `sites` need one entry per matrix");
+  }
+  if (nTip < 2) stop("Mk likelihood needs at least two tips");
+  if (is_true(any(is_na(sites)))) stop("`sites` must be TRUE or FALSE");
+  std::unique_ptr<MkSet> set(new MkSet());
+  set->nTip = nTip;
+  set->generation = generation;
+  try {
+    for (R_xlen_t i = 0; i < matrices.size(); ++i) {
+      const IntegerMatrix m = matrices[i];
+      if (m.nrow() != nTip) stop("each matrix needs one row per tip");
+      set->Add(nState[i], TipStates(m), sites[i]);
+    }
+  } catch (const std::invalid_argument& e) {
+    stop("%s", e.what());
+  }
+  XPtr<MkSet> handle(set.release(), true, SetTag());
+  return handle;
+}
+
+// For each matrix of the set, in order: the log-likelihood, or where registered
+// with `sites` one value per character.  One diff of the tree serves every
+// matrix.  NULL if `handle` is not a live handle (they do not survive
+// serialization).  `matrices` and `nState`, the data that the caller means, are
+// read only by the EVOTEMPO_MK_CACHE_CHECK check.
+// [[Rcpp::export(name = ".MkSetLogLikCpp")]]
+SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths,
+                    List matrices, IntegerVector nState) {
+  if (TYPEOF(handle) != EXTPTRSXP || R_ExternalPtrTag(handle) != SetTag() ||
+      !R_ExternalPtrAddr(handle)) {
+    return R_NilValue;
+  }
+  MkSet& s = *static_cast<MkSet*>(R_ExternalPtrAddr(handle));
+  if (s.generation != generation) {
+    s.Reset();
+    s.generation = generation;
+  }
+  ReadTree(parent, lengths, s.next);
+  try {
+    Evaluate(s, s.next);
+    if (CheckRequested()) {
+      std::vector<std::vector<int> > states;
+      for (R_xlen_t i = 0; i < matrices.size(); ++i) {
+        states.push_back(TipStates(as<IntegerMatrix>(matrices[i])));
+      }
+      Check(s, states, std::vector<int>(nState.begin(), nState.end()));
+    }
+  } catch (const std::exception& e) {
+    s.Reset();
+    stop("%s", e.what());
+  }
+  NumericVector out(s.nOut);
+  R_xlen_t at = 0;
+  for (std::size_t i = 0; i < s.pruner.size(); ++i) {
+    const std::vector<double>& site = s.lastSite[i];
+    if (s.sites[i]) {
+      for (std::size_t c = 0; c < site.size(); ++c) out[at++] = std::log(site[c]);
+    } else {
+      out[at++] = LogSum(site);
+    }
+  }
+  return out;
+}
+
 // `corrupt` (for tests of the self-check) alters every entry's stored result
 // [[Rcpp::export(name = ".MkCacheCpp")]]
 List MkCacheCpp(bool clear, bool corrupt) {
   if (clear) {
     registry.clear();
+    ++generation;
     nRecomputed = 0;
     nCheckFailures = 0;
   }
   if (corrupt) {
     for (std::size_t i = 0; i < registry.size(); ++i) {
-      for (double& v : registry[i]->lastSite) v *= 0.5;
+      for (double& v : registry[i]->set.lastSite[0]) v *= 0.5;
     }
   }
   return List::create(_["entries"] = static_cast<int>(registry.size()),

@@ -526,8 +526,55 @@ GammaRates <- function(alpha, nCat = 4L) {
          !isFALSE(getOption("EvoTempo.mkCache")))
 }
 
-# Number of cached character matrices, of partial likelihoods recomputed and of
-# failed self-checks; `clear = TRUE` empties the cache and resets the counts
+# Handle to the cached pruners of character matrices that are always scored
+# together on one tree (the partitions of a dataset, each with its own number
+# of states): an environment, so that .MkSetLogLik() can renew the pointer,
+# which does not survive serialization.  `sites` marks the matrices that give
+# one value per character instead of their sum.
+.MkSet <- function(nTip, matrices, nState, sites = logical(length(matrices))) {
+  set <- new.env(parent = emptyenv())
+  set[["nTip"]] <- as.integer(nTip)
+  set[["matrices"]] <- lapply(matrices, function(x) {
+    storage.mode(x) <- "integer"
+    x
+  })
+  set[["nState"]] <- as.integer(nState)
+  set[["sites"]] <- as.logical(sites)
+  set[["ptr"]] <- .MkSetCpp(set[["nTip"]], set[["matrices"]], set[["nState"]],
+                            set[["sites"]])
+  set
+}
+
+# Values of every matrix of a .MkSet() in one call, concatenated in order: the
+# log-likelihood, or one per character where registered with `sites`; each is
+# bitwise that of .MkSiteLogLik().  `options(EvoTempo.mkCache = FALSE)` and
+# EVOTEMPO_MK_CACHE_CHECK = 1 act as there.  The check can only vouch for the
+# data it is given: a caller that passes the `matrices` (integer) and `nState`
+# it means to score has the handle checked against them; by default the handle
+# is checked against its own copy.
+.MkSetLogLik <- function(set, tree, lengths, matrices = set[["matrices"]],
+                         nState = set[["nState"]]) {
+  if (isFALSE(getOption("EvoTempo.mkCache"))) {
+    tree <- list(nTip = set[["nTip"]], parent = tree[["parent"]])
+    sites <- set[["sites"]]
+    return(unlist(lapply(seq_along(sites), function(i) {
+      .MkCpp(tree, set[["matrices"]][[i]], as.double(lengths),
+             set[["nState"]][[i]], sites[[i]], FALSE)
+    })))
+  }
+  out <- .MkSetLogLikCpp(set[["ptr"]], tree[["parent"]], lengths, matrices, nState)
+  if (is.null(out)) {
+    set[["ptr"]] <- .MkSetCpp(set[["nTip"]], set[["matrices"]], set[["nState"]],
+                              set[["sites"]])
+    out <- .MkSetLogLikCpp(set[["ptr"]], tree[["parent"]], lengths, matrices, nState)
+  }
+  out
+}
+
+# Number of cached character matrices (those of .MkSet() handles apart), of
+# partial likelihoods recomputed and of failed self-checks; `clear = TRUE`
+# empties the cache, the handles' partial likelihoods included, and resets the
+# counts
 .MkCache <- function(clear = FALSE) .MkCacheCpp(clear, FALSE)
 
 # Tempo-weighted branch lengths c * sum_k exp(gamma x_k) dwell_k, per node

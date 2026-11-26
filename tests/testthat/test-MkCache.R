@@ -162,6 +162,208 @@ test_that("Cached chains match uncached chains with a free origin", {
   expect_identical(cached$samples, Run(FALSE)$samples)
 })
 
+# A set of matrices with 2, 3 and 4 states, one without characters; the second
+# and fourth give one value per character
+SetFixture <- function(nTip) {
+  list(
+    matrices = list(
+      matrix(sample(c(0:1, NA), nTip * 5, replace = TRUE), nTip),
+      matrix(sample(c(0:2, NA), nTip * 4, replace = TRUE), nTip),
+      matrix(0L, nTip, 0),
+      matrix(sample(c(0, NA), nTip * 3, replace = TRUE, prob = c(3, 1)), nTip)
+    ),
+    nState = c(2, 3, 2, 4),
+    sites = c(FALSE, TRUE, FALSE, TRUE)
+  )
+}
+# The values of .MkSetLogLik() from one uncached call per matrix
+OneByOne <- function(fix, tree, lengths) {
+  unlist(lapply(seq_along(fix$matrices), function(i) {
+    x <- fix$matrices[[i]]
+    storage.mode(x) <- "integer"
+    .MkCpp(tree, x, lengths, as.integer(fix$nState[[i]]), fix$sites[[i]], FALSE)
+  }))
+}
+# Regraft of a random subtree; `parent` holds NA at the root
+RandomRegraft <- function(parent) {
+  cand <- which(!is.na(parent) & !is.na(parent[parent]))
+  v <- cand[sample.int(length(cand), 1)]
+  p <- parent[v]
+  sib <- setdiff(which(parent == p), v)
+  parent[sib] <- parent[p]
+  parent[p] <- NA
+  inside <- v
+  repeat {
+    kids <- setdiff(which(parent %in% inside), inside)
+    if (!length(kids)) break
+    inside <- c(inside, kids)
+  }
+  ok <- setdiff(seq_along(parent), c(inside, p))
+  target <- ok[sample.int(length(ok), 1)]
+  parent[p] <- parent[target]
+  parent[c(target, v)] <- p
+  parent
+}
+
+test_that("A set of matrices in one call equals one call per matrix, exactly", {
+  set.seed(8)
+  nTip <- 7L
+  fix <- SetFixture(nTip)
+  set <- .MkSet(nTip, fix$matrices, fix$nState, fix$sites)
+  parent <- c(8L, 8L, 9L, 9L, 10L, 11L, 12L, 10L, 11L, 12L, 13L, 13L, NA)
+  cur <- list(parent = parent, len = stats::rexp(13, 3))
+  Value <- function(state) {
+    tree <- list(nTip = nTip, parent = state$parent)
+    value <- .MkSetLogLik(set, tree, state$len)
+    expect_identical(value, OneByOne(fix, tree, state$len))
+    value
+  }
+  WithCache(TRUE, {
+    expect_length(Value(cur), 1 + 4 + 1 + 3)
+    before <- .MkCache()$recomputed
+    Value(cur)
+    expect_equal(.MkCache()$recomputed, before)
+    history <- list(cur)
+    for (i in 1:150) {
+      prop <- cur
+      kind <- sample(c("one", "all", "regraft", "both"), 1)
+      if (kind %in% c("one", "both")) {
+        prop$len[sample.int(13, 1)] <- stats::rexp(1, 3)
+      }
+      if (kind == "all") {
+        prop$len <- prop$len * exp(stats::runif(1, -1, 1))
+      }
+      if (kind %in% c("regraft", "both")) {
+        prop$parent <- RandomRegraft(prop$parent)
+      }
+      Value(prop)
+      u <- stats::runif(1)
+      if (u < 0.3) {
+        cur <- prop
+        history[[length(history) + 1L]] <- cur
+      } else if (u < 0.5) {
+        Value(cur)
+      } else if (u < 0.6) {
+        Value(history[[sample.int(length(history), 1)]])
+      }
+    }
+  })
+  # One edge of a tip: only its four ancestors are recomputed, in the three
+  # matrices that have characters
+  WithCache(TRUE, check = FALSE, {
+    tree <- list(nTip = nTip, parent = parent)
+    .MkSetLogLik(set, tree, cur$len)
+    before <- .MkCache()$recomputed
+    cur$len[[1]] <- cur$len[[1]] + 0.1
+    .MkSetLogLik(set, tree, cur$len)
+    expect_equal(.MkCache()$recomputed - before, 3 * 4)
+  })
+})
+
+test_that("A set survives serialization, bad input and a failed evaluation", {
+  set.seed(9)
+  nTip <- 5L
+  fix <- SetFixture(nTip)
+  tr <- cacheTree
+  len <- stats::rexp(tr$nTip + tr$nNode, 3)
+  set <- .MkSet(nTip, fix$matrices, fix$nState, fix$sites)
+  value <- .MkSetLogLik(set, tr, len)
+  expect_identical(value, OneByOne(fix, tr, len))
+
+  copy <- unserialize(serialize(set, NULL))
+  expect_null(.MkSetLogLikCpp(copy$ptr, tr$parent, len, copy$matrices, copy$nState))
+  expect_null(.MkSetLogLikCpp(NULL, tr$parent, len, copy$matrices, copy$nState))
+  expect_identical(.MkSetLogLik(copy, tr, len), value)
+  expect_identical(.MkSetLogLik(copy, tr, len / 2), OneByOne(fix, tr, len / 2))
+
+  expect_error(.MkSetLogLik(set, tr, len[-1]), "one value per node")
+  bad <- tr
+  bad$parent[[1]] <- 2L
+  expect_error(.MkSetLogLik(set, bad, len), "tip has children")
+  expect_identical(.MkSetLogLik(set, tr, len), value)
+  WithCache(TRUE, {
+    expect_identical(.MkSetLogLik(set, tr, len * 2), OneByOne(fix, tr, len * 2))
+  })
+
+  # The cache switched off, and cleared
+  WithCache(FALSE, {
+    before <- .MkCache()$recomputed
+    expect_identical(.MkSetLogLik(set, tr, len * 2), OneByOne(fix, tr, len * 2))
+    expect_equal(.MkCache()$recomputed, before)
+  })
+  .MkCache(clear = TRUE)
+  expect_identical(.MkSetLogLik(set, tr, len * 2), OneByOne(fix, tr, len * 2))
+  expect_equal(.MkCache()$recomputed, 3 * tr$nNode)
+
+  expect_error(.MkSet(nTip, fix$matrices, fix$nState[-1], fix$sites),
+               "one entry per matrix")
+  expect_error(.MkSet(nTip, fix$matrices, fix$nState, fix$sites[-1]),
+               "one entry per matrix")
+  expect_error(.MkSet(nTip + 1L, fix$matrices, fix$nState, fix$sites),
+               "one row per tip")
+  expect_error(.MkSet(1L, list(), integer(0)), "two tips")
+  expect_error(.MkSet(nTip, fix$matrices, fix$nState, c(NA, fix$sites[-1])),
+               "TRUE or FALSE")
+  expect_error(.MkSet(nTip, fix$matrices, c(2, 2, 2, 4), fix$sites), "exceeds")
+})
+
+test_that("The self-check fires when a handle is not for the caller's data", {
+  tr <- list(nTip = 4L, parent = c(5L, 5L, 6L, 6L, 7L, 7L, NA))
+  len <- c(0.1, 0.2, 0.3, 0.4, 0.2, 0.1, 0)
+  A <- matrix(c(0L, 0L, 1L, 1L, 0L, 1L, 0L, 1L), 4)
+  B <- matrix(c(0L, 1L, 1L, 1L, 2L, 1L, 0L, NA), 4)
+  .MkCache(clear = TRUE)
+  handle <- .MkSet(4L, list(A), 3L)
+  WithCache(TRUE, {
+    forA <- .MkSetLogLik(handle, tr, len, list(A), 3L)
+    expect_identical(forA, .MkCpp(tr, A, len, 3L, FALSE, FALSE))
+    expect_false(identical(forA, .MkCpp(tr, B, len, 3L, FALSE, FALSE)))
+    expect_equal(.MkCache()$checkFailures, 0)
+    expect_error(.MkSetLogLik(handle, tr, len, list(B), 3L),
+                 "differ from those registered")
+    expect_error(.MkSetLogLik(handle, tr, len, list(A), 2L),
+                 "differ from those registered")
+    expect_error(.MkSetLogLik(handle, tr, len, list(A, B), c(3L, 3L)),
+                 "differ from those registered")
+    expect_equal(.MkCache()$checkFailures, 3)
+    expect_identical(.MkSetLogLik(handle, tr, len, list(A), 3L), forA)
+  })
+  # Without the check nothing compares the handle with the caller's data
+  WithCache(TRUE, check = FALSE,
+            expect_identical(.MkSetLogLik(handle, tr, len, list(B), 3L), forA))
+})
+
+test_that("A rebound MkLikelihood() that scores a set gives the same chain", {
+  set.seed(10)
+  chars <- matrix(sample(0:2, 5 * 6, replace = TRUE), 5)
+  chars[, 1:3] <- chars[, 1:3] %% 2L
+  matrices <- list(chars[, 1:3], chars[, 4:6], chars[, 1:2] * 0L)
+  original <- MkLikelihood
+  Split <- function(tree, characters, lengths, nState = 2L, engine = "cpp") {
+    original(tree, matrices[[1]], lengths, 2L, engine) +
+      original(tree, matrices[[2]], lengths, 3L, engine) +
+      sum(.MkSiteLogLik(tree, matrices[[3]], lengths, 3L))
+  }
+  set <- .MkSet(5L, matrices, c(2, 3, 3), c(FALSE, FALSE, TRUE))
+  Together <- function(tree, characters, lengths, nState = 2L, engine = "cpp") {
+    value <- .MkSetLogLik(set, tree, lengths)
+    value[[1]] + value[[2]] + sum(value[3:4])
+  }
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, gamma = 1)
+  priors <- c(TempoPriors()["lambda"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  Run <- function(Likelihood) {
+    set.seed(11)
+    local_mocked_bindings(MkLikelihood = Likelihood)
+    WithCache(TRUE, TempoMCMC(cacheTree, model, cachePar, priors, nIter = 12,
+                              burnin = 0, nSlice = 4, characters = chars,
+                              moves = c(branch = 1, nodeAge = 1, slide = 2, saJump = 2)))
+  }
+  together <- Run(Together)
+  expect_gt(sum(together$acceptance[c("nodeAge", "slide", "saJump")]), 0)
+  expect_identical(together$samples, Run(Split)$samples)
+})
+
 test_that("Malformed input is an error, and the self-check fires on a stale result", {
   tr <- cacheTree
   len <- rep(0.3, tr$nTip + tr$nNode)
@@ -307,4 +509,42 @@ test_that("Cached chains with fnpr match uncached chains and the R engine", {
   expect_equal(nrow(cached$samples), 40)
   expect_identical(cached$samples, Run(FALSE)$samples)
   expect_equal(cached$samples, Run(FALSE, "R")$samples, tolerance = 1e-8)
+})
+
+test_that("A set handle follows fnpr proposals, accepted and rejected", {
+  set.seed(14)
+  chars <- matrix(sample(0:2, 5 * 6, replace = TRUE), 5)
+  chars[, 1:3] <- chars[, 1:3] %% 2L
+  matrices <- list(chars[, 1:3], chars[, 4:6], chars[, 1:2] * 0L)
+  nState <- c(2L, 3L, 3L)
+  original <- MkLikelihood
+  Split <- function(tree, characters, lengths, nState = 2L, engine = "cpp") {
+    original(tree, matrices[[1]], lengths, 2L, engine) +
+      original(tree, matrices[[2]], lengths, 3L, engine) +
+      sum(.MkSiteLogLik(tree, matrices[[3]], lengths, 3L))
+  }
+  set <- .MkSet(5L, matrices, nState, c(FALSE, FALSE, TRUE))
+  # The handle is checked against the matrices of the call at every evaluation
+  Together <- function(tree, characters, lengths, nState = 2L, engine = "cpp") {
+    value <- .MkSetLogLik(set, tree, lengths, matrices, c(2L, 3L, 3L))
+    value[[1]] + value[[2]] + sum(value[3:4])
+  }
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, gamma = 1)
+  priors <- c(TempoPriors()["lambda"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  Run <- function(on, Likelihood) {
+    .MkCache(clear = TRUE)
+    set.seed(15)
+    local_mocked_bindings(MkLikelihood = Likelihood)
+    WithCache(on, TempoMCMC(cacheTree, model, cachePar, priors, nIter = 40,
+                            burnin = 0, thin = 1, nSlice = 4, characters = chars,
+                            moves = c(branch = 1, fnpr = 3, nodeAge = 1),
+                            minAcceptance = 0))
+  }
+  together <- Run(TRUE, Together)
+  expect_equal(.MkCache()$checkFailures, 0)
+  expect_gt(.MkCache()$recomputed, 0)
+  expect_gt(together$acceptance[["fnpr"]], 0)
+  expect_lt(together$acceptance[["fnpr"]], 1)
+  expect_identical(together$samples, Run(FALSE, Split)$samples)
 })

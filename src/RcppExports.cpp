@@ -41,6 +41,35 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// MkSetCpp
+SEXP MkSetCpp(int nTip, List matrices, IntegerVector nState, LogicalVector sites);
+RcppExport SEXP _EvoTempo_MkSetCpp(SEXP nTipSEXP, SEXP matricesSEXP, SEXP nStateSEXP, SEXP sitesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type nTip(nTipSEXP);
+    Rcpp::traits::input_parameter< List >::type matrices(matricesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nState(nStateSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type sites(sitesSEXP);
+    rcpp_result_gen = Rcpp::wrap(MkSetCpp(nTip, matrices, nState, sites));
+    return rcpp_result_gen;
+END_RCPP
+}
+// MkSetLogLikCpp
+SEXP MkSetLogLikCpp(SEXP handle, IntegerVector parent, NumericVector lengths, List matrices, IntegerVector nState);
+RcppExport SEXP _EvoTempo_MkSetLogLikCpp(SEXP handleSEXP, SEXP parentSEXP, SEXP lengthsSEXP, SEXP matricesSEXP, SEXP nStateSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type handle(handleSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type parent(parentSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type lengths(lengthsSEXP);
+    Rcpp::traits::input_parameter< List >::type matrices(matricesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nState(nStateSEXP);
+    rcpp_result_gen = Rcpp::wrap(MkSetLogLikCpp(handle, parent, lengths, matrices, nState));
+    return rcpp_result_gen;
+END_RCPP
+}
 // MkCacheCpp
 List MkCacheCpp(bool clear, bool corrupt);
 RcppExport SEXP _EvoTempo_MkCacheCpp(SEXP clearSEXP, SEXP corruptSEXP) {
@@ -433,6 +462,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_MkCharactersCpp", (DL_FUNC) &_EvoTempo_MkCharactersCpp, 5},
     {"_EvoTempo_MkCpp", (DL_FUNC) &_EvoTempo_MkCpp, 6},
+    {"_EvoTempo_MkSetCpp", (DL_FUNC) &_EvoTempo_MkSetCpp, 4},
+    {"_EvoTempo_MkSetLogLikCpp", (DL_FUNC) &_EvoTempo_MkSetLogLikCpp, 5},
     {"_EvoTempo_MkCacheCpp", (DL_FUNC) &_EvoTempo_MkCacheCpp, 2},
     {"_EvoTempo_PiecesCpp", (DL_FUNC) &_EvoTempo_PiecesCpp, 3},
     {"_EvoTempo_SliceExpCpp", (DL_FUNC) &_EvoTempo_SliceExpCpp, 3},

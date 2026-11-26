@@ -10,6 +10,21 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// MkCharactersCpp
+double MkCharactersCpp(List tree, List partitions, NumericVector lengths, NumericVector rates, bool variable);
+RcppExport SEXP _EvoTempo_MkCharactersCpp(SEXP treeSEXP, SEXP partitionsSEXP, SEXP lengthsSEXP, SEXP ratesSEXP, SEXP variableSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type tree(treeSEXP);
+    Rcpp::traits::input_parameter< List >::type partitions(partitionsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type lengths(lengthsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type rates(ratesSEXP);
+    Rcpp::traits::input_parameter< bool >::type variable(variableSEXP);
+    rcpp_result_gen = Rcpp::wrap(MkCharactersCpp(tree, partitions, lengths, rates, variable));
+    return rcpp_result_gen;
+END_RCPP
+}
 // MkLikelihoodCpp
 double MkLikelihoodCpp(List tree, IntegerMatrix characters, NumericVector lengths, int nState);
 RcppExport SEXP _EvoTempo_MkLikelihoodCpp(SEXP treeSEXP, SEXP charactersSEXP, SEXP lengthsSEXP, SEXP nStateSEXP) {
@@ -402,6 +417,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_EvoTempo_MkCharactersCpp", (DL_FUNC) &_EvoTempo_MkCharactersCpp, 5},
     {"_EvoTempo_MkLikelihoodCpp", (DL_FUNC) &_EvoTempo_MkLikelihoodCpp, 4},
     {"_EvoTempo_PiecesCpp", (DL_FUNC) &_EvoTempo_PiecesCpp, 3},
     {"_EvoTempo_SliceExpCpp", (DL_FUNC) &_EvoTempo_SliceExpCpp, 3},

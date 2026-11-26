@@ -42,6 +42,11 @@ posterior (see **Starting tree** and **Production runs**).
 | `summarise.R` | Convergence (ESS, PSRF, ASDSF), clade and sampled-ancestor frequencies, crown/root/origin ages, CET and RevBayes side by side |
 | `revbayes/penguins_morph_fbd.Rev`, `revbayes/run-hamilton.sh`, `revbayes/data/` | Morphology-only RevBayes comparator (UCLN, and strict as a pipeline check) on the project's RevBayes development build a2a8e2db (#66) |
 | `revbayes/prior-check/` | Data-free check of the comparator's tree moves on a2a8e2db: sampled-ancestor count against BEAST2 and v1.4.1 (#66) |
+| `stage1-results.R`, `stage1-figures.R` | Stage-1 summaries and figures ("Stage-1 results") |
+| `stage1-results/` | Stage-1 result tables, consensus trees, figures and Bayes-factor outputs |
+| `s-prior-reweight.R` | Sensitivity of the Bayes factors to the prior on s ("Stage-1 results") |
+| `rung-array.sh`, `data/start-trees/rungs/` | Ladder-rung arrays and the start trees of the dispersed rungs |
+| `jobs/` | Slurm wrappers of the stage-1 jobs |
 | `smoke-results/` | Smoke and pilot outputs quoted below |
 
 ## Data conversion (`prepare.R`)
@@ -95,7 +100,9 @@ Notes.
   rate variation start from the same prior.  This prior has 16% of its mass
   below s = 0.01, where the four cells are indistinguishable, which pulls
   Bayes factors towards 0; a log-normal prior is the obvious alternative and
-  can be checked by reweighting (Z'/Z = E_post[pi'(s) / pi(s)]).  **Decision
+  can be checked by reweighting (Z'/Z = E_post[pi'(s) / pi(s)]).  The check
+  (`s-prior-reweight.R`; "Stage-1 results") moves the gamma Bayes factor by
+  -1.5 to +1.9 nats under four log-normal alternatives.  **Decision
   for the user.**  The upper bound 3 (8.7e-5 of the mass) is numerical: in the
   12-minute pilot, cell (0, 0), where s enters only the path density, adapted
   its step for s to 12.8 and proposed s = 86.8; the self-rate theta e^x then
@@ -584,14 +591,335 @@ replaced it.
         --export=ALL,CET_NITER=200000,CET_THIN=100,CET_SEG=10000 $W/jobs/run-array-wrap.sh
 
 
+## Stage-1 results (400 000 iterations; provisional)
+
+**Status: provisional.**
+- **Code.** The Bayes factors use the code of #105 (`penguin-eval-check-104`;
+  the 400 000-iteration numbers below were recomputed with its head at the
+  time, ee4b364).  #103 and #105 are not merged.
+- **Chains still running.** These chains are being extended:
+  - production to 600 000 iterations;
+  - rungs to 600 000;
+  - four new rungs added.
+  Every number here will be recomputed then (same scripts, no segment cap).
+- **The 400 000-iteration state is reproducible** with
+  `CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20` (stage1-results.R, bayes-factors.R).
+  The run root must hold only the 40 chains of that state:
+  `bash jobs/make-bf400k-root.sh $W/runs $W/bf400k-root` builds it.  The
+  script makes links to the 16 production and 24 rung chains (not the
+  gamma = 0.125 / 0.375 rungs), copies `stage1-results/launch.csv` (10
+  groups x 4) as its launch record, and checks that every chain has its
+  capped segments.  Then:
+  - eval each chain as `jobs/bf400k-eval.sh` does;
+  - combine on that root;
+  - run `stage1-results.R $W/bf400k-root ...`.
+- **Acceptance gate for the gamma Bayes factor** (#107 review):
+  - every rung passes R-hat <= 1.01 and bulk ESS >= 400 (meanX included);
+  - each bridge step has Kish ESS >= 100 in both directions;
+  - the chain-half SE is < 0.5;
+  - the small squares close within 3 SE.
+  At 400 000 iterations the first two conditions fail (below).
+
+### Runs
+
+- **Extension to 400 000 iterations: Slurm 19448311** (`evotempo-penguin-cet-dispersed-ext400k`,
+  tasks 1-16; `jobs/run-array-wrap.sh`).  The 16 production chains of
+  19431480 (200 000 iterations) were continued from segment 21 with
+  `CET_NITER=400000`.  Each task took about 24 h; peak memory was 169 MB.
+  - Reason: at 200 000 iterations cells (0, 1) and (1, 1) failed the flags:
+    (0, 1) treeLength R-hat 1.015, bulk ESS 262, and charLL bulk ESS 289;
+    (1, 1) theta bulk ESS 358.  ASDSF was about 0.03 in every cell, against
+    0.005 for RevBayes.
+- **gamma rungs: Slurm 19448246-19448251** (`evotempo-penguin-cet-rung-b<beta>g<gamma>`;
+  `jobs/rung-wrap.sh`, now `rung-array.sh` with `RUNG_START=production`).
+  - Cells: gamma = 0.25, 0.5 and 0.75 at beta = 0 and at beta = 1, 4 replicates
+    each, 200 000 iterations at power 1.  `CET_SEED` = 510000 + rep (b0g0.25),
+    520000 + rep, 530000 + rep, and 610000 + rep, 620000 + rep, 630000 + rep at
+    beta = 1.  About 23-27 h per chain.
+  - **Shared starts (R107-15).**  Rung replicate r starts from:
+    - the start tree of the gamma = 1 production chain with the same beta and
+      replicate (k = 4 (r - 1) + 2 for beta = 0, + 4 for beta = 1);
+    - **and** from `CetStart(r)`, i.e. the start parameters of production
+      chain k = r.  `run-chain.R` uses index = rep for labels other than the
+      four cells.
+
+    The rungs' replicates are therefore not dispersed independently of the
+    production chains.
+  - Why rungs: at 200 000 iterations the gamma edges had one-sided gaps of 19.7
+    (beta = 0) and 16.7 (beta = 1) nats, and the README overlap rule requires
+    rungs.
+- **Launched in the #107 fix round (2026-11-16):**
+  - **Production extension to 600 000 iterations:** Slurm 19466805
+    (`evotempo-penguin-cet-dispersed-600k`).
+  - **Rung extension to 600 000 iterations** (resumed from segment 20, same
+    code 921253b): Slurm 19472375 (b0g0.25), 19472376 (b0g0.5), 19472377
+    (b0g0.75), 19472378 (b1g0.25), 19472379 (b1g0.5), 19472380 (b1g0.75)
+    (`evotempo-penguin-cet-rung-<cell>-600k`).
+  - **New rungs gamma = 0.125 and 0.375 at beta = 0 and 1**, 4 replicates,
+    600 000 iterations, with dispersed starts:
+    - Start trees: draws 17-32 of `draw-start-trees.R` (seed 20261111,
+      n = 32; draws 1-16 are identical to the production draws, so no tree is
+      shared), converted by `prepare.R` (`data/start-trees/rungs/`,
+      `draws.csv`).
+    - Start parameters: `CetStart(k)`, k = 17-32 (`CET_START_INDEX`, new in
+      `run-chain.R`).
+    - Jobs: Slurm 19472381 (b0g0.125, seed 540000 + rep), 19472382
+      (b0g0.375, 550000 + rep), 19472383 (b1g0.125, 640000 + rep), 19472384
+      (b1g0.375, 650000 + rep).
+    - `rung-array.sh` with `RUNG_START=dispersed`, from this branch at
+      4638d62.
+    - `prepare.R` changes: six draws needed one.  In three
+      (k = 18, 19, 22) *W. manneringi* went from a root sampled ancestor to a
+      fossil tip; in three (k = 20, 25, 26) a node was raised by at most
+      0.0074 Myr.
+  - **Launch record:** `$W/runs/launch.csv` lists the 14 groups (production,
+    6 rungs, 4 new rungs).  The 400 000-iteration record is
+    `stage1-results/launch.csv`.
+- **Stale outputs.**  `cross.csv` files and Bayes-factor outputs written on
+  2026-11-13 while chains were still running were deleted before evaluation
+  (`stage1-results/gate.txt`).  Every `cross.csv` written before the #105 fix
+  round lacks `evalTolChar` and is refused by `combine`, so the 600 000
+  re-evaluation must run on all chains.
+
+### Convergence
+
+`stage1-results.R` (Slurm 19472732, `CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20`, 66 min, 1.9 GB).
+- **Burn-in and diagnostics.**  Burn-in is the first 25% of each chain's
+  recorded samples.  R-hat and bulk/tail ESS use MkPrime's rank-normalised
+  split versions (`versions.txt` records the md5 of the deparsed functions,
+  whose source is in `mkprime-functions.R`).
+- **Quantities diagnosed:** lambda, mu, psi, theta, s, rate, origin, crown and
+  root age, nSA, charLL, treeLength, ucldSd, and the tempo-path state meanX
+  and rootBin (R107-14).  logPost is not used.
+- **Flags:** R-hat > 1.01 or bulk ESS < 400.
+- **ASDSF** is over rooted clades with frequency >= 0.1.  The last column is
+  the largest replicate range of the probability that one of the 18 baseline
+  clades is monophyletic among extant taxa.
+
+| analysis | chains x draws | max R-hat (parameter) | min bulk ESS (parameter) | min tail ESS | flagged (R-hat / bulk ESS) | ASDSF (max SDSF) | max replicate range of a baseline clade |
+|---|---|---|---|---|---|---|---|
+| (0, 0) | 4 x 3000 | 1.0090 (charLL) | 400.0 (charLL) | 1820 | charLL 1.009 / 400 | 0.0231 (0.098) | 0.20 |
+| (0, 1) | 4 x 3000 | 1.0045 (treeLength) | 735.3 (treeLength) | 1756 | none | 0.0252 (0.133) | 0.30 |
+| (1, 0) | 4 x 3000 | 1.0086 (charLL) | 1000.5 (treeLength) | 2781 | none | 0.0219 (0.090) | 0.20 |
+| (1, 1) | 4 x 3000 | 1.0102 (charLL) | 703.1 (theta) | 1284 | charLL 1.010 / 735 | 0.0236 (0.104) | 0.24 |
+| RevBayes strict | 4 x 4501 | 1.0003 (nSA) | 11144.1 (treeLength) | 14427 | none | 0.0056 (0.014) | 0.02 |
+| RevBayes UCLN | 4 x 4501 | 1.0002 (rate) | 9715.6 (treeLength) | 13374 | none | 0.0052 (0.014) | 0.02 |
+| b0g0.25 (rung) | 4 x 1500 | 1.0360 (s) | 97.9 (s) | 273 | theta 1.005 / 389; s 1.036 / 98; rate 1.017 / 239; charLL 1.030 / 151; meanX 1.014 / 193 | 0.0377 (0.177) | – |
+| b0g0.5 (rung) | 4 x 1500 | 1.0132 (s) | 374.9 (treeLength) | 1201 | s 1.013 / 611; charLL 1.012 / 530; treeLength 1.010 / 375 | 0.0333 (0.103) | – |
+| b0g0.75 (rung) | 4 x 1500 | 1.0076 (charLL) | 443.0 (treeLength) | 1096 | none | 0.0328 (0.159) | – |
+| b1g0.25 (rung) | 4 x 1500 | 1.0211 (s) | 233.1 (theta) | 225 | theta 1.019 / 233; s 1.021 / 299; rate 1.010 / 392; charLL 1.017 / 344; treeLength 1.011 / 463; meanX 1.014 / 453 | 0.0348 (0.172) | – |
+| b1g0.5 (rung) | 4 x 1500 | 1.0124 (treeLength) | 311.6 (treeLength) | 704 | theta 1.005 / 327; crownAge 1.012 / 338; treeLength 1.012 / 312 | 0.0325 (0.140) | – |
+| b1g0.75 (rung) | 4 x 1500 | 1.0077 (charLL) | 363.4 (theta) | 808 | theta 1.006 / 363 | 0.0330 (0.123) | – |
+
+- **Production cells.**  The scalar parameters pass, apart from two charLL
+  values at the threshold: (0, 0) bulk ESS 399.99 and (1, 1) R-hat 1.0102.
+  meanX and rootBin pass in every cell, with bulk ESS >= 2069.
+- **Rungs (R107-1): 5 of the 6 rung cells fail the flags.**  The worst are
+  b0g0.25 (s R-hat 1.036, bulk ESS 98; charLL 1.030 / 151; meanX 1.014 / 193)
+  and b1g0.25 (theta 1.019 / 233; s 1.021; meanX 1.014).  Only b0g0.75
+  passes.  The rungs mix slowly at gamma = 0.25-0.5, so they were extended
+  and new rungs added (above).
+- **Topology is not converged (#110).**  ASDSF is 0.022-0.025 in the cells and
+  0.032-0.038 in the rungs, against 0.005 for RevBayes.
+  - Within a cell, the probability of one of the 18 baseline clades differs
+    between replicates by up to 0.20, 0.30, 0.20 and 0.24, against 0.02 for
+    RevBayes.  Clades whose range exceeds 0.15: 3, 1, 2 and 3.
+  - The largest between-replicate SD of such a probability is 0.098, 0.133,
+    0.090 and 0.104, so its 4-replicate SE reaches 0.05-0.07 (R107-12).
+  - Crown-age medians agree within 0.17 Myr between replicates.
+- **Consistency** (`consistency-checks.csv`): for every CET chain, root and
+  origin ages read from the trees match the logged values to 6e-6.
+  Tree-based nSA is used for both programs, because RevBayes's
+  `num_samp_anc` omits a sampled ancestor that is a child of the root.
+
+### Posterior estimates
+
+Pooled post-burn-in draws: median [2.5%, 97.5%]; P(lambda > mu) is the
+posterior probability.  Ages are in Myr and rates per Myr.  `rate` is CET's
+clock-rate parameter and RevBayes's `clock_morph`; under rate variation
+(gamma = 1, UCLN) it is the location of a rate distribution.
+
+| parameter | (0, 0) | (0, 1) | (1, 0) | (1, 1) | RevBayes strict | RevBayes UCLN |
+|---|---|---|---|---|---|---|
+| crownAge | 12.32 [10.70, 14.49] | 13.17 [11.21, 15.79] | 12.32 [10.68, 14.50] | 13.30 [11.21, 16.23] | 12.27 [10.64, 14.34] | 13.00 [11.09, 15.92] |
+| rootAge | 62.13 [60.78, 67.04] | 62.04 [60.75, 66.95] | 62.18 [60.77, 67.16] | 62.21 [60.77, 69.05] | 61.58 [60.57, 66.44] | 61.39 [60.55, 65.35] |
+| originAge | 64.89 [61.45, 75.38] | 64.71 [61.41, 75.62] | 64.96 [61.51, 75.86] | 65.19 [61.43, 79.19] | 64.41 [61.13, 75.01] | 64.01 [61.05, 74.13] |
+| lambda | 0.502 [0.263, 1.01] | 0.443 [0.228, 0.914] | 0.517 [0.259, 1.16] | 0.562 [0.212, 1.38] | 0.488 [0.252, 0.991] | 0.476 [0.244, 1.01] |
+| mu | 0.564 [0.266, 1.12] | 0.494 [0.215, 1.04] | 0.575 [0.254, 1.30] | 0.561 [0.185, 1.44] | 0.546 [0.245, 1.10] | 0.535 [0.234, 1.13] |
+| turnover | 1.11 [0.832, 1.39] | 1.11 [0.786, 1.41] | 1.10 [0.829, 1.38] | 0.988 [0.790, 1.20] | 1.11 [0.815, 1.40] | 1.11 [0.802, 1.41] |
+| diversification | -0.0600 [-0.200, 0.0692] | -0.0496 [-0.193, 0.0777] | -0.0563 [-0.213, 0.0725] | 0.0064 [-0.143, 0.102] | -0.0578 [-0.197, 0.0733] | -0.0567 [-0.203, 0.0757] |
+| P(lambda > mu) | 0.188 | 0.244 | 0.208 | 0.552 | 0.206 | 0.212 |
+| psi | 0.0648 [0.0327, 0.117] | 0.0712 [0.0363, 0.128] | 0.0647 [0.0326, 0.118] | 0.0668 [0.0341, 0.123] | 0.0671 [0.0339, 0.125] | 0.0702 [0.0346, 0.130] |
+| samplingProportion | 0.103 [0.0327, 0.274] | 0.126 [0.0396, 0.334] | 0.101 [0.0289, 0.285] | 0.107 [0.0288, 0.337] | 0.110 [0.0341, 0.302] | 0.116 [0.0343, 0.323] |
+| rate | 0.0200 [0.0162, 0.0248] | 0.0192 [0.0089, 0.0385] | 0.0200 [0.0161, 0.0246] | 0.0222 [0.0094, 0.0405] | 0.0202 [0.0163, 0.0250] | 0.0225 [0.0166, 0.0321] |
+| theta | 0.0497 [0.0073, 0.338] | 0.0976 [0.0213, 0.383] | 0.0538 [0.0077, 0.374] | 0.145 [0.0175, 0.669] | – | – |
+| s | 0.104 [0.0004, 0.999] | 0.830 [0.461, 1.43] | 0.0661 [0.0002, 0.474] | 0.741 [0.434, 1.33] | – | – |
+| ucldSd | – | – | – | – | – | 0.649 [0.409, 0.966] |
+| nSA | 13.00 [7.00, 20.00] | 14.00 [8.00, 21.00] | 13.00 [7.00, 20.00] | 13.00 [7.00, 20.00] | 14.00 [7.00, 21.00] | 14.00 [7.00, 21.00] |
+| charLL | -1636 [-1650, -1625] | -1611 [-1627, -1597] | -1636 [-1649, -1625] | -1611 [-1627, -1598] | -1636 [-1650, -1625] | -1606 [-1621, -1592] |
+
+**CET (0, 0) against RevBayes strict (R107-7).**  These are the same model up
+to one difference: RevBayes allows a sampled ancestor at the root and
+EvoTempo does not (#112).  RevBayes puts one there in 31.5% (strict) and
+41.6% (UCLN) of posterior draws.
+- So the comparison is made both unconditionally and on the RevBayes draws
+  with no root sampled ancestor (`comparison.csv`, computed by
+  `stage1-results.R`).
+- The values are means of the 4 chain means, with z from chain-mean SEs; each
+  side has 3 degrees of freedom, so |z| near 2 is weak evidence.
+
+| quantity | CET (0, 0) | RevBayes strict, all draws (z) | RevBayes strict, no root SA (z) |
+|---|---|---|---|
+| lambda | 0.537 | 0.522 (+8.52) | 0.537 (+0.02) |
+| mu | 0.598 | 0.580 (+6.45) | 0.597 (+0.46) |
+| psi | 0.0673 | 0.0702 (-8.02) | 0.0668 (+1.24) |
+| rate | 0.0201 | 0.0203 (-2.37) | 0.0201 (+0.84) |
+| crownAge | 12.39 | 12.33 (+2.97) | 12.40 (-0.65) |
+| rootAge | 62.60 | 62.14 (+23.89) | 62.65 (-2.44) |
+| originAge | 65.79 | 65.34 (+8.80) | 65.90 (-2.02) |
+| nSA | 13.20 | 13.71 (-11.69) | 13.11 (+1.61) |
+| charLL | -1637 | -1636 (-1.03) | -1636 (-1.45) |
+| P(lambda > mu) | 0.188 | 0.206 (-2.97) | 0.193 (-0.90) |
+
+- **Unconditionally, the two differ:** root age by 0.46 Myr (z 24), nSA by
+  0.5, and lambda, mu, psi by 2-5%.  The earlier statement that they
+  "agree within Monte Carlo error" was wrong.
+- **Given no root sampled ancestor, they agree:** |z| <= 1.6 for lambda, mu,
+  psi, rate, crown age, nSA and charLL.  Root and origin age differ by 0.05
+  and 0.11 Myr (z -2.4 and -2.0), which is borderline on these SEs.
+- **lambda < mu is shared by the comparator.**  P(lambda > mu) is 0.188 in
+  (0, 0) against 0.206 in RevBayes strict (0.193 given no root sampled
+  ancestor).  It comes from the data and the FBD priors, not from CET.  The
+  exception is cell (1, 1), at 0.552 (0.5525).
+- **gamma = 1 cells against UCLN.**  These are different models (CET's
+  autocorrelated tempo against uncorrelated lognormal rates), and their
+  differences are expected:
+  - crown age 13.17 / 13.30 against 13.00;
+  - charLL -1611 against -1606;
+  - P(*S. muizoni* is a sampled ancestor of extant *Spheniscus*) 0.59 against
+    0.57.
+- **theta and s.**  In the gamma = 0 cells, theta and s stay near their
+  priors (s median 0.10 / 0.07).  With gamma = 1, s is 0.83 / 0.74 and theta
+  0.098 / 0.145.
+- **Quartet consensus trees** (`ConsTree::Quartet`, pooled draws) are in
+  `stage1-results/consensus-*.nwk`, with split support in
+  `consensus-splits.csv`.
+
+### Bayes factors (provisional)
+
+**Evaluation.**
+- eval ran on the 40 chains through the link root `bf400k-root` (the 40
+  chains plus the 400 000-iteration launch record), with
+  `CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20` and #105 code (Slurm 19472716).
+- All 40 tasks exited 0.  Max |check| was 1.86e-5 (b1g0.25_run1) and max
+  |checkChar| 5.0e-12 (`eval-checks.csv`).
+- combine (Slurm 19472717) found the 40 expected chains and reproduced the
+  2026-11-16 08:21 Bayes factors exactly.
+
+log BF of `to` over `from` (`bayes-factors.csv`, `bf-steps.csv`,
+`small-squares.csv`).  The SE columns are:
+- bridge: Fruhwirth-Schnatter;
+- replicates: spread over replicate pairs;
+- chain-half: spread over the 8 (replicate, half) units, which also sees slow
+  mixing within chains (R107-2).
+
+| from | to | log BF | SE bridge / replicates / chain-half | per replicate | min Kish ESS | one-sided bracket |
+|---|---|---|---|---|---|---|
+| b0g0 | b1g0 | -0.217 | 0.007 / 0.004 / 0.005 | -0.21556 -0.22141 -0.22593 -0.20547 | 941.9 | -0.26 to -0.05 |
+| b0g1 | b1g1 | -0.584 | 0.052 / 0.058 / 0.060 | -0.44047 -0.54546 -0.63287 -0.71044 | 23.0 | -1.17 to 0.07 |
+| b0g0 | b0g1 | 9.905 | 0.224 / 0.293 / 0.210 | 10.1857 9.1354 9.9518 10.5059 | 6.7 | 8.20 to 12.27 |
+| b1g0 | b1g1 | 9.800 | 0.144 / 0.057 / 0.193 | 9.7350 9.7128 9.9650 9.8027 | 4.5 | 9.30 to 10.22 |
+
+Per bridge step:
+
+| step | log BF | SE | Kish ESS forward / reverse (of n0 / n1) | one-sided estimates | gap |
+|---|---|---|---|---|---|
+| b0g0 -> b1g0 | -0.217 | 0.007 | 941.9 / 1703.0 (of 12000 / 12000) | -0.26, -0.05 | 0.21 |
+| b0g1 -> b1g1 | -0.584 | 0.052 | 34.9 / 23.0 (of 12000 / 12000) | -1.17, 0.07 | 1.25 |
+| b0g0 -> b0g0.25 | 1.702 | 0.183 | 18.8 / 516.2 (of 12000 / 6000) | 0.64, 1.83 | 1.19 |
+| b0g0.25 -> b0g0.5 | 5.227 | 0.109 | 9.7 / 9.1 (of 6000 / 6000) | 4.58, 6.30 | 1.72 |
+| b0g0.5 -> b0g0.75 | 2.132 | 0.059 | 9.7 / 6.7 (of 6000 / 6000) | 2.15, 2.78 | 0.64 |
+| b0g0.75 -> b0g1 | 0.845 | 0.036 | 24.2 / 87.4 (of 6000 / 12000) | 0.84, 1.35 | 0.51 |
+| b1g0 -> b1g0.25 | 0.347 | 0.037 | 257.0 / 1023.9 (of 12000 / 6000) | 0.23, 0.37 | 0.14 |
+| b1g0.25 -> b1g0.5 | 3.828 | 0.130 | 4.5 / 90.7 (of 6000 / 6000) | 3.94, 4.06 | 0.12 |
+| b1g0.5 -> b1g0.75 | 3.712 | 0.041 | 89.6 / 9.9 (of 6000 / 6000) | 3.38, 3.75 | 0.37 |
+| b1g0.75 -> b1g1 | 1.913 | 0.028 | 137.3 / 121.0 (of 6000 / 12000) | 1.75, 2.04 | 0.29 |
+
+- **Closures.**  The square closes to 0.262 nats (SE 0.272).  The four small
+  squares close to 0.061, 0.158, 0.064 and -0.021, all within 3 SE.
+  - The closures cannot see a bias common to both gamma edges, because those
+    edges enter with opposite signs (R107-4).
+  - The overlap diagnostics are therefore the check that matters for gamma.
+- **gamma.**  The data favour gamma = 1 over gamma = 0 by **about 10 nats**
+  (9.90 at beta = 0, 9.80 at beta = 1).
+  - Error: the chain-half SE is about 0.2 (0.21, 0.19).  Since the rung
+    chains fail the flags, an SE of **about 0.3** is the honest quote; the
+    bridge SE (0.14 at beta = 1) understates it.
+  - **Provisional**, because overlap is poor.  On 6 of the 8 gamma steps the
+    smaller Kish ESS is 4.5-24, against the gate's 100.
+  - The summed one-sided estimates (8.20 to 12.27 at beta = 0; 9.30 to 10.22
+    at beta = 1) are a diagnostic of that overlap, not an interval.  Halves of
+    each chain show no sample-size bias (#107 review, R107-3).
+- **What gamma measures (R107-5).**  In cell (0, 1), beta = 0, so the tempo
+  process drives only the character rates (spec section 7.2: an
+  autocorrelated relaxed clock whose log-rate follows a mean-reverting
+  process, on a constant-rate FBD tree).
+  - The gamma Bayes factor is therefore evidence for **tempo-modulated,
+    autocorrelated rate variation among lineages**, not for covariation.
+  - Whether that beats *uncorrelated* rate variation (the RevBayes UCLN
+    comparator) is the common-footing question of #111.
+- **Covariation is the beta contrast.**  Given gamma = 1 it is **-0.58**
+  (SE about 0.06; chain halves show no drift), and given gamma = 0 it is -0.22.
+  - Coupling diversification to the tempo process is not supported.  The
+    gamma edges are the same at both beta (9.90, 9.80).
+  - At intermediate gamma the beta edges are -1.63, -3.19 and -1.67.
+  - Model probabilities (equal prior weight): (0, 1) 0.61, (1, 1) 0.39, the
+    gamma = 0 cells < 1e-4.  This split is the least robust number (about
+    +-0.1).
+- **Sensitivity to the prior on s (R107-16; the open decision under "Model and
+  priors").**  The gamma Bayes factor depends directly on the s prior,
+  because (0, 0) does not depend on s.  (The (1, 0) evidence does: there s
+  enters the tree prior through the tempo coupling, with log E[w] up to
+  -0.64 under LN(log 0.5, 1).)
+  - Method: reweighting the posterior draws, Z'/Z = E_post[pi'(s)/pi(s)]
+    (`s-prior-reweight.R`; Kish ESS of the weights >= 2252 of 12000).  The
+    per-chain values agree within 0.09 nats, except under LN(log 0.2, 0.5) in
+    (1, 1), where they spread by 0.26.  It gives the shift in the gamma Bayes factor
+    under log-normal alternatives on (0, 3].
+
+  | alternative prior on s | shift, beta = 0 | shift, beta = 1 |
+  |---|---|---|
+  | log-normal with the Gamma's median (0.10) and 97.5% quantile (1.0) | -0.39 | -0.44 |
+  | LN(log 0.2, 1) | +0.36 | +0.47 |
+  | LN(log 0.2, 0.5) | -1.53 | -1.20 |
+  | LN(log 0.5, 1) | +1.33 | +1.87 |
+
+  The sign and order of magnitude of the gamma Bayes factor are robust.  Its
+  value moves by up to about 2 nats with the s prior, which is more than its
+  Monte Carlo error.  The beta Bayes factor at gamma = 1 moves by at most 0.3.
+
+### Files
+
+| File | Role |
+|---|---|
+| `stage1-results.R` | Convergence (cells and rungs, meanX, rootBin), ASDSF, per-chain and pooled summaries with P(lambda > mu), the CET-RevBayes comparison with and without root sampled ancestors, quartet consensus, consistency checks, versions; `CET_MAX_SEG` / `CET_MAX_SEG_RUNG` caps |
+| `stage1-figures.R` | `fig-posteriors.png`, `fig-b0g0-strict.png`, `fig-traces.png` |
+| `s-prior-reweight.R` | Sensitivity of the Bayes factors to the prior on s, by reweighting |
+| `rung-array.sh` | Rung arrays (`RUNG_START=production` or `dispersed`) |
+| `data/start-trees/rungs/` | Start trees of the gamma = 0.125 and 0.375 rungs (draws 17-32) |
+| `jobs/` | The Slurm wrappers used for every job quoted here (R107-9) |
+| `stage1-results/` | The outputs quoted above (400 000 iterations; `versions.txt`), the Bayes-factor tables, `bf-steps.csv`, `small-squares.csv`, eval checks, gate and launch records, `s-prior-reweight.csv`.  The 9 MB `samples.csv.gz` stays on Hamilton (`$W/stage1-results-400k-v3/`) |
+
 ## Morphology-only RevBayes comparator
 
 No morphology-only baseline existed (the total-evidence baseline runs shared
 and separate clocks with DNA), so `revbayes/` adds one, matched to the CET runs
 in data, character model, tree prior, priors on lambda, mu, psi, tip ages and
-starting tree, and differing only in the clock: UCLN (non-centred), and strict
+starting tree, and differing in the clock: UCLN (non-centred), and strict
 as the RevBayes counterpart of cell (0, 0), a check of the pipeline (the two
-should agree on trees and FBD rates).  Smoke (600 iterations incl. 100
+should agree on trees and FBD rates).  One further difference is structural:
+RevBayes allows a sampled ancestor at the root, and EvoTempo does not (#112;
+"Deviations").  Smoke (600 iterations incl. 100
 tuning): strict 25 s, UCLN 137 s.  Four chains of each, 300 000 iterations
 (sample every 100, checkpoints every 5000), were launched on 2026-10-31 under
 `/nobackup/pjjg18/evotempo-penguin-cet/rbmorph/<clock>_run<k>/` (Slurm jobs
@@ -614,18 +942,18 @@ reasons.
    build the Hymenoptera and trilobite baselines use) and writes the binary
    and its `rb --version` to `out/rb_version_<CLOCK>_<REP>*.txt` (#66).
 
-**Rerun (launched 2026-11-11).**  The comparator is rerunning on RevBayes
-development **fd807d10** (1.5.0-preview; `/nobackup/pjjg18/revbayes-dev-fd807d10`),
-the project's current build, rather than a2a8e2db.  Outputs are in
-`/nobackup/pjjg18/evotempo-penguin-cet/rbmorph-fd807d10/{ucln,strict}_run1..4`,
-from Slurm jobs 19429797-19429800 (`evotempo-penguin-rbmorph-ucln-1..4`) and
-19429801-19429804 (`evotempo-penguin-rbmorph-strict-1..4`).  At 14:28 GMT
-ucln-1 was running and the other seven were pending.  No comparator results
-exist yet.  **CET cell (0, 0) is not interpreted until the strict comparator
-agrees with it.**  The strict clock is the RevBayes counterpart of (0, 0), and
-CET's b0g0 currently gives lambda of about 0.49 < mu of about 0.55
-(provisional, early segments).  A disagreement there would be a tree-prior
-question affecting all four cells.
+**Rerun (launched 2026-11-11).**
+- **Build and jobs.**  The comparator was rerun on RevBayes development
+  **fd807d10** (1.5.0-preview; `/nobackup/pjjg18/revbayes-dev-fd807d10`),
+  the project's current build, rather than a2a8e2db.  Outputs are in
+  `/nobackup/pjjg18/evotempo-penguin-cet/rbmorph-fd807d10/{ucln,strict}_run1..4`,
+  from Slurm 19429797-19429800 (`evotempo-penguin-rbmorph-ucln-1..4`) and
+  19429801-19429804 (`evotempo-penguin-rbmorph-strict-1..4`).
+- **Length.** Each chain ran 600 000 generations.  Strict run 1 took 4.3 h;
+  UCLN runs 1 and 2 took 44 and 51 h.
+- **Results** are under "Stage-1 results".  Strict agrees with CET (0, 0)
+  given no sampled ancestor at the root, the one difference between the two
+  (#112).
 
 **Data-free check of the comparator's tree moves** (`revbayes/prior-check/`).
 On a2a8e2db, the total-evidence baseline script
@@ -677,3 +1005,9 @@ would replace them.
 - No DNA (stage 1 by design).
 - Starting trees: each production chain starts from its own random sample of
   the round-4 total-evidence posterior (shared clock), not from a summary tree.
+- No sampled ancestor at the root: EvoTempo's samplers exclude it
+  (`.NoRootAncestor`), while the RevBayes comparator allows it (#112).  At the stage-1 posterior, RevBayes puts one
+  there in 31.5% (strict) and 41.6% (UCLN) of draws.  Excluding it shifts
+  root and origin age (CET's are 0.46 Myr older unconditionally) and also
+  lambda, mu, psi and nSA ("Stage-1 results").  Given no root sampled
+  ancestor, CET (0, 0) and RevBayes strict agree.

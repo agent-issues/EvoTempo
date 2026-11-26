@@ -1,0 +1,1201 @@
+"analysis","chain","quantity","mean","median","q025","q975"
+"b0g0","b0g0_run1","crownAge",12.342007435,12.275208,10.664595525,14.46179875
+"b0g0","b0g0_run1","rootAge",62.6100207216018,62.1737580229556,60.7608148351779,67.1283408675766
+"b0g0","b0g0_run1","nSA",13.2203333333333,13,6,20
+"b0g0","b0g0_run1","P(muizoni SA of extant Spheniscus)",0.423333333333333,NA,NA,NA
+"b0g0","b0g0_run1","P(sampled ancestor at the root)",0,NA,NA,NA
+"b0g0","b0g0_run1","rootAge given no root sampled ancestor",62.6100207216018,62.1737580229556,60.7608148351779,67.1283408675766
+"b0g0","b0g0_run1","P(node_2 monophyletic among extant)",0.015,NA,NA,NA
+"b0g0","b0g0_run1","node_2 tmrca age",12.3246206446667,12.263393,10.620529825,14.438439075
+"b0g0","b0g0_run1","P(node_3 monophyletic among extant)",0.815666666666667,NA,NA,NA
+"b0g0","b0g0_run1","node_3 tmrca age",10.1479793396667,10.044042,7.397911525,13.087946225
+"b0g0","b0g0_run1","P(node_4 monophyletic among extant)",0.997,NA,NA,NA
+"b0g0","b0g0_run1","node_4 tmrca age",6.47560411033334,6.397885,4.605224375,8.74472267499999
+"b0g0","b0g0_run1","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run1","node_5 tmrca age",3.02834967333334,2.9611795,1.988275975,4.32485699999999
+"b0g0","b0g0_run1","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run1","node_6 tmrca age",4.39320997366667,4.3260945,2.86280490000002,6.26565602500001
+"b0g0","b0g0_run1","P(node_7 monophyletic among extant)",0.000666666666666667,NA,NA,NA
+"b0g0","b0g0_run1","node_7 tmrca age",3.02826312933334,2.9611795,1.988275975,4.32485699999999
+"b0g0","b0g0_run1","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run1","node_8 tmrca age",1.224270263,1.1877765,0.717459975000003,1.92235525
+"b0g0","b0g0_run1","P(node_9 monophyletic among extant)",0.869666666666667,NA,NA,NA
+"b0g0","b0g0_run1","node_9 tmrca age",0.774175228333336,0.719670500000007,0.358985900000003,1.49379022500001
+"b0g0","b0g0_run1","P(node_10 monophyletic among extant)",0.493,NA,NA,NA
+"b0g0","b0g0_run1","node_10 tmrca age",1.01742673633334,0.993005500000002,0.415322599999995,1.8422484
+"b0g0","b0g0_run1","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run1","node_11 tmrca age",1.43739815766667,1.4003985,0.839113674999999,2.265601775
+"b0g0","b0g0_run1","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run1","node_12 tmrca age",0.61657300866667,0.582276999999998,0.240354675000012,1.2118474
+"b0g0","b0g0_run1","P(node_13 monophyletic among extant)",0.964333333333333,NA,NA,NA
+"b0g0","b0g0_run1","node_13 tmrca age",0.76073516766667,0.7178665,0.302278125000004,1.4803119
+"b0g0","b0g0_run1","P(node_14 monophyletic among extant)",0.925666666666667,NA,NA,NA
+"b0g0","b0g0_run1","node_14 tmrca age",0.873776190333336,0.825564500000009,0.361992825000003,1.619864075
+"b0g0","b0g0_run1","P(node_15 monophyletic among extant)",0.989,NA,NA,NA
+"b0g0","b0g0_run1","node_15 tmrca age",0.365273350333336,0.344504000000001,0.116499825000004,0.746540175000003
+"b0g0","b0g0_run1","P(node_16 monophyletic among extant)",0.344666666666667,NA,NA,NA
+"b0g0","b0g0_run1","node_16 tmrca age",0.776574987000003,0.728160000000006,0.21311682499999,1.576364025
+"b0g0","b0g0_run1","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run1","node_17 tmrca age",0.19253403266667,0.172883500000005,0.0431015000000091,0.452164175000003
+"b0g0","b0g0_run1","P(node_18 monophyletic among extant)",0.144,NA,NA,NA
+"b0g0","b0g0_run1","node_18 tmrca age",0.33042827166667,0.311712500000002,0.0564120250000062,0.712917049999996
+"b0g0","b0g0_run1","P(Spheniscus_muizoni in crown)",0.990333333333333,NA,NA,NA
+"b0g0","b0g0_run1","P(Spheniscus_muizoni sampled ancestor)",0.525333333333333,NA,NA,NA
+"b0g0","b0g0_run1","P(Spheniscus_urbinai in crown)",0.998333333333333,NA,NA,NA
+"b0g0","b0g0_run1","P(Spheniscus_urbinai sampled ancestor)",0.440666666666667,NA,NA,NA
+"b0g0","b0g0_run1","P(Spheniscus_megaramphus in crown)",0.998333333333333,NA,NA,NA
+"b0g0","b0g0_run1","P(Spheniscus_megaramphus sampled ancestor)",0.539,NA,NA,NA
+"b0g0","b0g0_run1","P(Pygoscelis_grandis in crown)",0.998,NA,NA,NA
+"b0g0","b0g0_run1","P(Pygoscelis_grandis sampled ancestor)",0.252333333333333,NA,NA,NA
+"b0g0","b0g0_run1","P(Madrynornis_mirandus in crown)",0.976,NA,NA,NA
+"b0g0","b0g0_run1","P(Madrynornis_mirandus sampled ancestor)",0.574333333333333,NA,NA,NA
+"b0g0","b0g0_run2","crownAge",12.4229141533333,12.3668755,10.75558565,14.4647302
+"b0g0","b0g0_run2","rootAge",62.6299698408161,62.1479938887878,60.7777453492567,67.3101673779594
+"b0g0","b0g0_run2","nSA",13.1006666666667,13,7,20
+"b0g0","b0g0_run2","P(muizoni SA of extant Spheniscus)",0.367333333333333,NA,NA,NA
+"b0g0","b0g0_run2","P(sampled ancestor at the root)",0,NA,NA,NA
+"b0g0","b0g0_run2","rootAge given no root sampled ancestor",62.6299698408161,62.1479938887878,60.7777453492567,67.3101673779594
+"b0g0","b0g0_run2","P(node_2 monophyletic among extant)",0.029,NA,NA,NA
+"b0g0","b0g0_run2","node_2 tmrca age",12.394043184,12.33659,10.731850975,14.452280225
+"b0g0","b0g0_run2","P(node_3 monophyletic among extant)",0.875666666666667,NA,NA,NA
+"b0g0","b0g0_run2","node_3 tmrca age",10.0637323053333,9.96176699999999,7.67388919999999,12.941953075
+"b0g0","b0g0_run2","P(node_4 monophyletic among extant)",0.995333333333333,NA,NA,NA
+"b0g0","b0g0_run2","node_4 tmrca age",6.66006818866667,6.58393300000001,4.744079225,8.92974777499999
+"b0g0","b0g0_run2","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run2","node_5 tmrca age",3.07553269066667,3.020162,2.05914435,4.38934345000001
+"b0g0","b0g0_run2","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run2","node_6 tmrca age",4.495543297,4.430853,2.98509762500001,6.36041485000001
+"b0g0","b0g0_run2","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b0g0","b0g0_run2","node_7 tmrca age",3.07553269066667,3.020162,2.05914435,4.38934345000001
+"b0g0","b0g0_run2","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run2","node_8 tmrca age",1.22279798366667,1.1918955,0.716321199999996,1.907009125
+"b0g0","b0g0_run2","P(node_9 monophyletic among extant)",0.748,NA,NA,NA
+"b0g0","b0g0_run2","node_9 tmrca age",0.858044553333336,0.788654000000001,0.377056425000003,1.6294017
+"b0g0","b0g0_run2","P(node_10 monophyletic among extant)",0.618666666666667,NA,NA,NA
+"b0g0","b0g0_run2","node_10 tmrca age",0.94308854166667,0.8989315,0.388825725000008,1.7235619
+"b0g0","b0g0_run2","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run2","node_11 tmrca age",1.47512166433334,1.43974150000001,0.847747875,2.258682725
+"b0g0","b0g0_run2","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run2","node_12 tmrca age",0.62941991666667,0.600188999999997,0.239070949999997,1.19116355
+"b0g0","b0g0_run2","P(node_13 monophyletic among extant)",0.979,NA,NA,NA
+"b0g0","b0g0_run2","node_13 tmrca age",0.75286263266667,0.70739600000001,0.294031775000001,1.44984297500002
+"b0g0","b0g0_run2","P(node_14 monophyletic among extant)",0.860333333333333,NA,NA,NA
+"b0g0","b0g0_run2","node_14 tmrca age",0.939379899000003,0.872999,0.400794700000014,1.86058000000001
+"b0g0","b0g0_run2","P(node_15 monophyletic among extant)",0.989,NA,NA,NA
+"b0g0","b0g0_run2","node_15 tmrca age",0.38060765066667,0.356104499999997,0.131334725000015,0.771892649999993
+"b0g0","b0g0_run2","P(node_16 monophyletic among extant)",0.361333333333333,NA,NA,NA
+"b0g0","b0g0_run2","node_16 tmrca age",0.71910697766667,0.677263500000002,0.218891875000011,1.43486087500001
+"b0g0","b0g0_run2","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run2","node_17 tmrca age",0.20406920566667,0.182094500000005,0.0410919500000047,0.493601950000008
+"b0g0","b0g0_run2","P(node_18 monophyletic among extant)",0.141666666666667,NA,NA,NA
+"b0g0","b0g0_run2","node_18 tmrca age",0.347184561333336,0.327860000000008,0.0672510500000069,0.749744550000008
+"b0g0","b0g0_run2","P(Spheniscus_muizoni in crown)",0.996666666666667,NA,NA,NA
+"b0g0","b0g0_run2","P(Spheniscus_muizoni sampled ancestor)",0.485666666666667,NA,NA,NA
+"b0g0","b0g0_run2","P(Spheniscus_urbinai in crown)",0.997666666666667,NA,NA,NA
+"b0g0","b0g0_run2","P(Spheniscus_urbinai sampled ancestor)",0.404,NA,NA,NA
+"b0g0","b0g0_run2","P(Spheniscus_megaramphus in crown)",0.997666666666667,NA,NA,NA
+"b0g0","b0g0_run2","P(Spheniscus_megaramphus sampled ancestor)",0.552,NA,NA,NA
+"b0g0","b0g0_run2","P(Pygoscelis_grandis in crown)",0.999,NA,NA,NA
+"b0g0","b0g0_run2","P(Pygoscelis_grandis sampled ancestor)",0.227333333333333,NA,NA,NA
+"b0g0","b0g0_run2","P(Madrynornis_mirandus in crown)",0.983,NA,NA,NA
+"b0g0","b0g0_run2","P(Madrynornis_mirandus sampled ancestor)",0.604333333333333,NA,NA,NA
+"b0g0","b0g0_run3","crownAge",12.395652888,12.312332,10.700759025,14.51013365
+"b0g0","b0g0_run3","rootAge",62.5919305255589,62.134409949638,60.789970004338,66.8487911467805
+"b0g0","b0g0_run3","nSA",13.238,13,7,20
+"b0g0","b0g0_run3","P(muizoni SA of extant Spheniscus)",0.407666666666667,NA,NA,NA
+"b0g0","b0g0_run3","P(sampled ancestor at the root)",0,NA,NA,NA
+"b0g0","b0g0_run3","rootAge given no root sampled ancestor",62.5919305255589,62.134409949638,60.789970004338,66.8487911467805
+"b0g0","b0g0_run3","P(node_2 monophyletic among extant)",0.0323333333333333,NA,NA,NA
+"b0g0","b0g0_run3","node_2 tmrca age",12.363071603,12.2805135,10.66464925,14.5065583
+"b0g0","b0g0_run3","P(node_3 monophyletic among extant)",0.836,NA,NA,NA
+"b0g0","b0g0_run3","node_3 tmrca age",10.139635394,10.010613,7.567692025,13.209971025
+"b0g0","b0g0_run3","P(node_4 monophyletic among extant)",0.998,NA,NA,NA
+"b0g0","b0g0_run3","node_4 tmrca age",6.55377284733334,6.4815715,4.669312125,8.82148125
+"b0g0","b0g0_run3","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run3","node_5 tmrca age",3.05099956,2.9990375,2.007938825,4.3589534
+"b0g0","b0g0_run3","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run3","node_6 tmrca age",4.44350153833334,4.39263600000001,2.89379395000001,6.27866267500001
+"b0g0","b0g0_run3","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b0g0","b0g0_run3","node_7 tmrca age",3.05099956,2.9990375,2.007938825,4.3589534
+"b0g0","b0g0_run3","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run3","node_8 tmrca age",1.20412319133334,1.17153350000001,0.722336224999999,1.85088769999999
+"b0g0","b0g0_run3","P(node_9 monophyletic among extant)",0.915333333333333,NA,NA,NA
+"b0g0","b0g0_run3","node_9 tmrca age",0.753001705333336,0.709870500000001,0.356714825000005,1.41070405
+"b0g0","b0g0_run3","P(node_10 monophyletic among extant)",0.679,NA,NA,NA
+"b0g0","b0g0_run3","node_10 tmrca age",0.900410517000003,0.853775000000009,0.377957300000005,1.62510975000001
+"b0g0","b0g0_run3","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run3","node_11 tmrca age",1.461265831,1.4245955,0.861339425,2.29623850000002
+"b0g0","b0g0_run3","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run3","node_12 tmrca age",0.626015125333336,0.595995000000006,0.244989200000006,1.215440575
+"b0g0","b0g0_run3","P(node_13 monophyletic among extant)",0.988666666666667,NA,NA,NA
+"b0g0","b0g0_run3","node_13 tmrca age",0.735007805333336,0.706001000000004,0.294009824999998,1.382370125
+"b0g0","b0g0_run3","P(node_14 monophyletic among extant)",0.869666666666667,NA,NA,NA
+"b0g0","b0g0_run3","node_14 tmrca age",0.932629284333336,0.871198,0.391887150000002,1.825655475
+"b0g0","b0g0_run3","P(node_15 monophyletic among extant)",0.983666666666667,NA,NA,NA
+"b0g0","b0g0_run3","node_15 tmrca age",0.37364564166667,0.349754500000003,0.121073850000009,0.790637225000005
+"b0g0","b0g0_run3","P(node_16 monophyletic among extant)",0.180333333333333,NA,NA,NA
+"b0g0","b0g0_run3","node_16 tmrca age",0.803729800000003,0.764436,0.262855349999992,1.53432445
+"b0g0","b0g0_run3","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run3","node_17 tmrca age",0.198945045333336,0.175775500000004,0.0372166999999982,0.486520450000009
+"b0g0","b0g0_run3","P(node_18 monophyletic among extant)",0.059,NA,NA,NA
+"b0g0","b0g0_run3","node_18 tmrca age",0.36151072766667,0.339568500000002,0.100383475000009,0.775908900000005
+"b0g0","b0g0_run3","P(Spheniscus_muizoni in crown)",0.999333333333333,NA,NA,NA
+"b0g0","b0g0_run3","P(Spheniscus_muizoni sampled ancestor)",0.516,NA,NA,NA
+"b0g0","b0g0_run3","P(Spheniscus_urbinai in crown)",1,NA,NA,NA
+"b0g0","b0g0_run3","P(Spheniscus_urbinai sampled ancestor)",0.416,NA,NA,NA
+"b0g0","b0g0_run3","P(Spheniscus_megaramphus in crown)",1,NA,NA,NA
+"b0g0","b0g0_run3","P(Spheniscus_megaramphus sampled ancestor)",0.562333333333333,NA,NA,NA
+"b0g0","b0g0_run3","P(Pygoscelis_grandis in crown)",0.998,NA,NA,NA
+"b0g0","b0g0_run3","P(Pygoscelis_grandis sampled ancestor)",0.247333333333333,NA,NA,NA
+"b0g0","b0g0_run3","P(Madrynornis_mirandus in crown)",0.988666666666667,NA,NA,NA
+"b0g0","b0g0_run3","P(Madrynornis_mirandus sampled ancestor)",0.610333333333333,NA,NA,NA
+"b0g0","b0g0_run4","crownAge",12.386433918,12.310064,10.6631319,14.500688
+"b0g0","b0g0_run4","rootAge",62.5600543267588,62.0924165790126,60.7913621323743,66.9442214925564
+"b0g0","b0g0_run4","nSA",13.2306666666667,13,7,20
+"b0g0","b0g0_run4","P(muizoni SA of extant Spheniscus)",0.427,NA,NA,NA
+"b0g0","b0g0_run4","P(sampled ancestor at the root)",0,NA,NA,NA
+"b0g0","b0g0_run4","rootAge given no root sampled ancestor",62.5600543267588,62.0924165790126,60.7913621323743,66.9442214925564
+"b0g0","b0g0_run4","P(node_2 monophyletic among extant)",0.0236666666666667,NA,NA,NA
+"b0g0","b0g0_run4","node_2 tmrca age",12.360272878,12.2840425,10.637461725,14.483850475
+"b0g0","b0g0_run4","P(node_3 monophyletic among extant)",0.834333333333333,NA,NA,NA
+"b0g0","b0g0_run4","node_3 tmrca age",10.123236269,9.95656000000001,7.51161602500001,13.1018341
+"b0g0","b0g0_run4","P(node_4 monophyletic among extant)",0.997666666666667,NA,NA,NA
+"b0g0","b0g0_run4","node_4 tmrca age",6.58182627233334,6.4982115,4.688820775,9.01214097500001
+"b0g0","b0g0_run4","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run4","node_5 tmrca age",3.04603684766667,3.00994250000001,2.0005132,4.38456360000001
+"b0g0","b0g0_run4","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run4","node_6 tmrca age",4.404281619,4.339016,2.9089009,6.320741575
+"b0g0","b0g0_run4","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b0g0","b0g0_run4","node_7 tmrca age",3.04603684766667,3.00994250000001,2.0005132,4.38456360000001
+"b0g0","b0g0_run4","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run4","node_8 tmrca age",1.208929722,1.17000800000001,0.707198275000003,1.881942625
+"b0g0","b0g0_run4","P(node_9 monophyletic among extant)",0.952333333333333,NA,NA,NA
+"b0g0","b0g0_run4","node_9 tmrca age",0.711793706000003,0.668945999999995,0.349603900000007,1.31431305
+"b0g0","b0g0_run4","P(node_10 monophyletic among extant)",0.477666666666667,NA,NA,NA
+"b0g0","b0g0_run4","node_10 tmrca age",1.00857131633334,0.982205500000006,0.420830850000009,1.78060555000001
+"b0g0","b0g0_run4","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run4","node_11 tmrca age",1.46165175666667,1.43099600000001,0.882124525000009,2.2469478
+"b0g0","b0g0_run4","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run4","node_12 tmrca age",0.626197470000003,0.593271000000009,0.236855225000005,1.21087599999999
+"b0g0","b0g0_run4","P(node_13 monophyletic among extant)",0.977333333333333,NA,NA,NA
+"b0g0","b0g0_run4","node_13 tmrca age",0.73198682866667,0.6950045,0.282278125000003,1.37162435
+"b0g0","b0g0_run4","P(node_14 monophyletic among extant)",0.811,NA,NA,NA
+"b0g0","b0g0_run4","node_14 tmrca age",0.965966852000003,0.910636,0.381527800000002,1.84789680000001
+"b0g0","b0g0_run4","P(node_15 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run4","node_15 tmrca age",0.35544688266667,0.332715499999999,0.114057700000004,0.718703900000013
+"b0g0","b0g0_run4","P(node_16 monophyletic among extant)",0.275333333333333,NA,NA,NA
+"b0g0","b0g0_run4","node_16 tmrca age",0.82270783766667,0.793777999999996,0.230597475000009,1.60303197500001
+"b0g0","b0g0_run4","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b0g0","b0g0_run4","node_17 tmrca age",0.188219900666669,0.170381000000013,0.038351025000002,0.447471775000007
+"b0g0","b0g0_run4","P(node_18 monophyletic among extant)",0.0423333333333333,NA,NA,NA
+"b0g0","b0g0_run4","node_18 tmrca age",0.346068824666669,0.324766500000003,0.0997457250000101,0.708491850000006
+"b0g0","b0g0_run4","P(Spheniscus_muizoni in crown)",0.989333333333333,NA,NA,NA
+"b0g0","b0g0_run4","P(Spheniscus_muizoni sampled ancestor)",0.524666666666667,NA,NA,NA
+"b0g0","b0g0_run4","P(Spheniscus_urbinai in crown)",0.997666666666667,NA,NA,NA
+"b0g0","b0g0_run4","P(Spheniscus_urbinai sampled ancestor)",0.442,NA,NA,NA
+"b0g0","b0g0_run4","P(Spheniscus_megaramphus in crown)",0.997666666666667,NA,NA,NA
+"b0g0","b0g0_run4","P(Spheniscus_megaramphus sampled ancestor)",0.559666666666667,NA,NA,NA
+"b0g0","b0g0_run4","P(Pygoscelis_grandis in crown)",0.998333333333333,NA,NA,NA
+"b0g0","b0g0_run4","P(Pygoscelis_grandis sampled ancestor)",0.236333333333333,NA,NA,NA
+"b0g0","b0g0_run4","P(Madrynornis_mirandus in crown)",0.978,NA,NA,NA
+"b0g0","b0g0_run4","P(Madrynornis_mirandus sampled ancestor)",0.574,NA,NA,NA
+"b0g1","b0g1_run1","crownAge",13.2527329723333,13.149004,11.24461555,15.772348625
+"b0g1","b0g1_run1","rootAge",62.5704682594023,62.0808288249589,60.7430668273567,67.0855716735489
+"b0g1","b0g1_run1","nSA",14.5236666666667,15,8,21
+"b0g1","b0g1_run1","P(muizoni SA of extant Spheniscus)",0.584333333333333,NA,NA,NA
+"b0g1","b0g1_run1","P(sampled ancestor at the root)",0,NA,NA,NA
+"b0g1","b0g1_run1","rootAge given no root sampled ancestor",62.5704682594023,62.0808288249589,60.7430668273567,67.0855716735489
+"b0g1","b0g1_run1","P(node_2 monophyletic among extant)",0,NA,NA,NA
+"b0g1","b0g1_run1","node_2 tmrca age",13.2527329723333,13.149004,11.24461555,15.772348625
+"b0g1","b0g1_run1","P(node_3 monophyletic among extant)",0.208666666666667,NA,NA,NA
+"b0g1","b0g1_run1","node_3 tmrca age",13.0089188916667,12.9504675,10.57393655,15.6511167
+"b0g1","b0g1_run1","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run1","node_4 tmrca age",4.42849981066667,4.34091700000001,2.20926812500001,7.09086660000001
+"b0g1","b0g1_run1","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run1","node_5 tmrca age",2.27277373233334,2.18276200000001,0.967061650000001,4.0932788
+"b0g1","b0g1_run1","P(node_6 monophyletic among extant)",0.997333333333333,NA,NA,NA
+"b0g1","b0g1_run1","node_6 tmrca age",5.56151271333334,5.52393750000001,2.90385835,8.56701940000001
+"b0g1","b0g1_run1","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b0g1","b0g1_run1","node_7 tmrca age",2.27277373233334,2.18276200000001,0.967061650000001,4.0932788
+"b0g1","b0g1_run1","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run1","node_8 tmrca age",1.8956918,1.8061995,0.810348125000008,3.51590387500001
+"b0g1","b0g1_run1","P(node_9 monophyletic among extant)",0.965,NA,NA,NA
+"b0g1","b0g1_run1","node_9 tmrca age",1.14466462366667,1.0602075,0.419143075000003,2.397655525
+"b0g1","b0g1_run1","P(node_10 monophyletic among extant)",0.603333333333333,NA,NA,NA
+"b0g1","b0g1_run1","node_10 tmrca age",1.49489815833334,1.3802535,0.468359775000005,3.04946032500001
+"b0g1","b0g1_run1","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run1","node_11 tmrca age",2.699741437,2.58482,1.11572107500002,4.954373925
+"b0g1","b0g1_run1","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run1","node_12 tmrca age",0.488990168000003,0.420021000000002,0.116650075000003,1.231822025
+"b0g1","b0g1_run1","P(node_13 monophyletic among extant)",0.973333333333333,NA,NA,NA
+"b0g1","b0g1_run1","node_13 tmrca age",1.38159356733334,1.259762,0.359261900000006,3.11245982499999
+"b0g1","b0g1_run1","P(node_14 monophyletic among extant)",0.882666666666667,NA,NA,NA
+"b0g1","b0g1_run1","node_14 tmrca age",1.62254227733334,1.472956,0.519293675000001,3.624775225
+"b0g1","b0g1_run1","P(node_15 monophyletic among extant)",0.986666666666667,NA,NA,NA
+"b0g1","b0g1_run1","node_15 tmrca age",0.589219060333336,0.526866500000004,0.157751350000002,1.36144927500001
+"b0g1","b0g1_run1","P(node_16 monophyletic among extant)",0.199666666666667,NA,NA,NA
+"b0g1","b0g1_run1","node_16 tmrca age",1.33440763233334,1.24121,0.314276325000008,2.83117867499999
+"b0g1","b0g1_run1","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run1","node_17 tmrca age",0.300083691333336,0.254109000000003,0.0480336250000033,0.840499950000003
+"b0g1","b0g1_run1","P(node_18 monophyletic among extant)",0.00666666666666667,NA,NA,NA
+"b0g1","b0g1_run1","node_18 tmrca age",0.58598447166667,0.524988500000006,0.157113025000012,1.36035305
+"b0g1","b0g1_run1","P(Spheniscus_muizoni in crown)",0.998,NA,NA,NA
+"b0g1","b0g1_run1","P(Spheniscus_muizoni sampled ancestor)",0.663,NA,NA,NA
+"b0g1","b0g1_run1","P(Spheniscus_urbinai in crown)",0.997666666666667,NA,NA,NA
+"b0g1","b0g1_run1","P(Spheniscus_urbinai sampled ancestor)",0.370666666666667,NA,NA,NA
+"b0g1","b0g1_run1","P(Spheniscus_megaramphus in crown)",0.997666666666667,NA,NA,NA
+"b0g1","b0g1_run1","P(Spheniscus_megaramphus sampled ancestor)",0.383666666666667,NA,NA,NA
+"b0g1","b0g1_run1","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"b0g1","b0g1_run1","P(Pygoscelis_grandis sampled ancestor)",0.585333333333333,NA,NA,NA
+"b0g1","b0g1_run1","P(Madrynornis_mirandus in crown)",0.997,NA,NA,NA
+"b0g1","b0g1_run1","P(Madrynornis_mirandus sampled ancestor)",0.552666666666667,NA,NA,NA
+"b0g1","b0g1_run2","crownAge",13.3408947696667,13.250709,11.183721075,15.8727174
+"b0g1","b0g1_run2","rootAge",62.5268004462338,62.053637474001,60.7885092723588,66.8431996397289
+"b0g1","b0g1_run2","nSA",14.449,14,8,21
+"b0g1","b0g1_run2","P(muizoni SA of extant Spheniscus)",0.574,NA,NA,NA
+"b0g1","b0g1_run2","P(sampled ancestor at the root)",0,NA,NA,NA
+"b0g1","b0g1_run2","rootAge given no root sampled ancestor",62.5268004462338,62.053637474001,60.7885092723588,66.8431996397289
+"b0g1","b0g1_run2","P(node_2 monophyletic among extant)",0,NA,NA,NA
+"b0g1","b0g1_run2","node_2 tmrca age",13.3408947696667,13.250709,11.183721075,15.8727174
+"b0g1","b0g1_run2","P(node_3 monophyletic among extant)",0.269333333333333,NA,NA,NA
+"b0g1","b0g1_run2","node_3 tmrca age",13.0140451636667,12.965195,10.36653195,15.73036255
+"b0g1","b0g1_run2","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run2","node_4 tmrca age",4.53006378233334,4.47072500000001,2.22839325,7.37881905000001
+"b0g1","b0g1_run2","P(node_5 monophyletic among extant)",0.994666666666667,NA,NA,NA
+"b0g1","b0g1_run2","node_5 tmrca age",2.321505618,2.211021,0.935713975000001,4.352781175
+"b0g1","b0g1_run2","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run2","node_6 tmrca age",5.67804513766667,5.639343,2.92596125,8.7527663
+"b0g1","b0g1_run2","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b0g1","b0g1_run2","node_7 tmrca age",2.321505618,2.211021,0.935713975000001,4.352781175
+"b0g1","b0g1_run2","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run2","node_8 tmrca age",1.917247287,1.817667,0.80107215,3.66870440000001
+"b0g1","b0g1_run2","P(node_9 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run2","node_9 tmrca age",1.123951688,1.026364,0.383930600000006,2.480936975
+"b0g1","b0g1_run2","P(node_10 monophyletic among extant)",0.566666666666667,NA,NA,NA
+"b0g1","b0g1_run2","node_10 tmrca age",1.53385953733334,1.4260435,0.542794499999997,3.09876445
+"b0g1","b0g1_run2","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run2","node_11 tmrca age",2.603617082,2.46025550000001,1.00127062500001,4.8542177
+"b0g1","b0g1_run2","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run2","node_12 tmrca age",0.495204182000003,0.423298500000001,0.124246299999997,1.24442910000001
+"b0g1","b0g1_run2","P(node_13 monophyletic among extant)",0.985,NA,NA,NA
+"b0g1","b0g1_run2","node_13 tmrca age",1.29639467733334,1.1713735,0.352718275000004,2.90894472500001
+"b0g1","b0g1_run2","P(node_14 monophyletic among extant)",0.834666666666667,NA,NA,NA
+"b0g1","b0g1_run2","node_14 tmrca age",1.63568307966667,1.469972,0.465284349999988,3.82427855000001
+"b0g1","b0g1_run2","P(node_15 monophyletic among extant)",0.930333333333333,NA,NA,NA
+"b0g1","b0g1_run2","node_15 tmrca age",0.608250237666669,0.527388000000002,0.147533650000004,1.496804375
+"b0g1","b0g1_run2","P(node_16 monophyletic among extant)",0.183,NA,NA,NA
+"b0g1","b0g1_run2","node_16 tmrca age",1.39109691966667,1.29658400000001,0.326623150000005,3.0292633
+"b0g1","b0g1_run2","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run2","node_17 tmrca age",0.300208360333336,0.245256000000001,0.0476760000000063,0.875778224999992
+"b0g1","b0g1_run2","P(node_18 monophyletic among extant)",0.052,NA,NA,NA
+"b0g1","b0g1_run2","node_18 tmrca age",0.571022636333336,0.500369500000005,0.124430374999998,1.410997625
+"b0g1","b0g1_run2","P(Spheniscus_muizoni in crown)",0.992,NA,NA,NA
+"b0g1","b0g1_run2","P(Spheniscus_muizoni sampled ancestor)",0.671,NA,NA,NA
+"b0g1","b0g1_run2","P(Spheniscus_urbinai in crown)",0.995666666666667,NA,NA,NA
+"b0g1","b0g1_run2","P(Spheniscus_urbinai sampled ancestor)",0.371333333333333,NA,NA,NA
+"b0g1","b0g1_run2","P(Spheniscus_megaramphus in crown)",0.995666666666667,NA,NA,NA
+"b0g1","b0g1_run2","P(Spheniscus_megaramphus sampled ancestor)",0.356,NA,NA,NA
+"b0g1","b0g1_run2","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"b0g1","b0g1_run2","P(Pygoscelis_grandis sampled ancestor)",0.547666666666667,NA,NA,NA
+"b0g1","b0g1_run2","P(Madrynornis_mirandus in crown)",0.990333333333333,NA,NA,NA
+"b0g1","b0g1_run2","P(Madrynornis_mirandus sampled ancestor)",0.562333333333333,NA,NA,NA
+"b0g1","b0g1_run3","crownAge",13.2407379566667,13.169724,11.20552085,15.7637148
+"b0g1","b0g1_run3","rootAge",62.4873843552656,62.034429896479,60.7357569398633,67.0981941414811
+"b0g1","b0g1_run3","nSA",14.2236666666667,14,7,21
+"b0g1","b0g1_run3","P(muizoni SA of extant Spheniscus)",0.610333333333333,NA,NA,NA
+"b0g1","b0g1_run3","P(sampled ancestor at the root)",0,NA,NA,NA
+"b0g1","b0g1_run3","rootAge given no root sampled ancestor",62.4873843552656,62.034429896479,60.7357569398633,67.0981941414811
+"b0g1","b0g1_run3","P(node_2 monophyletic among extant)",0,NA,NA,NA
+"b0g1","b0g1_run3","node_2 tmrca age",13.2407379566667,13.169724,11.20552085,15.7637148
+"b0g1","b0g1_run3","P(node_3 monophyletic among extant)",0.151333333333333,NA,NA,NA
+"b0g1","b0g1_run3","node_3 tmrca age",13.0898118126667,13.0319355,10.77997325,15.685564225
+"b0g1","b0g1_run3","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run3","node_4 tmrca age",4.255746813,4.1366725,2.017018425,7.39406660000002
+"b0g1","b0g1_run3","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run3","node_5 tmrca age",2.18576640766667,2.08737400000001,0.881151724999989,4.06919505000001
+"b0g1","b0g1_run3","P(node_6 monophyletic among extant)",0.997,NA,NA,NA
+"b0g1","b0g1_run3","node_6 tmrca age",5.34701875633334,5.3045195,2.709493075,8.433584075
+"b0g1","b0g1_run3","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b0g1","b0g1_run3","node_7 tmrca age",2.18576640766667,2.08737400000001,0.881151724999989,4.06919505000001
+"b0g1","b0g1_run3","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run3","node_8 tmrca age",1.79587200966667,1.6954375,0.749967375000002,3.45285145
+"b0g1","b0g1_run3","P(node_9 monophyletic among extant)",0.984666666666667,NA,NA,NA
+"b0g1","b0g1_run3","node_9 tmrca age",1.049417689,0.963016500000002,0.359881150000009,2.228328725
+"b0g1","b0g1_run3","P(node_10 monophyletic among extant)",0.490333333333333,NA,NA,NA
+"b0g1","b0g1_run3","node_10 tmrca age",1.47171558033334,1.380042,0.522715075000004,3.0051468
+"b0g1","b0g1_run3","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run3","node_11 tmrca age",2.67521182,2.540309,1.10398582500001,4.94310484999999
+"b0g1","b0g1_run3","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run3","node_12 tmrca age",0.465568874333336,0.404737000000001,0.107329850000004,1.24918035000001
+"b0g1","b0g1_run3","P(node_13 monophyletic among extant)",0.957,NA,NA,NA
+"b0g1","b0g1_run3","node_13 tmrca age",1.39671910333334,1.24713450000001,0.395143350000003,3.29940807500002
+"b0g1","b0g1_run3","P(node_14 monophyletic among extant)",0.898,NA,NA,NA
+"b0g1","b0g1_run3","node_14 tmrca age",1.60370106333334,1.47130600000001,0.467853700000003,3.6045891
+"b0g1","b0g1_run3","P(node_15 monophyletic among extant)",0.979333333333333,NA,NA,NA
+"b0g1","b0g1_run3","node_15 tmrca age",0.550170663333336,0.482775000000004,0.143294649999996,1.287452175
+"b0g1","b0g1_run3","P(node_16 monophyletic among extant)",0.246,NA,NA,NA
+"b0g1","b0g1_run3","node_16 tmrca age",1.24315278733334,1.121939,0.303933875000008,2.851725
+"b0g1","b0g1_run3","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run3","node_17 tmrca age",0.281228410333336,0.231017000000005,0.0436424250000075,0.819597399999998
+"b0g1","b0g1_run3","P(node_18 monophyletic among extant)",0.127333333333333,NA,NA,NA
+"b0g1","b0g1_run3","node_18 tmrca age",0.523671069000003,0.461795500000001,0.0702766749999947,1.287452175
+"b0g1","b0g1_run3","P(Spheniscus_muizoni in crown)",0.998666666666667,NA,NA,NA
+"b0g1","b0g1_run3","P(Spheniscus_muizoni sampled ancestor)",0.648666666666667,NA,NA,NA
+"b0g1","b0g1_run3","P(Spheniscus_urbinai in crown)",0.996,NA,NA,NA
+"b0g1","b0g1_run3","P(Spheniscus_urbinai sampled ancestor)",0.363,NA,NA,NA
+"b0g1","b0g1_run3","P(Spheniscus_megaramphus in crown)",0.995666666666667,NA,NA,NA
+"b0g1","b0g1_run3","P(Spheniscus_megaramphus sampled ancestor)",0.375333333333333,NA,NA,NA
+"b0g1","b0g1_run3","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"b0g1","b0g1_run3","P(Pygoscelis_grandis sampled ancestor)",0.561333333333333,NA,NA,NA
+"b0g1","b0g1_run3","P(Madrynornis_mirandus in crown)",0.989,NA,NA,NA
+"b0g1","b0g1_run3","P(Madrynornis_mirandus sampled ancestor)",0.545,NA,NA,NA
+"b0g1","b0g1_run4","crownAge",13.210621639,13.091477,11.18910405,15.774202625
+"b0g1","b0g1_run4","rootAge",62.4641410640711,61.9890106985237,60.7454419745993,66.6854112492309
+"b0g1","b0g1_run4","nSA",14.3596666666667,14,7,21
+"b0g1","b0g1_run4","P(muizoni SA of extant Spheniscus)",0.602666666666667,NA,NA,NA
+"b0g1","b0g1_run4","P(sampled ancestor at the root)",0,NA,NA,NA
+"b0g1","b0g1_run4","rootAge given no root sampled ancestor",62.4641410640711,61.9890106985237,60.7454419745993,66.6854112492309
+"b0g1","b0g1_run4","P(node_2 monophyletic among extant)",0,NA,NA,NA
+"b0g1","b0g1_run4","node_2 tmrca age",13.210621639,13.091477,11.18910405,15.774202625
+"b0g1","b0g1_run4","P(node_3 monophyletic among extant)",0.178333333333333,NA,NA,NA
+"b0g1","b0g1_run4","node_3 tmrca age",13.017834143,12.9307535,10.57635545,15.734736925
+"b0g1","b0g1_run4","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run4","node_4 tmrca age",4.163896962,4.03266300000001,2.08149209999999,6.872082325
+"b0g1","b0g1_run4","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run4","node_5 tmrca age",2.145955,2.049604,0.928308324999997,3.884199625
+"b0g1","b0g1_run4","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run4","node_6 tmrca age",5.414260642,5.31784750000001,2.92926480000001,8.50527190000001
+"b0g1","b0g1_run4","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b0g1","b0g1_run4","node_7 tmrca age",2.145955,2.049604,0.928308324999997,3.884199625
+"b0g1","b0g1_run4","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run4","node_8 tmrca age",1.847402767,1.7520235,0.767637225000005,3.4884551
+"b0g1","b0g1_run4","P(node_9 monophyletic among extant)",0.910333333333333,NA,NA,NA
+"b0g1","b0g1_run4","node_9 tmrca age",1.159133552,1.072021,0.428574450000012,2.35427020000001
+"b0g1","b0g1_run4","P(node_10 monophyletic among extant)",0.625333333333333,NA,NA,NA
+"b0g1","b0g1_run4","node_10 tmrca age",1.46265804366667,1.33523750000001,0.472653775000006,3.2315349
+"b0g1","b0g1_run4","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run4","node_11 tmrca age",2.707016612,2.569288,1.124475925,5.17530445
+"b0g1","b0g1_run4","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run4","node_12 tmrca age",0.463636406333336,0.384159499999999,0.105648700000001,1.26885185
+"b0g1","b0g1_run4","P(node_13 monophyletic among extant)",0.958333333333333,NA,NA,NA
+"b0g1","b0g1_run4","node_13 tmrca age",1.37029409866667,1.223842,0.377304074999997,3.28452455
+"b0g1","b0g1_run4","P(node_14 monophyletic among extant)",0.851,NA,NA,NA
+"b0g1","b0g1_run4","node_14 tmrca age",1.66459603033334,1.484943,0.463719249999987,3.73025995
+"b0g1","b0g1_run4","P(node_15 monophyletic among extant)",0.927666666666667,NA,NA,NA
+"b0g1","b0g1_run4","node_15 tmrca age",0.61550592666667,0.533624500000002,0.160069200000011,1.532367175
+"b0g1","b0g1_run4","P(node_16 monophyletic among extant)",0.322333333333333,NA,NA,NA
+"b0g1","b0g1_run4","node_16 tmrca age",1.17547974133334,1.0521405,0.299185675000006,2.83331165
+"b0g1","b0g1_run4","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b0g1","b0g1_run4","node_17 tmrca age",0.294694925000003,0.251583500000006,0.0517037249999971,0.812833199999998
+"b0g1","b0g1_run4","P(node_18 monophyletic among extant)",0.308666666666667,NA,NA,NA
+"b0g1","b0g1_run4","node_18 tmrca age",0.499914028000003,0.430201500000003,0.0591304750000008,1.38040954999999
+"b0g1","b0g1_run4","P(Spheniscus_muizoni in crown)",0.998333333333333,NA,NA,NA
+"b0g1","b0g1_run4","P(Spheniscus_muizoni sampled ancestor)",0.670666666666667,NA,NA,NA
+"b0g1","b0g1_run4","P(Spheniscus_urbinai in crown)",0.994666666666667,NA,NA,NA
+"b0g1","b0g1_run4","P(Spheniscus_urbinai sampled ancestor)",0.377666666666667,NA,NA,NA
+"b0g1","b0g1_run4","P(Spheniscus_megaramphus in crown)",0.994666666666667,NA,NA,NA
+"b0g1","b0g1_run4","P(Spheniscus_megaramphus sampled ancestor)",0.356666666666667,NA,NA,NA
+"b0g1","b0g1_run4","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"b0g1","b0g1_run4","P(Pygoscelis_grandis sampled ancestor)",0.585666666666667,NA,NA,NA
+"b0g1","b0g1_run4","P(Madrynornis_mirandus in crown)",0.995666666666667,NA,NA,NA
+"b0g1","b0g1_run4","P(Madrynornis_mirandus sampled ancestor)",0.551666666666667,NA,NA,NA
+"b1g0","b1g0_run1","crownAge",12.4093312433333,12.3255355,10.6817794,14.448181925
+"b1g0","b1g0_run1","rootAge",62.6412962032128,62.1826637195895,60.7838506787819,66.707084505106
+"b1g0","b1g0_run1","nSA",13.2346666666667,13,7,20
+"b1g0","b1g0_run1","P(muizoni SA of extant Spheniscus)",0.378666666666667,NA,NA,NA
+"b1g0","b1g0_run1","P(sampled ancestor at the root)",0,NA,NA,NA
+"b1g0","b1g0_run1","rootAge given no root sampled ancestor",62.6412962032128,62.1826637195895,60.7838506787819,66.707084505106
+"b1g0","b1g0_run1","P(node_2 monophyletic among extant)",0.022,NA,NA,NA
+"b1g0","b1g0_run1","node_2 tmrca age",12.385671023,12.3070855,10.64603905,14.444002325
+"b1g0","b1g0_run1","P(node_3 monophyletic among extant)",0.855,NA,NA,NA
+"b1g0","b1g0_run1","node_3 tmrca age",10.1241868003333,9.9606735,7.62877325,13.228452525
+"b1g0","b1g0_run1","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_4 tmrca age",6.595467629,6.535015,4.6462613,8.8570882
+"b1g0","b1g0_run1","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_5 tmrca age",3.06248502433334,3.01117700000001,1.986553875,4.34596222500001
+"b1g0","b1g0_run1","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_6 tmrca age",4.45661763666667,4.39103100000001,2.96603802500001,6.3059097
+"b1g0","b1g0_run1","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b1g0","b1g0_run1","node_7 tmrca age",3.06248502433334,3.01117700000001,1.986553875,4.34596222500001
+"b1g0","b1g0_run1","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_8 tmrca age",1.22901817266667,1.1912305,0.713940525000004,1.918719775
+"b1g0","b1g0_run1","P(node_9 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_9 tmrca age",0.713927863333336,0.690808500000003,0.345749375000006,1.226876825
+"b1g0","b1g0_run1","P(node_10 monophyletic among extant)",0.580666666666667,NA,NA,NA
+"b1g0","b1g0_run1","node_10 tmrca age",0.984784688000003,0.945009500000005,0.414095324999998,1.760928975
+"b1g0","b1g0_run1","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_11 tmrca age",1.46034729633334,1.4235395,0.869869000000006,2.24535785
+"b1g0","b1g0_run1","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_12 tmrca age",0.639772509000003,0.613157500000003,0.248633149999991,1.2062508
+"b1g0","b1g0_run1","P(node_13 monophyletic among extant)",0.966666666666667,NA,NA,NA
+"b1g0","b1g0_run1","node_13 tmrca age",0.766247229000003,0.718650000000011,0.301217599999988,1.49487865
+"b1g0","b1g0_run1","P(node_14 monophyletic among extant)",0.964333333333333,NA,NA,NA
+"b1g0","b1g0_run1","node_14 tmrca age",0.858966592333336,0.823858000000005,0.380249700000009,1.574043975
+"b1g0","b1g0_run1","P(node_15 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_15 tmrca age",0.358407956666669,0.336267999999993,0.121605800000004,0.718613050000005
+"b1g0","b1g0_run1","P(node_16 monophyletic among extant)",0.378666666666667,NA,NA,NA
+"b1g0","b1g0_run1","node_16 tmrca age",0.751556845000003,0.703584000000003,0.221591575000003,1.54037720000001
+"b1g0","b1g0_run1","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run1","node_17 tmrca age",0.194846816333336,0.175570999999998,0.0377335249999948,0.456463200000006
+"b1g0","b1g0_run1","P(node_18 monophyletic among extant)",0.0623333333333333,NA,NA,NA
+"b1g0","b1g0_run1","node_18 tmrca age",0.345855677666669,0.326832499999998,0.0911210000000004,0.712880250000007
+"b1g0","b1g0_run1","P(Spheniscus_muizoni in crown)",0.992333333333333,NA,NA,NA
+"b1g0","b1g0_run1","P(Spheniscus_muizoni sampled ancestor)",0.508333333333333,NA,NA,NA
+"b1g0","b1g0_run1","P(Spheniscus_urbinai in crown)",1,NA,NA,NA
+"b1g0","b1g0_run1","P(Spheniscus_urbinai sampled ancestor)",0.416666666666667,NA,NA,NA
+"b1g0","b1g0_run1","P(Spheniscus_megaramphus in crown)",1,NA,NA,NA
+"b1g0","b1g0_run1","P(Spheniscus_megaramphus sampled ancestor)",0.566,NA,NA,NA
+"b1g0","b1g0_run1","P(Pygoscelis_grandis in crown)",0.998666666666667,NA,NA,NA
+"b1g0","b1g0_run1","P(Pygoscelis_grandis sampled ancestor)",0.233666666666667,NA,NA,NA
+"b1g0","b1g0_run1","P(Madrynornis_mirandus in crown)",0.973,NA,NA,NA
+"b1g0","b1g0_run1","P(Madrynornis_mirandus sampled ancestor)",0.586333333333333,NA,NA,NA
+"b1g0","b1g0_run2","crownAge",12.415558314,12.3331715,10.759329125,14.542079975
+"b1g0","b1g0_run2","rootAge",62.6974485966591,62.1927707751831,60.7669136631995,67.4439697643117
+"b1g0","b1g0_run2","nSA",13.1773333333333,13,7,20
+"b1g0","b1g0_run2","P(muizoni SA of extant Spheniscus)",0.440666666666667,NA,NA,NA
+"b1g0","b1g0_run2","P(sampled ancestor at the root)",0,NA,NA,NA
+"b1g0","b1g0_run2","rootAge given no root sampled ancestor",62.6974485966591,62.1927707751831,60.7669136631995,67.4439697643117
+"b1g0","b1g0_run2","P(node_2 monophyletic among extant)",0.0323333333333333,NA,NA,NA
+"b1g0","b1g0_run2","node_2 tmrca age",12.3824700196667,12.2900625,10.727097575,14.5387699
+"b1g0","b1g0_run2","P(node_3 monophyletic among extant)",0.867666666666667,NA,NA,NA
+"b1g0","b1g0_run2","node_3 tmrca age",10.0857121613333,10.0163885,7.41320530000001,12.949534325
+"b1g0","b1g0_run2","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run2","node_4 tmrca age",6.62680020633334,6.563336,4.70245380000001,8.8370092
+"b1g0","b1g0_run2","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run2","node_5 tmrca age",3.07005522,3.02682550000001,1.95174202500001,4.40737084999999
+"b1g0","b1g0_run2","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run2","node_6 tmrca age",4.47214310766667,4.4254685,2.98433152500001,6.348630925
+"b1g0","b1g0_run2","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b1g0","b1g0_run2","node_7 tmrca age",3.07005522,3.02682550000001,1.95174202500001,4.40737084999999
+"b1g0","b1g0_run2","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run2","node_8 tmrca age",1.23847746466667,1.19909100000001,0.729645850000003,1.95534147499998
+"b1g0","b1g0_run2","P(node_9 monophyletic among extant)",0.925333333333333,NA,NA,NA
+"b1g0","b1g0_run2","node_9 tmrca age",0.763192784000003,0.720653000000002,0.372979850000003,1.4525189
+"b1g0","b1g0_run2","P(node_10 monophyletic among extant)",0.653333333333333,NA,NA,NA
+"b1g0","b1g0_run2","node_10 tmrca age",0.951736485000003,0.918385000000001,0.390960025,1.73100047500001
+"b1g0","b1g0_run2","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run2","node_11 tmrca age",1.46875598,1.424747,0.848437000000004,2.296699825
+"b1g0","b1g0_run2","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run2","node_12 tmrca age",0.62871087066667,0.593253000000008,0.248938100000011,1.204533075
+"b1g0","b1g0_run2","P(node_13 monophyletic among extant)",0.986,NA,NA,NA
+"b1g0","b1g0_run2","node_13 tmrca age",0.73872125666667,0.701592000000002,0.285296150000013,1.4153135
+"b1g0","b1g0_run2","P(node_14 monophyletic among extant)",0.897,NA,NA,NA
+"b1g0","b1g0_run2","node_14 tmrca age",0.919333938000003,0.868668000000007,0.388607174999995,1.75241202500001
+"b1g0","b1g0_run2","P(node_15 monophyletic among extant)",0.962333333333333,NA,NA,NA
+"b1g0","b1g0_run2","node_15 tmrca age",0.379822223333336,0.351152000000003,0.12496024999999,0.772018200000004
+"b1g0","b1g0_run2","P(node_16 monophyletic among extant)",0.351333333333333,NA,NA,NA
+"b1g0","b1g0_run2","node_16 tmrca age",0.722972289000003,0.692031499999999,0.229568075000017,1.404615
+"b1g0","b1g0_run2","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run2","node_17 tmrca age",0.202108329333336,0.179871000000002,0.0409114999999986,0.498094124999981
+"b1g0","b1g0_run2","P(node_18 monophyletic among extant)",0,NA,NA,NA
+"b1g0","b1g0_run2","node_18 tmrca age",0.379822223333336,0.351152000000003,0.12496024999999,0.772018200000004
+"b1g0","b1g0_run2","P(Spheniscus_muizoni in crown)",0.998333333333333,NA,NA,NA
+"b1g0","b1g0_run2","P(Spheniscus_muizoni sampled ancestor)",0.531333333333333,NA,NA,NA
+"b1g0","b1g0_run2","P(Spheniscus_urbinai in crown)",0.999666666666667,NA,NA,NA
+"b1g0","b1g0_run2","P(Spheniscus_urbinai sampled ancestor)",0.427,NA,NA,NA
+"b1g0","b1g0_run2","P(Spheniscus_megaramphus in crown)",0.999666666666667,NA,NA,NA
+"b1g0","b1g0_run2","P(Spheniscus_megaramphus sampled ancestor)",0.538666666666667,NA,NA,NA
+"b1g0","b1g0_run2","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"b1g0","b1g0_run2","P(Pygoscelis_grandis sampled ancestor)",0.255333333333333,NA,NA,NA
+"b1g0","b1g0_run2","P(Madrynornis_mirandus in crown)",0.989333333333333,NA,NA,NA
+"b1g0","b1g0_run2","P(Madrynornis_mirandus sampled ancestor)",0.605333333333333,NA,NA,NA
+"b1g0","b1g0_run3","crownAge",12.3328260893333,12.2542125,10.58082525,14.374744
+"b1g0","b1g0_run3","rootAge",62.6596514323654,62.1673432780435,60.7678463225462,67.2226556711964
+"b1g0","b1g0_run3","nSA",13.454,13,7,20
+"b1g0","b1g0_run3","P(muizoni SA of extant Spheniscus)",0.396666666666667,NA,NA,NA
+"b1g0","b1g0_run3","P(sampled ancestor at the root)",0,NA,NA,NA
+"b1g0","b1g0_run3","rootAge given no root sampled ancestor",62.6596514323654,62.1673432780435,60.7678463225462,67.2226556711964
+"b1g0","b1g0_run3","P(node_2 monophyletic among extant)",0.021,NA,NA,NA
+"b1g0","b1g0_run3","node_2 tmrca age",12.3089839296667,12.23017,10.569688625,14.338629425
+"b1g0","b1g0_run3","P(node_3 monophyletic among extant)",0.856,NA,NA,NA
+"b1g0","b1g0_run3","node_3 tmrca age",10.0730928436667,9.9640055,7.59368935,12.9974262
+"b1g0","b1g0_run3","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run3","node_4 tmrca age",6.508181562,6.468519,4.6330659,8.69266984999999
+"b1g0","b1g0_run3","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run3","node_5 tmrca age",3.04267681366667,3.00903,1.979554025,4.29701132500001
+"b1g0","b1g0_run3","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run3","node_6 tmrca age",4.413103388,4.3289225,2.93762322500001,6.248232575
+"b1g0","b1g0_run3","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b1g0","b1g0_run3","node_7 tmrca age",3.04267681366667,3.00903,1.979554025,4.29701132500001
+"b1g0","b1g0_run3","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run3","node_8 tmrca age",1.20885874466667,1.1866585,0.705986574999995,1.87442557499999
+"b1g0","b1g0_run3","P(node_9 monophyletic among extant)",0.823,NA,NA,NA
+"b1g0","b1g0_run3","node_9 tmrca age",0.785306633333336,0.735912000000003,0.357739975000007,1.44192417499999
+"b1g0","b1g0_run3","P(node_10 monophyletic among extant)",0.544666666666667,NA,NA,NA
+"b1g0","b1g0_run3","node_10 tmrca age",0.97724517766667,0.942263500000003,0.408637125000003,1.76068905000002
+"b1g0","b1g0_run3","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run3","node_11 tmrca age",1.474622891,1.42912000000001,0.84040277499999,2.317287175
+"b1g0","b1g0_run3","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run3","node_12 tmrca age",0.620607500000003,0.586120000000001,0.242225325000003,1.16920962499999
+"b1g0","b1g0_run3","P(node_13 monophyletic among extant)",0.995333333333333,NA,NA,NA
+"b1g0","b1g0_run3","node_13 tmrca age",0.751833612666669,0.714271500000009,0.310765200000008,1.39741907499999
+"b1g0","b1g0_run3","P(node_14 monophyletic among extant)",0.952333333333333,NA,NA,NA
+"b1g0","b1g0_run3","node_14 tmrca age",0.881143834000003,0.833716500000005,0.368279550000003,1.676882075
+"b1g0","b1g0_run3","P(node_15 monophyletic among extant)",0.938333333333333,NA,NA,NA
+"b1g0","b1g0_run3","node_15 tmrca age",0.384356349000003,0.3569435,0.122156225000005,0.816951325000006
+"b1g0","b1g0_run3","P(node_16 monophyletic among extant)",0.395666666666667,NA,NA,NA
+"b1g0","b1g0_run3","node_16 tmrca age",0.73145665666667,0.685399500000006,0.216405350000007,1.52180447500001
+"b1g0","b1g0_run3","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run3","node_17 tmrca age",0.19549671566667,0.172076499999999,0.0392886250000052,0.476674075000015
+"b1g0","b1g0_run3","P(node_18 monophyletic among extant)",0.142666666666667,NA,NA,NA
+"b1g0","b1g0_run3","node_18 tmrca age",0.352569134000003,0.327936499999993,0.0663081750000075,0.801334075000007
+"b1g0","b1g0_run3","P(Spheniscus_muizoni in crown)",0.994,NA,NA,NA
+"b1g0","b1g0_run3","P(Spheniscus_muizoni sampled ancestor)",0.518666666666667,NA,NA,NA
+"b1g0","b1g0_run3","P(Spheniscus_urbinai in crown)",0.999666666666667,NA,NA,NA
+"b1g0","b1g0_run3","P(Spheniscus_urbinai sampled ancestor)",0.426,NA,NA,NA
+"b1g0","b1g0_run3","P(Spheniscus_megaramphus in crown)",0.999666666666667,NA,NA,NA
+"b1g0","b1g0_run3","P(Spheniscus_megaramphus sampled ancestor)",0.552333333333333,NA,NA,NA
+"b1g0","b1g0_run3","P(Pygoscelis_grandis in crown)",0.996333333333333,NA,NA,NA
+"b1g0","b1g0_run3","P(Pygoscelis_grandis sampled ancestor)",0.270666666666667,NA,NA,NA
+"b1g0","b1g0_run3","P(Madrynornis_mirandus in crown)",0.975,NA,NA,NA
+"b1g0","b1g0_run3","P(Madrynornis_mirandus sampled ancestor)",0.597666666666667,NA,NA,NA
+"b1g0","b1g0_run4","crownAge",12.4566700626667,12.4004565,10.686169075,14.628438775
+"b1g0","b1g0_run4","rootAge",62.6422927349764,62.1729624842575,60.7773439721807,66.9169914815085
+"b1g0","b1g0_run4","nSA",13.1686666666667,13,7,20
+"b1g0","b1g0_run4","P(muizoni SA of extant Spheniscus)",0.442,NA,NA,NA
+"b1g0","b1g0_run4","P(sampled ancestor at the root)",0,NA,NA,NA
+"b1g0","b1g0_run4","rootAge given no root sampled ancestor",62.6422927349764,62.1729624842575,60.7773439721807,66.9169914815085
+"b1g0","b1g0_run4","P(node_2 monophyletic among extant)",0.0203333333333333,NA,NA,NA
+"b1g0","b1g0_run4","node_2 tmrca age",12.430800734,12.361779,10.665108225,14.6252808
+"b1g0","b1g0_run4","P(node_3 monophyletic among extant)",0.837,NA,NA,NA
+"b1g0","b1g0_run4","node_3 tmrca age",10.200789765,10.0918255,7.634501675,13.18458025
+"b1g0","b1g0_run4","P(node_4 monophyletic among extant)",0.999,NA,NA,NA
+"b1g0","b1g0_run4","node_4 tmrca age",6.659350701,6.6073275,4.708981175,8.918070625
+"b1g0","b1g0_run4","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run4","node_5 tmrca age",3.064545971,3.00968800000001,2.005207675,4.402465825
+"b1g0","b1g0_run4","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run4","node_6 tmrca age",4.48629097233334,4.424488,3.02889800000001,6.287599275
+"b1g0","b1g0_run4","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b1g0","b1g0_run4","node_7 tmrca age",3.064545971,3.00968800000001,2.005207675,4.402465825
+"b1g0","b1g0_run4","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run4","node_8 tmrca age",1.23983094666667,1.2056205,0.711793075000002,1.96096137500001
+"b1g0","b1g0_run4","P(node_9 monophyletic among extant)",0.957333333333333,NA,NA,NA
+"b1g0","b1g0_run4","node_9 tmrca age",0.732912365000003,0.698711000000007,0.361706775000004,1.303935875
+"b1g0","b1g0_run4","P(node_10 monophyletic among extant)",0.584666666666667,NA,NA,NA
+"b1g0","b1g0_run4","node_10 tmrca age",0.98381725566667,0.941511000000009,0.393962050000001,1.81625850000001
+"b1g0","b1g0_run4","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run4","node_11 tmrca age",1.474635441,1.433257,0.848226000000004,2.32346745000001
+"b1g0","b1g0_run4","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run4","node_12 tmrca age",0.63209913866667,0.593377999999998,0.244361,1.22289175
+"b1g0","b1g0_run4","P(node_13 monophyletic among extant)",0.988333333333333,NA,NA,NA
+"b1g0","b1g0_run4","node_13 tmrca age",0.71910494166667,0.677876000000008,0.277168400000005,1.39129765
+"b1g0","b1g0_run4","P(node_14 monophyletic among extant)",0.768333333333333,NA,NA,NA
+"b1g0","b1g0_run4","node_14 tmrca age",0.995838809333336,0.926097000000006,0.398798025000004,1.96621205000001
+"b1g0","b1g0_run4","P(node_15 monophyletic among extant)",0.989666666666667,NA,NA,NA
+"b1g0","b1g0_run4","node_15 tmrca age",0.36435937066667,0.341629500000003,0.122179975000009,0.750780025000004
+"b1g0","b1g0_run4","P(node_16 monophyletic among extant)",0.369333333333333,NA,NA,NA
+"b1g0","b1g0_run4","node_16 tmrca age",0.73633485866667,0.688983499999999,0.237119950000001,1.47217552499999
+"b1g0","b1g0_run4","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b1g0","b1g0_run4","node_17 tmrca age",0.195669217333336,0.174587999999996,0.0426719250000026,0.467609550000004
+"b1g0","b1g0_run4","P(node_18 monophyletic among extant)",0.037,NA,NA,NA
+"b1g0","b1g0_run4","node_18 tmrca age",0.35657790666667,0.334023000000006,0.107393025,0.7430551
+"b1g0","b1g0_run4","P(Spheniscus_muizoni in crown)",0.998666666666667,NA,NA,NA
+"b1g0","b1g0_run4","P(Spheniscus_muizoni sampled ancestor)",0.542,NA,NA,NA
+"b1g0","b1g0_run4","P(Spheniscus_urbinai in crown)",0.998666666666667,NA,NA,NA
+"b1g0","b1g0_run4","P(Spheniscus_urbinai sampled ancestor)",0.402666666666667,NA,NA,NA
+"b1g0","b1g0_run4","P(Spheniscus_megaramphus in crown)",0.998666666666667,NA,NA,NA
+"b1g0","b1g0_run4","P(Spheniscus_megaramphus sampled ancestor)",0.540666666666667,NA,NA,NA
+"b1g0","b1g0_run4","P(Pygoscelis_grandis in crown)",0.999,NA,NA,NA
+"b1g0","b1g0_run4","P(Pygoscelis_grandis sampled ancestor)",0.232666666666667,NA,NA,NA
+"b1g0","b1g0_run4","P(Madrynornis_mirandus in crown)",0.985333333333333,NA,NA,NA
+"b1g0","b1g0_run4","P(Madrynornis_mirandus sampled ancestor)",0.619666666666667,NA,NA,NA
+"b1g1","b1g1_run1","crownAge",13.3371872683333,13.2185155,11.198185425,16.08602385
+"b1g1","b1g1_run1","rootAge",62.8984849953248,62.2228349565961,60.7804175346255,68.9324926114852
+"b1g1","b1g1_run1","nSA",13.5393333333333,14,7,20
+"b1g1","b1g1_run1","P(muizoni SA of extant Spheniscus)",0.615333333333333,NA,NA,NA
+"b1g1","b1g1_run1","P(sampled ancestor at the root)",0,NA,NA,NA
+"b1g1","b1g1_run1","rootAge given no root sampled ancestor",62.8984849953248,62.2228349565961,60.7804175346255,68.9324926114852
+"b1g1","b1g1_run1","P(node_2 monophyletic among extant)",0.0116666666666667,NA,NA,NA
+"b1g1","b1g1_run1","node_2 tmrca age",13.3282810246667,13.2101465,11.137074425,16.0822991
+"b1g1","b1g1_run1","P(node_3 monophyletic among extant)",0.193,NA,NA,NA
+"b1g1","b1g1_run1","node_3 tmrca age",13.1505448873333,13.037595,10.68402495,16.07225595
+"b1g1","b1g1_run1","P(node_4 monophyletic among extant)",0.999,NA,NA,NA
+"b1g1","b1g1_run1","node_4 tmrca age",4.76560784533334,4.662996,2.21615047499999,8.10436690000001
+"b1g1","b1g1_run1","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run1","node_5 tmrca age",2.54582231433334,2.428248,1.023919875,4.93925170000001
+"b1g1","b1g1_run1","P(node_6 monophyletic among extant)",0.998666666666667,NA,NA,NA
+"b1g1","b1g1_run1","node_6 tmrca age",5.47837553566667,5.3938385,2.6124185,8.769515
+"b1g1","b1g1_run1","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b1g1","b1g1_run1","node_7 tmrca age",2.54582231433334,2.428248,1.023919875,4.93925170000001
+"b1g1","b1g1_run1","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run1","node_8 tmrca age",1.54348731066667,1.447843,0.516073650000002,3.164498175
+"b1g1","b1g1_run1","P(node_9 monophyletic among extant)",0.955,NA,NA,NA
+"b1g1","b1g1_run1","node_9 tmrca age",0.907035762333336,0.817418000000004,0.217826799999992,2.071230725
+"b1g1","b1g1_run1","P(node_10 monophyletic among extant)",0.603333333333333,NA,NA,NA
+"b1g1","b1g1_run1","node_10 tmrca age",1.228593166,1.103907,0.349736525000006,2.81478242500001
+"b1g1","b1g1_run1","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run1","node_11 tmrca age",2.922500478,2.75858250000001,0.855081325000005,5.67415625000001
+"b1g1","b1g1_run1","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run1","node_12 tmrca age",0.541076970000003,0.454709000000008,0.122568000000008,1.49485565
+"b1g1","b1g1_run1","P(node_13 monophyletic among extant)",0.930666666666667,NA,NA,NA
+"b1g1","b1g1_run1","node_13 tmrca age",1.55024583533334,1.3312985,0.344810000000003,3.905772025
+"b1g1","b1g1_run1","P(node_14 monophyletic among extant)",0.883,NA,NA,NA
+"b1g1","b1g1_run1","node_14 tmrca age",1.77606979633334,1.61037750000001,0.421505000000018,4.11594712500001
+"b1g1","b1g1_run1","P(node_15 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run1","node_15 tmrca age",0.458418416333336,0.398745500000004,0.0980853749999994,1.18356597500001
+"b1g1","b1g1_run1","P(node_16 monophyletic among extant)",0.247333333333333,NA,NA,NA
+"b1g1","b1g1_run1","node_16 tmrca age",1.04480877766667,0.939378500000004,0.239455750000002,2.48600787499999
+"b1g1","b1g1_run1","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run1","node_17 tmrca age",0.240827694333336,0.195330500000008,0.0322207000000068,0.71199505
+"b1g1","b1g1_run1","P(node_18 monophyletic among extant)",0.026,NA,NA,NA
+"b1g1","b1g1_run1","node_18 tmrca age",0.449840978333336,0.392146500000003,0.0929088250000024,1.167372675
+"b1g1","b1g1_run1","P(Spheniscus_muizoni in crown)",0.999333333333333,NA,NA,NA
+"b1g1","b1g1_run1","P(Spheniscus_muizoni sampled ancestor)",0.705333333333333,NA,NA,NA
+"b1g1","b1g1_run1","P(Spheniscus_urbinai in crown)",0.998,NA,NA,NA
+"b1g1","b1g1_run1","P(Spheniscus_urbinai sampled ancestor)",0.362666666666667,NA,NA,NA
+"b1g1","b1g1_run1","P(Spheniscus_megaramphus in crown)",0.998,NA,NA,NA
+"b1g1","b1g1_run1","P(Spheniscus_megaramphus sampled ancestor)",0.386,NA,NA,NA
+"b1g1","b1g1_run1","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"b1g1","b1g1_run1","P(Pygoscelis_grandis sampled ancestor)",0.453333333333333,NA,NA,NA
+"b1g1","b1g1_run1","P(Madrynornis_mirandus in crown)",0.992333333333333,NA,NA,NA
+"b1g1","b1g1_run1","P(Madrynornis_mirandus sampled ancestor)",0.496,NA,NA,NA
+"b1g1","b1g1_run2","crownAge",13.4297336076667,13.3883365,11.1820745,16.18549215
+"b1g1","b1g1_run2","rootAge",62.943190632043,62.253380500913,60.7931444018625,69.3234682437719
+"b1g1","b1g1_run2","nSA",13.5123333333333,13,7,20
+"b1g1","b1g1_run2","P(muizoni SA of extant Spheniscus)",0.568333333333333,NA,NA,NA
+"b1g1","b1g1_run2","P(sampled ancestor at the root)",0,NA,NA,NA
+"b1g1","b1g1_run2","rootAge given no root sampled ancestor",62.943190632043,62.253380500913,60.7931444018625,69.3234682437719
+"b1g1","b1g1_run2","P(node_2 monophyletic among extant)",0.00166666666666667,NA,NA,NA
+"b1g1","b1g1_run2","node_2 tmrca age",13.4261779683333,13.3860425,11.1820745,16.18549215
+"b1g1","b1g1_run2","P(node_3 monophyletic among extant)",0.237333333333333,NA,NA,NA
+"b1g1","b1g1_run2","node_3 tmrca age",13.1823477466667,13.13918,10.68497515,16.06380565
+"b1g1","b1g1_run2","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run2","node_4 tmrca age",5.16027053466667,5.0513485,2.628578925,8.15212482500001
+"b1g1","b1g1_run2","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run2","node_5 tmrca age",2.74350229333334,2.605806,1.17333150000001,5.002452975
+"b1g1","b1g1_run2","P(node_6 monophyletic among extant)",0.999,NA,NA,NA
+"b1g1","b1g1_run2","node_6 tmrca age",5.716431402,5.657379,2.71608012500001,8.926938575
+"b1g1","b1g1_run2","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b1g1","b1g1_run2","node_7 tmrca age",2.74350229333334,2.605806,1.17333150000001,5.002452975
+"b1g1","b1g1_run2","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run2","node_8 tmrca age",1.619565047,1.4866285,0.531026875000001,3.57124665000001
+"b1g1","b1g1_run2","P(node_9 monophyletic among extant)",0.979666666666667,NA,NA,NA
+"b1g1","b1g1_run2","node_9 tmrca age",0.93574037266667,0.819231000000006,0.240819725000001,2.27352732500001
+"b1g1","b1g1_run2","P(node_10 monophyletic among extant)",0.644,NA,NA,NA
+"b1g1","b1g1_run2","node_10 tmrca age",1.27875452933334,1.1209105,0.352516050000003,2.98206357499999
+"b1g1","b1g1_run2","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run2","node_11 tmrca age",2.874261969,2.731654,1.128346525,5.527362125
+"b1g1","b1g1_run2","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run2","node_12 tmrca age",0.589386369000003,0.501987999999997,0.145077350000004,1.61187592500001
+"b1g1","b1g1_run2","P(node_13 monophyletic among extant)",0.962333333333333,NA,NA,NA
+"b1g1","b1g1_run2","node_13 tmrca age",1.46878354866667,1.3129845,0.37639157500001,3.44804915000001
+"b1g1","b1g1_run2","P(node_14 monophyletic among extant)",0.852,NA,NA,NA
+"b1g1","b1g1_run2","node_14 tmrca age",1.80809765766667,1.63061999999999,0.506028050000006,4.171042525
+"b1g1","b1g1_run2","P(node_15 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run2","node_15 tmrca age",0.46672474966667,0.393069499999999,0.101241525000006,1.2447378
+"b1g1","b1g1_run2","P(node_16 monophyletic among extant)",0.305666666666667,NA,NA,NA
+"b1g1","b1g1_run2","node_16 tmrca age",1.04696155266667,0.906806,0.215210100000008,2.6151763
+"b1g1","b1g1_run2","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run2","node_17 tmrca age",0.24557782966667,0.195308500000007,0.0300036750000039,0.751628650000004
+"b1g1","b1g1_run2","P(node_18 monophyletic among extant)",0.0376666666666667,NA,NA,NA
+"b1g1","b1g1_run2","node_18 tmrca age",0.45604352066667,0.384338500000002,0.0881527250000051,1.220973775
+"b1g1","b1g1_run2","P(Spheniscus_muizoni in crown)",0.997333333333333,NA,NA,NA
+"b1g1","b1g1_run2","P(Spheniscus_muizoni sampled ancestor)",0.690333333333333,NA,NA,NA
+"b1g1","b1g1_run2","P(Spheniscus_urbinai in crown)",0.998666666666667,NA,NA,NA
+"b1g1","b1g1_run2","P(Spheniscus_urbinai sampled ancestor)",0.374333333333333,NA,NA,NA
+"b1g1","b1g1_run2","P(Spheniscus_megaramphus in crown)",0.998666666666667,NA,NA,NA
+"b1g1","b1g1_run2","P(Spheniscus_megaramphus sampled ancestor)",0.393666666666667,NA,NA,NA
+"b1g1","b1g1_run2","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"b1g1","b1g1_run2","P(Pygoscelis_grandis sampled ancestor)",0.443333333333333,NA,NA,NA
+"b1g1","b1g1_run2","P(Madrynornis_mirandus in crown)",0.999666666666667,NA,NA,NA
+"b1g1","b1g1_run2","P(Madrynornis_mirandus sampled ancestor)",0.547333333333333,NA,NA,NA
+"b1g1","b1g1_run3","crownAge",13.4356693143333,13.3256505,11.222118325,16.37768555
+"b1g1","b1g1_run3","rootAge",62.9127216463036,62.2032110590081,60.7960912008945,69.0010939387344
+"b1g1","b1g1_run3","nSA",13.492,13,7,20
+"b1g1","b1g1_run3","P(muizoni SA of extant Spheniscus)",0.565333333333333,NA,NA,NA
+"b1g1","b1g1_run3","P(sampled ancestor at the root)",0,NA,NA,NA
+"b1g1","b1g1_run3","rootAge given no root sampled ancestor",62.9127216463036,62.2032110590081,60.7960912008945,69.0010939387344
+"b1g1","b1g1_run3","P(node_2 monophyletic among extant)",0,NA,NA,NA
+"b1g1","b1g1_run3","node_2 tmrca age",13.4356693143333,13.3256505,11.222118325,16.37768555
+"b1g1","b1g1_run3","P(node_3 monophyletic among extant)",0.247,NA,NA,NA
+"b1g1","b1g1_run3","node_3 tmrca age",13.1558702846667,13.097397,10.468868925,16.249316975
+"b1g1","b1g1_run3","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run3","node_4 tmrca age",5.01459387066667,4.89828250000001,2.3119617,8.13017322500001
+"b1g1","b1g1_run3","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run3","node_5 tmrca age",2.69353441166667,2.58901300000001,1.07536172500001,4.94303875
+"b1g1","b1g1_run3","P(node_6 monophyletic among extant)",0.999,NA,NA,NA
+"b1g1","b1g1_run3","node_6 tmrca age",5.87391192833334,5.82745300000001,2.89311622499999,9.10692102500001
+"b1g1","b1g1_run3","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b1g1","b1g1_run3","node_7 tmrca age",2.69353441166667,2.58901300000001,1.07536172500001,4.94303875
+"b1g1","b1g1_run3","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run3","node_8 tmrca age",1.74167137533334,1.6038465,0.564112750000006,3.532696775
+"b1g1","b1g1_run3","P(node_9 monophyletic among extant)",0.829,NA,NA,NA
+"b1g1","b1g1_run3","node_9 tmrca age",1.04506772833334,0.920882000000002,0.303345850000007,2.44809625000001
+"b1g1","b1g1_run3","P(node_10 monophyletic among extant)",0.407666666666667,NA,NA,NA
+"b1g1","b1g1_run3","node_10 tmrca age",1.51722081466667,1.353866,0.350816050000004,3.35671585000001
+"b1g1","b1g1_run3","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run3","node_11 tmrca age",2.794935962,2.60861850000001,1.04734847500001,5.53281852500001
+"b1g1","b1g1_run3","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run3","node_12 tmrca age",0.560783512000003,0.462312500000007,0.128527974999997,1.5465177
+"b1g1","b1g1_run3","P(node_13 monophyletic among extant)",0.954666666666667,NA,NA,NA
+"b1g1","b1g1_run3","node_13 tmrca age",1.448209317,1.244134,0.355359675000006,3.64078935000001
+"b1g1","b1g1_run3","P(node_14 monophyletic among extant)",0.852333333333333,NA,NA,NA
+"b1g1","b1g1_run3","node_14 tmrca age",1.751350531,1.541459,0.457598574999997,4.07152645000001
+"b1g1","b1g1_run3","P(node_15 monophyletic among extant)",0.994333333333333,NA,NA,NA
+"b1g1","b1g1_run3","node_15 tmrca age",0.51210043466667,0.445121999999998,0.108705674999993,1.327903775
+"b1g1","b1g1_run3","P(node_16 monophyletic among extant)",0.279,NA,NA,NA
+"b1g1","b1g1_run3","node_16 tmrca age",1.25194623533334,1.086985,0.248950775000002,3.135031925
+"b1g1","b1g1_run3","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run3","node_17 tmrca age",0.255856113000003,0.205850999999999,0.0368401749999942,0.770012925000001
+"b1g1","b1g1_run3","P(node_18 monophyletic among extant)",0.204666666666667,NA,NA,NA
+"b1g1","b1g1_run3","node_18 tmrca age",0.44521219966667,0.371245000000002,0.0524614000000003,1.250812525
+"b1g1","b1g1_run3","P(Spheniscus_muizoni in crown)",0.994333333333333,NA,NA,NA
+"b1g1","b1g1_run3","P(Spheniscus_muizoni sampled ancestor)",0.665333333333333,NA,NA,NA
+"b1g1","b1g1_run3","P(Spheniscus_urbinai in crown)",0.999,NA,NA,NA
+"b1g1","b1g1_run3","P(Spheniscus_urbinai sampled ancestor)",0.409333333333333,NA,NA,NA
+"b1g1","b1g1_run3","P(Spheniscus_megaramphus in crown)",0.999,NA,NA,NA
+"b1g1","b1g1_run3","P(Spheniscus_megaramphus sampled ancestor)",0.421,NA,NA,NA
+"b1g1","b1g1_run3","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"b1g1","b1g1_run3","P(Pygoscelis_grandis sampled ancestor)",0.437666666666667,NA,NA,NA
+"b1g1","b1g1_run3","P(Madrynornis_mirandus in crown)",0.998333333333333,NA,NA,NA
+"b1g1","b1g1_run3","P(Madrynornis_mirandus sampled ancestor)",0.538333333333333,NA,NA,NA
+"b1g1","b1g1_run4","crownAge",13.3982611886667,13.2598075,11.23995245,16.264335825
+"b1g1","b1g1_run4","rootAge",62.840185592147,62.1655982680198,60.7319586977952,68.8219938585789
+"b1g1","b1g1_run4","nSA",13.3966666666667,13,7,20
+"b1g1","b1g1_run4","P(muizoni SA of extant Spheniscus)",0.616666666666667,NA,NA,NA
+"b1g1","b1g1_run4","P(sampled ancestor at the root)",0,NA,NA,NA
+"b1g1","b1g1_run4","rootAge given no root sampled ancestor",62.840185592147,62.1655982680198,60.7319586977952,68.8219938585789
+"b1g1","b1g1_run4","P(node_2 monophyletic among extant)",0,NA,NA,NA
+"b1g1","b1g1_run4","node_2 tmrca age",13.3982611886667,13.2598075,11.23995245,16.264335825
+"b1g1","b1g1_run4","P(node_3 monophyletic among extant)",0.254666666666667,NA,NA,NA
+"b1g1","b1g1_run4","node_3 tmrca age",13.1372488653333,13.007696,10.730053,16.083692225
+"b1g1","b1g1_run4","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run4","node_4 tmrca age",5.020794101,4.9227065,2.33882352500001,8.076606675
+"b1g1","b1g1_run4","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run4","node_5 tmrca age",2.660945023,2.53314600000001,1.003079575,5.04583322500001
+"b1g1","b1g1_run4","P(node_6 monophyletic among extant)",0.997,NA,NA,NA
+"b1g1","b1g1_run4","node_6 tmrca age",5.88283521366667,5.8606725,2.80339605,9.02441907500001
+"b1g1","b1g1_run4","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"b1g1","b1g1_run4","node_7 tmrca age",2.660945023,2.53314600000001,1.003079575,5.04583322500001
+"b1g1","b1g1_run4","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run4","node_8 tmrca age",1.77733353933334,1.62279350000001,0.63309560000001,3.777029125
+"b1g1","b1g1_run4","P(node_9 monophyletic among extant)",0.892666666666667,NA,NA,NA
+"b1g1","b1g1_run4","node_9 tmrca age",1.05417999766667,0.946400000000011,0.286509975000003,2.429295575
+"b1g1","b1g1_run4","P(node_10 monophyletic among extant)",0.580333333333333,NA,NA,NA
+"b1g1","b1g1_run4","node_10 tmrca age",1.420801888,1.248663,0.358702424999996,3.478376425
+"b1g1","b1g1_run4","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run4","node_11 tmrca age",2.78447989533334,2.64462700000001,0.937600650000008,5.384073925
+"b1g1","b1g1_run4","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run4","node_12 tmrca age",0.56575423366667,0.482057000000005,0.129971799999995,1.53103372500001
+"b1g1","b1g1_run4","P(node_13 monophyletic among extant)",0.969666666666667,NA,NA,NA
+"b1g1","b1g1_run4","node_13 tmrca age",1.41708260933334,1.2679075,0.326811574999996,3.441698075
+"b1g1","b1g1_run4","P(node_14 monophyletic among extant)",0.816,NA,NA,NA
+"b1g1","b1g1_run4","node_14 tmrca age",1.80394779433334,1.61062150000001,0.427627625000004,4.256031425
+"b1g1","b1g1_run4","P(node_15 monophyletic among extant)",0.946,NA,NA,NA
+"b1g1","b1g1_run4","node_15 tmrca age",0.55011560366667,0.455584000000002,0.110010349999988,1.49885190000001
+"b1g1","b1g1_run4","P(node_16 monophyletic among extant)",0.278333333333333,NA,NA,NA
+"b1g1","b1g1_run4","node_16 tmrca age",1.15632134566667,0.980917000000005,0.230016675000007,2.980278675
+"b1g1","b1g1_run4","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"b1g1","b1g1_run4","node_17 tmrca age",0.26685707966667,0.211341000000001,0.0362492000000024,0.787264275000004
+"b1g1","b1g1_run4","P(node_18 monophyletic among extant)",0.106333333333333,NA,NA,NA
+"b1g1","b1g1_run4","node_18 tmrca age",0.496122749333336,0.418652000000005,0.0781968250000026,1.35709160000001
+"b1g1","b1g1_run4","P(Spheniscus_muizoni in crown)",0.998666666666667,NA,NA,NA
+"b1g1","b1g1_run4","P(Spheniscus_muizoni sampled ancestor)",0.689333333333333,NA,NA,NA
+"b1g1","b1g1_run4","P(Spheniscus_urbinai in crown)",1,NA,NA,NA
+"b1g1","b1g1_run4","P(Spheniscus_urbinai sampled ancestor)",0.373333333333333,NA,NA,NA
+"b1g1","b1g1_run4","P(Spheniscus_megaramphus in crown)",1,NA,NA,NA
+"b1g1","b1g1_run4","P(Spheniscus_megaramphus sampled ancestor)",0.422666666666667,NA,NA,NA
+"b1g1","b1g1_run4","P(Pygoscelis_grandis in crown)",0.999666666666667,NA,NA,NA
+"b1g1","b1g1_run4","P(Pygoscelis_grandis sampled ancestor)",0.436666666666667,NA,NA,NA
+"b1g1","b1g1_run4","P(Madrynornis_mirandus in crown)",0.998,NA,NA,NA
+"b1g1","b1g1_run4","P(Madrynornis_mirandus sampled ancestor)",0.520666666666667,NA,NA,NA
+"revbayes_strict","strict_run1","crownAge",12.328256471673,12.274425,10.675029,14.3160995
+"revbayes_strict","strict_run1","rootAge",62.1241532872734,61.559318327721,60.5654187344535,66.524771229539
+"revbayes_strict","strict_run1","nSA",13.7796045323262,14,7,21
+"revbayes_strict","strict_run1","P(muizoni SA of extant Spheniscus)",0.414352366140858,NA,NA,NA
+"revbayes_strict","strict_run1","P(sampled ancestor at the root)",0.321928460342146,NA,NA,NA
+"revbayes_strict","strict_run1","rootAge given no root sampled ancestor",62.646633589514,62.164580403276,60.7797596592575,67.1461400422627
+"revbayes_strict","strict_run1","P(node_2 monophyletic among extant)",0.0262163963563653,NA,NA,NA
+"revbayes_strict","strict_run1","node_2 tmrca age",12.2989903610309,12.24323,10.639109,14.3106175
+"revbayes_strict","strict_run1","P(node_3 monophyletic among extant)",0.846256387469451,NA,NA,NA
+"revbayes_strict","strict_run1","node_3 tmrca age",10.0591443856921,9.965918,7.5062015,12.9108805
+"revbayes_strict","strict_run1","P(node_4 monophyletic among extant)",0.998889135747612,NA,NA,NA
+"revbayes_strict","strict_run1","node_4 tmrca age",6.54048095356588,6.460744,4.6740345,8.77593950000001
+"revbayes_strict","strict_run1","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run1","node_5 tmrca age",3.01792256009776,2.97142100000001,2.001176,4.319949
+"revbayes_strict","strict_run1","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run1","node_6 tmrca age",4.39368300955344,4.311697,2.94878,6.2229675
+"revbayes_strict","strict_run1","P(node_7 monophyletic among extant)",0.000222172850477672,NA,NA,NA
+"revbayes_strict","strict_run1","node_7 tmrca age",3.01780287247279,2.97142100000001,2.000152,4.319949
+"revbayes_strict","strict_run1","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run1","node_8 tmrca age",1.2197005843146,1.19233000000001,0.716647000000002,1.930173
+"revbayes_strict","strict_run1","P(node_9 monophyletic among extant)",0.944234614530104,NA,NA,NA
+"revbayes_strict","strict_run1","node_9 tmrca age",0.748590622750503,0.709325999999997,0.360799499999999,1.36180800000001
+"revbayes_strict","strict_run1","P(node_10 monophyletic among extant)",0.628304821150855,NA,NA,NA
+"revbayes_strict","strict_run1","node_10 tmrca age",0.954405691401913,0.906628000000005,0.413698500000002,1.720945
+"revbayes_strict","strict_run1","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run1","node_11 tmrca age",1.46098948100422,1.42140300000001,0.860155500000005,2.2992155
+"revbayes_strict","strict_run1","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run1","node_12 tmrca age",0.628439784270165,0.592410999999998,0.246998500000007,1.187418
+"revbayes_strict","strict_run1","P(node_13 monophyletic among extant)",0.982226171961786,NA,NA,NA
+"revbayes_strict","strict_run1","node_13 tmrca age",0.736402074205735,0.697313000000001,0.285511500000002,1.4160565
+"revbayes_strict","strict_run1","P(node_14 monophyletic among extant)",0.884025772050655,NA,NA,NA
+"revbayes_strict","strict_run1","node_14 tmrca age",0.911499003999114,0.848143999999998,0.378697000000006,1.7617085
+"revbayes_strict","strict_run1","P(node_15 monophyletic among extant)",0.98000444345701,NA,NA,NA
+"revbayes_strict","strict_run1","node_15 tmrca age",0.372084163519221,0.344978000000005,0.117540000000002,0.757524000000004
+"revbayes_strict","strict_run1","P(node_16 monophyletic among extant)",0.347700510997556,NA,NA,NA
+"revbayes_strict","strict_run1","node_16 tmrca age",0.744435310153302,0.701428000000007,0.217437,1.48812
+"revbayes_strict","strict_run1","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run1","node_17 tmrca age",0.197251390802047,0.173973000000004,0.0444615000000006,0.480270000000012
+"revbayes_strict","strict_run1","P(node_18 monophyletic among extant)",0.0846478560319929,NA,NA,NA
+"revbayes_strict","strict_run1","node_18 tmrca age",0.349500819373475,0.326872000000009,0.0785299999999935,0.728923000000002
+"revbayes_strict","strict_run1","P(Spheniscus_muizoni in crown)",0.991557431681849,NA,NA,NA
+"revbayes_strict","strict_run1","P(Spheniscus_muizoni sampled ancestor)",0.518551433014886,NA,NA,NA
+"revbayes_strict","strict_run1","P(Spheniscus_urbinai in crown)",0.999333481448567,NA,NA,NA
+"revbayes_strict","strict_run1","P(Spheniscus_urbinai sampled ancestor)",0.427682737169518,NA,NA,NA
+"revbayes_strict","strict_run1","P(Spheniscus_megaramphus in crown)",0.999333481448567,NA,NA,NA
+"revbayes_strict","strict_run1","P(Spheniscus_megaramphus sampled ancestor)",0.559209064652299,NA,NA,NA
+"revbayes_strict","strict_run1","P(Pygoscelis_grandis in crown)",0.998000444345701,NA,NA,NA
+"revbayes_strict","strict_run1","P(Pygoscelis_grandis sampled ancestor)",0.255498778049322,NA,NA,NA
+"revbayes_strict","strict_run1","P(Madrynornis_mirandus in crown)",0.980670962008443,NA,NA,NA
+"revbayes_strict","strict_run1","P(Madrynornis_mirandus sampled ancestor)",0.609420128860253,NA,NA,NA
+"revbayes_strict","strict_run2","crownAge",12.3480894583426,12.303992,10.672584,14.390745
+"revbayes_strict","strict_run2","rootAge",62.1741217999285,61.592712010397,60.569233659784,66.509807671434
+"revbayes_strict","strict_run2","nSA",13.6340813152633,14,7,21
+"revbayes_strict","strict_run2","P(muizoni SA of extant Spheniscus)",0.408131526327483,NA,NA,NA
+"revbayes_strict","strict_run2","P(sampled ancestor at the root)",0.311486336369696,NA,NA,NA
+"revbayes_strict","strict_run2","rootAge given no root sampled ancestor",62.7012022308721,62.202676354858,60.7928547326978,67.2248039880244
+"revbayes_strict","strict_run2","P(node_2 monophyletic among extant)",0.0237724950011109,NA,NA,NA
+"revbayes_strict","strict_run2","node_2 tmrca age",12.3233317693846,12.277638,10.6093395,14.386693
+"revbayes_strict","strict_run2","P(node_3 monophyletic among extant)",0.852255054432348,NA,NA,NA
+"revbayes_strict","strict_run2","node_3 tmrca age",10.0652498909131,9.965222,7.4586215,12.94326
+"revbayes_strict","strict_run2","P(node_4 monophyletic among extant)",0.999333481448567,NA,NA,NA
+"revbayes_strict","strict_run2","node_4 tmrca age",6.52936277893802,6.47697899999999,4.6666435,8.758646
+"revbayes_strict","strict_run2","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run2","node_5 tmrca age",3.03414377560542,2.99358599999999,1.9850485,4.3306935
+"revbayes_strict","strict_run2","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run2","node_6 tmrca age",4.42122791757388,4.35746800000002,2.9205155,6.235133
+"revbayes_strict","strict_run2","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"revbayes_strict","strict_run2","node_7 tmrca age",3.03414377560542,2.99358599999999,1.9850485,4.3306935
+"revbayes_strict","strict_run2","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run2","node_8 tmrca age",1.21757026816263,1.189256,0.717610500000006,1.89675050000001
+"revbayes_strict","strict_run2","P(node_9 monophyletic among extant)",0.942901577427238,NA,NA,NA
+"revbayes_strict","strict_run2","node_9 tmrca age",0.745024612974898,0.710802999999999,0.3542755,1.3397555
+"revbayes_strict","strict_run2","P(node_10 monophyletic among extant)",0.623417018440347,NA,NA,NA
+"revbayes_strict","strict_run2","node_10 tmrca age",0.952434859364589,0.910216000000005,0.403201000000003,1.727585
+"revbayes_strict","strict_run2","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run2","node_11 tmrca age",1.46144142746057,1.425344,0.829298000000001,2.2752015
+"revbayes_strict","strict_run2","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run2","node_12 tmrca age",0.62712101688514,0.594776000000003,0.248129500000001,1.19598450000001
+"revbayes_strict","strict_run2","P(node_13 monophyletic among extant)",0.980448789157965,NA,NA,NA
+"revbayes_strict","strict_run2","node_13 tmrca age",0.74213606131971,0.699595000000002,0.293268000000001,1.45698600000001
+"revbayes_strict","strict_run2","P(node_14 monophyletic among extant)",0.877804932237281,NA,NA,NA
+"revbayes_strict","strict_run2","node_14 tmrca age",0.915859387469454,0.867687000000018,0.366158000000002,1.7357315
+"revbayes_strict","strict_run2","P(node_15 monophyletic among extant)",0.978004887802711,NA,NA,NA
+"revbayes_strict","strict_run2","node_15 tmrca age",0.371740067318377,0.345675999999997,0.123215000000002,0.771640500000007
+"revbayes_strict","strict_run2","P(node_16 monophyletic among extant)",0.330593201510775,NA,NA,NA
+"revbayes_strict","strict_run2","node_16 tmrca age",0.75626451499667,0.719368000000003,0.221271000000016,1.501723
+"revbayes_strict","strict_run2","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run2","node_17 tmrca age",0.198564819151303,0.175557000000005,0.0425575000000045,0.476762000000001
+"revbayes_strict","strict_run2","P(node_18 monophyletic among extant)",0.0804265718729171,NA,NA,NA
+"revbayes_strict","strict_run2","node_18 tmrca age",0.34958638013775,0.329146999999999,0.0854135000000085,0.725025500000005
+"revbayes_strict","strict_run2","P(Spheniscus_muizoni in crown)",0.989557876027549,NA,NA,NA
+"revbayes_strict","strict_run2","P(Spheniscus_muizoni sampled ancestor)",0.520773161519662,NA,NA,NA
+"revbayes_strict","strict_run2","P(Spheniscus_urbinai in crown)",0.999333481448567,NA,NA,NA
+"revbayes_strict","strict_run2","P(Spheniscus_urbinai sampled ancestor)",0.445678738058209,NA,NA,NA
+"revbayes_strict","strict_run2","P(Spheniscus_megaramphus in crown)",0.999333481448567,NA,NA,NA
+"revbayes_strict","strict_run2","P(Spheniscus_megaramphus sampled ancestor)",0.546545212175072,NA,NA,NA
+"revbayes_strict","strict_run2","P(Pygoscelis_grandis in crown)",0.996667407242835,NA,NA,NA
+"revbayes_strict","strict_run2","P(Pygoscelis_grandis sampled ancestor)",0.244612308375916,NA,NA,NA
+"revbayes_strict","strict_run2","P(Madrynornis_mirandus in crown)",0.979337924905577,NA,NA,NA
+"revbayes_strict","strict_run2","P(Madrynornis_mirandus sampled ancestor)",0.614307931570762,NA,NA,NA
+"revbayes_strict","strict_run3","crownAge",12.3139160235503,12.248682,10.5940495,14.324184
+"revbayes_strict","strict_run3","rootAge",62.1299043339664,61.568083530333,60.577254667169,66.469615472853
+"revbayes_strict","strict_run3","nSA",13.7202843812486,14,7,21
+"revbayes_strict","strict_run3","P(muizoni SA of extant Spheniscus)",0.421684070206621,NA,NA,NA
+"revbayes_strict","strict_run3","P(sampled ancestor at the root)",0.312819373472562,NA,NA,NA
+"revbayes_strict","strict_run3","rootAge given no root sampled ancestor",62.6378326996927,62.181197912828,60.7841223370566,67.1003746350843
+"revbayes_strict","strict_run3","P(node_2 monophyletic among extant)",0.0248833592534992,NA,NA,NA
+"revbayes_strict","strict_run3","node_2 tmrca age",12.2867076078649,12.224796,10.5514115,14.3025935
+"revbayes_strict","strict_run3","P(node_3 monophyletic among extant)",0.849366807376139,NA,NA,NA
+"revbayes_strict","strict_run3","node_3 tmrca age",10.0614280657632,9.972925,7.5088735,12.9644475
+"revbayes_strict","strict_run3","P(node_4 monophyletic among extant)",0.999777827149522,NA,NA,NA
+"revbayes_strict","strict_run3","node_4 tmrca age",6.52337114441236,6.44075300000001,4.6445745,8.7855295
+"revbayes_strict","strict_run3","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run3","node_5 tmrca age",3.03467039680071,2.989783,2.0006155,4.36472500000001
+"revbayes_strict","strict_run3","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run3","node_6 tmrca age",4.44171824505666,4.37542,2.90129200000001,6.3042875
+"revbayes_strict","strict_run3","P(node_7 monophyletic among extant)",0.000666518551433015,NA,NA,NA
+"revbayes_strict","strict_run3","node_7 tmrca age",3.03452510308821,2.989783,1.9993655,4.36472500000001
+"revbayes_strict","strict_run3","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run3","node_8 tmrca age",1.21794665229949,1.177539,0.726344500000003,1.9173645
+"revbayes_strict","strict_run3","P(node_9 monophyletic among extant)",0.946011997333926,NA,NA,NA
+"revbayes_strict","strict_run3","node_9 tmrca age",0.74290138480338,0.707759000000003,0.359849499999999,1.3559815
+"revbayes_strict","strict_run3","P(node_10 monophyletic among extant)",0.626305265496556,NA,NA,NA
+"revbayes_strict","strict_run3","node_10 tmrca age",0.953461463896915,0.906283999999999,0.407988500000002,1.7429905
+"revbayes_strict","strict_run3","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run3","node_11 tmrca age",1.46179827527216,1.42997400000001,0.849217000000003,2.26535500000001
+"revbayes_strict","strict_run3","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run3","node_12 tmrca age",0.620854904021331,0.579628000000007,0.243358000000008,1.1980345
+"revbayes_strict","strict_run3","P(node_13 monophyletic among extant)",0.978449233503666,NA,NA,NA
+"revbayes_strict","strict_run3","node_13 tmrca age",0.74651251499667,0.709657000000007,0.287180500000002,1.41340000000001
+"revbayes_strict","strict_run3","P(node_14 monophyletic among extant)",0.887580537658298,NA,NA,NA
+"revbayes_strict","strict_run3","node_14 tmrca age",0.906006990668743,0.862312000000003,0.392862500000003,1.685776
+"revbayes_strict","strict_run3","P(node_15 monophyletic among extant)",0.9771161964008,NA,NA,NA
+"revbayes_strict","strict_run3","node_15 tmrca age",0.371324556987339,0.344096999999998,0.122231500000012,0.791602999999999
+"revbayes_strict","strict_run3","P(node_16 monophyletic among extant)",0.333703621417463,NA,NA,NA
+"revbayes_strict","strict_run3","node_16 tmrca age",0.749558153077097,0.707517000000003,0.227815500000005,1.52246
+"revbayes_strict","strict_run3","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run3","node_17 tmrca age",0.197419879804491,0.179727999999997,0.0431200000000018,0.462909000000003
+"revbayes_strict","strict_run3","P(node_18 monophyletic among extant)",0.0795378804710064,NA,NA,NA
+"revbayes_strict","strict_run3","node_18 tmrca age",0.349606011330818,0.326321000000007,0.0890880000000038,0.749101000000007
+"revbayes_strict","strict_run3","P(Spheniscus_muizoni in crown)",0.991113085980893,NA,NA,NA
+"revbayes_strict","strict_run3","P(Spheniscus_muizoni sampled ancestor)",0.532103976894024,NA,NA,NA
+"revbayes_strict","strict_run3","P(Spheniscus_urbinai in crown)",0.999333481448567,NA,NA,NA
+"revbayes_strict","strict_run3","P(Spheniscus_urbinai sampled ancestor)",0.437902688291491,NA,NA,NA
+"revbayes_strict","strict_run3","P(Spheniscus_megaramphus in crown)",0.999333481448567,NA,NA,NA
+"revbayes_strict","strict_run3","P(Spheniscus_megaramphus sampled ancestor)",0.564985558764719,NA,NA,NA
+"revbayes_strict","strict_run3","P(Pygoscelis_grandis in crown)",0.997333925794268,NA,NA,NA
+"revbayes_strict","strict_run3","P(Pygoscelis_grandis sampled ancestor)",0.249944456787381,NA,NA,NA
+"revbayes_strict","strict_run3","P(Madrynornis_mirandus in crown)",0.976005332148411,NA,NA,NA
+"revbayes_strict","strict_run3","P(Madrynornis_mirandus sampled ancestor)",0.613641413019329,NA,NA,NA
+"revbayes_strict","strict_run4","crownAge",12.3386971730727,12.27182,10.6354405,14.3514865
+"revbayes_strict","strict_run4","rootAge",62.1220814025852,61.584677561509,60.5770215974865,66.273785730651
+"revbayes_strict","strict_run4","nSA",13.7211730726505,14,7,21
+"revbayes_strict","strict_run4","P(muizoni SA of extant Spheniscus)",0.409908909131304,NA,NA,NA
+"revbayes_strict","strict_run4","P(sampled ancestor at the root)",0.311930682070651,NA,NA,NA
+"revbayes_strict","strict_run4","rootAge given no root sampled ancestor",62.6247466029764,62.183322697361,60.8060008077012,66.706115709206
+"revbayes_strict","strict_run4","P(node_2 monophyletic among extant)",0.0279937791601866,NA,NA,NA
+"revbayes_strict","strict_run4","node_2 tmrca age",12.3072411059765,12.245129,10.585627,14.3044645
+"revbayes_strict","strict_run4","P(node_3 monophyletic among extant)",0.841812930459898,NA,NA,NA
+"revbayes_strict","strict_run4","node_3 tmrca age",10.0854874354588,9.985564,7.534761,13.085244
+"revbayes_strict","strict_run4","P(node_4 monophyletic among extant)",0.999111308598089,NA,NA,NA
+"revbayes_strict","strict_run4","node_4 tmrca age",6.55210316018663,6.483431,4.6185125,8.84334
+"revbayes_strict","strict_run4","P(node_5 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run4","node_5 tmrca age",3.02577487980449,2.98290600000001,1.998075,4.365144
+"revbayes_strict","strict_run4","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run4","node_6 tmrca age",4.40179029837814,4.34223,2.878343,6.2694225
+"revbayes_strict","strict_run4","P(node_7 monophyletic among extant)",0.000444345700955343,NA,NA,NA
+"revbayes_strict","strict_run4","node_7 tmrca age",3.02557036147523,2.98251500000001,1.998075,4.365144
+"revbayes_strict","strict_run4","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run4","node_8 tmrca age",1.21421641124195,1.182455,0.719223000000003,1.9152055
+"revbayes_strict","strict_run4","P(node_9 monophyletic among extant)",0.942457231726283,NA,NA,NA
+"revbayes_strict","strict_run4","node_9 tmrca age",0.740805889357923,0.696438000000001,0.355309500000001,1.3420415
+"revbayes_strict","strict_run4","P(node_10 monophyletic among extant)",0.612530548766941,NA,NA,NA
+"revbayes_strict","strict_run4","node_10 tmrca age",0.957767851588539,0.909361000000004,0.397366000000002,1.7668345
+"revbayes_strict","strict_run4","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run4","node_11 tmrca age",1.45314403621418,1.41887800000001,0.84442,2.270614
+"revbayes_strict","strict_run4","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run4","node_12 tmrca age",0.627007253499225,0.596562999999996,0.246495000000007,1.206524
+"revbayes_strict","strict_run4","P(node_13 monophyletic among extant)",0.981337480559876,NA,NA,NA
+"revbayes_strict","strict_run4","node_13 tmrca age",0.753110668962456,0.711401000000002,0.289992000000002,1.4579185
+"revbayes_strict","strict_run4","P(node_14 monophyletic among extant)",0.880248833592535,NA,NA,NA
+"revbayes_strict","strict_run4","node_14 tmrca age",0.905118982892693,0.857099000000005,0.367686500000001,1.7027475
+"revbayes_strict","strict_run4","P(node_15 monophyletic among extant)",0.978004887802711,NA,NA,NA
+"revbayes_strict","strict_run4","node_15 tmrca age",0.370305152854924,0.345687000000005,0.124637500000009,0.771029500000001
+"revbayes_strict","strict_run4","P(node_16 monophyletic among extant)",0.352366140857587,NA,NA,NA
+"revbayes_strict","strict_run4","node_16 tmrca age",0.743360480337706,0.700761000000014,0.214938000000004,1.5173945
+"revbayes_strict","strict_run4","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"revbayes_strict","strict_run4","node_17 tmrca age",0.196352802488339,0.175163000000005,0.0384510000000091,0.471226000000001
+"revbayes_strict","strict_run4","P(node_18 monophyletic among extant)",0.0862030659853366,NA,NA,NA
+"revbayes_strict","strict_run4","node_18 tmrca age",0.346360661186406,0.326978000000011,0.0802539999999965,0.731704499999999
+"revbayes_strict","strict_run4","P(Spheniscus_muizoni in crown)",0.991335258831371,NA,NA,NA
+"revbayes_strict","strict_run4","P(Spheniscus_muizoni sampled ancestor)",0.517884914463453,NA,NA,NA
+"revbayes_strict","strict_run4","P(Spheniscus_urbinai in crown)",0.999555654299045,NA,NA,NA
+"revbayes_strict","strict_run4","P(Spheniscus_urbinai sampled ancestor)",0.431681848478116,NA,NA,NA
+"revbayes_strict","strict_run4","P(Spheniscus_megaramphus in crown)",0.999555654299045,NA,NA,NA
+"revbayes_strict","strict_run4","P(Spheniscus_megaramphus sampled ancestor)",0.552766051988447,NA,NA,NA
+"revbayes_strict","strict_run4","P(Pygoscelis_grandis in crown)",0.997556098644746,NA,NA,NA
+"revbayes_strict","strict_run4","P(Pygoscelis_grandis sampled ancestor)",0.256609642301711,NA,NA,NA
+"revbayes_strict","strict_run4","P(Madrynornis_mirandus in crown)",0.976005332148411,NA,NA,NA
+"revbayes_strict","strict_run4","P(Madrynornis_mirandus sampled ancestor)",0.61741835147745,NA,NA,NA
+"revbayes_ucln","ucln_run1","crownAge",13.1191168311486,12.9769,11.078835,15.89362
+"revbayes_ucln","ucln_run1","rootAge",61.7759651711806,61.397801901678,60.5450158741385,65.390899778144
+"revbayes_ucln","ucln_run1","nSA",14.198622528327,14,7,21
+"revbayes_ucln","ucln_run1","P(muizoni SA of extant Spheniscus)",0.573205954232393,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(sampled ancestor at the root)",0.409908909131304,NA,NA,NA
+"revbayes_ucln","ucln_run1","rootAge given no root sampled ancestor",62.3148115030388,61.931673865239,60.7660641313756,65.9909991097884
+"revbayes_ucln","ucln_run1","P(node_2 monophyletic among extant)",0.000888691401910687,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_2 tmrca age",13.1181523910242,12.975627,11.0744835,15.89362
+"revbayes_ucln","ucln_run1","P(node_3 monophyletic among extant)",0.287713841368585,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_3 tmrca age",12.7683994183515,12.677187,10.388178,15.656722
+"revbayes_ucln","ucln_run1","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_4 tmrca age",5.0642763616974,4.946604,2.8740325,7.79510550000001
+"revbayes_ucln","ucln_run1","P(node_5 monophyletic among extant)",0.998000444345701,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_5 tmrca age",2.72488713685848,2.627309,1.3331475,4.6213175
+"revbayes_ucln","ucln_run1","P(node_6 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_6 tmrca age",4.49522484403466,4.266344,2.13727250000001,8.154329
+"revbayes_ucln","ucln_run1","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_7 tmrca age",2.72488713685848,2.627309,1.3331475,4.6213175
+"revbayes_ucln","ucln_run1","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_8 tmrca age",1.43619219484559,1.34364699999999,0.692365999999996,2.651153
+"revbayes_ucln","ucln_run1","P(node_9 monophyletic among extant)",0.960231059764497,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_9 tmrca age",0.790163002221731,0.728361999999997,0.3235165,1.60901
+"revbayes_ucln","ucln_run1","P(node_10 monophyletic among extant)",0.498555876471895,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_10 tmrca age",1.15958988713619,1.081006,0.353615500000011,2.4277115
+"revbayes_ucln","ucln_run1","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_11 tmrca age",1.71941355498778,1.588585,0.739416000000002,3.510187
+"revbayes_ucln","ucln_run1","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_12 tmrca age",0.716490672961567,0.627639000000009,0.193204500000007,1.8222455
+"revbayes_ucln","ucln_run1","P(node_13 monophyletic among extant)",0.937791601866252,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_13 tmrca age",0.836211377471676,0.711503000000008,0.210536500000003,2.1341455
+"revbayes_ucln","ucln_run1","P(node_14 monophyletic among extant)",0.837369473450344,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_14 tmrca age",1.00322476227505,0.866041000000003,0.265609000000001,2.56013000000001
+"revbayes_ucln","ucln_run1","P(node_15 monophyletic among extant)",0.967118418129305,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_15 tmrca age",0.410511914685628,0.369671000000004,0.108700500000001,0.951054000000003
+"revbayes_ucln","ucln_run1","P(node_16 monophyletic among extant)",0.113752499444568,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_16 tmrca age",1.06800133459232,1.00054699999999,0.253152500000002,2.349325
+"revbayes_ucln","ucln_run1","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_17 tmrca age",0.219875591424131,0.181260000000002,0.0350470000000058,0.604640000000003
+"revbayes_ucln","ucln_run1","P(node_18 monophyletic among extant)",0.045323261497445,NA,NA,NA
+"revbayes_ucln","ucln_run1","node_18 tmrca age",0.393949975560989,0.358613999999989,0.0880995000000055,0.917996000000009
+"revbayes_ucln","ucln_run1","P(Spheniscus_muizoni in crown)",0.998666962897134,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Spheniscus_muizoni sampled ancestor)",0.653854698955788,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Spheniscus_urbinai in crown)",0.997556098644746,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Spheniscus_urbinai sampled ancestor)",0.364807820484337,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Spheniscus_megaramphus in crown)",0.997556098644746,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Spheniscus_megaramphus sampled ancestor)",0.380804265718729,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Pygoscelis_grandis sampled ancestor)",0.500555432126194,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Madrynornis_mirandus in crown)",0.990890913130415,NA,NA,NA
+"revbayes_ucln","ucln_run1","P(Madrynornis_mirandus sampled ancestor)",0.545212175072206,NA,NA,NA
+"revbayes_ucln","ucln_run2","crownAge",13.1110350493224,12.984059,11.0429235,15.8485575
+"revbayes_ucln","ucln_run2","rootAge",61.7546920957335,61.377805518546,60.5552339403225,65.1689157126865
+"revbayes_ucln","ucln_run2","nSA",14.2048433681404,14,7,22
+"revbayes_ucln","ucln_run2","P(muizoni SA of extant Spheniscus)",0.572761608531437,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(sampled ancestor at the root)",0.421906243057098,NA,NA,NA
+"revbayes_ucln","ucln_run2","rootAge given no root sampled ancestor",62.2970705482791,61.938725163913,60.7114014306038,65.9572817006521
+"revbayes_ucln","ucln_run2","P(node_2 monophyletic among extant)",0.000888691401910687,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_2 tmrca age",13.1104960857587,12.984059,11.029695,15.8485575
+"revbayes_ucln","ucln_run2","P(node_3 monophyletic among extant)",0.286825149966674,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_3 tmrca age",12.7662214265719,12.649459,10.3902915,15.602919
+"revbayes_ucln","ucln_run2","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_4 tmrca age",5.04091541101978,4.928486,2.9085855,7.8505965
+"revbayes_ucln","ucln_run2","P(node_5 monophyletic among extant)",0.99622306154188,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_5 tmrca age",2.71349897644968,2.61932700000001,1.34228199999999,4.598993
+"revbayes_ucln","ucln_run2","P(node_6 monophyletic among extant)",0.998889135747612,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_6 tmrca age",4.50317800222173,4.294574,2.090859,8.0308065
+"revbayes_ucln","ucln_run2","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_7 tmrca age",2.71349897644968,2.61932700000001,1.34228199999999,4.598993
+"revbayes_ucln","ucln_run2","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_8 tmrca age",1.4395260728727,1.34856599999998,0.708093999999996,2.66881100000001
+"revbayes_ucln","ucln_run2","P(node_9 monophyletic among extant)",0.965118862475006,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_9 tmrca age",0.78929520239947,0.72561000000001,0.331019499999996,1.6008515
+"revbayes_ucln","ucln_run2","P(node_10 monophyletic among extant)",0.516329704510109,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_10 tmrca age",1.15249418195957,1.07257300000001,0.378946500000001,2.42143850000001
+"revbayes_ucln","ucln_run2","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_11 tmrca age",1.71856882581649,1.58135700000001,0.747745500000004,3.5383915
+"revbayes_ucln","ucln_run2","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_12 tmrca age",0.722043832926019,0.629638999999997,0.192475000000002,1.74771050000001
+"revbayes_ucln","ucln_run2","P(node_13 monophyletic among extant)",0.934681181959565,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_13 tmrca age",0.8333174705621,0.714321000000005,0.218739000000003,2.2058875
+"revbayes_ucln","ucln_run2","P(node_14 monophyletic among extant)",0.841812930459898,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_14 tmrca age",1.0011224059098,0.862124000000001,0.265042999999999,2.5503855
+"revbayes_ucln","ucln_run2","P(node_15 monophyletic among extant)",0.962452788269273,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_15 tmrca age",0.403142111975119,0.362644000000003,0.111162499999995,0.937636500000007
+"revbayes_ucln","ucln_run2","P(node_16 monophyletic among extant)",0.117307265052211,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_16 tmrca age",1.06554899977783,0.987601000000012,0.251011000000005,2.33633500000001
+"revbayes_ucln","ucln_run2","P(node_17 monophyletic among extant)",0.999777827149522,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_17 tmrca age",0.221295867362811,0.186287999999998,0.0359214999999935,0.617743500000003
+"revbayes_ucln","ucln_run2","P(node_18 monophyletic among extant)",0.0544323483670296,NA,NA,NA
+"revbayes_ucln","ucln_run2","node_18 tmrca age",0.385384200177741,0.346578999999998,0.0910965000000061,0.896895000000001
+"revbayes_ucln","ucln_run2","P(Spheniscus_muizoni in crown)",0.997556098644746,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Spheniscus_muizoni sampled ancestor)",0.658075983114863,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Spheniscus_urbinai in crown)",0.999333481448567,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Spheniscus_urbinai sampled ancestor)",0.365696511886248,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Spheniscus_megaramphus in crown)",0.999333481448567,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Spheniscus_megaramphus sampled ancestor)",0.388802488335925,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Pygoscelis_grandis sampled ancestor)",0.507887136191957,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Madrynornis_mirandus in crown)",0.991335258831371,NA,NA,NA
+"revbayes_ucln","ucln_run2","P(Madrynornis_mirandus sampled ancestor)",0.546323039324595,NA,NA,NA
+"revbayes_ucln","ucln_run3","crownAge",13.1271216556321,12.99145,11.088501,15.981421
+"revbayes_ucln","ucln_run3","rootAge",61.7737090559284,61.384761822621,60.562556661165,65.363881643776
+"revbayes_ucln","ucln_run3","nSA",14.2614974450122,14,7,21
+"revbayes_ucln","ucln_run3","P(muizoni SA of extant Spheniscus)",0.575205509886692,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(sampled ancestor at the root)",0.422572761608531,NA,NA,NA
+"revbayes_ucln","ucln_run3","rootAge given no root sampled ancestor",62.3345566789061,61.931252833261,60.7447357525378,66.2744147754004
+"revbayes_ucln","ucln_run3","P(node_2 monophyletic among extant)",0.000444345700955343,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_2 tmrca age",13.1268513461453,12.991143,11.088501,15.981421
+"revbayes_ucln","ucln_run3","P(node_3 monophyletic among extant)",0.285047767162853,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_3 tmrca age",12.7776812650522,12.689437,10.5004495,15.731136
+"revbayes_ucln","ucln_run3","P(node_4 monophyletic among extant)",0.999555654299045,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_4 tmrca age",5.03972254765608,4.919438,2.8585365,7.8486065
+"revbayes_ucln","ucln_run3","P(node_5 monophyletic among extant)",0.998000444345701,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_5 tmrca age",2.71634966874028,2.620574,1.35214250000001,4.6118265
+"revbayes_ucln","ucln_run3","P(node_6 monophyletic among extant)",0.999555654299045,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_6 tmrca age",4.47784486203066,4.266027,2.111888,7.9875495
+"revbayes_ucln","ucln_run3","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_7 tmrca age",2.71634966874028,2.620574,1.35214250000001,4.6118265
+"revbayes_ucln","ucln_run3","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_8 tmrca age",1.45547141768496,1.361794,0.721983999999999,2.71028800000001
+"revbayes_ucln","ucln_run3","P(node_9 monophyletic among extant)",0.965341035325483,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_9 tmrca age",0.806350269717843,0.738104000000007,0.331551000000008,1.6971345
+"revbayes_ucln","ucln_run3","P(node_10 monophyletic among extant)",0.502777160630971,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_10 tmrca age",1.17248853810265,1.08186200000001,0.377014999999997,2.503754
+"revbayes_ucln","ucln_run3","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_11 tmrca age",1.72181863030438,1.58862300000001,0.736106499999998,3.521746
+"revbayes_ucln","ucln_run3","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_12 tmrca age",0.713664773383695,0.618618000000012,0.183031,1.798051
+"revbayes_ucln","ucln_run3","P(node_13 monophyletic among extant)",0.938680293268163,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_13 tmrca age",0.822781021106424,0.702586000000011,0.207603000000006,2.11885100000001
+"revbayes_ucln","ucln_run3","P(node_14 monophyletic among extant)",0.834481226394135,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_14 tmrca age",0.997998452343926,0.838827000000002,0.261432500000005,2.62097150000001
+"revbayes_ucln","ucln_run3","P(node_15 monophyletic among extant)",0.968007109531215,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_15 tmrca age",0.416165808709179,0.370881000000011,0.105454500000011,1.001478
+"revbayes_ucln","ucln_run3","P(node_16 monophyletic among extant)",0.117973783603644,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_16 tmrca age",1.08506161475228,0.997613000000001,0.263254000000003,2.41125000000001
+"revbayes_ucln","ucln_run3","P(node_17 monophyletic among extant)",0.999777827149522,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_17 tmrca age",0.223822928682518,0.186945000000001,0.0399144999999947,0.630582000000004
+"revbayes_ucln","ucln_run3","P(node_18 monophyletic among extant)",0.0535436569651189,NA,NA,NA
+"revbayes_ucln","ucln_run3","node_18 tmrca age",0.399075026660745,0.357822000000006,0.0863145000000003,0.966880000000003
+"revbayes_ucln","ucln_run3","P(Spheniscus_muizoni in crown)",0.998444790046656,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Spheniscus_muizoni sampled ancestor)",0.652521661852922,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Spheniscus_urbinai in crown)",0.998444790046656,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Spheniscus_urbinai sampled ancestor)",0.36258609197956,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Spheniscus_megaramphus in crown)",0.998444790046656,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Spheniscus_megaramphus sampled ancestor)",0.394134636747389,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Pygoscelis_grandis in crown)",0.999777827149522,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Pygoscelis_grandis sampled ancestor)",0.504998889135748,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Madrynornis_mirandus in crown)",0.992446123083759,NA,NA,NA
+"revbayes_ucln","ucln_run3","P(Madrynornis_mirandus sampled ancestor)",0.544101310819818,NA,NA,NA
+"revbayes_ucln","ucln_run4","crownAge",13.1631066078649,13.045982,11.1442565,15.902059
+"revbayes_ucln","ucln_run4","rootAge",61.8105138589567,61.40739278486,60.561065612326,65.4688196489545
+"revbayes_ucln","ucln_run4","nSA",14.1315263274828,14,7,21
+"revbayes_ucln","ucln_run4","P(muizoni SA of extant Spheniscus)",0.564319040213286,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(sampled ancestor at the root)",0.408798044878916,NA,NA,NA
+"revbayes_ucln","ucln_run4","rootAge given no root sampled ancestor",62.3614262541505,61.933823772872,60.7255829113375,66.1675957729725
+"revbayes_ucln","ucln_run4","P(node_2 monophyletic among extant)",0.000222172850477672,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_2 tmrca age",13.1626636167518,13.045286,11.1442565,15.902059
+"revbayes_ucln","ucln_run4","P(node_3 monophyletic among extant)",0.289269051321928,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_3 tmrca age",12.8082893630304,12.722963,10.434077,15.704319
+"revbayes_ucln","ucln_run4","P(node_4 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_4 tmrca age",5.05476055987559,4.94227600000001,2.8180315,7.825783
+"revbayes_ucln","ucln_run4","P(node_5 monophyletic among extant)",0.997778271495223,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_5 tmrca age",2.7120504787825,2.61675899999999,1.3102455,4.63818100000001
+"revbayes_ucln","ucln_run4","P(node_6 monophyletic among extant)",0.999111308598089,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_6 tmrca age",4.51613128304821,4.28886999999999,2.1588075,7.99922249999999
+"revbayes_ucln","ucln_run4","P(node_7 monophyletic among extant)",0,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_7 tmrca age",2.7120504787825,2.61675899999999,1.3102455,4.63818100000001
+"revbayes_ucln","ucln_run4","P(node_8 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_8 tmrca age",1.45334881359698,1.36057000000001,0.709748500000003,2.709184
+"revbayes_ucln","ucln_run4","P(node_9 monophyletic among extant)",0.968229282381693,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_9 tmrca age",0.796641278382584,0.727850000000004,0.337761000000004,1.625682
+"revbayes_ucln","ucln_run4","P(node_10 monophyletic among extant)",0.504110197733837,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_10 tmrca age",1.17653731881804,1.08787,0.377671500000005,2.563251
+"revbayes_ucln","ucln_run4","P(node_11 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_11 tmrca age",1.73176082603866,1.56768900000001,0.729939000000009,3.672356
+"revbayes_ucln","ucln_run4","P(node_12 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_12 tmrca age",0.717090460564322,0.627396000000005,0.192177500000007,1.744494
+"revbayes_ucln","ucln_run4","P(node_13 monophyletic among extant)",0.93801377471673,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_13 tmrca age",0.836608856476341,0.710209000000006,0.214397000000002,2.1622975
+"revbayes_ucln","ucln_run4","P(node_14 monophyletic among extant)",0.846922906020884,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_14 tmrca age",0.99702384003555,0.848399000000001,0.274779500000001,2.561385
+"revbayes_ucln","ucln_run4","P(node_15 monophyletic among extant)",0.966674072428349,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_15 tmrca age",0.409707430570987,0.367559,0.107616000000004,0.954690500000009
+"revbayes_ucln","ucln_run4","P(node_16 monophyletic among extant)",0.120639857809376,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_16 tmrca age",1.08380202332815,0.997741999999995,0.2567275,2.4548445
+"revbayes_ucln","ucln_run4","P(node_17 monophyletic among extant)",1,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_17 tmrca age",0.219600772050658,0.185341000000008,0.0353485000000084,0.5921065
+"revbayes_ucln","ucln_run4","P(node_18 monophyletic among extant)",0.0455454343479227,NA,NA,NA
+"revbayes_ucln","ucln_run4","node_18 tmrca age",0.395596181515222,0.357651000000004,0.0945280000000039,0.922560000000001
+"revbayes_ucln","ucln_run4","P(Spheniscus_muizoni in crown)",0.996667407242835,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Spheniscus_muizoni sampled ancestor)",0.651855143301489,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Spheniscus_urbinai in crown)",0.998889135747612,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Spheniscus_urbinai sampled ancestor)",0.360586536325261,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Spheniscus_megaramphus in crown)",0.998889135747612,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Spheniscus_megaramphus sampled ancestor)",0.401910686514108,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Pygoscelis_grandis in crown)",1,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Pygoscelis_grandis sampled ancestor)",0.512997111752944,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Madrynornis_mirandus in crown)",0.993112641635192,NA,NA,NA
+"revbayes_ucln","ucln_run4","P(Madrynornis_mirandus sampled ancestor)",0.534547878249278,NA,NA,NA

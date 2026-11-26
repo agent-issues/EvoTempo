@@ -289,7 +289,7 @@ ancestors, so more bifurcations) they are, with gamma = 1, 14 `node`, 10 `tip`,
 `slide` 6, `saJump` 4, `originAge` 1 (gamma = 0 path moves unchanged;
 `progress.txt` of each chain).  `CET_FNPR` (default 0, as in the stage-1
 chains) adds `fnpr` moves, `ceiling(CET_FNPR x 0.15 x bifurcations)` per
-iteration (#110).
+iteration (#110).  `CET_SFNPR` does the same for `sfnpr`, the spliced-path variant.
 
 `TempoMCMC()` returns neither per-sample trees nor a way to continue a chain,
 so `common.R` rebinds `.TreeStats()` (called by `TempoMCMC()` at every stored

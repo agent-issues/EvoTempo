@@ -1,6 +1,7 @@
 # Rung 5 diagnostic: as rung5-validation.R, but with parameters fixed at the
 # prior medians, separating tree moves from parameter moves.
-# EVOTEMPO_RUNG5_TOPOLOGY=fnpr replaces `slide` by `fnpr` (#110); results get the suffix -fnpr.
+# EVOTEMPO_RUNG5_TOPOLOGY=fnpr (or sfnpr) replaces `slide` by that move (#110); results get the
+# suffix -fnpr (-sfnpr).
 # Run from the package root.
 suppressMessages(pkgload::load_all(".", quiet = TRUE)); library(parallel)
 args <- "5"; lines <- readLines("data-raw/rung5-validation.R")
@@ -8,7 +9,7 @@ eval(parse(text = lines[grep("^  suffix <- ", lines):(grep("^  Simulate <- funct
 fixed <- as.list(exp(meanlog5))
 # Topology move under test: `slide` (default) or `fnpr` (#110), the only one in the chains
 topology <- Sys.getenv("EVOTEMPO_RUNG5_TOPOLOGY", "slide")
-stopifnot(topology %in% c("slide", "fnpr"))
+stopifnot(topology %in% c("slide", "fnpr", "sfnpr"))
 topologyMoves <- setNames(2, topology)
 # The start tree is that of the rung 5 run on the same grid, whatever the move
 gridSuffix <- suffix

@@ -103,3 +103,8 @@
   nearby lineage, chosen within a log-uniform MRCA-age threshold, so that it
   mixes local (narrow-exchange-like) and global rearrangements
   ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).
+- `TempoMCMC()` tree move `sfnpr`: the `fnpr` rearrangement with spliced tempo
+  paths. Every lineage keeps its tempo history, and only the pruned subtree's own
+  path is redrawn, and only when the regraft point's bin changes. With
+  characters that depend on tempo, other lineages' character lengths are therefore
+  unchanged ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).

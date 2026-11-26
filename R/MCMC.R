@@ -203,6 +203,12 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' (as RevBayes's `mvFNPR`); otherwise \eqn{H - t_p} is log-uniform on
 #' \eqn{[(R - t_p) / 100, R - t_p]}, with \eqn{t_p} the parent's age and
 #' \eqn{R} the root age, which gives local rearrangements (as `mvNarrow`);
+#' `sfnpr` makes the same rearrangement but keeps every lineage's tempo
+#' path: the parent's old path is joined to the old sibling's, the target's
+#' path is cut at the parent's age (its upper part and its bin there going to
+#' the parent), and the subtree's own path is redrawn only if the parent's
+#' bin changes, so that, with \eqn{\gamma \ne 0}, the character lengths of
+#' other lineages are unchanged;
 #' `saJump` converts a fossil tip to a sampled ancestor
 #' or back (Gavryushkina et al. 2014).
 #' Each redraws affected node bins and paths from the frozen model, with
@@ -327,7 +333,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   tree <- .NoRootAncestor(.ForModel(TempoTree(tree), model))
   origin <- .Origin(tree)
   moveNames <- c("tree", "node", "tip", "branch", "joint", "shift", "nodeAge",
-                 "fossilAge", "slide", "fnpr", "saJump", "rootAge", "originAge")
+                 "fossilAge", "slide", "fnpr", "sfnpr", "saJump", "rootAge", "originAge")
   if (is.null(moves)) {
     moves <- TempoMoves(tree, characters, model)
   }
@@ -424,7 +430,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   branchX <- matrix(NA_real_, nKeep, length(pathNodes))
   moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L + alphaFree),
                                  c(moveNames, "parameters", if (alphaFree) "alpha"))
-  treeMoves <- c("nodeAge", "fossilAge", "slide", "fnpr", "saJump")
+  treeMoves <- c("nodeAge", "fossilAge", "slide", "fnpr", "sfnpr", "saJump")
   # Character lengths below the root, for the clock statistics
   Below <- function(tr, gamma) {
     replace(.CharacterLengths(tr, st[["set"]][["grid"]][["x"]], st[["paths"]], 1,
@@ -647,7 +653,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 #' `node`, `tip` and `branch` moves are run for a fraction `local` of the
 #' internal nodes, the tips with paths and the branches with paths
 #' respectively (rounded up), with one `shift`.
-#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `fnpr`, `saJump`) are not included;
+#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `fnpr`, `sfnpr`, `saJump`) are not included;
 #' add them to the returned vector.
 #'
 #' @param tree A [`TempoTree`][TempoTree()], or a tree that it accepts.

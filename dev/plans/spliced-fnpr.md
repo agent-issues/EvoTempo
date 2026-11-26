@@ -31,9 +31,13 @@ history of every lineage. Only the subtree's own branch, and only sometimes, get
      `k = c(k_p, k_sib[-1])`. This is continuous, because `k_p[last] = bin[p] = k_sib[1]`. It is
      the lineage's own tempo history from pp to sib.
    - Split `paths[[y]]` at a. With `j = sum(t_y > a)`, the new path of p is
-     `p' = list(t = t_y[1:j], k = k_y[1:(j + 1)])`, the new path of y is
-     `y' = list(t = t_y[-(1:j)], k = k_y[(j + 1):end])`, and the new bin of p is `k' = k_y[j + 1]`,
-     the bin y occupies at age a. A jump exactly at a has probability 0.
+     `p' = list(t = t_y[seq_len(j)], k = k_y[seq_len(j + 1)])`, the new path of y is
+     `y' = list(t = t_y[seq_along(t_y) > j], k = k_y[(j + 1):end])`, and the new bin of p is
+     `k' = k_y[j + 1]`, the bin y occupies at age a.
+     - A jump exactly at a has probability 0.
+     - The index arithmetic must handle j = 0: `t_y[-seq_len(0)]` would be empty.
+     - When x = pp (an interchange with p's old sibling), p's old path is both spliced and replaced,
+       so every new path is computed from the old paths before any is assigned.
 4. **The pruned branch v.** Its interval [a, age(v)] is unchanged, but its top bin changes from
    k = bin[p] to k'.
    - If k' = k, keep `paths[[v]]` (no draw).
@@ -151,3 +155,20 @@ identical in both engines, so seeded chains agree. No new C++.
    both grids, with seed replicates for any |z| > 2.
 4. **The gamma = 1 one-character topology oracle** (`sfnpr-validation.R`): topology and clade
    frequencies against the exact values, with max |z| consistent with the number of statistics.
+
+## Review of the derivation
+
+A `math-prover` subagent checked the plan against the code before implementation. It verified
+points 1-5:
+- the splice/split map is a measure-preserving bijection;
+- the keep-or-redraw rule is consistent in both directions;
+- `.LogAugmented` (R and C++) has no per-branch terms;
+- no term is omitted at the root, sampled ancestors, fossil tips or top bins.
+
+It also made three points that change the plan:
+- **Index bug:** it found the j = 0 index bug in the first version of the split formula. The fix is
+  above, and unit tests cover j = 0 and x = pp.
+- **Irreducibility needs `node`.** `sfnpr` sets p's bin deterministically, so reaching every bin at
+  p relies on the `node` path move. Validation runs that use `sfnpr` as the only topology move must
+  include `node`. `TempoMoves()` always does.
+- **`.SlideNodes` count:** its size is unchanged, as for `fnpr`.

@@ -178,6 +178,12 @@ threshold \eqn{H}.  With probability 1/2, \eqn{H} admits every branch
 (as RevBayes's \code{mvFNPR}); otherwise \eqn{H - t_p} is log-uniform on
 \eqn{[(R - t_p) / 100, R - t_p]}, with \eqn{t_p} the parent's age and
 \eqn{R} the root age, which gives local rearrangements (as \code{mvNarrow});
+\code{sfnpr} makes the same rearrangement but keeps every lineage's tempo
+path: the parent's old path is joined to the old sibling's, the target's
+path is cut at the parent's age (its upper part and its bin there going to
+the parent), and the subtree's own path is redrawn only if the parent's
+bin changes, so that, with \eqn{\gamma \ne 0}, the character lengths of
+other lineages are unchanged;
 \code{saJump} converts a fossil tip to a sampled ancestor
 or back (Gavryushkina et al. 2014).
 Each redraws affected node bins and paths from the frozen model, with

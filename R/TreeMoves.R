@@ -234,6 +234,55 @@
   crossing[.MRCAAge(tree, .PrunedParent(tree, p), sib, crossing) <= threshold]
 }
 
+# Topology part of fnpr and sfnpr: the pruned node v, its parent p (which
+# keeps its age), the threshold and the target y, and the rewired tree; NULL
+# if there is no candidate or no target.  Forward and reverse target sets have
+# the same size, so their counts cancel from the Hastings ratio
+.FnprRegraft <- function(tree) {
+  parent <- tree[["parent"]]
+  age <- tree[["age"]]
+  cand <- .SlideNodes(tree)
+  if (!length(cand)) return(NULL)
+  v <- cand[[.Sample1(rep(1, length(cand)))]]
+  p <- parent[[v]]
+  pp <- parent[[p]]
+  sib <- setdiff(tree[["kids"]][p - tree[["nTip"]], ], v)
+  clade <- .Descendants(tree, v)
+  excess <- age[[tree[["root"]]]] - age[[p]]
+  threshold <- age[[p]] + excess * .fnprSpan ^ -stats::runif(1, -1, 1)
+  fwdTargets <- .FnprTargets(tree, p, sib, clade, threshold)
+  if (!length(fwdTargets)) return(NULL)
+  y <- fwdTargets[[.Sample1(rep(1, length(fwdTargets)))]]
+  newTree <- tree
+  newTree[["parent"]][sib] <- pp
+  x <- parent[[y]]
+  newTree[["parent"]][p] <- x
+  newTree[["parent"]][y] <- p
+  newTree <- .Rebuild(newTree)
+  # The reverse move (target sib) exists, with as many targets
+  revTargets <- .FnprTargets(newTree, p, y, clade, threshold)
+  stopifnot(sib %in% revTargets, length(revTargets) == length(fwdTargets))
+  list(tree = newTree, v = v, p = p, pp = pp, sib = sib, x = x, y = y,
+       threshold = threshold)
+}
+
+# Paths of a lineage through a node: `upper` (ending at the node) followed by
+# `lower` (starting there)
+.SplicePaths <- function(upper, lower) {
+  list(t = c(upper[["t"]], lower[["t"]]), k = c(upper[["k"]], lower[["k"]][-1]))
+}
+
+# A path cut at age `at`: the part above, the part below, and the bin at `at`
+.SplitPath <- function(path, at) {
+  t <- path[["t"]]
+  k <- path[["k"]]
+  j <- sum(t > at)
+  # (not t[-seq_len(j)], which is empty for j = 0)
+  list(upper = list(t = t[seq_len(j)], k = k[seq_len(j + 1L)]),
+       lower = list(t = t[seq_along(t) > j], k = k[seq_along(k) > j]),
+       bin = k[[j + 1L]])
+}
+
 .Descendants <- function(tree, v) {
   out <- v
   frontier <- v
@@ -345,32 +394,18 @@
       # Fixed-node-height prune and regraft onto a nearby lineage
       # (dev/plans/local-fnpr.md): p keeps its age; targets are the lineages
       # crossing age(p) whose MRCA with sib in the pruned tree is no older
-      # than a random threshold, so that forward and reverse target sets have
-      # the same size, and their counts cancel from the Hastings ratio
-      cand <- .SlideNodes(tree)
-      if (!length(cand)) return(NULL)
-      v <- cand[[.Sample1(rep(1, length(cand)))]]
-      p <- parent[[v]]
-      pp <- parent[[p]]
-      sib <- setdiff(tree[["kids"]][p - nTip, ], v)
-      clade <- .Descendants(tree, v)
-      excess <- age[[tree[["root"]]]] - age[[p]]
-      threshold <- age[[p]] + excess * .fnprSpan ^ -stats::runif(1, -1, 1)
-      fwdTargets <- .FnprTargets(tree, p, sib, clade, threshold)
-      if (!length(fwdTargets)) return(NULL)
-      y <- fwdTargets[[.Sample1(rep(1, length(fwdTargets)))]]
-      newTree <- tree
-      newTree[["parent"]][sib] <- pp
-      x <- newTree[["parent"]][[y]]
-      newTree[["parent"]][p] <- x
-      newTree[["parent"]][y] <- p
-      newTree <- .Rebuild(newTree)
-      # The reverse move (target sib) exists, with as many targets
-      revTargets <- .FnprTargets(newTree, p, y, clade, threshold)
-      stopifnot(sib %in% revTargets, length(revTargets) == length(fwdTargets))
-      lwNew <- .NodeLogWeights(newTree, set, p, set[["lambda"]], bin[[x]],
+      # than a random threshold (.FnprRegraft()); p's bin is drawn from its
+      # frozen conditional and the paths on p, y, v and sib are redrawn
+      rg <- .FnprRegraft(tree)
+      if (is.null(rg)) return(NULL)
+      newTree <- rg[["tree"]]
+      v <- rg[["v"]]
+      p <- rg[["p"]]
+      y <- rg[["y"]]
+      sib <- rg[["sib"]]
+      lwNew <- .NodeLogWeights(newTree, set, p, set[["lambda"]], bin[[rg[["x"]]]],
                                c(y, v), bin[c(y, v)])
-      lwOld <- .NodeLogWeights(tree, set, p, set[["lambda"]], bin[[pp]],
+      lwOld <- .NodeLogWeights(tree, set, p, set[["lambda"]], bin[[rg[["pp"]]]],
                                c(sib, v), bin[c(sib, v)])
       draw <- .DrawFromLog(lwNew)
       newBin <- bin
@@ -380,7 +415,37 @@
       list(tree = newTree, bin = newBin, paths = fwd[["paths"]],
            logHastings = OldQ(nodes) + lwOld[[bin[[p]]]] - .LogSumExp(lwOld) -
              fwd[["logQ"]] - draw[["logQ"]],
-           fnpr = list(v = v, y = y, threshold = threshold))
+           fnpr = list(v = v, y = y, threshold = rg[["threshold"]]))
+    },
+    sfnpr = {
+      # fnpr with spliced paths (dev/plans/spliced-fnpr.md): every lineage
+      # keeps its tempo history.  sib's new path is p's old path followed by
+      # sib's; y's path is cut at age(p), its upper part becoming p's path and
+      # its bin there p's bin; v keeps its path if p's bin is unchanged, and
+      # otherwise gets a frozen bridge from the new bin
+      rg <- .FnprRegraft(tree)
+      if (is.null(rg)) return(NULL)
+      newTree <- rg[["tree"]]
+      v <- rg[["v"]]
+      p <- rg[["p"]]
+      y <- rg[["y"]]
+      sib <- rg[["sib"]]
+      cut <- .SplitPath(paths[[y]], age[[p]])
+      newPaths <- paths
+      newPaths[[sib]] <- .SplicePaths(paths[[p]], paths[[sib]])
+      newPaths[[p]] <- cut[["upper"]]
+      newPaths[[y]] <- cut[["lower"]]
+      newBin <- bin
+      newBin[p] <- cut[["bin"]]
+      logHastings <- 0
+      if (newBin[[p]] != bin[[p]]) {
+        fwd <- .DrawBridges(newTree, set, v, newBin, newPaths)
+        newPaths <- fwd[["paths"]]
+        logHastings <- OldQ(v) - fwd[["logQ"]]
+      }
+      list(tree = newTree, bin = newBin, paths = newPaths,
+           logHastings = logHastings,
+           fnpr = list(v = v, y = y, threshold = rg[["threshold"]]))
     },
     saJump = {
       fossils <- which(tree[["tipType"]] != "extant")

@@ -82,7 +82,7 @@ test_that("Each tree move proposes valid trees", {
   st <- list(tree = moveTree, set = set, paths = d$paths, bin = d$bin)
   seen <- character(0)
   for (i in 1:60) {
-    for (move in c("nodeAge", "fossilAge", "slide", "fnpr", "saJump")) {
+    for (move in c("nodeAge", "fossilAge", "slide", "fnpr", "sfnpr", "saJump")) {
       prop <- .ProposeTreeMove(move, st$tree, set, st)
       if (is.null(prop)) next
       seen <- c(seen, move)
@@ -104,7 +104,7 @@ test_that("Each tree move proposes valid trees", {
       }
     }
   }
-  expect_setequal(unique(seen), c("nodeAge", "fossilAge", "slide", "fnpr", "saJump"))
+  expect_setequal(unique(seen), c("nodeAge", "fossilAge", "slide", "fnpr", "sfnpr", "saJump"))
   expect_true(any(st$tree$tipType == "ancestor") || any(seen == "saJump"))
 })
 
@@ -115,7 +115,7 @@ test_that("Tree moves with no candidates return NULL", {
   set <- .AddSlices(cherry, .Precompute(cherry, movePar, moveModel), 4)
   d <- .SampleTree(cherry, set, .Messages(cherry, set))
   st <- list(tree = cherry, set = set, paths = d$paths, bin = d$bin)
-  for (move in c("nodeAge", "fossilAge", "slide", "fnpr")) {
+  for (move in c("nodeAge", "fossilAge", "slide", "fnpr", "sfnpr")) {
     expect_null(.ProposeTreeMove(move, cherry, set, st))
   }
   # Fossil tip whose parent is the root
@@ -154,9 +154,10 @@ test_that("TempoMCMC() runs every move with characters", {
   set.seed(3)
   chars <- matrix(sample(0:1, 5 * 6, TRUE), 5)
   run <- TempoMCMC(moveTree, moveModel, movePar,
-                   TempoPriors()[c("lambda", "theta")], nIter = 6, nSlice = 4,
+                   TempoPriors()[c("lambda", "theta")], nIter = 12, nSlice = 4,
                    moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 1,
-                             fossilAge = 1, slide = 1, fnpr = 1, saJump = 1, joint = 1),
+                             fossilAge = 1, slide = 1, fnpr = 1, sfnpr = 1, saJump = 1,
+                             joint = 1),
                    characters = chars)
   expect_true(all(run$acceptance[c(names(run$moves), "parameters")] > 0))
   expect_true(all(is.finite(run$samples$logPost)))
@@ -365,4 +366,111 @@ test_that("fnpr runs from an origin start", {
   expect_gt(run$acceptance[["fnpr"]], 0)
   expect_equal(run$state$tree$age, st$tree$age)
   expect_equal(.StartAge(run$state$tree), .StartAge(st$tree))
+})
+
+test_that("Paths split and splice back exactly", {
+  path <- list(t = c(2.5, 1.7, 0.4), k = c(3L, 4L, 3L, 2L))
+  for (at in c(2.8, 2, 1, 0.2)) {
+    cut <- .SplitPath(path, at)
+    expect_equal(.SplicePaths(cut$upper, cut$lower), path)
+    expect_equal(cut$bin, cut$upper$k[[length(cut$upper$k)]])
+    expect_equal(cut$bin, cut$lower$k[[1]])
+    expect_true(all(cut$upper$t > at) && all(cut$lower$t < at))
+  }
+  # No jump above the cut (j = 0), and a path with no jump at all
+  expect_equal(.SplitPath(path, 2.8)$upper, list(t = numeric(0), k = 3L))
+  expect_equal(.SplitPath(path, 2.8)$lower, path)
+  flat <- list(t = numeric(0), k = 5L)
+  expect_equal(.SplitPath(flat, 1), list(upper = flat, lower = flat, bin = 5L))
+})
+
+test_that("sfnpr Hastings ratio matches the proposal densities in both directions", {
+  # From the definition (dev/plans/spliced-fnpr.md): choice of v, uniform
+  # target at the drawn threshold, deterministic splice and split, and a
+  # frozen bridge on v only when p's bin changes
+  nKept <- nRedrawn <- 0
+  for (st in FnprStates(11)) {
+    set <- st$set
+    for (i in 1:60) {
+      prop <- .ProposeTreeMove("sfnpr", st$tree, set, st)
+      if (is.null(prop)) next
+      old <- st$tree
+      new <- prop$tree
+      v <- prop$fnpr$v
+      y <- prop$fnpr$y
+      h <- prop$fnpr$threshold
+      p <- old$parent[[v]]
+      pp <- old$parent[[p]]
+      sib <- setdiff(old$kids[p - old$nTip, ], v)
+      x <- old$parent[[y]]
+      clade <- .Descendants(old, v)
+      expect_equal(new$parent[c(p, y, sib)], c(x, p, pp))
+      expect_equal(new$age, old$age)
+      # Every lineage keeps its tempo history
+      expect_equal(prop$paths[[sib]], .SplicePaths(st$paths[[p]], st$paths[[sib]]))
+      expect_equal(.SplicePaths(prop$paths[[p]], prop$paths[[y]]), st$paths[[y]])
+      expect_equal(prop$bin[-p], st$bin[-p])
+      for (u in .PathNodes(new)) {
+        k <- prop$paths[[u]]$k
+        expect_equal(k[[1]], .TopBin(new, prop$bin, u))
+        expect_equal(k[[length(k)]], prop$bin[[u]])
+      }
+      fwdT <- .FnprTargets(old, p, sib, clade, h)
+      revT <- .FnprTargets(new, p, y, clade, h)
+      kept <- prop$bin[[p]] == st$bin[[p]]
+      logFwd <- -log(length(.SlideNodes(old))) - log(length(fwdT))
+      logRev <- -log(length(.SlideNodes(new))) - log(length(revT))
+      if (kept) {
+        expect_identical(prop$paths[[v]], st$paths[[v]])
+        nKept <- nKept + 1
+      } else {
+        logFwd <- logFwd + .LogBridge(new, set, v, prop$paths[[v]])
+        logRev <- logRev + .LogBridge(old, set, v, st$paths[[v]])
+        nRedrawn <- nRedrawn + 1
+      }
+      expect_equal(prop$logHastings, logRev - logFwd, tolerance = 1e-8)
+      if (i %% 2 == 0) {
+        st$tree <- new
+        st$paths <- prop$paths
+        st$bin <- prop$bin
+      }
+    }
+  }
+  expect_gt(nKept, 5)
+  expect_gt(nRedrawn, 5)
+})
+
+test_that("sfnpr keeps the tempo integral of every lineage", {
+  # With p's bin unchanged no path is redrawn, so the summed tempo-weighted
+  # length is unchanged; otherwise only v's branch can change it
+  st <- FnprStates(12)[[1]]
+  x <- st$set$grid$x
+  Lengths <- function(tr, paths) .CharacterLengths(tr, x, paths, 1, 1)
+  set.seed(13)
+  nKept <- 0
+  for (i in 1:60) {
+    prop <- .ProposeTreeMove("sfnpr", st$tree, st$set, st)
+    if (is.null(prop)) next
+    v <- prop$fnpr$v
+    before <- Lengths(st$tree, st$paths)
+    after <- Lengths(prop$tree, prop$paths)
+    expect_equal(sum(after[-v]) - sum(before[-v]), 0, tolerance = 1e-10)
+    if (identical(prop$paths[[v]], st$paths[[v]])) {
+      expect_equal(after[[v]], before[[v]])
+      nKept <- nKept + 1
+    }
+    st$tree <- prop$tree
+    st$paths <- prop$paths
+    st$bin <- prop$bin
+  }
+  expect_gt(nKept, 0)
+})
+
+test_that("sfnpr runs from an origin start", {
+  st <- FnprStates(8)[[2]]
+  set.seed(9)
+  run <- TempoMCMC(st$tree, st$model, movePar, TempoPriors()["lambda"], nIter = 20,
+                   nSlice = 4, moves = c(node = 1, sfnpr = 2), minAcceptance = 0)
+  expect_gt(run$acceptance[["sfnpr"]], 0)
+  expect_equal(run$state$tree$age, st$tree$age)
 })

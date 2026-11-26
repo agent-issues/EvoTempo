@@ -280,3 +280,31 @@ test_that("Random call sequences give the one-shot result, bitwise", {
   expect_gt(nRoot, 0)
   expect_equal(.MkCache()$checkFailures, 0)
 })
+
+test_that("Cached chains with fnpr match uncached chains and the R engine", {
+  set.seed(12)
+  chars <- matrix(sample(c(0:2, NA), 5 * 6, replace = TRUE, prob = c(3, 3, 3, 1)), 5)
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, gamma = 1)
+  priors <- c(TempoPriors()["lambda"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  # Every iteration is stored; with the cache on, each evaluation is also
+  # checked bitwise against a fresh one
+  Run <- function(on, engine = "cpp") {
+    .MkCache(clear = TRUE)
+    set.seed(13)
+    WithCache(on, TempoMCMC(cacheTree, model, cachePar, priors, nIter = 40,
+                            burnin = 0, thin = 1, nSlice = 4, characters = chars,
+                            nState = 3L, moves = c(branch = 1, fnpr = 3, nodeAge = 1),
+                            minAcceptance = 0, engine = engine))
+  }
+  cached <- Run(TRUE)
+  expect_equal(.MkCache()$checkFailures, 0)
+  expect_gt(.MkCache()$entries, 0)
+  # fnpr is both accepted (the cache keeps the regrafted tree) and rejected
+  # (it returns to the tree before)
+  expect_gt(cached$acceptance[["fnpr"]], 0)
+  expect_lt(cached$acceptance[["fnpr"]], 1)
+  expect_equal(nrow(cached$samples), 40)
+  expect_identical(cached$samples, Run(FALSE)$samples)
+  expect_equal(cached$samples, Run(FALSE, "R")$samples, tolerance = 1e-8)
+})

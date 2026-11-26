@@ -12,7 +12,7 @@
                  jacfunc = function(t, y, p) Jac(t, y), jactype = "fullusr",
                  rtol = rtol, atol = atol, maxsteps = 1e6)
     if (attr(sol, "istate")[[1]] < 0) {
-      stop("ODE solver failed")  # nocov
+      stop("ODE solver failed")
     }
     unname(unclass(sol)[, -1L, drop = FALSE])
   }

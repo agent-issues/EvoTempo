@@ -36,7 +36,7 @@ void ExtinctionAt(const BandGenerator& Q, const std::vector<double>& lambda,
   for (int i = 0; i < nTime; ++i) {
     if (times[i] > now) {
       if (!solver.Integrate(prob, e.data(), times[i] - now)) {
-        Rcpp::stop("ODE solver failed");  // # nocov
+        Rcpp::stop("ODE solver failed");
       }
       now = times[i];
     }
@@ -122,7 +122,7 @@ List EGridCpp(NumericVector ages, NumericMatrix Q, NumericVector lambda,
       Record(i, yi.data());
     }
   });
-  if (!ok) Rcpp::stop("ODE solver failed");  // # nocov
+  if (!ok) Rcpp::stop("ODE solver failed");
   for (; i < nAge; ++i) Record(i, y.data());
   return List::create(_["E"] = E, _["G"] = G, _["dE"] = dE);
 }

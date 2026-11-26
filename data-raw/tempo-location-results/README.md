@@ -70,7 +70,9 @@ decision (raise K, widen the window, or relax the thresholds) is the maintainer'
 | 3 | beta = 0 collapse (`rung3-collapse.csv`) | Absolute difference <= 4.8e-10. Uses random matrices: says nothing about #116 |
 | 3 | Monte Carlo (`rung3-montecarlo*.csv`) | chi-squared p = 0.32, max abs(z) 2.80 |
 | 4a(i) | Augmented vs marginal posterior, 20 000 iterations (`rung4a-quantiles.csv`, `rung4a-summary.csv`) | max abs(z) 2.45 over 25 quantiles; KS p >= 0.085 (see notes: chain length chosen after a failure) |
-| 4a(ii) | Local moves vs weighted FFBS, 16 chains x 20 000, all iterations (`rung4a-ffbs-pooled16.csv`) | **Open.** 16 of 16 branch means above FFBS, z 0.94-2.73; occupancy max abs(z) 2.36 where the reference mass is >= 1e-3. Pre-registered rerun below |
+| 4a(ii) | Local moves vs weighted FFBS, first run: 16 chains x 20 000, all iterations (`rung4a-ffbs-pooled16.csv`) | 16 of 16 branch means above FFBS, z 0.94-2.73; occupancy max abs(z) 2.36 where the reference mass is >= 1e-3 |
+| 4a(ii) | Pre-registered rerun, 32 chains x 50 000, 64 000 reference draws (`rung4a-rerun/`) | **Pass under both locations.** `"mean"`: local arm max abs(z) 2.25 over 30 quantities, branch-average offset z 1.26 (12 of 16 branches above); diagnostic arm 3.05, offset 2.00. `"bm"`: local 1.54, offset 0.12 (8 of 16); diagnostic 2.05, offset 1.41 |
+| — | C++ vs R engine at the new default (`cpp-engine/`) | Max relative difference in log-likelihood 6.7e-10 (<= 1e-8); seeded chains give the same final log posterior in both engines |
 | 4b | Likelihood check (`rung4b-likelihood-check.csv`) | abs(z) <= 1.34 |
 | 4b | One-parameter exact posterior, 8 chains (`log-onepar2.txt`) | lambda q25 z = -2.02; **psi q50 z = 2.73**; others abs(z) < 2 |
 | 4b | One-parameter, s (`log-ones.txt`); psi again at 16 chains x 6000 (`log-onepsi.txt`) | s: abs(z) <= 0.58; psi: abs(z) <= 1.65 (q50 1.46) |
@@ -102,8 +104,17 @@ decision (raise K, widen the window, or relax the thresholds) is the maintainer'
     means per chain in `rung4a-local-blockmeans.rds`; the pooling code `rung4a-pool.R`, which reproduces
     `rung4a-ffbs-pooled16.csv`.
   - **The pre-`#116` record.** The old `"bm"` tables show the same sign on several branches, with SEs 3-4 times larger.
-  - **The rerun.** Pre-registered in `dev/plans/rung4a-local-rerun.md`, before running: 32 chains x 50 000 under
-    `"mean"` and `"bm"`, with a whole-tree-proposal diagnostic arm. Results go to `rung4a-rerun/`.
+  - **The rerun.** Pre-registered in `dev/plans/rung4a-local-rerun.md` and committed (f507e1b) before running, under
+    `"mean"` and `"bm"`, with a whole-tree-proposal diagnostic arm. It ran from a clean archive of f507e1b; the logs
+    and the outputs record location, scheme, SHA and script md5.
+    - **Result.** Every arm passes the pre-registered rule (max abs(z) < 3.3, offset abs(z) < 3) under both locations.
+      The offset the first run showed (+0.02 in branch-mean log-tempo, all 16 branches positive) is not reproduced at
+      twice the chains and 2.5 times the length.
+    - **What remains.** Under `"mean"` the local arm still leans positive: 12 of 16 branches, offset z 1.26. The
+      diagnostic arm's largest z is 3.05, within the rule but near it. Read the first run as a fluctuation of the
+      size these z-scores allow when 16 correlated branch means share one overall level. The branch-average offset
+      is 0.0066 +/- 0.0053 under `"mean"` and -0.0006 +/- 0.0049 under `"bm"`. The first run's 0.019 +/- 0.010 is 1.2
+      SE from the former. A bias up to about 0.017 under `"mean"` is not excluded at this size.
   - **Bin 25.** Occupancy bin 25 has reference mass 0 and SE 0, so its z (3.76 for the first 8 chains, 2.89 here) is
     not defined. Excluding it is part of the stated rule (reference mass >= 1e-3).
 - **Rung 6 SBC grid and provenance.** The run used the lib built at 2e7836d, whose default location is `"mean"`

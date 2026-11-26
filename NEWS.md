@@ -99,6 +99,10 @@
   `samples`.  Chains on plain character matrices are unchanged
   ([#97](https://github.com/agent-issues/EvoTempo/issues/97),
   [#47](https://github.com/agent-issues/EvoTempo/issues/47)).
+- `TempoMCMC()` tree move `fnpr`: fixed-node-height prune and regraft onto a
+  nearby lineage, chosen within a log-uniform MRCA-age threshold, so that it
+  mixes local (narrow-exchange-like) and global rearrangements
+  ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).
 - The C++ engine of `MkLikelihood()` caches partial likelihoods per character
   matrix between calls, so a `TempoMCMC()` proposal recomputes only the nodes
   whose subtree or child branch lengths changed; results are bitwise those of a

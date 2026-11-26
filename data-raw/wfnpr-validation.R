@@ -7,7 +7,8 @@
 # fixed-height regrafts reach is enumerated, and independent chains are
 # compared with the exact probabilities of (a) each topology of probability
 # above 0.02 and (b) each clade.  `fnpr` chains run alongside as a control.
-# With gamma = 1 there is no exact oracle: `wfnpr` against `fnpr`.
+# With gamma = 1 the exact probabilities come from pruning on the product of
+# tempo bins and character patterns (ProductLogLik(), below).
 #
 # Settings (environment):
 #   WFNPR_TREE    "sa5": five tips, two fossils and a sampled ancestor (18
@@ -19,7 +20,8 @@
 #   WFNPR_MAX     .wfnprMax, the cap on candidates including the current one
 #                 (default: the package's, 8, which never truncates here)
 #   WFNPR_CHAINS, WFNPR_ITER   chains per move and iterations per chain (the
-#                 first tenth is discarded)
+#                 first tenth is discarded); with WFNPR_CHAINS=0 only the exact
+#                 values are written, to <tree>-<case>-exact.csv
 #   WFNPR_SEED    seed offset;  WFNPR_CORES  parallel workers (not on Windows)
 # Run from the package root with the package installed.  Results, in
 # data-raw/wfnpr-results/: <label>.csv (per statistic) and <label>-chains.csv
@@ -36,7 +38,7 @@ nCore <- as.integer(Env("WFNPR_CORES", "1"))
 ns <- asNamespace("EvoTempo")
 for (f in c(".PathNodes", ".SlideNodes", ".FnprTargets", ".Descendants", ".Rebuild",
             ".AddSlices", ".Precompute", ".Messages", ".SampleTree", ".PathMove",
-            ".TreeMove", ".LogSumExp", ".CharacterLengths")) {
+            ".TreeMove", ".LogSumExp", ".CharacterLengths", ".Setup", ".PruneTree")) {
   assign(f, get(f, ns))
 }
 maxCandidates <- as.integer(Env("WFNPR_MAX", as.character(get(".wfnprMax", ns))))
@@ -121,11 +123,50 @@ clades <- sort(unique(unlist(cladeOf)))
 hasClade <- vapply(cladeOf, function(x) clades %in% x, logical(length(clades)))
 rownames(hasClade) <- paste0("clade ", clades)
 
-exact <- if (gamma == 0) {
-  logP <- vapply(trees, function(tr) TreeLikelihood(tr, par, model) + CharLL(tr, NULL, par, NULL), 0)
-  exp(logP - .LogSumExp(logP))
+# Exact joint log-likelihood of a tree and the characters for any gamma: the
+# characters share the tempo path, so the pruning runs on the product of the
+# tempo bins and the 2^n character patterns, as TreeLikelihood(character = )
+# does for one character
+ProductLogLik <- function(tr, gamma) {
+  set <- .Setup(par, model)
+  nPattern <- 2^ncol(chars)
+  pattern <- as.matrix(expand.grid(rep(list(0:1), ncol(chars))))
+  code <- drop(pattern %*% 2^(seq_len(ncol(chars)) - 1L))
+  flip <- matrix(0, nPattern, nPattern)
+  for (k in seq_len(ncol(chars))) {
+    flipped <- code + (1 - 2 * pattern[, k]) * 2^(k - 1L)
+    flip[cbind(seq_len(nPattern), match(flipped, code))] <- 1
+  }
+  diag(flip) <- -ncol(chars)
+  clock <- par$rate * exp(gamma * set$grid$x)
+  joint <- kronecker(set$Q, diag(nPattern)) + kronecker(diag(clock), flip)
+  Expand <- function(v) rep(v, each = nPattern)
+  mask <- outer(drop(chars %*% 2^(seq_len(ncol(chars)) - 1L)), code, `==`) + 0
+  .PruneTree(tr, joint, Expand(set$lambda), Expand(set$mu), Expand(set$psi), model$rho,
+             model$removal, Expand(set$prior) / nPattern, model$condition, model$joint,
+             model$start, tipMask = mask[, rep(seq_len(nPattern), nrow(set$Q)), drop = FALSE])
+}
+logP <- if (gamma == 0) {
+  vapply(trees, function(tr) TreeLikelihood(tr, par, model) + CharLL(tr, NULL, par, NULL), 0)
 } else {
-  NULL
+  # The product space must reproduce the factorized likelihood at gamma = 0
+  nodes <- .PathNodes(start)
+  len <- numeric(length(start$parent))
+  len[nodes] <- par$rate * (start$age[start$parent[nodes]] - start$age[nodes])
+  flat <- TreeLikelihood(start, par, model) + MkLikelihood(start, chars, len)
+  stopifnot(abs(ProductLogLik(start, 0) - flat) < 1e-6)
+  vapply(trees, ProductLogLik, 0, gamma = gamma)
+}
+exact <- exp(logP - .LogSumExp(logP))
+shown <- which(exact > 0.02)
+exactStat <- c(exact[shown], hasClade %*% exact, NA)
+names(exactStat) <- c(sprintf("topology %03d", shown), rownames(hasClade), "acceptance")
+dir <- "data-raw/wfnpr-results"
+if (nChain == 0) {
+  write.csv(data.frame(statistic = names(exactStat), exact = signif(exactStat, 8)),
+            file.path(dir, sprintf("%s-%s-exact.csv", treeName, case)), row.names = FALSE)
+  print(exactStat)
+  quit(save = "no")
 }
 
 Chain <- function(move, seed) {
@@ -162,14 +203,8 @@ Chains <- function(move) {
 }
 runs <- lapply(c(wfnpr = "wfnpr", fnpr = "fnpr"), Chains)
 
-# Statistics: topologies of exact probability above 0.02 (with gamma = 1, of
-# mean frequency above 0.02 over all chains), every clade, and acceptance
-topologyP <- if (is.null(exact)) {
-  rowMeans(cbind(runs$wfnpr, runs$fnpr)[seq_along(trees), ])
-} else {
-  exact
-}
-shown <- which(topologyP > 0.02)
+# Statistics: topologies of exact probability above 0.02, every clade, and
+# acceptance
 Stats <- function(freq) {
   topology <- freq[seq_along(trees), , drop = FALSE]
   out <- rbind(topology[shown, , drop = FALSE], hasClade %*% topology,
@@ -178,11 +213,7 @@ Stats <- function(freq) {
   out
 }
 perChain <- lapply(runs, Stats)
-exactStat <- if (is.null(exact)) {
-  rep(NA_real_, nrow(perChain$wfnpr))
-} else {
-  c(exact[shown], hasClade %*% exact, NA)
-}
+exactStat <- unname(exactStat)
 Mean <- function(move) rowMeans(perChain[[move]])
 Se <- function(move) apply(perChain[[move]], 1, stats::sd) / sqrt(nChain)
 out <- data.frame(
@@ -199,9 +230,8 @@ long <- do.call(rbind, lapply(names(perChain), function(move) {
              statistic = out$statistic, exact = exactStat,
              value = signif(as.vector(perChain[[move]]), 6))
 }))
-dir <- "data-raw/wfnpr-results"
 write.csv(out, file.path(dir, paste0(label, ".csv")), row.names = FALSE)
 write.csv(long, file.path(dir, paste0(label, "-chains.csv")), row.names = FALSE)
 cat(sprintf("%s: %d topologies (%d of positive probability), %d chains x %d\n", label,
-            length(trees), if (is.null(exact)) NA else sum(exact > 0), nChain, nIter))
+            length(trees), sum(exact > 0), nChain, nIter))
 print(out[-1])

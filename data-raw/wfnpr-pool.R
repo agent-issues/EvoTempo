@@ -2,7 +2,9 @@
 # every run with the same tree, case and candidate cap (whatever the seed)
 # counts once, so that no run is set aside.  For each statistic, and with the
 # between-chain standard errors:
-#   pooled.csv        z of each move's mean against the exact value (gamma = 0);
+#   pooled.csv        z of each move's mean against the exact value (for runs
+#                     made before the gamma = 1 oracle, taken from
+#                     <tree>-<case>-exact.csv);
 #   pooled-fnpr.csv   z of the `wfnpr` mean against the `fnpr` mean.
 # `pMax` is the probability that the largest |t| of as many independent
 # statistics exceeds the observed one (n - 1 degrees of freedom; for the
@@ -16,6 +18,11 @@ chains <- do.call(rbind, lapply(files, utils::read.csv))
 chains$group <- sub("-[0-9]+$", "", chains$label)
 chains <- chains[chains$statistic != "acceptance", ]
 chains$id <- paste(chains$label, chains$chain)
+for (case in unique(sub("-max.*", "", chains$group[is.na(chains$exact)]))) {
+  known <- utils::read.csv(file.path(dir, paste0(case, "-exact.csv")))
+  fill <- is.na(chains$exact) & startsWith(chains$group, paste0(case, "-max"))
+  chains$exact[fill] <- known$exact[match(chains$statistic[fill], known$statistic)]
+}
 
 # Mean and standard error over chains of each statistic that every run of the
 # group reports (with gamma = 1 the topologies listed depend on the run)
@@ -41,6 +48,7 @@ exact <- do.call(rbind, lapply(names(byGroup), function(group) {
   do.call(rbind, lapply(c("wfnpr", "fnpr"), function(move) {
     s <- Summarize(byGroup[[group]][byGroup[[group]]$move == move, ])
     z <- ((s$mean - s$exact) / s$se)[s$se > 0]
+    z <- z[!is.na(z)]  # topologies that an early gamma = 1 run listed by frequency
     Row(group, z, function(t) 2 * stats::pt(-t, s$n - 1), move = move, chains = s$n)
   }))
 }))

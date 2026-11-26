@@ -7,7 +7,11 @@
 "extant5-characters-max8","fnpr",32,39,2.25,"clade b+c+e",1.27,0.71
 "extant5-prior-max3","wfnpr",32,25,2.78,"clade a+b+c+e",1.2,0.21
 "extant5-prior-max3","fnpr",32,25,1.83,"clade a+b+c+d",0.978,0.87
+"extant5-tempoCharacters-max3","wfnpr",32,39,2.8,"clade a+c+e",1.12,0.29
+"extant5-tempoCharacters-max3","fnpr",32,39,2.92,"topology 005",1.55,0.23
 "sa5-characters-max8","wfnpr",32,17,1.33,"clade a+b+f",0.792,0.97
 "sa5-characters-max8","fnpr",32,17,2.15,"topology 018",0.983,0.49
 "sa5-prior-max8","wfnpr",32,17,1.51,"clade a+c",0.781,0.92
 "sa5-prior-max8","fnpr",32,17,1.98,"topology 009",1.15,0.63
+"sa5-tempoCharacters-max8","wfnpr",320,17,2.27,"clade c+d",1.44,0.34
+"sa5-tempoCharacters-max8","fnpr",320,17,2.82,"topology 009",1.39,0.084

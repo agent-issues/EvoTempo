@@ -34,20 +34,35 @@ independent |t| values, on 31 degrees of freedom, exceeds the one observed):
 
 The three extant5 character cases share one set of `fnpr` control chains (same seeds).
 
-With gamma = 1 there is no exact oracle; `wfnpr` against `fnpr` (`pooled-fnpr.csv`):
+With gamma = 1 the characters depend on the tempo paths, and the exact probabilities come from
+pruning on the product of the tempo bins and the character patterns (`ProductLogLik()` in the
+script, checked there against the factorized likelihood at gamma = 0; `<tree>-<case>-exact.csv`).
+Against them (`pooled.csv`):
 
-| Tree | Case | Cap | Chains per move | Statistics | max abs z | rms z | pMax |
-|---|---|---|---|---|---|---|---|
-| extant5 | 5 characters, gamma = 1 | 3 | 32 | 40 | 2.05 | 0.90 | 0.80 |
-| sa5 | 4 characters, gamma = 1 | 8 | 64 | 17 | 2.70 | 1.28 | 0.11 |
+| Tree | Case | Cap | Chains per move | Statistics | `wfnpr` max abs z | rms z | pMax | `fnpr` max abs z | rms z | pMax |
+|---|---|---|---|---|---|---|---|---|---|---|
+| extant5 | 5 characters, gamma = 1 | 3 | 32 | 39 | 2.80 | 1.12 | 0.29 | 2.92 | 1.55 | 0.23 |
+| sa5 | 4 characters, gamma = 1 | 8 | 320 | 17 | 2.27 | 1.44 | 0.34 | 2.82 | 1.39 | 0.084 |
 
-The sa5 gamma = 1 case is the one that is not clean. Its first run (seed 0) had topology 002 at
-z = 3.32 (0.0850 for `wfnpr`, 0.0814 for `fnpr`) and the clade a+c, which that topology contains,
-at 2.48. A second run of 32 chains (seed 1000) had the same topology at 0.74 and the clade at 1.26.
-Both runs are pooled above: 2.70 over 64 chains. The same sign in both runs, with a fading size,
-fits noise better than a bias of the first run's size, but does not exclude a small one; the
-pairwise weight test (`test-TreeMoves.R`) checks the gamma = 1 weights to 1e-8, and the extant5
-gamma = 1 case shows nothing.
+The sa5 case has three runs, because the first two were not clean when `wfnpr` was compared with
+`fnpr`, the only reference then available:
+
+| Run | Chains per move | topology 002, z `wfnpr` - `fnpr` | clade a+c | largest of 17 |
+|---|---|---|---|---|
+| seed 0 (local, 0ad095c) | 32 | 3.32 | 2.48 | 3.32 |
+| seed 1000 (local, 0ad095c) | 32 | 0.74 | 1.26 | 1.49 |
+| seed 2000 (Hamilton Slurm 19572313, 3d4eda7) | 256 | 0.36 | 0.69 | 3.26 (clade c+d) |
+
+The third run was a test fixed before it was submitted (in the header of its job script): those
+two statistics, 256 new chains, verdict from the new chains alone, |z| >= 3 for either as evidence
+of a bias and |z| < 2 for both as noise. By that rule the first run's outlier was noise. The same
+run then put a different statistic, clade c+d, at -3.26 between the moves (3.12 over all 320
+chains), which is why the exact values were added. Against them the two moves sit on opposite
+sides of the exact value for that clade, 0.4724: `wfnpr` at z = -2.27 and `fnpr` at +2.16 over 320
+chains each. Neither move exceeds 3 on any statistic, and `wfnpr` is no further from the exact
+values than the `fnpr` control. The rms z is about 1.4 for both moves, against 0.8 to 1.2 in the
+gamma = 0 cases; the statistics are correlated, so this is not a test, and whatever it reflects it
+is common to both moves.
 
 For the gamma = 0 cases, `pooled-fnpr.csv` also gives `wfnpr` against `fnpr`: max abs z 1.81 to
 2.70.
@@ -117,3 +132,12 @@ output `/nobackup/pjjg18/evotempo-wfnpr/runs/`. Acceptance over the seven segmen
 3.6 ms and `.LogAugmented()` 0.14 ms; `wfnpr` scores 3.25 candidates per proposal on average (17% of
 proposals have no target, 22% reach the cap of 7). These timings predate the change that skips
 the likelihood of a candidate of zero density.
+
+Measured again at the same state with the build at 3d4eda7 (Slurm 19573107, a faster node:
+character likelihood 2.65 ms): `slide` 4.5 ms, `fnpr` 3.9 ms, `wfnpr` 11.4 ms per proposal, 3.04
+candidates scored per proposal. The checkpoints written at 6c0bc9c are read by this build and give
+the same character likelihood to the six decimals printed.
+
+Infeasible draws (the numerical guard that rejects a move when a bridge or a weight underflows):
+none in 8000 proposals of each of `slide`, `fnpr` and `wfnpr`, 2000 from the last state of each pilot
+replicate with only that move running (so parameters and the other paths stay fixed).

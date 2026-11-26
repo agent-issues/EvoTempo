@@ -7,7 +7,7 @@
 DCETModel(
   nBin = 26,
   zRange = c(-5, 5),
-  scheme = c("central", "upwind", "sqra"),
+  scheme = NULL,
   alpha = 1,
   beta = 1,
   gamma = 1,
@@ -17,7 +17,8 @@ DCETModel(
   rootPrior = "equilibrium",
   condition = c("extant", "survival", "none"),
   joint = FALSE,
-  start = c("root", "origin")
+  start = c("root", "origin"),
+  location = c("mean", "bm")
 )
 }
 \arguments{
@@ -31,7 +32,9 @@ DCETModel(
 \item \code{central}: central differences;
 \item \code{upwind}: first-order upwind differences;
 \item \code{sqra}: square-root approximation.
-}}
+}
+
+\code{NULL} selects \code{sqra} on a \code{mean} grid and \code{central} on a \code{bm} grid.}
 
 \item{alpha}{Numeric giving the tempo self-rate exponent.}
 
@@ -66,6 +69,9 @@ descendant (trees without one have likelihood zero);
 probability (marginal conditioning).}
 
 \item{start}{Character string: \code{root} or \code{origin} (see Details).}
+
+\item{location}{Character string specifying the tempo location: \code{mean} or
+\code{bm} (see Details).}
 }
 \value{
 \code{DCETModel()} returns an object of class \code{DCETModel}.
@@ -85,6 +91,12 @@ With \code{start = "root"} the root bifurcation carries no \eqn{\lambda} factor
 and both daughters start in the root bin; with \code{start = "origin"} a stem
 branch of length \code{root.edge} precedes the root, which carries a
 \eqn{\lambda} factor.
+
+With the default \code{location = "mean"} the lineage-stationary log-tempo is
+\eqn{N(-s^2/2, s^2)}, so the rate parameters (\code{lambda}, \code{mu}, \code{psi},
+\code{rate}, \code{theta}) are lineage-mean rates; \code{location = "bm"} is Budd &
+Mann's parameterization, with rates at log-tempo 0 (see \code{\link[=TempoGrid]{TempoGrid()}} and
+\code{dev/spec/tempo-location.md}).
 }
 \examples{
 DCETModel(beta = 0)

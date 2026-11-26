@@ -27,12 +27,18 @@ burnin <- 200L
 r4b <- readRDS(if (source4) "data-raw/rung4-results/rung4-K26.rds" else "data-raw/rung5-results/rung4b.rds")
 if (source4) useCharacter <- FALSE
 tt <- r4b$tt; model <- r4b$model; truth <- r4b$truth
+# Stored models predate the tempo location (#116) and would run as Budd &
+# Mann's: rebuild under EVOTEMPO_LOCATION (default "mean", the package default)
+if (is.null(model$location)) {
+  model$location <- Sys.getenv("EVOTEMPO_LOCATION", "mean")
+  if (model$location == "mean") model$scheme <- "sqra"
+}
 character <- if (useCharacter) r4b$character else NULL
 priors <- c(TempoPriors(), rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
 gridFor <- function(p) {
   m <- c(lambda = log(0.5), mu = log(0.2), psi = log(0.1), theta = log(0.1),
-         rate = log(0.3))[[p]]
-  s <- c(lambda = 0.5, mu = 0.5, psi = 0.5, theta = 0.75, rate = 0.5)[[p]]
+         s = log(0.8), rate = log(0.3))[[p]]
+  s <- c(lambda = 0.5, mu = 0.5, psi = 0.5, theta = 0.75, s = 0.3, rate = 0.5)[[p]]
   exp(seq(m - 3.5 * s, m + 3.5 * s, length.out = 161))
 }
 jobs <- rbind(

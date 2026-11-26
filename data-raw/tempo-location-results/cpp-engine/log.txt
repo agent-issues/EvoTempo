@@ -1,0 +1,89 @@
+RUN=cppagree SHA(lib)=f507e1b src=f507e1b task= start Thu 26 Nov 14:49:03 GMT 2026
+Agreement runtime 0.4689584 mins 
+                                   fixture grid     quantity  n maxRelDiff
+rung4.K16.charLogLik                 rung4  K16   charLogLik 50   2.58e-13
+rung4.K26.charLogLik                 rung4  K26   charLogLik 50   7.02e-14
+rung4.K16.ffbsDraw                   rung4  K16     ffbsDraw  5   0.00e+00
+rung4.K26.ffbsDraw                   rung4  K26     ffbsDraw  5   0.00e+00
+rung4.K16.frozenLogLik               rung4  K16 frozenLogLik  5   2.43e-11
+rung4.K26.frozenLogLik               rung4  K26 frozenLogLik  5   2.08e-11
+rung4.K16.logAugmented               rung4  K16 logAugmented 50   1.28e-10
+rung4.K26.logAugmented               rung4  K26 logAugmented 50   2.17e-10
+fossilTips.K16.logLik           fossilTips  K16       logLik 20   1.34e-10
+rung4.K16.logLik                     rung4  K16       logLik 20   1.44e-10
+rung4b.K16.logLik                   rung4b  K16       logLik 20   6.53e-11
+sampledAncestor.K16.logLik sampledAncestor  K16       logLik 20   1.32e-10
+ultrametric.K16.logLik         ultrametric  K16       logLik 20   6.72e-10
+fossilTips.K26.logLik           fossilTips  K26       logLik 20   8.71e-11
+rung4.K26.logLik                     rung4  K26       logLik 20   1.88e-10
+rung4b.K26.logLik                   rung4b  K26       logLik 20   1.54e-10
+sampledAncestor.K26.logLik sampledAncestor  K26       logLik 20   8.99e-11
+ultrametric.K26.logLik         ultrametric  K26       logLik 20   3.30e-10
+rung4.K16.logWeight                  rung4  K16    logWeight 50   1.47e-05
+rung4.K26.logWeight                  rung4  K26    logWeight 50   1.84e-05
+                           cppVsTight RVsTight
+rung4.K16.charLogLik               NA       NA
+rung4.K26.charLogLik               NA       NA
+rung4.K16.ffbsDraw                 NA       NA
+rung4.K26.ffbsDraw                 NA       NA
+rung4.K16.frozenLogLik             NA       NA
+rung4.K26.frozenLogLik             NA       NA
+rung4.K16.logAugmented             NA       NA
+rung4.K26.logAugmented             NA       NA
+fossilTips.K16.logLik        6.81e-12 7.91e-11
+rung4.K16.logLik             1.44e-11 9.55e-11
+rung4b.K16.logLik                  NA       NA
+sampledAncestor.K16.logLik   5.42e-12 1.16e-10
+ultrametric.K16.logLik       6.47e-11 5.21e-10
+fossilTips.K26.logLik        6.28e-12 6.97e-11
+rung4.K26.logLik             1.92e-11 2.07e-10
+rung4b.K26.logLik                  NA       NA
+sampledAncestor.K26.logLik   5.92e-12 8.75e-11
+ultrametric.K26.logLik       4.11e-11 3.54e-10
+rung4.K16.logWeight                NA       NA
+rung4.K26.logWeight                NA       NA
+                                   fixture grid     quantity  n RSeconds
+rung4.K16.charLogLik                 rung4  K16   charLogLik 50 0.001110
+rung4.K26.charLogLik                 rung4  K26   charLogLik 50 0.000945
+rung4.K16.ffbsDraw                   rung4  K16     ffbsDraw  5 0.028800
+rung4.K26.ffbsDraw                   rung4  K26     ffbsDraw  5 0.036800
+rung4.K16.frozenLogLik               rung4  K16 frozenLogLik  5 0.023000
+rung4.K26.frozenLogLik               rung4  K26 frozenLogLik  5 0.032000
+rung4.K16.logAugmented               rung4  K16 logAugmented 50 0.000705
+rung4.K26.logAugmented               rung4  K26 logAugmented 50 0.000570
+fossilTips.K16.logLik           fossilTips  K16       logLik 20 0.299500
+rung4.K16.logLik                     rung4  K16       logLik 20 0.329000
+rung4b.K16.logLik                   rung4b  K16       logLik 20 0.388000
+sampledAncestor.K16.logLik sampledAncestor  K16       logLik 20 0.230500
+ultrametric.K16.logLik         ultrametric  K16       logLik 20 0.278500
+fossilTips.K26.logLik           fossilTips  K26       logLik 20 0.455000
+rung4.K26.logLik                     rung4  K26       logLik 20 0.280000
+rung4b.K26.logLik                   rung4b  K26       logLik 20 0.482000
+sampledAncestor.K26.logLik sampledAncestor  K26       logLik 20 0.306000
+ultrametric.K26.logLik         ultrametric  K26       logLik 20 0.461500
+                           cppSeconds speedup
+rung4.K16.charLogLik         0.000085   13.06
+rung4.K26.charLogLik         0.000085   11.12
+rung4.K16.ffbsDraw           0.000400   72.00
+rung4.K26.ffbsDraw           0.000500   73.60
+rung4.K16.frozenLogLik       0.004000    5.75
+rung4.K26.frozenLogLik       0.007000    4.57
+rung4.K16.logAugmented       0.000045   15.67
+rung4.K26.logAugmented       0.000060    9.50
+fossilTips.K16.logLik        0.021000   14.26
+rung4.K16.logLik             0.023000   14.30
+rung4b.K16.logLik            0.045500    8.53
+sampledAncestor.K16.logLik   0.019500   11.82
+ultrametric.K16.logLik       0.024500   11.37
+fossilTips.K26.logLik        0.051500    8.83
+rung4.K26.logLik             0.030500    9.18
+rung4b.K26.logLik            0.075000    6.43
+sampledAncestor.K26.logLik   0.038500    7.95
+ultrametric.K26.logLik       0.048500    9.52
+  grid engine secondsPerIteration finalLogPost
+1  K16    cpp             0.03990     -75.9579
+2  K16      R             0.53095     -75.9579
+3  K26    cpp             0.06290     -69.9605
+4  K26      R             0.57175     -69.9605
+Max relative difference in logL: 6.722287e-10 
+exit 0 Thu 26 Nov 14:49:56 GMT 2026

@@ -25,8 +25,18 @@ Ornstein-Uhlenbeck process (reversion theta, stationary sd s), and tempo e^x sca
 (lambda e^(beta x)), extinction (mu e^(beta x)), fossil sampling (psi) and character change
 (rate e^(gamma x)). beta and gamma in {0, 1} give the 2x2 nested model family that the empirical
 work compares. The package works with a **discretised** model (dCET): x lives on K bins of a grid in
-z = x / s (default K = 26, z in [-5, 5], central-difference generator), which turns the model into a
-K-state birth-death-sampling process with an OU-like rate matrix `Q`.
+standardised units z (default K = 26, z in [-5, 5], square-root-approximation (SqRA) generator), which
+turns the model into a K-state birth-death-sampling process with an OU-like rate matrix `Q`.
+
+**Tempo location (#116; `dev/spec/tempo-location.md`).** The default, `location = "mean"`, puts the OU
+mean at (alpha - 1/2) s^2, so a lineage's stationary log-tempo is N(-s^2/2, s^2) and E[e^x] = 1:
+every rate parameter (`lambda`, `mu`, `psi`, `rate`, `theta`) is a lineage-mean rate, and the grid
+(x = s z - s^2/2) is centred on that law. `location = "bm"` is Budd & Mann's parameterisation
+(rates at x = 0, x = s z, central scheme); it is used only to reproduce Budd & Mann (rungs 1-2) and
+never for an empirical analysis. Models and grids saved before #116 carry no location and are read as
+`"bm"`. The two are exactly related: the mean-rate model on [a, b] equals `"bm"` on
+[a - alpha s, b - alpha s] with every rate multiplied by exp(exponent * (alpha - 1/2) s^2)
+(`tests/testthat/test-Location.R`).
 
 Inference has two layers:
 
@@ -189,6 +199,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/rung5-age-validation.R` | Rung 5 with a free start age (#18): prior-only MCMC vs rejection simulation for a free crown age, a fixed origin and a free origin, at fixed or free parameters; results in `data-raw/rung5-age-results/README.md` |
 | `data-raw/rung5-age-pool.R` | Pools independent replicates of `rung5-age-validation.R` per case (all chains vs all simulated trees); the 240-replicate check of the `originFree` flag in `data-raw/rung5-age-results/README.md` |
 | `data-raw/rung5-age-batches.R` | Per-batch summaries (mean, sd and Stouffer sum of the per-replicate z of the means) of the 240 `originFree` replicates, from the committed `rung5-age-pooled-per-run.csv` (#57) |
+| `data-raw/tempo-location-v0.R`, `data-raw/tempo-location-results/` | Tempo location (#116): the Hymenoptera (1, 0) ridge profile under the mean-rate model (spec check V0), and the rung reruns at the new default; README there |
 | `data-raw/rung4b-theta-identity.R` | Importance-sampling identity (augmented to marginal likelihood) across theta, with or without the character |
 | `data-raw/rung6-sbc.R` | Rung 6: simulation-based calibration per (beta, gamma) cell on fixed true time trees with characters |
 | `data-raw/rung6-sbc-full*.{R,sh,py}` | Rung 6 full size (#21): SBC with tree moves, 200 replicates per cell as Slurm array tasks on Hamilton; results and verdict in `data-raw/rung6-full-results/` |

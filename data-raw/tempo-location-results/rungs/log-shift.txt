@@ -1,0 +1,14 @@
+RUN=shift SHA(lib)=2e7836d src=b8ab46a task= start Wed 25 Nov 18:25:30 GMT 2026
+   parameter     kind    p  exact   mcmc     mcse      z
+1      theta       DA 0.05 0.0864 0.0875 0.000545  1.918
+2      theta       DA 0.25 0.1379 0.1386 0.000780  0.989
+3      theta       DA 0.50 0.1977 0.1986 0.001129  0.821
+4      theta       DA 0.75 0.2918 0.2932 0.001962  0.713
+5      theta       DA 0.95 0.5305 0.5329 0.005376  0.444
+6      theta marginal 0.05 0.0864 0.0912 0.002356  1.985
+7      theta marginal 0.25 0.1379 0.1426 0.003640  1.276
+8      theta marginal 0.50 0.1977 0.2019 0.006609  0.627
+9      theta marginal 0.75 0.2918 0.2876 0.011321 -0.370
+10     theta marginal 0.95 0.5305 0.5211 0.025776 -0.368
+runtime 10.09991 mins 
+exit 0 Wed 25 Nov 18:35:56 GMT 2026

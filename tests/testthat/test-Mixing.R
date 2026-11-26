@@ -134,6 +134,14 @@ test_that("Shift moves reject infeasible solves and zero priors", {
   local_mocked_bindings(.Precompute = function(...) .Infeasible("ODE solver failed"))
   res <- .ShiftMove(st, mixModel, "lambda", mixPriors, 4, MixCharLL())
   expect_false(res$accepted)
+  # A shift that stays on the grid, so that the failed solve is reached
+  local_mocked_bindings(.Shifted = function(st, m, model, free) {
+    list(par = replace(st$par, "lambda", st$par$lambda * 1.1), bin = st$bin,
+         paths = st$paths, comp = "lambda", logJac = log(1.1))
+  })
+  res <- .ShiftMove(st, mixModel, "lambda", mixPriors, 4, MixCharLL())
+  expect_false(res$accepted)
+  expect_identical(res$state, st)
   flat <- mixPriors
   flat$lambda <- function(x) if (x == 0.5) 0 else -Inf
   set.seed(1)

@@ -1,0 +1,4 @@
+local arm, location bm: max |z| 1.54 over 30 quantities (< 3.3), offset |z| 0.12 (< 3): PASS
+diagnostic arm, location bm: max |z| 2.05 over 30 quantities (< 3.3), offset |z| 1.41 (< 3): PASS
+reference: 64000 draws, importance ESS 63999.8
+branches with chain mean above reference (local arm): 8 of 16

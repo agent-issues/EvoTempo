@@ -157,16 +157,26 @@ SimulateDCET <- function(time, x, Q, lambda, mu, psi = 0, start, rho = 1,
 #' those steps; it places fossils (when `delta = 0`) and the present.
 #' With `delta = 1`, fossil sampling has constant rate in tempo-time too.
 #'
+#' With `location = "mean"` (default) the Ornstein-Uhlenbeck mean is
+#' \eqn{s^2/2}, so that lineage-time log-tempo is stationary at
+#' \eqn{N(-s^2/2, s^2)} and `lambda`, `mu` and `psi` (with `delta = 1`) are
+#' lineage-mean rates; with `location = "bm"` it is 0, as in Budd & Mann
+#' (see [TempoGrid()]).
+#'
 #' @inheritParams SimulateDCET
 #' @inheritParams TempoGenerator
+#' @inheritParams TempoGrid
 #' @param s Positive numeric giving the stationary standard deviation of
 #' log-tempo.
 #' @param lambda,mu,psi Non-negative numerics giving speciation, extinction
-#' and fossil-sampling rates at unit tempo.
+#' and fossil-sampling rates: lineage-mean rates under `location = "mean"`,
+#' rates at log-tempo 0 under `location = "bm"`.
 #' @param delta Integer specifying the coupling of fossil sampling:
 #'  - `0`: constant rate `psi` in real time;
 #'  - `1`: rate `psi * exp(x)` in real time.
-#' @param x0 Numeric giving the founding lineage's log-tempo.
+#' @param x0 Numeric giving the founding lineage's log-tempo.  Under
+#' `location = "mean"` the lineage mean is \eqn{-s^2/2}, so the default
+#' `x0 = 0` starts \eqn{s/2} standard deviations above it.
 #' @param dw Positive numeric giving the tempo-time step of the path.
 #' @returns `SimulateCET()` returns a `TempoHistory` (see [SimulateDCET()]),
 #' whose paths are piecewise linear between knots, with an extra element `w`
@@ -180,13 +190,15 @@ SimulateDCET <- function(time, x, Q, lambda, mu, psi = 0, start, rho = 1,
 #' @export
 SimulateCET <- function(time, theta, s, lambda, mu, psi = 0, delta = 0,
                         x0 = 0, rho = 1, removal = 0, dw = 0.01,
-                        maxEdges = 1e5) {
+                        maxEdges = 1e5, location = c("mean", "bm")) {
+  location <- match.arg(location)
   if (!delta %in% c(0, 1)) {
     stop("`delta` must be 0 or 1")
   }
   wRate <- lambda + mu + delta * psi
   decay <- exp(-theta * dw)
   noise <- s * sqrt(1 - decay^2)
+  ouMean <- if (location == "mean") s * s / 2 else 0
   capacity <- 64L
   parent <- rep(NA_integer_, capacity)
   startTime <- endTime <- startX <- numeric(capacity)
@@ -203,7 +215,7 @@ SimulateCET <- function(time, theta, s, lambda, mu, psi = 0, delta = 0,
     knotW <- 0
     repeat {
       seg <- .OUSegment(rexp(1, wRate), knotX[[length(knotX)]], theta, s, dw,
-                        decay, noise)
+                        decay, noise, ouMean)
       segT <- knotT[[length(knotT)]] + c(0, cumsum(seg$dt))
       segW <- knotW[[length(knotW)]] + c(0, cumsum(seg$dw))
       cross <- which(segT >= time)[1]
@@ -274,8 +286,10 @@ SimulateCET <- function(time, theta, s, lambda, mu, psi = 0, delta = 0,
                 time, "continuous")
 }
 
-# Exact OU over tempo-time `width` from `x0`, in steps of `dw`.
-.OUSegment <- function(width, x0, theta, s, dw, decay, noise) {
+# Exact OU with mean `ouMean` over tempo-time `width` from `x0`, in steps of
+# `dw`.
+.OUSegment <- function(width, x0, theta, s, dw, decay, noise, ouMean = 0) {
+  x0 <- x0 - ouMean
   nStep <- ceiling(width / dw)
   steps <- c(rep(dw, nStep - 1L), width - dw * (nStep - 1L))
   xs <- if (nStep > 1L) {
@@ -286,7 +300,7 @@ SimulateCET <- function(time, theta, s, lambda, mu, psi = 0, delta = 0,
   }
   last <- xs[[nStep]]
   lastDecay <- exp(-theta * steps[[nStep]])
-  xs <- c(xs, last * lastDecay + s * sqrt(1 - lastDecay^2) * rnorm(1))
+  xs <- ouMean + c(xs, last * lastDecay + s * sqrt(1 - lastDecay^2) * rnorm(1))
   ex <- exp(-xs)
   list(x = xs, dw = steps, dt = steps * (ex[-1] + ex[-length(ex)]) / 2)
 }

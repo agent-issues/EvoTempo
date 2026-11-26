@@ -12,7 +12,7 @@ Check <- function(Q, x, start, main) {
     lt1000ref = sum(ref[2:1000]) / (1 - ref[1]))
 }
 bm <- BuddMannGenerator()
-grid <- TempoGrid(101, c(-5, 5))
+grid <- TempoGrid(101, c(-5, 5), location = "bm")
 check <- rbind(
   "budd-mann" = Check(bm$Q, bm$x, 51, "pn-budd-mann.rds"),
   "central-101" = Check(TempoGenerator(grid, 0.01), grid$x, 51, "pn-central-101.rds")

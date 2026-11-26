@@ -1,0 +1,14 @@
+RUN=onepsi SHA(lib)=2e7836d src=b8ab46a task= start Wed 25 Nov 20:55:20 GMT 2026
+   parameter     kind    p  exact   mcmc     mcse      z
+1        psi       DA 0.05 0.0525 0.0525 0.000209 -0.257
+2        psi       DA 0.25 0.0762 0.0764 0.000211  0.765
+3        psi       DA 0.50 0.0978 0.0982 0.000248  1.464
+4        psi       DA 0.75 0.1247 0.1246 0.000310 -0.467
+5        psi       DA 0.95 0.1745 0.1742 0.000588 -0.549
+6        psi marginal 0.05 0.0525 0.0521 0.001345 -0.313
+7        psi marginal 0.25 0.0762 0.0779 0.001286  1.314
+8        psi marginal 0.50 0.0978 0.0974 0.001438 -0.321
+9        psi marginal 0.75 0.1247 0.1217 0.001842 -1.651
+10       psi marginal 0.95 0.1745 0.1707 0.002736 -1.397
+runtime 16.08496 mins 
+exit 0 Wed 25 Nov 21:11:49 GMT 2026

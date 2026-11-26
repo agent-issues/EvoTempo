@@ -96,8 +96,11 @@ moves <- CetMoves(dat$tree, dat$characters, model)
 Progress <- function(...) {
   cat(sprintf(...), "\n", file = file.path(outDir, "progress.txt"), append = TRUE)
 }
+# location and scheme (#116): a checkpoint written before #116 records none
+# (it ran under "bm", central) and is refused
 target <- list(mkv = mkv, power = power, beta = beta, gamma = gamma, nBin = grid$nBin,
-               zMax = grid$zMax, thin = thin, seg = seg)
+               zMax = grid$zMax, thin = thin, seg = seg, location = model$location,
+               scheme = model$scheme)
 ckpFile <- file.path(outDir, "checkpoint.rds")
 if (file.exists(ckpFile)) {
   ckp <- readRDS(ckpFile)

@@ -131,6 +131,14 @@ if (file.exists(ckpFile)) {
     stop(sprintf("%s started from %s (md5 %s); this run would load %s (md5 %s)", ckpFile,
                  ckp$startTree, ckp$startTreeMd5, startTree, startTreeMd5))
   }
+  # The tempo location and scheme of the chain (#116); checkpoints written
+  # before #116 record none and were run under "bm" with the central scheme
+  ckpLoc <- c(location = if (is.null(ckp$location)) "bm (unrecorded, before #116)" else ckp$location,
+              scheme = if (is.null(ckp$scheme)) "central (unrecorded)" else ckp$scheme)
+  if (!identical(unname(ckpLoc), c(model$location, model$scheme))) {
+    stop(sprintf("%s holds a chain run with location %s, scheme %s; this run has location %s, scheme %s",
+                 ckpFile, ckpLoc[["location"]], ckpLoc[["scheme"]], model$location, model$scheme))
+  }
   if (!identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
     stop("the checkpoint's tip order differs from the character rows of ", startTree)
   }
@@ -200,6 +208,7 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
                      append = file.exists(accFile))
   ckp <- list(segment = k, captured = .cet$captured, label = label, beta = beta, gamma = gamma,
               power = power, mkv = mkv, rep = rep, thin = thin, seg = seg,
+              location = model$location, scheme = model$scheme,
               startTree = startTree, startTreeMd5 = startTreeMd5,
               start = if (is.null(ckp)) list(par = startPar, info = startInfo) else ckp$start)
   tmp <- paste0(ckpFile, ".tmp")

@@ -130,7 +130,7 @@ LogAugAt <- function(state, beta, gamma) {
 }
 CharLLAt <- function(state, gamma, characters) {
   model <- CetModel(0, gamma)
-  x <- TempoGrid(model$nBin, model$zRange, state$par$s)$x
+  x <- TempoGrid(model$nBin, model$zRange, state$par$s, model$location)$x
   PartitionedMk(state$tree, characters,
                 get(".CharacterLengths", .ns)(state$tree, x, state$paths, state$par$rate, gamma),
                 power = 1)
@@ -150,6 +150,14 @@ if (args[[1]] == "eval") {
   ckp <- if (file.exists(ckpFile)) readRDS(ckpFile)
   if (!is.null(ckp$mkv) && ckp$mkv != me$mkv) {
     stop(sprintf("%s records mkv %s, but its label says %s", ckpFile, ckp$mkv, me$mkv))
+  }
+  if (is.null(ckp)) stop("no checkpoint in ", dir, ": cannot verify the chain's tempo location")
+  # States of a chain run under another tempo location cannot be scored
+  # under this one (#116)
+  ckpLoc <- if (is.null(ckp$location)) "bm (unrecorded, before #116)" else ckp$location
+  if (!identical(ckpLoc, CetModel(0, 0)$location)) {
+    stop(sprintf("%s holds a chain run with location %s; this eval uses location %s",
+                 ckpFile, ckpLoc, CetModel(0, 0)$location))
   }
   .cet$mkv <- me$mkv
   all <- Chains(dirname(dir))

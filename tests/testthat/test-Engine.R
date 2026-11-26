@@ -95,9 +95,11 @@ test_that("Pruning with a dense generator agrees between engines", {
   }
   expect_equal(Prune("cpp"), Prune("R"), tolerance = 1e-9)
   # A zero likelihood (extant tip, rho = 0)
-  expect_equal(WithEngine("cpp", .PruneTree(engineTree, Q, lam, 0.2, 0.1, 0, 0,
-                                            prior, "none", FALSE, "root")),
-               -Inf)
+  for (engine in c("cpp", "R")) {
+    expect_equal(WithEngine(engine, .PruneTree(engineTree, Q, lam, 0.2, 0.1, 0, 0,
+                                               prior, "none", FALSE, "root")),
+                 -Inf)
+  }
 })
 
 test_that("E grids and frozen messages agree between engines", {

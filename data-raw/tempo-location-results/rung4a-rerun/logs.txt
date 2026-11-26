@@ -1,0 +1,34 @@
+RUN=rerun-mean SHA(lib)=f507e1b src=f507e1b task= start Thu 26 Nov 14:49:46 GMT 2026
+location = mean
+scheme = sqra
+nBin = 26
+zRange = -5,5
+package = 0.0.0.9000
+sha = f507e1b
+script = 05a03a2961bb44a4174ff58378f9ba1c
+fixture = 80301e04946d2b3a253a9b51db11de79
+nChain = 32
+nIter = 50000
+started = 2026-11-26 14:49:49
+local arm, location mean: max |z| 2.25 over 30 quantities (< 3.3), offset |z| 1.26 (< 3): PASS
+diagnostic arm, location mean: max |z| 3.05 over 30 quantities (< 3.3), offset |z| 2.00 (< 3): PASS
+reference: 64000 draws, importance ESS 63999.6
+branches with chain mean above reference (local arm): 12 of 16
+exit 0 Thu 26 Nov 14:58:18 GMT 2026
+RUN=rerun-bm SHA(lib)=f507e1b src=f507e1b task= start Thu 26 Nov 14:49:46 GMT 2026
+location = bm
+scheme = central
+nBin = 26
+zRange = -5,5
+package = 0.0.0.9000
+sha = f507e1b
+script = 05a03a2961bb44a4174ff58378f9ba1c
+fixture = 80301e04946d2b3a253a9b51db11de79
+nChain = 32
+nIter = 50000
+started = 2026-11-26 14:49:49
+local arm, location bm: max |z| 1.54 over 30 quantities (< 3.3), offset |z| 0.12 (< 3): PASS
+diagnostic arm, location bm: max |z| 2.05 over 30 quantities (< 3.3), offset |z| 1.41 (< 3): PASS
+reference: 64000 draws, importance ESS 63999.8
+branches with chain mean above reference (local arm): 8 of 16
+exit 0 Thu 26 Nov 14:58:23 GMT 2026

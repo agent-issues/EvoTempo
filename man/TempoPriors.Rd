@@ -20,7 +20,9 @@ log prior density of one parameter.
 }
 \description{
 Log-normal priors on the positive dCET parameters, as a named list of
-functions returning log densities.
+functions returning log densities.  Under the default tempo location
+(\code{location = "mean"}, see \code{\link[=TempoGrid]{TempoGrid()}}) the rate parameters are
+lineage-mean rates, so their priors are priors on lineage-mean rates.
 }
 \examples{
 priors <- TempoPriors()

@@ -1,4 +1,4 @@
-grid <- TempoGrid(21, c(-3, 3))
+grid <- TempoGrid(21, c(-3, 3), location = "bm")
 Q <- TempoGenerator(grid, theta = 0.05)
 rates <- BinRates(grid, lambda = 0.51, mu = 0.5, psi = 0.05)
 

@@ -58,6 +58,10 @@ for the maintainer; see the PR.
 | 4d | Sum over paths | max abs(z) 2.19 |
 | 5 | Prior-only MCMC vs simulator (`rung5-*.csv`) | 55 quantiles, max abs(z) 2.00; KS p >= 0.10 |
 | 5 | Tree moves at fixed parameters (`rung5-fixed-parameters.csv`) | abs(z) <= 1.91 |
+| 4b | Theta identity (`rung4b-theta-identity.R`), 5 thetas | abs(z) <= 0.82 without the character; <= 2.27 with it |
+| 4b | Shift move at fixed parameters (`rung4b-shift-fixed.R`) | Root-bin posterior: shift arm abs(z) <= 1.73, reference arm <= 1.77 |
+| 5 | Start-age oracle (`rung5-age-oracle.R`), root / origin | max abs(z) 1.16 / 1.51 |
+| 5 | Start-age validation (`rung5-age-validation.R`) | root: 2.59 over 80 tests; origin: 2.88 over 80; originFree: 2.02 over 86 |
 | 6 | Full SBC, 200 replicates per cell (`sbc/`) | All four cells pass; 52 tests, smallest raw p 0.040, Holm-adjusted p = 1 |
 
 **Notes on the rungs.**
@@ -85,8 +89,7 @@ for the maintainer; see the PR.
   - Rung 3 RevBayes `dnCDBDP` with the new Q.
   - Rung 7, which is optional (V4).
   - V5, the Hymenoptera re-pilot, which belongs to the Hymenoptera pipeline.
-- **Running at the time of the PR.** `rung4b-theta-identity.R` (with and without the character), `rung4b-shift-fixed.R`,
-  `rung5-age-oracle.R` (root, origin) and `rung5-age-validation.R` (root, origin, originFree). Hamilton jobs
-  19572305-11. These scripts use their own fixtures, not the default grid: the rung 4b fixture, and K = 16 on
-  [-3, 3] for the start-age scripts. They run under `location = "mean"`. The PR thread reports their results.
+- **Theta, shift and start-age scripts.** These use their own fixtures, not the default grid: the rung 4b fixture,
+  and K = 16 on [-3, 3] for the start-age scripts. They ran under `location = "mean"` (Hamilton jobs 19572305-11;
+  `log-theta-shift-age.txt`).
 - **Logs.** `log-*.txt` are the Hamilton job logs. Each records the lib SHA and the source SHA.

@@ -204,7 +204,9 @@ test_that("location = \"bm\" reproduces the chains of the pre-#116 default", {
 
 test_that("The central scheme's bound is an infeasible proposal, not an error", {
   # Under "mean" the bound h * max|z - alpha s| <= 2 depends on s: here s <= 3
-  tree <- TempoTree(ape::read.tree(text = "((a:1,b:1):1,c:2);"))
+  # ((a:1,b:1):1,c:2);
+  tree <- TempoTree(LocPhylo(rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)), c(1, 1, 1, 2),
+                             c("a", "b", "c")))
   par <- list(lambda = 0.5, mu = 0.2, psi = 0.1, theta = 0.3, s = 1)
   cm <- DCETModel(nBin = 41, zRange = c(-5, 5), scheme = "central", rho = 1)
   expect_true(is.finite(TreeLikelihood(tree, modifyList(par, list(s = 2.9)), cm)))

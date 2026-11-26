@@ -6,14 +6,16 @@
 # From the package root.  <pilot root> holds one directory per arm, each with
 # b0g0_run<r>/ from run-chain.R; `burn` is the fraction of each chain's samples
 # dropped (default 0.25).  Per arm it prints:
-# - samples and CPU hours (sum of the segments' seconds), likelihood
-#   evaluations in units of chain-iterations;
+# - samples and hours (sum of the segments' elapsed seconds, burn-in
+#   included; wall-clock of a one-core task on a shared node);
 # - clades of the extant taxa with pooled frequency in [0.1, 0.9]: the
 #   largest and mean range of a clade's frequency over replicates, and the
 #   ASDSF over clades reaching 0.1 in any replicate;
 # - the effective sample size of each such clade's indicator (Ess() of
-#   common.R, summed over replicates): median and minimum, and per CPU hour;
+#   common.R, summed over replicates): median and minimum, and per hour;
 # - acceptance of `slide`, and swap rates per adjacent pair.
+# The arms differ in cost (mc3-pilot.sh), so only the per-hour columns compare
+# them fairly; the ranges, ASDSF and raw ESS are not normalized.
 suppressMessages(library("ape"))
 args <- commandArgs(trailingOnly = TRUE)
 root <- args[[1]]

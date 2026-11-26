@@ -332,7 +332,9 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
   tree <- .NoRootAncestor(.ForModel(TempoTree(tree), model))
-  Count <- function(n) is.numeric(n) && length(n) == 1L && isTRUE(n >= 1 & n == floor(n))
+  Count <- function(n) {
+    is.numeric(n) && length(n) == 1L && isTRUE(is.finite(n) & n >= 1 & n == floor(n))
+  }
   if (!Count(nChain) || !Count(swapInterval)) {
     stop("`nChain` and `swapInterval` must be positive whole numbers")
   }
@@ -532,7 +534,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
         mc3[["swapTry"]][] <- mc3[["swapAcc"]][] <- 0
       }
       # The cold level is the one sampled and returned
-      heat <- 1
+      heat <- mc3[["heats"]][[1]]
       st <- mc3[["chain"]][[mc3[["slot"]][[1]]]]
       list2env(mc3[["tune"]][[1]], environment())
     }

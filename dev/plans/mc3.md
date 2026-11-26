@@ -5,7 +5,7 @@
 Level r = 1..N of the ladder has heat h_r = 1 / (1 + deltaHeat (r - 1)); level 1 is cold.
 Its target is
 
-    p(parameters) x augmented density(tree, paths | parameters) x L_char^(h_r).
+    p(parameters) x p(start age) x augmented density(tree, paths | parameters) x L_char^(h_r).
 
 Only the character likelihood is heated.
 MrBayes and RevBayes `mcmcmc` heat the whole posterior; here that would also heat the
@@ -65,7 +65,12 @@ loop in C++; follow-up.
 
 ## Tests
 
-- N = 1: identical to `main` for the same seed, both engines (checked against saved output).
+- N = 1: identical to `main` (23d820e) for the same seed in both engines. This was checked once
+  against saved output of a build of `main`, and again by the reviewer; no fixture is committed,
+  because seeded output is not identical across platforms. The committed test compares
+  `nChain = 1` with the default call.
+- Heat in every move: a ladder (h1, h2) on L against the ladder (1, h2 / h1) on L^h1 from a
+  rebound `MkLikelihood()` must give the same chain (`.HeatLadder()` is the seam).
 - N = 3: R and C++ engines agree.
 - Exact oracle (`helper-oracles.R`): steep ladder, cold-level posterior of `rate` against
   the grid posterior; a sign-flipped swap ratio must fail it.

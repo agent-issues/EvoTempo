@@ -9,7 +9,7 @@ Mc3Run <- function(engine = "cpp", seed = 3, ...) {
 }
 
 test_that("Coupled chains are validated", {
-  for (bad in list(0, 1.5, NA, c(2, 2), "2")) {
+  for (bad in list(0, 1.5, NA, Inf, c(2, 2), "2")) {
     expect_error(Mc3Run(nIter = 1, nChain = bad), "positive whole numbers")
     expect_error(Mc3Run(nIter = 1, swapInterval = bad), "positive whole numbers")
   }
@@ -85,6 +85,58 @@ test_that("Coupled chains with an origin and age moves match between engines", {
   expect_gt(length(unique(cpp$samples$originAge)), 1)
 })
 
+# Heat h at a level must act in every move exactly as a power h on the
+# character likelihood does in an uncoupled chain.  A ladder (h1, h2) on the
+# likelihood L is the same pair of targets as the ladder (1, h2 / h1) on
+# L^h1, which a rebound MkLikelihood() supplies without any heat at level 1;
+# a move that ignored its heat would be right in the second and wrong in the
+# first.
+test_that("Heat acts as a power on the character likelihood in every move", {
+  phylo <- structure(
+    list(edge = rbind(c(6, 7), c(7, 1), c(7, 8), c(8, 2), c(8, 3), c(6, 9), c(9, 4), c(9, 5)),
+         edge.length = c(1, 2, 1.5, 1.5, 0, 0.7, 1.2, 3.3),
+         tip.label = c("a", "b", "f", "c", "d"), Nnode = 4, root.edge = 0.6),
+    class = "phylo"
+  )
+  ranges <- cbind(c(0.2, 0, 0.5, 0.5, 0), c(2.5, 0, 3, 3.5, 0))
+  shared <- c(tree = 1, node = 1, tip = 1, branch = 1, joint = 1, shift = 1, nodeAge = 1,
+              fossilAge = 1, slide = 1, saJump = 1)
+  cases <- list(
+    list(model = mc3Model, moves = c(shared, rootAge = 1), priors = mc3Priors,
+         agePriors = list(root = function(a) stats::dunif(a, 3.5, 6, log = TRUE))),
+    list(model = DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, start = "origin"),
+         moves = c(shared, originAge = 1), priors = mc3Priors,
+         agePriors = list(origin = function(a) stats::dunif(a, 4, 8, log = TRUE))),
+    # With `rate` fixed a shift changes the character likelihood
+    list(model = mc3Model, moves = c(node = 1, tip = 1, shift = 3),
+         priors = mc3Priors[c("lambda", "theta")], agePriors = list())
+  )
+  Mk <- MkLikelihood
+  for (case in cases) {
+    Run <- function(ladder, power) {
+      local_mocked_bindings(
+        .HeatLadder = function(nChain, deltaHeat) ladder,
+        MkLikelihood = function(...) power * Mk(...)
+      )
+      set.seed(21)
+      TempoMCMC(TempoTree(phylo, ranges = ranges), case$model, oraclePar, case$priors,
+                nIter = 30, burnin = 20, nSlice = 4, characters = oracleChars,
+                moves = case$moves, agePriors = case$agePriors, minAcceptance = 0,
+                nChain = 2)
+    }
+    heated <- Run(c(0.5, 0.2), 1)
+    powered <- Run(c(1, 0.4), 0.5)
+    expect_equal(heated$samples, powered$samples, tolerance = 1e-10)
+    expect_identical(heated$acceptance, powered$acceptance)
+    expect_identical(heated$swaps[c("tries", "accepted")], powered$swaps[c("tries", "accepted")])
+    # Every move ran and was accepted at least once, and levels were exchanged
+    expect_true(all(heated$acceptance[names(case$moves)] > 0))
+    expect_gt(sum(heated$swaps$accepted), 0)
+    # The likelihood matters: the unheated chain differs
+    expect_false(isTRUE(all.equal(heated$samples, Run(c(1, 0.4), 1)$samples)))
+  }
+})
+
 test_that("Heated levels drop moves silently", {
   wholeTree <- c(tree = 1, joint = 1, node = 1, tip = 1, shift = 1)
   warned <- character(0)
@@ -99,6 +151,33 @@ test_that("Heated levels drop moves silently", {
   expect_length(warned, 2)
   expect_match(warned, "dropped after burn-in")
   expect_false(any(c("tree", "joint") %in% names(run$moves)))
+})
+
+test_that("Diagnostics and the move schedule are the cold level's", {
+  # Whole-tree draws ignore the characters: accepted about 0.2-0.45 of the
+  # time at heat 1 here, and nearly always at heat 0.001
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, gamma = 2)
+  chars <- cbind(oracleChars, oracleChars, oracleChars)
+  set.seed(1)
+  expect_warning(
+    run <- TempoMCMC(oracleTree, model, oraclePar, mc3Priors[c("lambda", "theta")],
+                     nIter = 20, burnin = 100, nSlice = 4, characters = chars,
+                     moves = c(tree = 1, node = 1, tip = 1), minAcceptance = 0.7,
+                     nChain = 2, deltaHeat = 999),
+    "`tree` dropped after burn-in"
+  )
+  expect_lt(run$burninAcceptance[["tree"]], 0.7)
+  expect_named(run$moves, c("node", "tip"))
+  expect_identical(run$acceptance[["tree"]], 0)
+  # The hot level keeps `tree`: as a single chain at that power it is not dropped
+  Mk <- MkLikelihood
+  local_mocked_bindings(MkLikelihood = function(...) Mk(...) / 1000)
+  set.seed(1)
+  hot <- TempoMCMC(oracleTree, model, oraclePar, mc3Priors[c("lambda", "theta")],
+                   nIter = 20, burnin = 100, nSlice = 4, characters = chars,
+                   moves = c(tree = 1, node = 1, tip = 1), minAcceptance = 0.7)
+  expect_gt(hot$burninAcceptance[["tree"]], 0.9)
+  expect_named(hot$moves, c("tree", "node", "tip"))
 })
 
 test_that(".SwapHeats() exchanges levels, not states", {
@@ -127,9 +206,11 @@ test_that(".SwapHeats() exchanges levels, not states", {
   ladder <- Ladder(c(-10, -11))
   accepted <- mean(vapply(1:4000, function(i) .SwapHeats(ladder, CharLL)$swapAcc, 0))
   expect_lt(abs(accepted - exp(-0.5)), 4 * sqrt(exp(-0.5) * (1 - exp(-0.5)) / 4000))
-  # An impossible state never swaps
+  # Two impossible states do not swap; an impossible colder state always does
   none <- .SwapHeats(Ladder(c(-Inf, -Inf)), CharLL)
   expect_identical(none$swapAcc, 0)
+  expect_identical(.SwapHeats(Ladder(c(-Inf, -4)), CharLL)$slot, 2:1)
+  expect_identical(.SwapHeats(Ladder(c(-4, -Inf)), CharLL)$slot, 1:2)
   # Both uniforms are drawn whatever the outcome
   set.seed(3)
   .SwapHeats(Ladder(c(-Inf, -Inf)), CharLL)

@@ -1,7 +1,10 @@
 #!/bin/bash
 # #110 pilot of Metropolis-coupled chains: penguin cell (0,0), 4 replicates
-# per arm as array tasks 1-4, at equal numbers of likelihood evaluations
-# (iterations x chains), which is also equal wall-clock for serial chains.
+# per arm as array tasks 1-4, at equal numbers of sampling level-iterations
+# (iterations x chains: 40 000).  The arms are not at equal cost: burn-in runs
+# at every level, so n1 does 42 000 level-iterations in all and the coupled
+# arms 48 000 (+14%), plus two likelihood evaluations per accepted swap.
+# Compare the arms by the per-hour columns of mc3-pilot-summary.R.
 #
 #   sbatch -J mc3-pilot-<arm> --array=1-4 --export=ALL,ARM=<arm> mc3-pilot.sh
 #

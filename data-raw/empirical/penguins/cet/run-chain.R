@@ -87,6 +87,11 @@ saveStates <- Sys.getenv("CET_STATES", "true") == "true"
 nChain <- EnvNum("CET_NCHAIN", 1)
 deltaHeat <- EnvNum("CET_DELTA_HEAT", 0.1)
 swapInterval <- EnvNum("CET_SWAP", 1)
+# TempoMCMC() counts swap intervals from the start of each call, so segments
+# continue each other exactly only if they start on a multiple of CET_SWAP
+if (nChain > 1 && (burnin %% swapInterval != 0 || seg %% swapInterval != 0)) {
+  stop("CET_BURNIN and CET_SEG must be multiples of CET_SWAP")
+}
 stopifnot(seg %% thin == 0, nIter %% seg == 0)
 .cet$power <- power
 
@@ -137,9 +142,11 @@ if (file.exists(ckpFile)) {
   }
   ckpChains <- if (is.null(ckp$captured$mc3)) 1 else length(ckp$captured$mc3$heats)
   if (ckpChains != nChain ||
-      (nChain > 1 && !isTRUE(all.equal(ckp$captured$mc3$heats[[2]], 1 / (1 + deltaHeat))))) {
-    stop(sprintf("%s holds %d coupled chain(s) on another ladder than CET_NCHAIN = %d, CET_DELTA_HEAT = %g",
-                 ckpFile, ckpChains, nChain, deltaHeat))
+      (nChain > 1 && (!isTRUE(all.equal(ckp$captured$mc3$heats[[2]], 1 / (1 + deltaHeat))) ||
+                        !identical(ckp$swapInterval, swapInterval)))) {
+    stop(sprintf(paste("%s holds %d coupled chain(s) on another ladder or swap interval than",
+                       "CET_NCHAIN = %d, CET_DELTA_HEAT = %g, CET_SWAP = %g"),
+                 ckpFile, ckpChains, nChain, deltaHeat, swapInterval))
   }
   if (!identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
     stop("the checkpoint's tip order differs from the character rows of ", startTree)
@@ -214,6 +221,7 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   }
   ckp <- list(segment = k, captured = .cet$captured, label = label, beta = beta, gamma = gamma,
               power = power, mkv = mkv, rep = rep, thin = thin, seg = seg,
+              swapInterval = swapInterval,
               startTree = startTree, startTreeMd5 = startTreeMd5,
               start = if (is.null(ckp)) list(par = startPar, info = startInfo) else ckp$start)
   tmp <- paste0(ckpFile, ".tmp")

@@ -3,8 +3,13 @@
 # character likelihood.  States stay in their slot (`chain`), tuning stays
 # with its level (`tune`), and `slot[r]` names the state at level r, so a swap
 # exchanges two entries of `slot` only.
+.HeatLadder <- function(nChain, deltaHeat) {
+  1 / (1 + deltaHeat * (seq_len(nChain) - 1))
+}
+
 .Mc3Init <- function(st, nChain, deltaHeat, tune, CharLL) {
-  heats <- 1 / (1 + deltaHeat * (seq_len(nChain) - 1))
+  heats <- .HeatLadder(nChain, deltaHeat)
+  st[["charLL"]] <- heats[[1]] * st[["charLL"]]
   chain <- c(list(st), lapply(heats[-1], function(h) {
     draw <- .SampleTree(st[["tree"]], st[["set"]], st[["msg"]])
     st[["paths"]] <- draw[["paths"]]
@@ -29,7 +34,8 @@
   logLik <- vapply(mc3[["chain"]][id], `[[`, 0, "charLL") / h
   logRatio <- (h[[1]] - h[[2]]) * (logLik[[2]] - logLik[[1]])
   mc3[["swapTry"]][a] <- mc3[["swapTry"]][a] + 1
-  if (is.finite(logRatio) && log(u) < logRatio) {
+  # NaN: both states impossible
+  if (!is.nan(logRatio) && log(u) < logRatio) {
     mc3[["swapAcc"]][a] <- mc3[["swapAcc"]][a] + 1
     mc3[["slot"]][pair] <- rev(id)
     for (k in 1:2) {

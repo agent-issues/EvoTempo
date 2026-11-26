@@ -19,6 +19,7 @@ TempoMCMC(
   updateParameters = TRUE,
   minAcceptance = 0.01,
   agePriors = list(),
+  charPriors = list(),
   engine = getOption("EvoTempo.engine", "cpp")
 )
 }
@@ -47,12 +48,13 @@ iteration (see Details); unnamed moves are not used.  Defaults to
 \code{\link[=TempoMoves]{TempoMoves()}} for \code{tree} and \code{characters}.}
 
 \item{characters}{Optional matrix of character states, as for
-\code{\link[=MkLikelihood]{MkLikelihood()}}.}
+\code{\link[=MkLikelihood]{MkLikelihood()}}, or characters prepared by \code{\link[=MkCharacters]{MkCharacters()}}.}
 
 \item{nState}{Integer giving the number of character states.}
 
 \item{updateParameters}{Logical; if \code{FALSE}, hold parameters fixed (\code{shift}
-then moves the bins only).}
+then moves the bins only), including a free \code{alpha}, whose acceptance is
+then 0.}
 
 \item{minAcceptance}{Numeric giving the burn-in acceptance below which
 \code{tree} and \code{joint} moves are dropped after burn-in (see Details).}
@@ -61,6 +63,12 @@ then moves the bins only).}
 the root age (\code{root}; with \code{start = "root"}) and of the origin age
 (\code{origin}; with \code{start = "origin"}), needed by the \code{rootAge} and
 \code{originAge} moves.}
+
+\item{charPriors}{Named list of functions giving log prior densities of
+parameters of the character model: \code{alpha}, the shape of the Gamma rates
+among characters (for \code{\link[=MkCharacters]{MkCharacters()}} with \code{nRateCat > 1}), which is
+then free; without it (or with \code{charPriors = NULL}), \code{alpha} stays at
+\code{start$alpha}.}
 
 \item{engine}{Character string selecting the engine:
 \itemize{
@@ -72,10 +80,12 @@ equations and MkPrime kernels for characters;
 \value{
 \code{TempoMCMC()} returns a list with elements
 \itemize{
-\item \code{samples}: data frame with one column per free parameter, \code{logPost}
+\item \code{samples}: data frame with one column per free parameter, then, with
+Gamma rates among characters, \code{alpha} (so the later columns move by
+one; index them by name), then \code{logPost}
 (log augmented density, plus character log-likelihood, log prior of the
-parameters and, when \code{rootAge} or \code{originAge} moves it, log prior of the
-start age), \code{rootBin} (the bin at the root), \code{meanX}
+parameters, of a free \code{alpha}, and, when \code{rootAge} or \code{originAge} moves
+it, log prior of the start age), \code{rootBin} (the bin at the root), \code{meanX}
 (lineage-time-averaged log-tempo over the tree) and
 tree statistics: \code{nAncestor}, \code{treeLength}, \code{meanNodeAge} (of non-root
 bifurcations), \code{cherries}, \code{oldestFossil}, \code{youngestFossil}, \code{clock}
@@ -92,7 +102,7 @@ over every branch with a path (with an origin, including the stem);
 path (with an origin, including the stem; for chains without tree
 moves);
 \item \code{acceptance}: acceptance rate of each move after burn-in (zero for
-moves not run);
+moves not run), including the \code{alpha} move when \code{alpha} is free;
 \item \code{burninAcceptance}: acceptance rate of each move during burn-in, or
 \code{NULL} without burn-in;
 \item \code{moves}: the move counts used after burn-in;
@@ -160,7 +170,15 @@ uniformly between its children and parent (with \code{start = "origin"}, the
 root's too, between its children and the origin); \code{fossilAge} redraws a fossil's
 age within its stratigraphic range (see \code{\link[=TempoTree]{TempoTree()}}); \code{slide} prunes a
 subtree and regrafts it at a uniform height onto a uniformly chosen branch
-crossing that height; \code{saJump} converts a fossil tip to a sampled ancestor
+crossing that height; \code{fnpr} prunes a subtree and regrafts its parent, at
+its unchanged age, onto a nearby branch crossing that age: one chosen
+uniformly among those whose most recent common ancestor with the old
+attachment point, in the tree without the subtree, is no older than a
+threshold \eqn{H}.  With probability 1/2, \eqn{H} admits every branch
+(as RevBayes's \code{mvFNPR}); otherwise \eqn{H - t_p} is log-uniform on
+\eqn{[(R - t_p) / 100, R - t_p]}, with \eqn{t_p} the parent's age and
+\eqn{R} the root age, which gives local rearrangements (as \code{mvNarrow});
+\code{saJump} converts a fossil tip to a sampled ancestor
 or back (Gavryushkina et al. 2014).
 Each redraws affected node bins and paths from the frozen model, with
 proposal densities in the Hastings ratio.
@@ -189,6 +207,19 @@ Step sizes \eqn{\epsilon} adapt during burn-in.
 Characters follow the Mk model on branch lengths
 \eqn{\ell_e = c \int_e e^{\gamma x} dt}, with \eqn{c} the parameter \code{rate}
 and \eqn{\gamma} from \code{model}; see \code{\link[=MkLikelihood]{MkLikelihood()}}.
+Characters from \code{\link[=MkCharacters]{MkCharacters()}} may have their own numbers of states, be
+ordered, hold sets of states, be conditioned on variability, and have
+rates that vary among characters: with \code{nRateCat > 1}, each character's
+lengths are scaled by discrete Gamma rates with shape \eqn{\alpha}
+(\code{start$alpha}; not the tempo exponent \code{model$alpha} of \code{theta}), which
+multiply the tempo-dependent rate.
+\eqn{\alpha} is fixed unless \code{charPriors$alpha} gives its log prior
+density; it then has its own move, once per iteration after the parameter
+sweep, which scales it by \eqn{e^{u}}, \eqn{u \sim U(-\epsilon/2,
+\epsilon/2)}, with the characters' likelihood at the current paths, and
+whose step \eqn{\epsilon} adapts during burn-in.
+Matrices of characters (not from \code{\link[=MkCharacters]{MkCharacters()}}) are scored as before,
+with one number of states, \code{nState}.
 }
 \examples{
 tree <- structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
@@ -214,7 +245,9 @@ molecular evolution. Annals of Applied Statistics 3:1204--1231.
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=GammaRates]{GammaRates()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkCharacters]{MkCharacters()}},
 \code{\link[=MkLikelihood]{MkLikelihood()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoEngine]{TempoEngine()}},

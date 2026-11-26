@@ -9,7 +9,8 @@ MkLikelihood(
   characters,
   lengths,
   nState = 2L,
-  engine = getOption("EvoTempo.engine", "cpp")
+  engine = getOption("EvoTempo.engine", "cpp"),
+  alpha = NULL
 )
 }
 \arguments{
@@ -17,12 +18,14 @@ MkLikelihood(
 
 \item{characters}{Integer matrix with one row per tip (in the order of the
 tree's tips) and one column per character, giving states \code{0} to
-\code{nState - 1}, or \code{NA} where unknown.}
+\code{nState - 1}, or \code{NA} where unknown; or characters prepared by
+\code{\link[=MkCharacters]{MkCharacters()}}.}
 
 \item{lengths}{Numeric vector giving the length of the branch above each
 node (tips, then internal nodes), in expected changes; ignored at the root.}
 
-\item{nState}{Integer giving the number of states.}
+\item{nState}{Integer giving the number of states; ignored for
+\code{\link[=MkCharacters]{MkCharacters()}} input, which records the number of states per character.}
 
 \item{engine}{Character string selecting the engine:
 \itemize{
@@ -30,6 +33,10 @@ node (tips, then internal nodes), in expected changes; ignored at the root.}
 equations and MkPrime kernels for characters;
 \item \code{R}: the pure-R reference, with \code{deSolve::lsode()}.
 }}
+
+\item{alpha}{Numeric giving the shape of the Gamma distribution of rates
+among characters, for \code{\link[=MkCharacters]{MkCharacters()}} input with \code{nRateCat > 1};
+otherwise ignored.}
 }
 \value{
 \code{MkLikelihood()} returns the natural logarithm of the likelihood.
@@ -43,6 +50,11 @@ The C++ engine uses the MkPrime pruning kernels; used by \code{\link[=TempoMCMC]
 \details{
 Sampled ancestors are tips on zero-length branches, so their states are
 observed at the node that bears them.
+
+With \code{characters} from \code{\link[=MkCharacters]{MkCharacters()}}, each character has its own number
+of states and may be ordered or hold sets of states, the likelihood may be
+conditioned on variability, and rates may vary among characters (discrete
+Gamma with shape \code{alpha}); see \code{\link[=MkCharacters]{MkCharacters()}}.
 }
 \examples{
 tree <- structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
@@ -50,12 +62,21 @@ tree <- structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
                        Nnode = 2), class = "phylo")
 chars <- matrix(c(0, 0, 1, 1, NA, 1), 3)
 MkLikelihood(tree, chars, c(0.2, 0.2, 0.3, 0, 0.1))
+
+# Three states, one character ordered, a polymorphic cell, conditioned on
+# variability, with Gamma rate variation
+cells <- matrix(c("0", "1", "2", "{01}", "1", "0"), 3)
+mk <- MkCharacters(cells, nState = 3, ordered = c(TRUE, FALSE),
+                   coding = "variable", nRateCat = 4)
+MkLikelihood(tree, mk, c(0.2, 0.2, 0.3, 0, 0.1), alpha = 0.5)
 }
 \seealso{
 Other dCET inference:
 \code{\link[=DCETModel]{DCETModel()}},
 \code{\link[=FBDTreeLikelihood]{FBDTreeLikelihood()}},
+\code{\link[=GammaRates]{GammaRates()}},
 \code{\link[=MarginalMCMC]{MarginalMCMC()}},
+\code{\link[=MkCharacters]{MkCharacters()}},
 \code{\link[=SampleTempoPaths]{SampleTempoPaths()}},
 \code{\link[=TempoEngine]{TempoEngine()}},
 \code{\link[=TempoMCMC]{TempoMCMC()}},

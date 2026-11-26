@@ -1,0 +1,11 @@
+ beta gamma statistic nRep chisq     p meanRank minBin maxBin pHolm
+    1     1    lambda  200  3.89 0.919    0.518     16     26     1
+    1     1        mu  200 10.11 0.342    0.512     13     25     1
+    1     1       psi  200 10.42 0.318    0.528     11     25     1
+    1     1     theta  200 10.09 0.344    0.547     12     28     1
+    1     1         s  200  7.46 0.589    0.499     13     25     1
+    1     1      rate  200  6.65 0.673    0.490     13     25     1
+    1     1   rootBin  200 12.15 0.205    0.532     10     27     1
+    1     1     clock  200  8.28 0.506    0.508     10     24     1
+200 replicates; min Holm p 1.000; median ESS (whole chain) theta 51, s 243, alpha NA; 32.0 core-h
+cell 2: ESS theta quantiles (5, 25, 50, 75, 95%): 18 31 51 78 121

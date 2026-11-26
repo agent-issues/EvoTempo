@@ -43,8 +43,62 @@
 # `eval` writes <chain dir>/cross.csv: for every recorded state (after
 # dropping CET_BF_BURN, default 0.25, of each chain) the log augmented density
 # at each beta and the character log-likelihood at each gamma that occur among
-# the chains under the same root (CET_BF_BETAS / CET_BF_GAMMAS override), and a
-# check that the chain's own values reproduce its logPost.
+# the chains under the same root (CET_BF_BETAS / CET_BF_GAMMAS override), and
+# two checks per state: `check`, the recomputed log posterior minus the chain's
+# logPost, and `checkChar`, the recomputed character log-likelihood minus the
+# chain's charLL (which the power-0 check cannot see).  eval first deletes any
+# earlier cross.csv, before anything else can stop it (#105 review, R105-1), and
+# writes a new one (temporary file, removed on exit, then rename) only when every
+# state's |check| <= CET_BF_TOL (default 1e-4) and |checkChar| <= CET_BF_TOL_CHAR
+# (default 1e-8), recording both tolerances (evalTol, evalTolChar).  `combine`
+# refuses a cross.csv that has no check, checkChar, evalTol or evalTolChar
+# column, whose recorded tolerances are not positive numbers, or whose checks
+# are not finite or exceed the stricter of its own and the recorded
+# tolerances, naming the chain (common.R, CrossProblems()).  This ports the
+# trilobite pipeline's A2 (review of #91).  The logPost tolerance is wider
+# than the trilobite 1e-6: on the penguin chains the recomputed log posterior
+# differs from the chain's by up to 1.86e-5 (a 200 000-iteration rung) and
+# 1.11e-5 (the 400 000-iteration production cells), about 1e-8 relative, which
+# is drift in the chain's running value; a wrong target differs by nats (#104).
+# charLL is recomputed exactly (max |checkChar| 5.0e-12 over all 40 chains), so
+# its tolerance is 1e-8 (R105-5).
+#
+# `combine` checks the chains it finds against the expected set: the launch
+# record <run root>/launch.csv (cell, reps, optional power and mkv; one row per
+# launched group, e.g. each ladder rung), or without one the production launch
+# of 4 cells x CET_BF_REPS (default 4) replicates.  It stops if an expected
+# chain has no complete segment, if an expected power-1 chain has no cross.csv,
+# or if it finds a chain the record does not list; CET_BF_ALLOW_MISSING (chain
+# labels) is the only, explicit, opt-out (#101).
+#
+# #103 review: eval records what it read (evalSamples, evalSegMd5, an md5 of
+# the seg*_samples.csv files) and combine refuses a cross.csv whose chain has
+# changed since, or that records nothing; every chain used must be complete
+# (last progress.txt line; CET_BF_ALLOW_INCOMPLETE names exceptions) (R103-2).
+# combine deletes bayes-factors.csv, model-probabilities.csv, closure.txt and
+# chains-used.csv first, so a stop leaves no output of an earlier run (R103-3);
+# a chain left out is left out everywhere, and combine stops if that leaves a
+# power ladder incomplete (R103-4); chains-used.csv lists every chain and its
+# role (R103-12); LogQ() names a missing column (R103-13).  With #104, eval
+# also records its tolerance (evalTol), and combine applies the stricter of it
+# and its own CET_BF_TOL.
+# CET_MAX_SEG / CET_MAX_SEG_RUNG cap the segments read (common.R, SegCap();
+# #107 review, R107-9): exactly segments 1..m, all present; a whole number
+# >= 1, or unset.  Under a cap a chain is complete when its checkpoint has
+# reached segment m.  eval records its cap (evalMaxSeg), and combine refuses a
+# cross.csv evaluated under another cap, naming the mismatch (#105 delta
+# review, C1-C4); ladder chains, which have no cross.csv, are fingerprinted
+# before and after combine reads them.
+# eval: no earlier cross.csv survives any stop of this run, including one
+# before the package loads or the tolerances are read (#105 review, R105-1)
+local({
+  a <- commandArgs(trailingOnly = TRUE)
+  # only for a chain directory (#105 delta review, R105b-7)
+  if (length(a) >= 2L && identical(a[[1]], "eval") && dir.exists(a[[2]]) &&
+      grepl("^b[0-9.]+g[0-9.]+(_mkv(allTips|none))?(_t[0-9.]+)?_run[0-9]+$", basename(a[[2]]))) {
+    unlink(file.path(a[[2]], "cross.csv"))
+  }
+})
 if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
   suppressMessages(pkgload::load_all(".", quiet = TRUE))
 } else {
@@ -53,15 +107,20 @@ if (nzchar(Sys.getenv("CET_LOAD_ALL"))) {
 source("data-raw/empirical/penguins/cet/common.R")
 args <- commandArgs(trailingOnly = TRUE)
 burn <- as.numeric(Sys.getenv("CET_BF_BURN", "0.25"))
+tol <- as.numeric(Sys.getenv("CET_BF_TOL", "1e-4"))
+stopifnot("CET_BF_TOL must be a positive number" = isTRUE(tol > 0))
+tolChar <- suppressWarnings(as.numeric(Sys.getenv("CET_BF_TOL_CHAR", "1e-8")))
+stopifnot("CET_BF_TOL_CHAR must be a positive number" = isTRUE(tolChar > 0))
 
 # ParseLabel() and Chains() are in common.R (shared with run-chain.R, #75)
+# Both read segments 1..CET_MAX_SEG (common.R, SegFiles(); default all)
 LoadSamples <- function(dir) {
-  smp <- do.call(rbind, lapply(sort(Sys.glob(file.path(dir, "seg*_samples.csv"))), utils::read.csv))
+  smp <- do.call(rbind, lapply(SegFiles(dir), utils::read.csv))
   keep <- seq_len(nrow(smp)) > floor(burn * nrow(smp))
   list(samples = smp, keep = keep)
 }
 LoadStates <- function(dir) {
-  unlist(lapply(sort(Sys.glob(file.path(dir, "seg*_states.rds"))), readRDS), recursive = FALSE)
+  unlist(lapply(SegFiles(dir, "states.rds"), readRDS), recursive = FALSE)
 }
 LogAugAt <- function(state, beta, gamma) {
   model <- CetModel(beta, gamma)
@@ -109,6 +168,7 @@ if (args[[1]] == "eval") {
   }
   dat <- LoadPenguins(startTree)
   priors <- CetPriors()
+  fp <- SegmentFingerprint(dir)
   s <- LoadSamples(dir)
   states <- LoadStates(dir)
   stopifnot(length(states) == nrow(s$samples))
@@ -133,15 +193,53 @@ if (args[[1]] == "eval") {
     # is a constant on its support, so this check cannot tell at which age
     # TempoMCMC() evaluated it.
     la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
-    own <- LogAugAt(st, me$beta, me$gamma) + me$power * CharLLAt(st, me$gamma, dat$characters) +
-      lp + la
+    # charLL in seg*_samples.csv is the unpowered character log-likelihood
+    # (common.R, RecordingStats())
+    ownChar <- CharLLAt(st, me$gamma, dat$characters)
+    own <- LogAugAt(st, me$beta, me$gamma) + me$power * ownChar + lp + la
     c(sample = i, setNames(aug, paste0("aug_b", vapply(betas, FormatValue, ""))),
       setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))), logPrior = lp,
-      check = own - s$samples$logPost[i])
+      check = own - s$samples$logPost[i], checkChar = ownChar - s$samples$charLL[i])
   }))
-  utils::write.csv(out, file.path(dir, "cross.csv"), row.names = FALSE)
-  cat(sprintf("%s: %d states, %.1f s; max |own - logPost| = %.3g\n", basename(dir), nrow(out),
-              proc.time()[["elapsed"]] - t0, max(abs(out[, "check"]))))
+  worst <- max(abs(out[, "check"]))
+  worstChar <- max(abs(out[, "checkChar"]))
+  cat(sprintf("%s: %d states, %.1f s; max |own - logPost| = %.3g, max |own - charLL| = %.3g\n",
+              basename(dir), nrow(out), proc.time()[["elapsed"]] - t0, max(abs(out[, "check"])),
+              max(abs(out[, "checkChar"]))))
+  # What this eval read (#103 review, R103-2): combine compares it with the
+  # chain's seg*_samples.csv files and refuses a cross.csv whose chain changed;
+  # evalTol is the tolerance of this eval, and combine applies the stricter of
+  # it and its own CET_BF_TOL
+  fpAfter <- SegmentFingerprint(dir)
+  if (!identical(fp, fpAfter) || fp$samples != nrow(s$samples)) {
+    unlink(file.path(dir, "cross.csv"))
+    stop(sprintf("%s: the segment files changed while eval read them (%d samples, then %d); no cross.csv written",
+                 basename(dir), fp$samples, fpAfter$samples))
+  }
+  out <- as.data.frame(out)
+  out$evalSamples <- fp$samples
+  out$evalSegMd5 <- fp$md5
+  out$evalTol <- tol
+  out$evalTolChar <- tolChar
+  # Write cross.csv only after the checks pass, so that a failed eval cannot
+  # leave a file that combine would use (#104; trilobite A2).  A non-finite
+  # check fails (isTRUE)
+  crossFile <- file.path(dir, "cross.csv")
+  if (!isTRUE(worst <= tol) || !isTRUE(worstChar <= tolChar)) {
+    unlink(crossFile)
+    stop(sprintf(paste("recomputed log posterior differs from the chain's by %.3g (CET_BF_TOL = %g),",
+                       "charLL by %.3g (CET_BF_TOL_CHAR = %g); no cross.csv written"),
+                 worst, tol, worstChar, tolChar))
+  }
+  out$evalMaxSeg <- SegCap(me$label)  # the cap eval read under (C3)
+  tmp <- tempfile("cross-", tmpdir = dir, fileext = ".csv")
+  # No temporary file survives a failed write or rename (R105-2).  tryCatch,
+  # not on.exit: at the top level of an Rscript on.exit does nothing (#105
+  # delta review, R105b-1)
+  tryCatch({
+    utils::write.csv(out, tmp, row.names = FALSE)
+    if (!file.rename(tmp, crossFile)) stop("could not rename ", tmp, " to ", crossFile)
+  }, finally = unlink(tmp))
   quit(save = "no")
 }
 
@@ -165,8 +263,17 @@ BridgeTwo <- function(l0, l1) {
   f0 <- e0 / (s1 * e0 + s0 * r)
   f1 <- 1 / (s1 * e1 + s0 * r)
   re2 <- stats::var(f0) / (Ess(f0) * mean(f0)^2) + stats::var(f1) / (Ess(f1) * mean(f1)^2)
+  # Overlap (#107 review, R107-3): Kish ESS of the one-sided importance weights,
+  # forward (draws of 0 weighted by q1/q0) and reverse (draws of 1 by q0/q1)
+  Kish <- function(lw) {
+    lw <- lw[is.finite(lw)]
+    if (!length(lw)) return(0)
+    w <- exp(lw - max(lw))
+    sum(w)^2 / sum(w^2)
+  }
   list(logBF = log(r) + shift, se = sqrt(re2), essF0 = Ess(f0), essF1 = Ess(f1),
        logBFfrom0 = LogMeanExp(l0), logBFfrom1 = -LogMeanExp(-l1),
+       kishFwd = Kish(l0), kishRev = Kish(-l1), n0 = n0, n1 = n1,
        nInfinite = sum(!is.finite(c(l0, l1))))
 }
 SteppingStone <- function(ladder, logL) {
@@ -182,6 +289,11 @@ SteppingStone <- function(ladder, logL) {
 
 root <- args[[2]]
 stopifnot("combine: <run root> does not exist" = dir.exists(root))
+# No output of an earlier run survives a stop, or a run with fewer edges
+# (#103 review, R103-3)
+outputs <- file.path(root, c("bayes-factors.csv", "model-probabilities.csv", "closure.txt",
+                             "chains-used.csv", "bf-steps.csv", "small-squares.csv"))
+unlink(outputs)
 # Every cell with character-power chains of this variant must have a complete
 # ladder, t = 0 to t = 1, before anything is combined.  The t = 1 rung is the
 # cell's ordinary chains: without them under this root, the stepping-stone
@@ -208,20 +320,68 @@ if (length(problems)) {
        "\n  The t = 1 rung is the cell's chains at power 1 (production chains) under the same root.",
        call. = FALSE)
 }
-ch <- chAll
+# Every expected chain (launch record <run root>/launch.csv, or the production
+# default of 4 cells x 4 replicates; common.R, ExpectedChains()) must be present,
+# and every expected power-1 chain must have a cross.csv, unless named in
+# CET_BF_ALLOW_MISSING; a chain not in the record also stops combine.  Before,
+# a chain without cross.csv was dropped from the bridges without a message (#101)
+# Every chain used must also be complete (CET_BF_ALLOW_INCOMPLETE names
+# exceptions; #103 review, R103-2)
+leftOut <- CheckChainSet(root, chAll)
+# A chain left out is left out everywhere: the ladders must still be complete
+# without it (#103 review, R103-4)
+problems <- LadderProblems(chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut, ])
+if (length(problems)) {
+  stop("combine: incomplete character-power ladder(s) once ", paste(leftOut, collapse = ", "),
+       " (CET_BF_ALLOW_MISSING) are left out; no marginal is reported.\n  ",
+       paste(problems, collapse = "\n  "), call. = FALSE)
+}
 # Bridge only chains of one Mkv variant: CET_MKV, default "pattern" (#74)
-ch <- ch[ch$mkv == .cet$mkv & file.exists(file.path(ch$dir, "cross.csv")), ]
+ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut &
+              file.exists(file.path(chAll$dir, "cross.csv")), ]
 cross <- lapply(ch$dir, function(d) utils::read.csv(file.path(d, "cross.csv"), check.names = FALSE))
 names(cross) <- ch$label
+# Refuse a cross.csv whose chain has changed since eval read it, or that does
+# not record what eval read (#103 review, R103-2), or that did not pass eval's
+# checks at the stricter of combine's and eval's tolerances, or predates them
+# (#104; trilobite A2): one place, naming each chain (common.R,
+# CrossProblems(); #105 review, R105-3/8)
+problems <- CrossProblems(ch, cross, tol, tolChar)
+if (length(problems)) {
+  stop("combine: cross.csv refused; no Bayes factor is reported.\n  ",
+       paste(problems, collapse = "\n  "), call. = FALSE)
+}
+utils::write.csv(ChainsUsed(chAll, leftOut, cross), file.path(root, "chains-used.csv"), row.names = FALSE)
 LogQ <- function(x, beta, gamma) {
-  x[[paste0("aug_b", FormatValue(beta))]] + x[[paste0("chr_g", FormatValue(gamma))]] + x$logPrior
+  a <- paste0("aug_b", FormatValue(beta))
+  g <- paste0("chr_g", FormatValue(gamma))
+  # Name a missing column (e.g. a rung added after eval) rather than fail inside
+  # BridgeTwo() (#103 review, R103-13; as the trilobite pipeline, #100)
+  if (!all(c(a, g) %in% names(x))) {
+    stop(sprintf("cross.csv has no column %s; rerun eval on every chain after adding a rung",
+                 paste(setdiff(c(a, g), names(x)), collapse = " or ")), call. = FALSE)
+  }
+  x[[a]] + x[[g]] + x$logPrior
 }
 # Bridge between model points A and B (beta, gamma), pooling replicates (or
-# replicate `rep` only)
-Bridge <- function(a, b, rep = NULL) {
+# replicate `rep` only; and with `half` = 1 or 2, only the first or second
+# half of each chain's draws, for the chain-half SE, R107-2)
+Bridge <- function(a, b, rep = NULL, half = NULL) {
   Draws <- function(p) {
     sel <- ch$power == 1 & ch$beta == p[1] & ch$gamma == p[2] & (is.null(rep) | ch$rep %in% rep)
-    do.call(rbind, cross[ch$label[sel]])
+    xs <- cross[ch$label[sel]]
+    if (!length(xs)) return(NULL)
+    if (!is.null(half)) {
+      xs <- lapply(xs, function(x) {
+        m <- nrow(x) %/% 2L
+        x[if (half == 1) seq_len(m) else seq.int(m + 1L, nrow(x)), , drop = FALSE]
+      })
+    }
+    # Only the columns every chain has: a chain evaluated before a rung was
+    # added lacks that rung's column, and LogQ() then names it (rbind() would
+    # fail with "numbers of columns of arguments do not match")
+    cols <- Reduce(intersect, lapply(xs, names))
+    do.call(rbind, lapply(xs, function(x) x[, cols, drop = FALSE]))
   }
   xa <- Draws(a)
   xb <- Draws(b)
@@ -254,17 +414,67 @@ Edge <- function(a, b) {
     s <- lapply(seq_len(length(v) - 1L), function(k) Bridge(P(v[k]), P(v[k + 1]), r))
     if (any(vapply(s, is.null, TRUE))) NA else sum(vapply(s, `[[`, 0, "logBF"))
   }, 0)
+  # Chain-half units (replicate r, half h): the spread of the edge over these
+  # 2 x reps units also sees slow mixing within chains (R107-2)
+  perHalf <- unlist(lapply(reps, function(r) vapply(1:2, function(h) {
+    s <- lapply(seq_len(length(v) - 1L), function(k) Bridge(P(v[k]), P(v[k + 1]), r, h))
+    if (any(vapply(s, is.null, TRUE))) NA else sum(vapply(s, `[[`, 0, "logBF"))
+  }, 0)))
+  stepRows[[length(stepRows) + 1L]] <<- data.frame(
+    edge = paste(CellLabel(a[1], a[2]), CellLabel(b[1], b[2])),
+    from = vapply(seq_len(length(v) - 1L), function(k) CellLabel(P(v[k])[1], P(v[k])[2]), ""),
+    to = vapply(seq_len(length(v) - 1L), function(k) CellLabel(P(v[k + 1])[1], P(v[k + 1])[2]), ""),
+    logBF = vapply(steps, `[[`, 0, "logBF"), se = vapply(steps, `[[`, 0, "se"),
+    kishFwd = vapply(steps, `[[`, 0, "kishFwd"), kishRev = vapply(steps, `[[`, 0, "kishRev"),
+    n0 = vapply(steps, `[[`, 0, "n0"), n1 = vapply(steps, `[[`, 0, "n1"),
+    isFwd = vapply(steps, `[[`, 0, "logBFfrom0"), isRev = vapply(steps, `[[`, 0, "logBFfrom1"),
+    gap = vapply(steps, function(s) abs(s$logBFfrom0 - s$logBFfrom1), 0))
   data.frame(from = CellLabel(a[1], a[2]), to = CellLabel(b[1], b[2]), points = length(v),
              logBF = sum(vapply(steps, `[[`, 0, "logBF")),
              se = sqrt(sum(vapply(steps, `[[`, 0, "se")^2)),
              seReplicates = stats::sd(perRep, na.rm = TRUE) / sqrt(sum(is.finite(perRep))),
+             seChainHalf = stats::sd(perHalf, na.rm = TRUE) / sqrt(sum(is.finite(perHalf))),
+             minKish = min(vapply(steps, function(s) min(s$kishFwd, s$kishRev), 0)),
+             # Summed one-sided importance estimates: a diagnostic bracket, not an interval
+             isFwd = sum(vapply(steps, `[[`, 0, "logBFfrom0")),
+             isRev = sum(vapply(steps, `[[`, 0, "logBFfrom1")),
              minEss = min(vapply(steps, function(s) min(s$essF0, s$essF1), 0)),
              maxOneSidedGap = max(vapply(steps, function(s) abs(s$logBFfrom0 - s$logBFfrom1), 0)),
              nInfinite = sum(vapply(steps, `[[`, 0, "nInfinite")),
              perReplicate = paste(format(perRep, digits = 5), collapse = " "))
 }
+stepRows <- list()
 edges <- rbind(Edge(c(0, 0), c(1, 0)), Edge(c(0, 1), c(1, 1)),
                Edge(c(0, 0), c(0, 1)), Edge(c(1, 0), c(1, 1)))
+if (length(stepRows)) {
+  steps <- do.call(rbind, stepRows)
+  cat("Bridge steps (Kish ESS of the one-sided importance weights; isFwd/isRev the one-sided estimates):\n")
+  print(steps, row.names = FALSE, digits = 4)
+  utils::write.csv(steps, file.path(root, "bf-steps.csv"), row.names = FALSE)
+}
+# Small squares (#107 review, R107-3/4): at consecutive gamma values present at
+# both beta = 0 and 1, beta edge + gamma step at beta 1 - gamma step at beta 0 -
+# next beta edge must be 0 up to error
+gs <- intersect(unique(ch$gamma[ch$power == 1 & ch$beta == 0]),
+                unique(ch$gamma[ch$power == 1 & ch$beta == 1]))
+gs <- sort(gs)
+if (length(gs) > 2L) {
+  be <- lapply(gs, function(g) Bridge(c(0, g), c(1, g)))
+  sq <- do.call(rbind, lapply(seq_len(length(gs) - 1L), function(k) {
+    s0 <- Bridge(c(0, gs[k]), c(0, gs[k + 1])); s1 <- Bridge(c(1, gs[k]), c(1, gs[k + 1]))
+    parts <- list(be[[k]], s1, s0, be[[k + 1]])
+    if (any(vapply(parts, is.null, TRUE))) return(NULL)
+    cl <- be[[k]]$logBF + s1$logBF - s0$logBF - be[[k + 1]]$logBF
+    se <- sqrt(sum(vapply(parts, `[[`, 0, "se")^2))
+    data.frame(gammaFrom = gs[k], gammaTo = gs[k + 1], betaEdgeFrom = be[[k]]$logBF,
+               closure = cl, se = se, withinThreeSe = abs(cl) <= 3 * se)
+  }))
+  if (!is.null(sq)) {
+    cat("Small-square closures (gamma steps at beta 0 and 1, beta edges at each gamma):\n")
+    print(sq, row.names = FALSE, digits = 4)
+    utils::write.csv(sq, file.path(root, "small-squares.csv"), row.names = FALSE)
+  }
+}
 if (is.null(edges)) {
   cat("No bridge edge has chains with cross.csv at both ends\n")
 } else {
@@ -276,6 +486,9 @@ if (!is.null(edges) && nrow(edges) == 4) {
   se <- edges$se
   closure <- e[["b0g0 b1g0"]] + e[["b1g0 b1g1"]] - e[["b0g0 b0g1"]] - e[["b0g1 b1g1"]]
   cat(sprintf("Square closure: %.3f nats (SE %.3f)\n", closure, sqrt(sum(se^2))))
+  # The two gamma edges enter with opposite signs, so a bias common to both
+  # cancels: closure cannot detect it (#107 review, R107-4)
+  cat("  (the closure is blind to a bias common to both gamma edges; see bf-steps.csv for overlap)\n")
   # log Z relative to (0,0); (1,1) as the mean of its two paths
   logZ <- c(b0g0 = 0, b1g0 = e[["b0g0 b1g0"]], b0g1 = e[["b0g0 b0g1"]],
             b1g1 = mean(c(e[["b0g0 b1g0"]] + e[["b1g0 b1g1"]], e[["b0g0 b0g1"]] + e[["b0g1 b1g1"]])))
@@ -289,7 +502,7 @@ if (!is.null(edges) && nrow(edges) == 4) {
 # of the Mkv variant CET_MKV (default "pattern"), as for the bridges above:
 # pooling the charLL of chains of two variants mixes two targets (#75).
 # Ladders were checked to run from t = 0 to t = 1 at the start of combine.
-ch <- chAll[chAll$mkv == .cet$mkv, ]
+ch <- chAll[chAll$mkv == .cet$mkv & !chAll$label %in% leftOut, ]
 pw <- unique(ch[ch$power != 1, c("beta", "gamma")])
 for (i in seq_len(nrow(pw))) {
   sel <- ch$beta == pw$beta[i] & ch$gamma == pw$gamma[i]
@@ -297,7 +510,14 @@ for (i in seq_len(nrow(pw))) {
   stopifnot(ladder[1] == 0, ladder[length(ladder)] == 1, length(ladder) >= 3L)
   logL <- lapply(ladder, function(t) {
     unlist(lapply(ch$dir[sel & ch$power == t], function(d) {
+      # A ladder chain has no cross.csv: guard its read with the fingerprint,
+      # before and after (#105 delta review, C1)
+      fp <- SegmentFingerprint(d)
       s <- LoadSamples(d)
+      if (!identical(fp, SegmentFingerprint(d)) || fp$samples != nrow(s$samples)) {
+        stop(sprintf("%s: the segment files changed while combine read them; no marginal reported", basename(d)),
+             call. = FALSE)
+      }
       s$samples$charLL[s$keep]
     }))
   })

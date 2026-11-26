@@ -413,14 +413,14 @@ test_that("Chains with every tree move match between engines", {
     set.seed(10)
     TempoMCMC(engineRanged, engineModel, enginePar, priors,
               nIter = 12, burnin = 0, nSlice = 4, characters = chars,
-              moves = c(tree = 1, nodeAge = 2, fossilAge = 2, slide = 2, saJump = 2),
+              moves = c(tree = 1, nodeAge = 2, fossilAge = 2, slide = 2, fnpr = 2, saJump = 2),
               engine = engine)
   }
   cpp <- Run("cpp")
   ref <- Run("R")
   expect_equal(cpp$samples, ref$samples, tolerance = 1e-7)
   expect_equal(cpp$acceptance, ref$acceptance)
-  expect_true(all(cpp$acceptance[c("nodeAge", "fossilAge", "slide", "saJump")] > 0))
+  expect_true(all(cpp$acceptance[c("nodeAge", "fossilAge", "slide", "fnpr", "saJump")] > 0))
 })
 
 test_that("Chains with shift moves and fractional counts match between engines", {

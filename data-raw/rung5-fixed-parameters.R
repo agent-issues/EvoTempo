@@ -1,10 +1,21 @@
 # Rung 5 diagnostic: as rung5-validation.R, but with parameters fixed at the
 # prior medians, separating tree moves from parameter moves.
+# EVOTEMPO_RUNG5_TOPOLOGY=fnpr replaces `slide` by `fnpr` (#110); results get the suffix -fnpr.
 # Run from the package root.
 suppressMessages(pkgload::load_all(".", quiet = TRUE)); library(parallel)
 args <- "5"; lines <- readLines("data-raw/rung5-validation.R")
 eval(parse(text = lines[grep("^  suffix <- ", lines):(grep("^  Simulate <- function", lines) - 1)]))
 fixed <- as.list(exp(meanlog5))
+# Topology move under test: `slide` (default) or `fnpr` (#110), the only one in the chains
+topology <- Sys.getenv("EVOTEMPO_RUNG5_TOPOLOGY", "slide")
+stopifnot(topology %in% c("slide", "fnpr"))
+topologyMoves <- setNames(2, topology)
+# The start tree is that of the rung 5 run on the same grid, whatever the move
+gridSuffix <- suffix
+if (topology != "slide") suffix <- paste0(suffix, "-", topology)
+# EVOTEMPO_RUNG5_SEED: offset of every seed, for independent replicates (suffix -seed<offset>)
+seedOffset <- as.integer(Sys.getenv("EVOTEMPO_RUNG5_SEED", "0"))
+if (seedOffset != 0) suffix <- paste0(suffix, "-seed", seedOffset)
 SimFixed <- function(seed, n) {
   set.seed(seed); out <- list(); set <- .Setup(fixed, model5)
   while (length(out) < n) {
@@ -18,17 +29,17 @@ SimFixed <- function(seed, n) {
   }
   do.call(rbind, out)
 }
-r5 <- readRDS(paste0("data-raw/rung5-results/rung5", suffix, ".rds"))
+r5 <- readRDS(paste0("data-raw/rung5-results/rung5", gridSuffix, ".rds"))
 tt5 <- TempoTree(r5$startTree, present = crown)
 tt5 <- TempoTree(r5$startTree, present = crown, ranges = cbind(0, ifelse(tt5$tipType == "extant", 0, crown)))
 cl <- makeCluster(16); invisible(clusterCall(cl, function() suppressMessages(pkgload::load_all(".", quiet = TRUE))))
-clusterExport(cl, c("model5", "crown", "nExtant", "nFossil", "Join", "fixed", "SimFixed", "tt5"))
+clusterExport(cl, c("model5", "crown", "nExtant", "nFossil", "Join", "fixed", "SimFixed", "tt5", "topologyMoves", "seedOffset"))
 res <- parLapply(cl, 1:16, function(i) {
-  if (i <= 8) return(SimFixed(900 + i, 250))
-  set.seed(i)
+  if (i <= 8) return(SimFixed(900 + i + seedOffset, 250))
+  set.seed(i + seedOffset)
   TempoMCMC(tt5, model5, fixed, list(), nIter = 4000, burnin = 200, nSlice = 16,
             moves = c(tree = 1, node = 1, tip = 1, branch = 1, nodeAge = 2,
-                      fossilAge = 2, slide = 2, saJump = 2),
+                      fossilAge = 2, topologyMoves, saJump = 2),
             minAcceptance = 0)$samples
 })
 stopCluster(cl)

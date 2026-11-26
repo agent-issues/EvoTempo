@@ -1,0 +1,52 @@
+Expected chains (mkv pattern): 40 (/nobackup/pjjg18/evotempo-penguin-cet/bf400k-root/launch.csv); found 40; missing 0; not complete 0; not in the launch record 0
+Bridge steps (Kish ESS of the one-sided importance weights; isFwd/isRev the one-sided estimates):
+      edge    from      to   logBF       se kishFwd  kishRev    n0    n1
+ b0g0 b1g0    b0g0    b1g0 -0.2171 0.007227 941.919 1702.958 12000 12000
+ b0g1 b1g1    b0g1    b1g1 -0.5842 0.051587  34.906   22.952 12000 12000
+ b0g0 b0g1    b0g0 b0g0.25  1.7015 0.183384  18.842  516.177 12000  6000
+ b0g0 b0g1 b0g0.25  b0g0.5  5.2267 0.108817   9.695    9.073  6000  6000
+ b0g0 b0g1  b0g0.5 b0g0.75  2.1318 0.059219   9.713    6.680  6000  6000
+ b0g0 b0g1 b0g0.75    b0g1  0.8447 0.035520  24.220   87.388  6000 12000
+ b1g0 b1g1    b1g0 b1g0.25  0.3466 0.036772 256.976 1023.931 12000  6000
+ b1g0 b1g1 b1g0.25  b1g0.5  3.8279 0.130474   4.478   90.726  6000  6000
+ b1g0 b1g1  b1g0.5 b1g0.75  3.7120 0.040761  89.606    9.868  6000  6000
+ b1g0 b1g1 b1g0.75    b1g1  1.9134 0.027887 137.341  121.026  6000 12000
+   isFwd    isRev    gap
+ -0.2560 -0.05023 0.2058
+ -1.1727  0.07476 1.2475
+  0.6422  1.83147 1.1893
+  4.5775  6.30127 1.7238
+  2.1454  2.78409 0.6387
+  0.8379  1.35198 0.5141
+  0.2266  0.36800 0.1414
+  3.9409  4.06421 0.1233
+  3.3785  3.74564 0.3672
+  1.7498  2.04271 0.2929
+Small-square closures (gamma steps at beta 0 and 1, beta edges at each gamma):
+ gammaFrom gammaTo betaEdgeFrom  closure     se withinThreeSe
+      0.00    0.25      -0.2171  0.06118 0.2642          TRUE
+      0.25    0.50      -1.6332  0.15794 0.2949          TRUE
+      0.50    0.75      -3.1899  0.06415 0.1952          TRUE
+      0.75    1.00      -1.6739 -0.02098 0.1195          TRUE
+ from   to points      logBF          se seReplicates seChainHalf    minKish
+ b0g0 b1g0      2 -0.2170833 0.007226927  0.004417637 0.004599625 941.919382
+ b0g1 b1g1      2 -0.5841810 0.051586574  0.058058722 0.060042143  22.952048
+ b0g0 b0g1      5  9.9046816 0.224142003  0.292695401 0.209770091   6.679566
+ b1g0 b1g1      5  9.7998725 0.144273346  0.057005927 0.193310765   4.477633
+      isFwd       isRev     minEss maxOneSidedGap nInfinite
+ -0.2560113 -0.05023237 11773.9352      0.2057789         0
+ -1.1727441  0.07475680  4550.4462      1.2475009         0
+  8.2029244 12.26879671   118.0634      1.7237520         0
+  9.2957995 10.22056366   295.4011      0.3671545         0
+                        perReplicate
+ -0.21556 -0.22141 -0.22593 -0.20547
+ -0.44047 -0.54546 -0.63287 -0.71044
+     10.1857  9.1354  9.9518 10.5059
+         9.7350 9.7128 9.9650 9.8027
+Square closure: 0.262 nats (SE 0.272)
+  (the closure is blind to a bias common to both gamma edges; see bf-steps.csv for overlap)
+ cell       logZ posteriorProbability
+ b0g0  0.0000000         3.052989e-05
+ b1g0 -0.2170833         2.457238e-05
+ b0g1  9.9046816         6.113273e-01
+ b1g1  9.4516449         3.886176e-01

@@ -47,10 +47,14 @@ exp(−(x − m)²/(2s²) − αx) is proportional to exp(−(x − m + αs²)²
 The lognormal mean is then e^{−s²/2 + s²/2} = 1. ∎
 
 **Parameters.** The per-bin rates keep their form: λ_k = λe^{βx_k}, μ_k = μe^{βx_k}, ψ_k = ψe^{δx_k},
-ℓ_e = c Σ_k e^{γx_k} d_{e,k}. Because every exponent is 0 or 1, **each rate parameter is its own lineage-time mean**:
+ℓ_e = c Σ_k e^{γx_k} d_{e,k}. Because every exponent is 0 or 1, **each rate parameter is its own lineage-time mean**.
+That is the ergodic average along one non-branching lineage in tempo equilibrium. It is not the mean over
+contemporaneous species (p\*), nor over the lineages of a reconstructed tree.
 - λ and μ are the mean speciation and extinction rates of a lineage in tempo equilibrium;
-- c is the mean clock rate. In cell (0, 1), c and s are the mean and log-sd of a lognormal relaxed clock, the UCLN
-  convention of the comparators (`ucld_mean`, `ucld_sd`);
+- c is the mean clock rate. In cell (0, 1), c and s are the mean and log-sd of the per-unit-time marginal rate law.
+  Those are the parameters the comparators' UCLN priors describe (`ucld_mean`, `ucld_sd`). Rates here are
+  autocorrelated along lineages, so branch-average rates are not lognormal with sd s; the match is to the marginal law,
+  not to UCLN's branch rates;
 - θ is the mean real-time reversion rate when α = 1;
 - ψ is the mean fossil-sampling rate when δ = 1.
 
@@ -63,11 +67,13 @@ is no longer exactly the mean.
 $$x_k = s z_k - s^2/2, \qquad z_k = z_{\min} + (k-1)h.$$
 
 `TempoGrid()` gains this offset. In z, the tempo-time OU has mean αs, so the generator depends on s through its drift
-centre, (𝓛_z f)(z) = −θ(z − αs)f′ + θf″. Consequence 1 of §1.1 (A independent of s) no longer holds; consequences 2 and 3
-still do. In particular, paths stored as bin indices stay valid when s moves.
+centre, (𝓛_z f)(z) = −θ(z − αs)f′ + θf″. Consequences 1 and 2 of §1.1 no longer hold: A depends on s through αs, and x
+through −s²/2 as well as e^{sz_k}. Consequence 3 still holds: paths stored as bin indices stay valid when s moves.
 
-**Discretisation.** Positivity of the central scheme now needs h · max_k |z_k − αs| ≤ 2. At K = 26 on [−5, 5] (h = 0.4)
-this fails for every s > 0, so **SqRA becomes the default scheme**. SqRA applied to A with potential
+**Discretisation.** The central scheme's check is now h · max_k |z_k − αs| ≤ 2. With α > 0, at K = 26 on [−5, 5]
+(h = 0.4), the check fails for every s > 0. Positivity itself, with the binding rates at the reflecting ends discarded,
+holds for s ≤ 0.4; at α = 0 the bound is met for every s. Under `"mean"` the bound depends on s, so a chain with free s
+can leave the valid region mid-run. **SqRA therefore becomes the default scheme.** SqRA applied to A with potential
 U(z) = (z − αs)²/2, then multiplied by e^{αx_k}, gives
 
 $$Q_{k,k\pm1} = \frac{\theta}{h^2}\exp\!\Big(\frac{\alpha(x_k + x_{k\pm1})}{2} - \frac{z_{k\pm1}^2 - z_k^2}{4}\Big). \qquad (L.2)$$
@@ -79,17 +85,19 @@ Expanding (L.2) to first order in h, the jump moments are h(Q_{k,k+1} − Q_{k,k
 h²(Q_{k,k+1} + Q_{k,k−1}) = 2θe^{αx_k} + O(h²). Both are consistent with (L.1).
 
 On the grid, E_π[e^{x}] = Σ_k φ(z_k)e^{sz_k − s²/2} / Σ_k φ(z_k). This differs from 1 by the truncation of the
-e^{x}-tilted law N(s, 1) above z_max: −3×10⁻⁵ at s = 1, −1.3×10⁻³ at s = 2 and −2.3×10⁻² at s = 3. The Riemann-sum error is
-exponentially small. A grid-exact offset, −log of that sum, is a possible variant. The closed form is preferred for a
+e^{x}-tilted law N(s, 1) above the top of the grid. At K = 26 on [−5, 5] the grid values are −1.2×10⁻⁵ at s = 1,
+−6.4×10⁻⁴ at s = 2 and −1.3×10⁻² at s = 3. The continuum tail 1 − Φ(5 − s) gives −3×10⁻⁵, −1.3×10⁻³ and −2.3×10⁻²: the sum
+behaves as the integral to z_max + h/2, so the endpoint term is the same order as the tail, not exponentially small. A grid-exact offset, −log of that sum, is a possible variant. The closed form is preferred for a
 simple map and Jacobian.
 
 The other schemes stay available:
-- *central*, with drift −θ(z_k − αs). It stops with a message when the positivity bound fails.
+- *central*, with drift −θ(z_k − αs). When the bound fails it signals an infeasible proposal, so MCMC moves reject
+  it, and it is an error in a direct call. With free s under `"mean"`, this truncates the support of s to the bound.
 - *upwind*, which is always positive and O(h).
 
 **Start priors.**
 - `equilibrium` keeps its definition (the Perron vector of Qᵀ + R).
-- `stationary` is now the grid Gaussian.
+- `stationary` is now the grid Gaussian, exactly so only under SqRA.
 - `uniform` is unchanged.
 - A numeric per-bin `rootPrior` sits in a different law, so existing numeric priors must be reviewed.
 
@@ -118,12 +126,13 @@ window, by the new model under
 $$p(\theta,\lambda,\mu,\psi,c,s) = p_0\big(\text{(L.3)}^{-1}\big)\cdot\exp\!\big(m(s) \textstyle\sum_p e_p\big).$$
 
 This prior couples s to the rates. Independent priors on the new parameters define a different, and intended, joint
-prior. Posteriors and Bayes factors convert between the parameterisations only under this mapped prior.
+prior. Reproducing an old run also needs s fixed, or every coupled parameter free: a fixed θ₀ becomes the s-dependent
+constraint θ = θ₀e^{−αm(s)}. Posteriors and Bayes factors convert between the parameterisations only under this mapped prior.
 
 **Bayes factors.** At equivalent parameter points the likelihoods agree; the evidence changes only through the prior.
 With priors stated on the new parameters, every rate prior refers to the same quantity (the lineage-mean rate) in
 every (β, γ) cell, and matches the comparators' mean-rate priors. Under the current model a prior on c₀ in a γ = 1 cell
-sits e^{s²/2} above the mean clock that the comparator's prior describes; this is the "comparator-matched at unit tempo
+sits e^{γm} above the mean clock (e^{s²/2} at α = γ = 1) that the comparator's prior describes; this is the "comparator-matched at unit tempo
 only" caveat of the trilobite README (F8).
 
 ## L.4 What the change does and does not do
@@ -133,7 +142,8 @@ only" caveat of the trilobite README (F8).
   which lies αs lineage-sd above the law's centre.
 - At fixed identified rates, the top-bin rates fall. The window top moves from x = 5s to x = 5s − s²/2, and the
   parameters are rescaled by (L.3). The net factor at α = 1 is e^{−βs²} on the top-bin birth rate (1/17 at s = 1.69,
-  1/127 at s = 2.2) and e^{−s²} on Q.
+  1/127 at s = 2.2) and e^{−s²} on the θe^{αx_K} factor of the top row of Q. The A row changes too, through the drift
+  centre.
 - The low-end truncation goes.
 
 **Does not.**
@@ -150,8 +160,9 @@ only" caveat of the trilobite README (F8).
   the slow reversion (θ⟨e^x⟩ ≈ 0.003/Myr against a tree depth of about 500 Myr). The pilot does not separate the
   mean-rate and median-centred choices. The choice rests on interpretation and comparator matching.
 - **It does not bound s.** The 1/λ brake was an artefact of λ's meaning. Now s is held only by its own prior and the
-  likelihood, and the s prior must be stated on its merits. Under this parameterisation s is exactly the UCLN log-sd,
-  and the trilobite and penguin pipelines already use the comparators' UCLN σ prior.
+  likelihood, and the s prior must be stated on its merits. Under this parameterisation s is the log-sd of the marginal rate
+  law, as UCLN's σ is (see L.2 on the difference). The trilobite and penguin pipelines already use the comparators'
+  UCLN σ prior.
 - **It does not remove intrinsic stiffness, and its speed-up has a cost.** The top-bin rates still grow as
   e^{αsz_max}. The gain comes from no longer representing log-tempo more than 5 lineage-sd above the lineage law. But the
   species equilibrium p\* (the default root prior) and the e^{βx}-tilted lineage law also sit above it. At the pilot's
@@ -213,6 +224,25 @@ the new model at the mapped parameters. At each point, report:
 Go when the points up to s = 2.2 evaluate in under about 60 s, agree with the reference to < 0.05 log units, and have
 top-three-bin masses below 10⁻³. Otherwise, revise the window (z_max) or K in this spec before implementing.
 
+**V0 outcome (2026-11-26, #123; decision pending with the maintainer).** V0 was run and #123 implemented without
+revising the spec. That is a departure from the rule above, and it is recorded here.
+
+| Criterion | Result |
+|---|---|
+| Time | Met to s = 2.04 (46-76 s); s = 2.46 takes 117-187 s |
+| Accuracy | Not met. K = 26 against K = 51 on the same window differs by 0.125, 0.130, 0.189 and 0.235 log units at s = 0.96, 1.40, 2.04, 2.46. The old default's error at the same points is 0.200 and 0.182 |
+| Top-three mass, root prior | Met (≤ 7.3×10⁻⁴) |
+| Top-three mass, tilted law | Not met, and **unmeetable as written**: under SqRA the tilted law is exactly φ(z_k)e^{sz_k}, whose top-three mass at K = 26 on [−5, 5] is about 1 − Φ(4 − s). That exceeds 10⁻³ for every s > 0.93 |
+
+Two faults in the gate as written:
+- **The reference.** K = 51 on [−7, 7] − s has h = 0.28, is itself 0.04-0.05 from the h = 0.2 value, and does not
+  solve at s ≥ 2. A usable reference is specified by spacing: h ≤ 0.2 on the same window, plus a wider window at the
+  same h.
+- **The tilted-law criterion.** It is a condition on z_max (about z_max ≥ s + 4.1 at h = 0.4), not on the model.
+
+The options (raise K, widen or skew the window, or relax the thresholds with the reason stated) are set out on #117 for
+the maintainer. Whichever is chosen applies to every dataset.
+
 **V1 (unit tests, both engines).**
 1. The L.3 grid identity, mean-rate against `"bm"` on the shifted window, for TreeLikelihood at 1e−10 relative. Cover
    α, β, γ, δ ∈ {0, 1}, `start` root and origin, and every scheme.
@@ -253,6 +283,12 @@ trilobites and Hymenoptera alike:
 - trilobite production waits for it;
 - `location = "bm"` stays only as the Budd & Mann reproduction fixture for rung 1, never as an option for an empirical
   analysis.
+
+**Legacy objects.** A model or grid without a `location` (saved before #116) is read as `"bm"` with its stored scheme,
+and raises a `legacyLocation` warning. The empirical pipelines' checkpoints record `location` and `scheme`, so:
+- resuming a chain of another location is refused;
+- scoring one in a Bayes-factor eval is refused;
+- a checkpoint from before #116 is refused, because it records no location.
 
 If V0 or V5 shows that the mean-rate model does not work for one dataset, this spec is revised for all of them. No
 dataset-specific switch is added. The `CET_FBD_SCALE` and `CET_S_MAX` switches on `hymenoptera-cet-pipeline` are removed

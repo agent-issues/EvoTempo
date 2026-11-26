@@ -1,25 +1,35 @@
 #' Log-tempo grid
 #'
-#' Equally spaced log-tempo bins in standardized units \eqn{z = x / s}.
+#' Equally spaced log-tempo bins in standardized units \eqn{z}.
 #'
-#' Bins are equally spaced in \eqn{z}, so the Ornstein-Uhlenbeck block of the
-#' generator does not depend on \eqn{s}, and a path stored as bin indices
-#' stays valid when \eqn{s} changes.
+#' Bins are equally spaced in \eqn{z}, so a path stored as bin indices stays
+#' valid when \eqn{s} changes.
+#' The `location` fixes where log-tempo \eqn{x} sits on the grid (spec
+#' `dev/spec/tempo-location.md`):
+#'  - `mean` (default): \eqn{x = s z - s^2/2}. The lineage-time stationary
+#'    law of \eqn{x} is \eqn{N(-s^2/2, s^2)}, centred on the grid, so
+#'    \eqn{E[e^x] = 1} and every rate parameter is a lineage-mean rate;
+#'  - `bm`: \eqn{x = s z}, Budd & Mann's parameterization (Ornstein-Uhlenbeck
+#'    mean 0), whose lineage-stationary law is \eqn{N(-\alpha s^2, s^2)}.
 #'
 #' @param nBin Integer giving the number of bins, \eqn{K}.
 #' @param zRange Numeric vector giving the lowest and highest bin centres, in
 #' units of `s`.
 #' @param s Positive numeric giving the stationary standard deviation of
 #' log-tempo.
+#' @param location Character string specifying the tempo location: `mean` or
+#' `bm` (see Details).
 #' @returns `TempoGrid()` returns an object of class `TempoGrid`: a list with
-#' elements `z` (bin centres in units of `s`), `x` (log-tempo, `s * z`), `h`
-#' (spacing in `z`) and `s`.
+#' elements `z` (bin centres in units of `s`), `x` (log-tempo), `h`
+#' (spacing in `z`), `s` and `location`.
 #' @examples
 #' grid <- TempoGrid(51, c(-5, 5))
 #' range(grid$x)
 #' @family dCET numerics
 #' @export
-TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1) {
+TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1,
+                      location = c("mean", "bm")) {
+  location <- match.arg(location)
   nBin <- as.integer(nBin)
   if (length(nBin) != 1L || is.na(nBin) || nBin < 2L) {
     stop("`nBin` must be a single integer >= 2")
@@ -32,7 +42,8 @@ TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1) {
   }
   z <- seq(zRange[[1]], zRange[[2]], length.out = nBin)
   structure(
-    list(z = z, x = s * z, h = (zRange[[2]] - zRange[[1]]) / (nBin - 1L), s = s),
+    list(z = z, x = s * z - if (location == "mean") s * s / 2 else 0,
+         h = (zRange[[2]] - zRange[[1]]) / (nBin - 1L), s = s, location = location),
     class = "TempoGrid"
   )
 }
@@ -41,17 +52,22 @@ TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1) {
 #'
 #' Constructs the generator \eqn{Q = \mathrm{diag}(e^{\alpha x_k}) A} of
 #' discretized covariant tempo, where the tridiagonal \eqn{A} discretizes the
-#' Ornstein-Uhlenbeck operator \eqn{-\theta z f' + \theta f''} with reflecting
-#' ends.
+#' Ornstein-Uhlenbeck operator \eqn{-\theta (z - \zeta) f' + \theta f''} with
+#' reflecting ends.
+#' The drift centre is \eqn{\zeta = \alpha s} on a grid with
+#' `location = "mean"`, which centres the stationary law of \eqn{Q} on the
+#' grid (\eqn{N(0, 1)} in \eqn{z}), and \eqn{\zeta = 0} with
+#' `location = "bm"`.
 #'
 #' Central differences are second order, but have non-negative rates only if
-#' \eqn{h \max_k |z_k| \le 2}; this is enforced.
+#' \eqn{h \max_k |z_k - \zeta| \le 2}; this is enforced.
 #' Upwind differences are always valid, but first order, adding numerical
-#' diffusion \eqn{\theta |z| h / 2}.
-#' The square-root approximation is second order and always valid, and its
-#' stationary law is exactly the Gaussian on the grid.
-#' Central and upwind schemes satisfy \eqn{(A z)_k = -\theta z_k} exactly in
-#' the interior.
+#' diffusion \eqn{\theta |z - \zeta| h / 2}.
+#' The square-root approximation is second order and always valid, and the
+#' stationary law of \eqn{Q} is exactly the Gaussian on the grid when
+#' \eqn{\zeta = \alpha s}.
+#' Central and upwind schemes satisfy \eqn{(A (z - \zeta))_k =
+#' -\theta (z_k - \zeta)} exactly in the interior.
 #'
 #' @param grid A [`TempoGrid`][TempoGrid()].
 #' @param theta Positive numeric giving the mean-reversion rate per unit
@@ -61,6 +77,8 @@ TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1) {
 #'  - `central`: central differences;
 #'  - `upwind`: first-order upwind differences;
 #'  - `sqra`: square-root approximation.
+#'
+#' `NULL` selects `sqra` on a `mean` grid and `central` on a `bm` grid.
 #' @returns `TempoGenerator()` returns a \eqn{K \times K} generator matrix:
 #' non-negative off-diagonal entries; rows summing to zero.
 #' @references
@@ -71,34 +89,69 @@ TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1) {
 #' range(rowSums(Q))
 #' @family dCET numerics
 #' @export
-TempoGenerator <- function(grid, theta, alpha = 1,
-                           scheme = c("central", "upwind", "sqra")) {
-  scheme <- match.arg(scheme)
+TempoGenerator <- function(grid, theta, alpha = 1, scheme = NULL) {
   if (!inherits(grid, "TempoGrid")) {
     stop("`grid` must be a TempoGrid")
   }
+  location <- .GridLocation(grid)
+  scheme <- .Scheme(scheme, location)
   if (length(theta) != 1L || !isTRUE(theta > 0)) {
     stop("`theta` must be a single positive number")
   }
-  .OUBlock(grid[["z"]], grid[["h"]], theta, scheme) * exp(alpha * grid[["x"]])
+  centre <- if (location == "mean") alpha * grid[["s"]] else 0
+  .OUBlock(grid[["z"]], grid[["h"]], theta, scheme, centre) *
+    exp(alpha * grid[["x"]])
 }
 
-.OUBlock <- function(z, h, theta, scheme) {
+# Location of a grid; grids built before #116 carry none and are "bm"
+.GridLocation <- function(grid) {
+  if (is.null(grid[["location"]])) .LegacyLocation("grid") else grid[["location"]]
+}
+
+# Objects saved before #116 carry no location and are read as "bm", Budd &
+# Mann's parameterization, which is not the model of an empirical analysis.
+# Warn, once per session and kind of object, with class `legacyLocation`.
+.legacyWarned <- new.env(parent = emptyenv())
+.LegacyLocation <- function(what) {
+  if (is.null(.legacyWarned[[what]])) {
+    assign(what, TRUE, envir = .legacyWarned)
+    warning(structure(
+      class = c("legacyLocation", "warning", "condition"),
+      list(message = paste0(
+        "This ", what, " has no tempo location (saved before #116); it is read as ",
+        "location = \"bm\", Budd & Mann's parameterization. Rebuild it to use the ",
+        "default lineage-mean location."), call = NULL)))
+  }
+  "bm"
+}
+
+# Default scheme for a tempo location
+.Scheme <- function(scheme, location) {
+  if (is.null(scheme)) {
+    return(if (location == "mean") "sqra" else "central")
+  }
+  match.arg(scheme, c("central", "upwind", "sqra"))
+}
+
+.OUBlock <- function(z, h, theta, scheme, centre = 0) {
   nBin <- length(z)
   base <- theta / (h * h)
+  y <- z - centre
   rates <- switch(
     scheme,
     central = {
-      if (h * max(abs(z)) > 2 * (1 + 1e-12)) {
-        stop("Central scheme needs h * max|z| <= 2 (here ",
-             signif(h * max(abs(z)), 4), "); increase `nBin`")
+      if (h * max(abs(y)) > 2 * (1 + 1e-12)) {
+        # An infeasible proposal inside MCMC moves (the bound depends on s
+        # under "mean"); an error everywhere else
+        .Infeasible(paste0("Central scheme needs h * max|z - centre| <= 2 (here ",
+                           signif(h * max(abs(y)), 4), "); increase `nBin` or use \"sqra\""))
       }
-      list(up = base - theta * z / (2 * h), down = base + theta * z / (2 * h))
+      list(up = base - theta * y / (2 * h), down = base + theta * y / (2 * h))
     },
-    upwind = list(up = base + theta * pmax(-z, 0) / h,
-                  down = base + theta * pmax(z, 0) / h),
+    upwind = list(up = base + theta * pmax(-y, 0) / h,
+                  down = base + theta * pmax(y, 0) / h),
     sqra = {
-      u <- z * z / 2
+      u <- y * y / 2
       list(up = base * exp(-(c(u[-1], 0) - u) / 2),
            down = base * exp(-(c(0, u[-nBin]) - u) / 2))
     }

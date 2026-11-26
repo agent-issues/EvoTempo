@@ -4,7 +4,7 @@
 \alias{TempoGenerator}
 \title{Discretized tempo generator}
 \usage{
-TempoGenerator(grid, theta, alpha = 1, scheme = c("central", "upwind", "sqra"))
+TempoGenerator(grid, theta, alpha = 1, scheme = NULL)
 }
 \arguments{
 \item{grid}{A \code{\link{TempoGrid}}.}
@@ -19,7 +19,9 @@ tempo-time.}
 \item \code{central}: central differences;
 \item \code{upwind}: first-order upwind differences;
 \item \code{sqra}: square-root approximation.
-}}
+}
+
+\code{NULL} selects \code{sqra} on a \code{mean} grid and \code{central} on a \code{bm} grid.}
 }
 \value{
 \code{TempoGenerator()} returns a \eqn{K \times K} generator matrix:
@@ -28,18 +30,23 @@ non-negative off-diagonal entries; rows summing to zero.
 \description{
 Constructs the generator \eqn{Q = \mathrm{diag}(e^{\alpha x_k}) A} of
 discretized covariant tempo, where the tridiagonal \eqn{A} discretizes the
-Ornstein-Uhlenbeck operator \eqn{-\theta z f' + \theta f''} with reflecting
-ends.
+Ornstein-Uhlenbeck operator \eqn{-\theta (z - \zeta) f' + \theta f''} with
+reflecting ends.
+The drift centre is \eqn{\zeta = \alpha s} on a grid with
+\code{location = "mean"}, which centres the stationary law of \eqn{Q} on the
+grid (\eqn{N(0, 1)} in \eqn{z}), and \eqn{\zeta = 0} with
+\code{location = "bm"}.
 }
 \details{
 Central differences are second order, but have non-negative rates only if
-\eqn{h \max_k |z_k| \le 2}; this is enforced.
+\eqn{h \max_k |z_k - \zeta| \le 2}; this is enforced.
 Upwind differences are always valid, but first order, adding numerical
-diffusion \eqn{\theta |z| h / 2}.
-The square-root approximation is second order and always valid, and its
-stationary law is exactly the Gaussian on the grid.
-Central and upwind schemes satisfy \eqn{(A z)_k = -\theta z_k} exactly in
-the interior.
+diffusion \eqn{\theta |z - \zeta| h / 2}.
+The square-root approximation is second order and always valid, and the
+stationary law of \eqn{Q} is exactly the Gaussian on the grid when
+\eqn{\zeta = \alpha s}.
+Central and upwind schemes satisfy \eqn{(A (z - \zeta))_k =
+-\theta (z_k - \zeta)} exactly in the interior.
 }
 \examples{
 Q <- TempoGenerator(TempoGrid(21, c(-4, 4)), theta = 0.01)

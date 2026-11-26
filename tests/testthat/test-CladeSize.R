@@ -1,5 +1,5 @@
 test_that("CladeSizeDistribution() matches the birth-death geometric law", {
-  Q <- TempoGenerator(TempoGrid(5, c(-1, 1)), 0.1)
+  Q <- TempoGenerator(TempoGrid(5, c(-1, 1), location = "bm"), 0.1)
   lambda <- 0.51
   mu <- 0.5
   time <- 5
@@ -17,7 +17,7 @@ test_that("CladeSizeDistribution() matches the birth-death geometric law", {
 })
 
 test_that("CladeSizeDistribution() agrees with moments and runs in parallel", {
-  grid <- TempoGrid(21, c(-3, 3))
+  grid <- TempoGrid(21, c(-3, 3), location = "bm")
   Q <- TempoGenerator(grid, 0.05)
   rates <- BinRates(grid, 0.51, 0.5)
   p <- CladeSizeDistribution(10, Q, rates$lambda, rates$mu, start = 11,

@@ -3,6 +3,12 @@
 # exact/frozen (times the Mk likelihood) vs TreeLikelihood(character = ).
 suppressMessages(pkgload::load_all(".", quiet = TRUE)); library(parallel)
 r <- readRDS("data-raw/rung5-results/rung4b.rds")
+# Fixtures saved before #116 carry no location; rebuild under EVOTEMPO_LOCATION
+# (default "mean", the package default), as in rung4b-one-parameter.R
+if (is.null(r$model$location)) {
+  r$model$location <- Sys.getenv("EVOTEMPO_LOCATION", "mean")
+  if (r$model$location == "mean") r$model$scheme <- "sqra"
+}
 thetas <- c(0.1, 0.2, 0.35, 0.5, 0.7)
 char <- if ("character" %in% commandArgs(trailingOnly = TRUE)) r$character else NULL
 cl <- makeCluster(5); invisible(clusterCall(cl, function() suppressMessages(pkgload::load_all(".", quiet = TRUE))))

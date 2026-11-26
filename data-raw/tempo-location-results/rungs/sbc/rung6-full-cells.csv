@@ -1,0 +1,5 @@
+"cell","label","nReplicate","nPass","nQuantity","pass","minPChisqHolm","minPKSHolm","fracReplicatesAllEss50","minQuantityFracEss50","medianIter","fracExtended","coreHours","medianTip","medianFossil"
+1,"beta=0, gamma=0",200,13,13,TRUE,1,1,1,1,10000,0.135,66.8010304167536,27,6
+2,"beta=0, gamma=1",200,13,13,TRUE,1,1,0.94,0.955,40000,0.65,211.038341858122,27,7
+3,"beta=1, gamma=0",200,13,13,TRUE,1,1,0.99,0.994974874371859,10000,0.32,86.0173775151703,28,6
+4,"beta=1, gamma=1",200,13,13,TRUE,1,1,0.98,0.985,40000,0.785,228.327602758076,27,6

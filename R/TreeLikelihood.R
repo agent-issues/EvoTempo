@@ -157,10 +157,17 @@ TempoTree <- function(tree, ages = NULL, tipType = NULL, present = NULL,
 #' branch of length `root.edge` precedes the root, which carries a
 #' \eqn{\lambda} factor.
 #'
+#' With the default `location = "mean"` the lineage-stationary log-tempo is
+#' \eqn{N(-s^2/2, s^2)}, so the rate parameters (`lambda`, `mu`, `psi`,
+#' `rate`, `theta`) are lineage-mean rates; `location = "bm"` is Budd &
+#' Mann's parameterization, with rates at log-tempo 0 (see [TempoGrid()] and
+#' `dev/spec/tempo-location.md`).
+#'
 #' @param nBin Integer giving the number of tempo bins.
 #' @param zRange Numeric vector giving the range of bin centres in units of
 #' `s`.
 #' @inheritParams TempoGenerator
+#' @inheritParams TempoGrid
 #' @param beta,gamma,delta Numerics giving the coupling to tempo of
 #' diversification, of character change and of fossil sampling.
 #' @param rho Numeric giving the probability of sampling an extant lineage.
@@ -188,29 +195,33 @@ TempoTree <- function(tree, ages = NULL, tipType = NULL, present = NULL,
 #' @family dCET inference
 #' @export
 DCETModel <- function(nBin = 26, zRange = c(-5, 5),
-                      scheme = c("central", "upwind", "sqra"), alpha = 1,
+                      scheme = NULL, alpha = 1,
                       beta = 1, gamma = 1, delta = 0, rho = 1, removal = 0,
                       rootPrior = "equilibrium",
                       condition = c("extant", "survival", "none"),
-                      joint = FALSE, start = c("root", "origin")) {
+                      joint = FALSE, start = c("root", "origin"),
+                      location = c("mean", "bm")) {
+  location <- match.arg(location)
   if (is.character(rootPrior)) {
     rootPrior <- match.arg(rootPrior, c("equilibrium", "stationary", "uniform"))
   } else if (length(rootPrior) != nBin || any(rootPrior < 0)) {
     stop("A numeric `rootPrior` needs one non-negative weight per bin")
   }
   structure(
-    list(nBin = as.integer(nBin), zRange = zRange, scheme = match.arg(scheme),
+    list(nBin = as.integer(nBin), zRange = zRange, scheme = .Scheme(scheme, location),
          alpha = alpha, beta = beta, gamma = gamma, delta = delta, rho = rho,
          removal = removal, rootPrior = rootPrior,
          condition = match.arg(condition), joint = joint,
-         start = match.arg(start)),
+         start = match.arg(start), location = location),
     class = "DCETModel"
   )
 }
 
 # Grid, generator, per-bin rates and start prior at parameters `par`
 .Setup <- function(par, model) {
-  grid <- TempoGrid(model[["nBin"]], model[["zRange"]], par[["s"]])
+  # Models saved before #116 carry no location: Budd & Mann's, with a warning
+  location <- if (is.null(model[["location"]])) .LegacyLocation("model") else model[["location"]]
+  grid <- TempoGrid(model[["nBin"]], model[["zRange"]], par[["s"]], location)
   Q <- TempoGenerator(grid, par[["theta"]], model[["alpha"]], model[["scheme"]])
   rates <- BinRates(grid, par[["lambda"]], par[["mu"]],
                     if (is.null(par[["psi"]])) 0 else par[["psi"]],

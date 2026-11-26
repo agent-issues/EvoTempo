@@ -4,7 +4,7 @@
 \alias{TempoGrid}
 \title{Log-tempo grid}
 \usage{
-TempoGrid(nBin, zRange = c(-5, 5), s = 1)
+TempoGrid(nBin, zRange = c(-5, 5), s = 1, location = c("mean", "bm"))
 }
 \arguments{
 \item{nBin}{Integer giving the number of bins, \eqn{K}.}
@@ -14,19 +14,30 @@ units of \code{s}.}
 
 \item{s}{Positive numeric giving the stationary standard deviation of
 log-tempo.}
+
+\item{location}{Character string specifying the tempo location: \code{mean} or
+\code{bm} (see Details).}
 }
 \value{
 \code{TempoGrid()} returns an object of class \code{TempoGrid}: a list with
-elements \code{z} (bin centres in units of \code{s}), \code{x} (log-tempo, \code{s * z}), \code{h}
-(spacing in \code{z}) and \code{s}.
+elements \code{z} (bin centres in units of \code{s}), \code{x} (log-tempo), \code{h}
+(spacing in \code{z}), \code{s} and \code{location}.
 }
 \description{
-Equally spaced log-tempo bins in standardized units \eqn{z = x / s}.
+Equally spaced log-tempo bins in standardized units \eqn{z}.
 }
 \details{
-Bins are equally spaced in \eqn{z}, so the Ornstein-Uhlenbeck block of the
-generator does not depend on \eqn{s}, and a path stored as bin indices
-stays valid when \eqn{s} changes.
+Bins are equally spaced in \eqn{z}, so a path stored as bin indices stays
+valid when \eqn{s} changes.
+The \code{location} fixes where log-tempo \eqn{x} sits on the grid (spec
+\code{dev/spec/tempo-location.md}):
+\itemize{
+\item \code{mean} (default): \eqn{x = s z - s^2/2}. The lineage-time stationary
+law of \eqn{x} is \eqn{N(-s^2/2, s^2)}, centred on the grid, so
+\eqn{E[e^x] = 1} and every rate parameter is a lineage-mean rate;
+\item \code{bm}: \eqn{x = s z}, Budd & Mann's parameterization (Ornstein-Uhlenbeck
+mean 0), whose lineage-stationary law is \eqn{N(-\alpha s^2, s^2)}.
+}
 }
 \examples{
 grid <- TempoGrid(51, c(-5, 5))

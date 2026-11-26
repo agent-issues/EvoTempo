@@ -91,7 +91,7 @@ if (!is.null(pn$code) && !is.null(pn$converged)) {
 
 # --- Figure 3: B&M Figs 2A, 3A, 4A curves, B&M operator vs converged ---
 bmGen <- BuddMannGenerator()
-fine <- TempoGrid(401, c(-10, 10))
+fine <- TempoGrid(401, c(-10, 10), location = "bm")
 fineQ <- TempoGenerator(fine, theta)
 t <- seq(0, 500, by = 5)
 Curves <- function(x, Q) {

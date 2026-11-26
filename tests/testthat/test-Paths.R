@@ -109,7 +109,8 @@ test_that("Exact / frozen importance weights recover the marginal likelihood", {
 
 test_that("Path moves leave the exact conditional law invariant", {
   set.seed(3)
-  run <- TempoMCMC(pathTree, pathModel, pathPar, list(), nIter = nMC / 75, nSlice = 6,
+  # 40 iterations also under coverage, so that the check below keeps its power
+  run <- TempoMCMC(pathTree, pathModel, pathPar, list(), nIter = 40, nSlice = 6,
                    moves = c(tree = 0, node = 2, tip = 2, branch = 2))
   expect_true(all(run$acceptance[c("node", "tip", "branch")] > 0.9))
   st <- run$state
@@ -190,8 +191,10 @@ stiffTree <- TempoTree(structure(
   ),
   class = "phylo"
 ))
+# Budd & Mann's location: its top bins sit 3s above x = 0, which is stiff
 stiffModel <- DCETModel(
-  nBin = 16, zRange = c(-3, 3), rho = 0.5, beta = 1, gamma = 0
+  nBin = 16, zRange = c(-3, 3), rho = 0.5, beta = 1, gamma = 0,
+  location = "bm"
 )
 okPar <- list(lambda = 0.47, mu = 0.136, psi = 0.029, theta = 0.306, s = 0.84)
 # Top-bin rates too stiff for the C++ E solver

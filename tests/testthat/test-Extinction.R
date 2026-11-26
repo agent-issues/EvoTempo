@@ -1,5 +1,5 @@
 test_that("E collapses to the analytic FBD p0 when beta = delta = 0", {
-  grid <- TempoGrid(21, c(-3, 3))
+  grid <- TempoGrid(21, c(-3, 3), location = "bm")
   Q <- TempoGenerator(grid, 0.05)
   ages <- c(0, 0.5, 5, 50)
   E <- ExtinctionProbability(ages, Q, lambda = 0.8, mu = 0.3, psi = 0.1,
@@ -10,14 +10,14 @@ test_that("E collapses to the analytic FBD p0 when beta = delta = 0", {
 })
 
 test_that("Critical FBD branch of p0 is correct", {
-  Q <- TempoGenerator(TempoGrid(5, c(-1, 1)), 0.1)
+  Q <- TempoGenerator(TempoGrid(5, c(-1, 1), location = "bm"), 0.1)
   E <- ExtinctionProbability(c(1, 10), Q, 0.5, 0.5, rho = 0.7)
   expect_equal(E[, 1], FBDExtinction(c(1, 10), 0.5, 0.5, 0, 0.7),
                tolerance = 1e-9)
 })
 
 test_that("E tends to the tempo-invariant fixed point mu / lambda", {
-  grid <- TempoGrid(21, c(-2, 2))
+  grid <- TempoGrid(21, c(-2, 2), location = "bm")
   Q <- TempoGenerator(grid, 0.1)
   rates <- BinRates(grid, 1, 0.5)
   E <- ExtinctionProbability(c(1, 400), Q, rates$lambda, rates$mu)
@@ -27,7 +27,7 @@ test_that("E tends to the tempo-invariant fixed point mu / lambda", {
 })
 
 test_that("ExtinctionProbability() validates input", {
-  Q <- TempoGenerator(TempoGrid(5, c(-1, 1)), 0.1)
+  Q <- TempoGenerator(TempoGrid(5, c(-1, 1), location = "bm"), 0.1)
   expect_error(ExtinctionProbability(1, Q, 1, 0.5, rho = 2), "rho")
   expect_error(ExtinctionProbability(c(2, 1), Q, 1, 0.5), "sorted")
   expect_equal(ExtinctionProbability(0, Q, 1, 0.5, rho = 0.3),

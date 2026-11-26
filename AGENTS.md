@@ -42,7 +42,7 @@ Inference has two layers:
   Moves (argument `moves`): `tree`, `node`, `tip`, `branch` (path redraws); `joint` (a parameter
   together with a fresh draw of every path; makes theta mix without characters); `shift` (every bin
   +/-1, with `rate`, `lambda`, `mu`, `psi`, `theta` rescaled by their tempo exponents so that the
-  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `saJump` (tree moves); `rootAge`, `originAge` (start-age moves,
+  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `fnpr` (fixed-height local prune and regraft, #110; `dev/plans/local-fnpr.md`), `saJump` (tree moves); `rootAge`, `originAge` (start-age moves,
   with priors in `agePriors`; #18); plus a scale sweep over parameters. The default schedule is `TempoMoves()`: with characters (and
   gamma != 0) it omits `tree` and `joint`, whose whole-tree draws ignore the characters and are
   almost never accepted, and runs `node`, `tip` and `branch` at 0.25 x the nodes, tips and branches

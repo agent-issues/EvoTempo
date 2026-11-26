@@ -147,15 +147,28 @@ ConstrainedProposal <- function(move, tree, set, st) {
 utils::assignInNamespace(".ProposeTreeMove", ConstrainedProposal, ns = "EvoTempo")
 
 # ---- Per-sample records and exact resume (as the penguin pipeline) ---------------
+# Saved move counts on the move names of the running TempoMCMC()
+AlignMoves <- function(saved, current) {
+  unknown <- setdiff(names(saved), names(current))
+  if (length(unknown)) {
+    stop("checkpoint has moves this EvoTempo does not know: ", toString(unknown))
+  }
+  replace(setNames(numeric(length(current)), names(current)), names(saved), saved)
+}
+
 RecordingStats <- function(tree, lengths = NULL, inverse = NULL) {
   pf <- parent.frame()
   if (is.null(lengths)) {
     r <- .cet$resume
     if (!is.null(r)) {
-      # alphaStep: the Gamma shape's adapted step (#97), fixed after burn-in
-      for (v in c("st", "step", "jointStep", "ageStep", "moves", "alphaStep")) {
+      # alphaStep: the Gamma shape's adapted step (#97), fixed after burn-in;
+      # moves are restored below, aligned by name (#118)
+      for (v in c("st", "step", "jointStep", "ageStep", "alphaStep")) {
         assign(v, r[[v]], envir = pf)
       }
+      # TempoMCMC() selects moves by position in its move names: align the
+      # saved counts by name, as a checkpoint may predate a move (#118)
+      assign("moves", AlignMoves(r[["moves"]], get("moves", envir = pf)), envir = pf)
       assign(".Random.seed", r[["seed"]], envir = globalenv())
       .cet$resume <- NULL
       .cet$injected <- TRUE

@@ -389,10 +389,64 @@ ChainDirs <- function(root) {
   }
   out
 }
+# Segment cap (#107 review, R107-9): so that a summary can be reproduced while
+# its chains are extended, CET_MAX_SEG = m > 0 makes eval, combine and the
+# fingerprint read only segments 1..m of each chain, and CET_MAX_SEG_RUNG
+# (default CET_MAX_SEG) does the same for chains other than the four
+# production cells at power 1 (ladder rungs, power ladders).  For example,
+# the 400 000-iteration results of #107 read CET_MAX_SEG=40 CET_MAX_SEG_RUNG=20.
+# 0 (default) reads every segment.
+# The cap is parsed strictly (#105 delta review, C4): unset or empty means no
+# cap; otherwise it must be a whole number >= 1 written as digits ("40", not
+# "40.7", "-1", "0" or "4e1").  The value 0 means "no cap" in what eval
+# records (evalMaxSeg).
+ParseCap <- function(name) {
+  v <- trimws(Sys.getenv(name))
+  if (!nzchar(v)) return(NA_integer_)
+  if (!grepl("^[0-9]+$", v) || as.numeric(v) < 1) {
+    stop(sprintf("%s = '%s': a segment cap must be a whole number >= 1 (unset for no cap)", name, v))
+  }
+  as.integer(v)
+}
+SegCap <- function(label) {
+  m <- ParseCap("CET_MAX_SEG")
+  p <- tryCatch(ParseLabel(label), error = function(e) NULL)
+  production <- !is.null(p) && p$power == 1 && p$beta %in% c(0, 1) && p$gamma %in% c(0, 1)
+  if (!production) {
+    r <- ParseCap("CET_MAX_SEG_RUNG")
+    if (!is.na(r)) m <- r
+  }
+  if (is.na(m)) 0L else m
+}
+# Segment files of a chain: every file, or under a cap m exactly segments
+# 1..m, which must all be present (#105 delta review, C2: a missing early
+# segment must not shift the window).  With `strict = FALSE` a capped set
+# that is not yet complete returns what is present of 1..m (ChainComplete()).
+SegFiles <- function(dir, what = "samples.csv", strict = TRUE) {
+  m <- SegCap(basename(dir))
+  if (m == 0L) return(sort(Sys.glob(file.path(dir, paste0("seg*_", what)))))
+  f <- file.path(dir, sprintf("seg%04d_%s", seq_len(m), what))
+  have <- file.exists(f)
+  if (strict && !all(have)) {
+    stop(sprintf("%s: segment cap %d, but segment(s) %s of 1..%d are missing", basename(dir), m,
+                 paste(which(!have), collapse = ", "), m))
+  }
+  f[have]
+}
 # A chain is complete when the last line of its progress.txt says so
 # (run-chain.R writes "<time> complete" after the last segment, and a resumed
 # or extended chain writes later lines after any earlier "complete")
 ChainComplete <- function(dir) {
+  # Under a segment cap m, complete means that run-chain.R's checkpoint, written
+  # atomically after a segment's files, records segment m or later, and that
+  # segments 1..m are all present (#105 delta review, C1/C2: counting files
+  # would accept a segment still being written)
+  m <- SegCap(basename(dir))
+  if (m > 0L) {
+    ckp <- file.path(dir, "checkpoint.rds")
+    seg <- if (file.exists(ckp)) tryCatch(readRDS(ckp)$segment, error = function(e) NULL)
+    return(isTRUE(seg >= m) && length(SegFiles(dir, strict = FALSE)) == m)
+  }
   f <- file.path(dir, "progress.txt")
   if (!file.exists(f)) return(FALSE)
   x <- trimws(readLines(f, warn = FALSE))
@@ -404,7 +458,7 @@ ChainComplete <- function(dir) {
 # once eval has run).  eval records both in cross.csv (evalSamples,
 # evalSegMd5), and combine refuses a cross.csv whose chain has changed since.
 SegmentFingerprint <- function(dir) {
-  f <- sort(Sys.glob(file.path(dir, "seg*_samples.csv")))
+  f <- SegFiles(dir)
   n <- sum(vapply(f, function(x) nrow(utils::read.csv(x)), 0L))
   tmp <- tempfile()
   on.exit(unlink(tmp))
@@ -415,15 +469,26 @@ SegmentFingerprint <- function(dir) {
 # Problems with the cross.csv files combine is about to use (`cross`, named by
 # chain label; `ch`, their rows of Chains()): stale (eval read other sample
 # files than the chain has now, or recorded nothing; R103-2), and, when `tol`
-# is given, eval's checks: `check` and `checkChar` must be within the stricter
-# of `tol` and the tolerance eval recorded (evalTol) (review of #91, A2;
-# R103-2).  Returns one line per bad chain.
-CrossProblems <- function(ch, cross, tol = NULL) {
+# is given, eval's checks: `check` within the stricter of `tol` and the
+# tolerance eval recorded (evalTol), `checkChar` within the stricter of
+# `tolChar` and evalTolChar, all finite, both tolerances recorded as positive
+# numbers (review of #91, A2; R103-2; #105 review, R105-3/5/7/8).  Returns one
+# line per bad chain, starting with its label.
+CrossProblems <- function(ch, cross, tol = NULL, tolChar = tol) {
   unlist(lapply(seq_along(cross), function(i) {
     x <- cross[[i]]
     lab <- names(cross)[i]
     if (!all(c("evalSamples", "evalSegMd5") %in% names(x))) {
       return(sprintf("%s: cross.csv does not record what eval read (written before #103); rerun eval", lab))
+    }
+    # The segment cap eval read under must be combine's (#105 delta review, C3)
+    if (!"evalMaxSeg" %in% names(x)) {
+      return(sprintf("%s: cross.csv does not record eval's segment cap (written before the #105 delta review); rerun eval", lab))
+    }
+    capNow <- SegCap(lab)
+    if (!identical(suppressWarnings(as.integer(x$evalMaxSeg[1])), capNow)) {
+      return(sprintf("%s: segment cap mismatch: eval read with cap %s, combine runs with cap %d (0 = none); set the same CET_MAX_SEG / CET_MAX_SEG_RUNG or rerun eval",
+                     lab, format(x$evalMaxSeg[1]), capNow))
     }
     fp <- SegmentFingerprint(ch$dir[ch$label == lab])
     if (x$evalSamples[1] != fp$samples || x$evalSegMd5[1] != fp$md5) {
@@ -431,13 +496,31 @@ CrossProblems <- function(ch, cross, tol = NULL) {
                      lab, x$evalSamples[1], x$evalSegMd5[1], fp$samples, fp$md5))
     }
     if (is.null(tol)) return(NULL)
-    cols <- intersect(c("check", "checkChar"), names(x))
-    if (length(cols) < 2L) return(sprintf("%s: cross.csv has no checkChar column; rerun eval", lab))
-    use <- min(tol, if (!is.null(x$evalTol)) x$evalTol[1] else tol)
-    v <- as.matrix(x[, cols])
-    if (!all(is.finite(v)) || !all(abs(v) <= use)) {
-      return(sprintf("%s: cross.csv fails eval's checks (max |check|, |checkChar| %.3g > tolerance %g)",
-                     lab, max(abs(v)), use))
+    if (!all(c("check", "checkChar") %in% names(x))) {
+      return(sprintf("%s: cross.csv has no check or checkChar column (written before #104); rerun eval", lab))
+    }
+    # The tolerances eval applied are required, and must be positive numbers
+    # (a character or NA value would make the comparison meaningless; R105-7/8)
+    if (!all(c("evalTol", "evalTolChar") %in% names(x))) {
+      return(sprintf("%s: cross.csv records no evalTol or evalTolChar (written before the #105 review); rerun eval", lab))
+    }
+    et <- suppressWarnings(as.numeric(x$evalTol[1]))
+    etc <- suppressWarnings(as.numeric(x$evalTolChar[1]))
+    if (!isTRUE(et > 0) || !isTRUE(etc > 0)) {
+      return(sprintf("%s: cross.csv records evalTol %s and evalTolChar %s; both must be positive numbers; rerun eval",
+                     lab, format(x$evalTol[1]), format(x$evalTolChar[1])))
+    }
+    chk <- suppressWarnings(as.numeric(x$check))
+    chc <- suppressWarnings(as.numeric(x$checkChar))
+    bad <- sum(!is.finite(chk)) + sum(!is.finite(chc))
+    if (bad) {
+      return(sprintf("%s: cross.csv fails eval's checks: %d non-finite check or checkChar value(s)", lab, bad))
+    }
+    use <- min(tol, et)
+    useChar <- min(tolChar, etc)
+    if (max(abs(chk)) > use || max(abs(chc)) > useChar) {
+      return(sprintf("%s: cross.csv fails eval's checks (max |check| %.3g, tolerance %g; max |checkChar| %.3g, tolerance %g)",
+                     lab, max(abs(chk)), use, max(abs(chc)), useChar))
     }
     NULL
   }))
@@ -522,6 +605,8 @@ ChainsUsed <- function(chAll, leftOut, cross, mkv = .cet$mkv) {
     as.numeric(cross[[l]]$evalSamples[1]), 0)
   x$evalSegMd5 <- vapply(x$label, function(l) if (is.null(cross[[l]]$evalSegMd5)) NA_character_ else
     as.character(cross[[l]]$evalSegMd5[1]), "")
+  # Segment cap of this combine (0 = none; #105 delta review, C3)
+  x$segmentCap <- vapply(x$label, SegCap, 0L)
   x
 }
 

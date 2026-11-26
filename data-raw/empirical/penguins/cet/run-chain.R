@@ -25,6 +25,8 @@
 #                    every variant is stored in the checkpoint and checked on
 #                    resume (#74)
 #   CET_SEED         RNG seed (default 1000 * cell + rep)
+#   CET_START_INDEX  index of the start parameters, CetStart(index) (default:
+#                    the production chain k, or rep for other labels)
 #   CET_NSLICE       frozen-model time slices (default 20)
 #   CET_TREE_MOVES   scale of the tree-move counts (default 1)
 #   CET_NBIN, CET_ZMAX   tempo grid (default 26 bins, z in [-5, 5])
@@ -135,8 +137,11 @@ if (file.exists(ckpFile)) {
   set.seed(EnvNum("CET_SEED", 1000 * cell + rep))
   ckp <- NULL
   # Dispersed starting parameters, seeded by chain (production chain k) or by
-  # replicate (other labels); redrawn while the start log posterior is not finite
-  startIndex <- if (is.na(chainK)) rep else chainK
+  # replicate (other labels); redrawn while the start log posterior is not
+  # finite.  CET_START_INDEX overrides the index, so that chains with other
+  # labels need not share the start parameters of production chain k = rep
+  # (#107 review, R107-15)
+  startIndex <- as.integer(EnvNum("CET_START_INDEX", if (is.na(chainK)) rep else chainK))
   startPar <- CetStart(startIndex, dat$tree, model, dat$characters, priors, nSlice)
   startInfo <- attributes(startPar)[c("attempts", "logPost")]
   startPar <- as.list(stats::setNames(unlist(startPar), names(startPar)))

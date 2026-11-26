@@ -1,0 +1,37 @@
+burn-in: first 25% of each chain's recorded samples
+b0g0: chains 4, kept draws per chain 3000-3000
+b0g1: chains 4, kept draws per chain 3000-3000
+b1g0: chains 4, kept draws per chain 3000-3000
+b1g1: chains 4, kept draws per chain 3000-3000
+revbayes_strict: chains 4, kept draws per chain 4501-4501
+revbayes_ucln: chains 4, kept draws per chain 4501-4501
+b0g0: max R-hat 1.0090 (charLL); min bulk ESS 400.0 (charLL); min tail ESS 1820 (charLL); flagged: charLL
+b0g1: max R-hat 1.0045 (treeLength); min bulk ESS 735.3 (treeLength); min tail ESS 1756 (treeLength); flagged: none
+b1g0: max R-hat 1.0086 (charLL); min bulk ESS 1000.5 (treeLength); min tail ESS 2781 (treeLength); flagged: none
+b1g1: max R-hat 1.0102 (charLL); min bulk ESS 703.1 (theta); min tail ESS 1284 (s); flagged: charLL
+revbayes_strict: max R-hat 1.0003 (nSA); min bulk ESS 11144.1 (treeLength); min tail ESS 14427 (treeLength); flagged: none
+revbayes_ucln: max R-hat 1.0002 (rate); min bulk ESS 9715.6 (treeLength); min tail ESS 13374 (treeLength); flagged: none
+b0g0.25: max R-hat 1.0360 (s); min bulk ESS 97.9 (s); min tail ESS 273 (s); flagged: theta, s, rate, charLL, meanX
+b0g0.5: max R-hat 1.0132 (s); min bulk ESS 374.9 (treeLength); min tail ESS 1201 (mu); flagged: s, charLL, treeLength
+b0g0.75: max R-hat 1.0076 (charLL); min bulk ESS 443.0 (treeLength); min tail ESS 1096 (theta); flagged: none
+b1g0.25: max R-hat 1.0211 (s); min bulk ESS 233.1 (theta); min tail ESS 225 (s); flagged: theta, s, rate, charLL, treeLength, meanX
+b1g0.5: max R-hat 1.0124 (treeLength); min bulk ESS 311.6 (treeLength); min tail ESS 704 (theta); flagged: theta, crownAge, treeLength
+b1g0.75: max R-hat 1.0077 (charLL); min bulk ESS 363.4 (theta); min tail ESS 808 (theta); flagged: theta
+b0g0: ASDSF 0.0231 over 132 clades; max SDSF 0.0978
+b0g1: ASDSF 0.0252 over 122 clades; max SDSF 0.1330
+b1g0: ASDSF 0.0219 over 126 clades; max SDSF 0.0897
+b1g1: ASDSF 0.0236 over 127 clades; max SDSF 0.1042
+revbayes_strict: ASDSF 0.0056 over 116 clades; max SDSF 0.0140
+revbayes_ucln: ASDSF 0.0052 over 114 clades; max SDSF 0.0145
+b0g0.25: ASDSF 0.0377 over 136 clades; max SDSF 0.1769
+b0g0.5: ASDSF 0.0333 over 132 clades; max SDSF 0.1031
+b0g0.75: ASDSF 0.0328 over 133 clades; max SDSF 0.1588
+b1g0.25: ASDSF 0.0348 over 130 clades; max SDSF 0.1716
+b1g0.5: ASDSF 0.0325 over 135 clades; max SDSF 0.1396
+b1g0.75: ASDSF 0.0330 over 125 clades; max SDSF 0.1227
+b0g0: crown age median 12.32 (95% 10.70-14.49)
+b0g1: crown age median 13.17 (95% 11.21-15.79)
+b1g0: crown age median 12.32 (95% 10.68-14.50)
+b1g1: crown age median 13.30 (95% 11.21-16.23)
+revbayes_strict: crown age median 12.27 (95% 10.64-14.34)
+revbayes_ucln: crown age median 13.00 (95% 11.09-15.92)

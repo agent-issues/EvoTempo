@@ -42,7 +42,7 @@ Inference has two layers:
   Moves (argument `moves`): `tree`, `node`, `tip`, `branch` (path redraws); `joint` (a parameter
   together with a fresh draw of every path; makes theta mix without characters); `shift` (every bin
   +/-1, with `rate`, `lambda`, `mu`, `psi`, `theta` rescaled by their tempo exponents so that the
-  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `saJump` (tree moves); `rootAge`, `originAge` (start-age moves,
+  character likelihood is unchanged; #19); `nodeAge`, `fossilAge`, `slide`, `fnpr` (fixed-height local prune and regraft, #110; `dev/plans/local-fnpr.md`), `saJump` (tree moves); `rootAge`, `originAge` (start-age moves,
   with priors in `agePriors`; #18); plus a scale sweep over parameters. The default schedule is `TempoMoves()`: with characters (and
   gamma != 0) it omits `tree` and `joint`, whose whole-tree draws ignore the characters and are
   almost never accepted, and runs `node`, `tip` and `branch` at 0.25 x the nodes, tips and branches
@@ -165,7 +165,7 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `src/tree_likelihood.cpp` | C++ tree pruning, `ExtinctionProbability()`, E grid |
 | `src/paths.cpp`, `src/paths.h`, `src/frozen.h`, `src/tree.h` | C++ frozen messages, FFBS, bridges, augmented density, weights; read-only views of `set` and `TempoTree` |
 | `src/tree_moves.cpp` | C++ kernels of the tree moves: transfer rows, bridge densities and draws, node and tip bin weights, `.Rebuild()` |
-| `src/characters.cpp` | `MkLikelihood()` via `MkPrime::Pruner<JCModel>`; `MkCharacters()` partitions via one `Pruner` each (`JCModel`, or `SymmetricModel` for ordered characters), with the Mkv constant patterns as extra columns |
+| `src/characters.cpp` | `MkLikelihood()` via `MkPrime::Pruner<JCModel>`; `MkCharacters()` partitions via one `Pruner` each (`JCModel`, or `SymmetricModel` for ordered characters), with the Mkv constant patterns as extra columns; for a plain character matrix (`MkLikelihood()`, `.MkSiteLogLik()`), with partial likelihoods cached per character matrix between calls (`dev/plans/mk-likelihood-cache.md`; `EVOTEMPO_MK_CACHE_CHECK=1` checks each result against a one-shot evaluation, `options(EvoTempo.mkCache = FALSE)` disables it); `.MkSet()` / `.MkSetLogLik()` score a fixed list of matrices (a dataset's partitions) in one call through a handle, with one tree diff for all of them; the check can vouch only for the data it is given, so a caller passes the matrices it means (the penguin `PartitionedMk()` does, and under the check also runs the route of one call per matrix; `data-raw/empirical/penguins/cet/check-mkset.R`) |
 | `R/TreeMoves.R` | Node-age, fossil-age, subtree-slide and sampled-ancestor moves with frozen-model bin and path proposals |
 | `data-raw/bm-*.R` | Budd & Mann reproduction (`bm/` holds their verbatim code), convergence study, clade-size inversion |
 | `data-raw/rung2-validation.R`, `data-raw/validation-report.R` | Monte Carlo validation and the rung 1-2 report |
@@ -179,6 +179,8 @@ Regenerate documentation with a plain `roxygen2::roxygenise()`. Coverage target:
 | `data-raw/empirical/trilobites/cet/` | Trilobite CET pipeline (morphology only, all-fossil tree): as the penguin pipeline, with ages before the end of the Cambrian sampling window (485.4 Ma, rho = 0, survival from the origin), ordered and ambiguous characters scored as in the RevBayes comparator (`prune.cpp`), the ingroup constraint enforced on tree proposals, priors matched to `../revbayes/`, and checks against RevBayes (`check-mkv.R`) and forward simulation (`check-window.R`); README.md |
 | `manuscript/` | Quarto manuscript (build-ignored; rendered by `render-manuscript.yaml`). Not in `vignettes/`: R CMD check treats a `.qmd` there as a vignette without an engine |
 | `tests/testthat/test-Engine.R` | C++ vs R agreement for every ported function, and identical seeded chains in both engines |
+| `data-raw/mk-cache-benchmark.R` | Time per proposal by move type on the penguin data, with and without the cached character likelihood; smoke results in `data-raw/mk-cache-results/` |
+| `data-raw/mk-set-benchmark.R`, `mk-set-phases.cpp` | Fixed cost of one character-likelihood evaluation on the penguin data (per call, per production iteration, and by phase inside `MkPrime::Pruner`); results in `data-raw/mk-cache-results/README.md`, follow-up proposal in `dev/plans/mk-edge-updates.md` |
 | `data-raw/rung4b-likelihood-check.R` | Rung 4b: importance-sampled likelihood from FFBS maps vs the exact product-space likelihood at fixed parameters |
 | `data-raw/rung5-fixed-parameters.R` | Rung 5 at fixed parameters (tree moves only) vs rejection simulation; regression check for tree-move Hastings ratios |
 | `data-raw/rung4b-one-parameter.R` | One free parameter at a time vs the exact 1-D posterior from a likelihood grid (rung 4b tree, or the rung-4 tree at the default grid) |
@@ -210,7 +212,7 @@ by about +/-2 at 8 chains, so use 16 or more.
 on the **character likelihood only**: `CharLL()` returns heat x log-likelihood, so `st$charLL` of a
 heated state is heated, and no move changes. States live in slots (`mc3$chain`), tuning in levels
 (`mc3$tune`); a swap exchanges two entries of `mc3$slot` and re-evaluates the two stored `charLL`,
-so anything cached with a state (a persistent pruner) stays valid. The levels share R's one
+so anything cached with a state (a persistent pruner) stays valid. The cached character likelihood (#119) is not such a cache: it is one per character matrix, shared by every level, and diffs each call against the last tree it scored, so interleaved levels and swaps cost it time, never correctness (`test-Mc3.R` compares a coupled run with the cache on, checked, and off). The levels share R's one
 random-number stream: levels in order within an iteration, then two uniforms per swap attempt.
 `nChain = 1` must stay bit-identical to an uncoupled chain; anything a level carries between
 iterations must be listed in `tuneNames`, or the levels will share it. A swap mutant (wrong sign,

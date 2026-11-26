@@ -33,7 +33,7 @@ test_that("One chain draws the numbers of an uncoupled chain", {
 
 test_that("Coupled chains match between engines", {
   moves <- c(node = 1.5, tip = 1, branch = 1, shift = 1, nodeAge = 1, slide = 1,
-             saJump = 1)
+             fnpr = 1, saJump = 1)
   Run <- function(engine) {
     Mc3Run(engine, nIter = 12, burnin = 20, thin = 2, nChain = 3, deltaHeat = 0.5,
            moves = moves)
@@ -100,7 +100,7 @@ test_that("Heat acts as a power on the character likelihood in every move", {
   )
   ranges <- cbind(c(0.2, 0, 0.5, 0.5, 0), c(2.5, 0, 3, 3.5, 0))
   shared <- c(tree = 1, node = 1, tip = 1, branch = 1, joint = 1, shift = 1, nodeAge = 1,
-              fossilAge = 1, slide = 1, saJump = 1)
+              fossilAge = 1, slide = 1, fnpr = 1, saJump = 1)
   cases <- list(
     list(model = mc3Model, moves = c(shared, rootAge = 1), priors = mc3Priors,
          agePriors = list(root = function(a) stats::dunif(a, 3.5, 6, log = TRUE))),
@@ -142,6 +142,42 @@ test_that("Heat acts as a power on the character likelihood in every move", {
     # The likelihood matters: the unheated chain differs
     expect_false(isTRUE(all.equal(heated$samples, Run(c(1, 0.4), 1)$samples)))
   }
+})
+
+test_that("Coupled chains do not depend on the cached character likelihood", {
+  # The cache holds the last tree scored, whichever level it belongs to, and
+  # diffs every call against it (dev/plans/mk-likelihood-cache.md); the levels
+  # and the swaps interleave states, which must cost time only
+  moves <- c(node = 1, tip = 1, branch = 1, shift = 1, nodeAge = 1, fossilAge = 1,
+             slide = 1, fnpr = 2, saJump = 1)
+  Run <- function(cache, engine = "cpp") {
+    old <- options(EvoTempo.mkCache = cache)
+    oldCheck <- Sys.getenv("EVOTEMPO_MK_CACHE_CHECK", NA)
+    # With the cache on, every cached value is checked against a one-shot one
+    Sys.setenv(EVOTEMPO_MK_CACHE_CHECK = if (cache) "1" else "0")
+    on.exit({
+      options(old)
+      if (is.na(oldCheck)) {
+        Sys.unsetenv("EVOTEMPO_MK_CACHE_CHECK")
+      } else {
+        Sys.setenv(EVOTEMPO_MK_CACHE_CHECK = oldCheck)
+      }
+    })
+    Mc3Run(engine, nIter = 20, burnin = 20, nChain = 3, deltaHeat = 0.5, moves = moves,
+           minAcceptance = 0)
+  }
+  .MkCache(clear = TRUE)
+  cached <- Run(TRUE)
+  expect_identical(.MkCache()$checkFailures, 0L)
+  expect_gt(.MkCache()$recomputed, 0)
+  plain <- Run(FALSE)
+  expect_identical(cached$samples, plain$samples)
+  expect_identical(cached$acceptance, plain$acceptance)
+  expect_identical(cached$swaps, plain$swaps)
+  expect_equal(cached$samples, Run(FALSE, "R")$samples, tolerance = 1e-8)
+  # Tree moves and swaps were accepted, so states of different trees interleave
+  expect_true(all(cached$acceptance[c("slide", "fnpr", "nodeAge")] > 0))
+  expect_gt(sum(cached$swaps$accepted), 0)
 })
 
 test_that("Heated levels drop moves silently", {

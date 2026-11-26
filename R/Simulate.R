@@ -169,11 +169,14 @@ SimulateDCET <- function(time, x, Q, lambda, mu, psi = 0, start, rho = 1,
 #' @param s Positive numeric giving the stationary standard deviation of
 #' log-tempo.
 #' @param lambda,mu,psi Non-negative numerics giving speciation, extinction
-#' and fossil-sampling rates at log-tempo 0.
+#' and fossil-sampling rates: lineage-mean rates under `location = "mean"`,
+#' rates at log-tempo 0 under `location = "bm"`.
 #' @param delta Integer specifying the coupling of fossil sampling:
 #'  - `0`: constant rate `psi` in real time;
 #'  - `1`: rate `psi * exp(x)` in real time.
-#' @param x0 Numeric giving the founding lineage's log-tempo.
+#' @param x0 Numeric giving the founding lineage's log-tempo.  Under
+#' `location = "mean"` the lineage mean is \eqn{-s^2/2}, so the default
+#' `x0 = 0` starts \eqn{s/2} standard deviations above it.
 #' @param dw Positive numeric giving the tempo-time step of the path.
 #' @returns `SimulateCET()` returns a `TempoHistory` (see [SimulateDCET()]),
 #' whose paths are piecewise linear between knots, with an extra element `w`

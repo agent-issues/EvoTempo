@@ -214,6 +214,9 @@ The R pruners alone took 18.4 ms per evaluation (about 3.4 s per MCMC iteration)
   not tempo-scaled (delta = 0), so the comparator's (d, turnover, sampling proportion) correspond to
   CET's only at x = 0; in gamma = 1 cells `rate` is the clock at x = 0, not the mean branch rate that
   the comparator's `clock_morph` prior describes.  The matching is exact for cell (0, 0) only.
+  This describes the pre-#116 model (`location = "bm"`).  Under the default mean-rate location
+  (#116) lambda, mu, psi (with delta = 1) and `rate` are lineage-mean rates, the quantities the
+  comparator's priors describe.
 - **s.** As the penguin pipeline: the tempo SD takes the comparator's UCLN log-SD prior, so tempo
   variation and UCLN rate variation start from the same prior.  The bound 3 is numerical (the
   penguin pilot's s = 86.8 overflow); the mass above it is exp(-270).

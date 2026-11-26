@@ -219,8 +219,8 @@ DCETModel <- function(nBin = 26, zRange = c(-5, 5),
 
 # Grid, generator, per-bin rates and start prior at parameters `par`
 .Setup <- function(par, model) {
-  # Models saved before #116 carry no location: Budd & Mann's
-  location <- if (is.null(model[["location"]])) "bm" else model[["location"]]
+  # Models saved before #116 carry no location: Budd & Mann's, with a warning
+  location <- if (is.null(model[["location"]])) .LegacyLocation("model") else model[["location"]]
   grid <- TempoGrid(model[["nBin"]], model[["zRange"]], par[["s"]], location)
   Q <- TempoGenerator(grid, par[["theta"]], model[["alpha"]], model[["scheme"]])
   rates <- BinRates(grid, par[["lambda"]], par[["mu"]],

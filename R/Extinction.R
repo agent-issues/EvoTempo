@@ -31,7 +31,7 @@
 #' Q <- TempoGenerator(grid, theta = 0.01)
 #' rates <- BinRates(grid, lambda = 0.51, mu = 0.5)
 #' E <- ExtinctionProbability(c(10, 100), Q, rates$lambda, rates$mu)
-#' 1 - E[, 21] # Survival from x = 0
+#' 1 - E[, 21] # Survival from the central bin, z = 0 (x = -s^2/2)
 #' @family dCET numerics
 #' @export
 ExtinctionProbability <- function(times, Q, lambda, mu, psi = 0, rho = 1,

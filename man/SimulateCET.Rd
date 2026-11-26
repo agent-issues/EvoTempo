@@ -30,7 +30,8 @@ tempo-time.}
 log-tempo.}
 
 \item{lambda, mu, psi}{Non-negative numerics giving speciation, extinction
-and fossil-sampling rates at log-tempo 0.}
+and fossil-sampling rates: lineage-mean rates under \code{location = "mean"},
+rates at log-tempo 0 under \code{location = "bm"}.}
 
 \item{delta}{Integer specifying the coupling of fossil sampling:
 \itemize{
@@ -38,7 +39,9 @@ and fossil-sampling rates at log-tempo 0.}
 \item \code{1}: rate \code{psi * exp(x)} in real time.
 }}
 
-\item{x0}{Numeric giving the founding lineage's log-tempo.}
+\item{x0}{Numeric giving the founding lineage's log-tempo.  Under
+\code{location = "mean"} the lineage mean is \eqn{-s^2/2}, so the default
+\code{x0 = 0} starts \eqn{s/2} standard deviations above it.}
 
 \item{rho}{Numeric giving the probability of sampling an extant lineage.}
 

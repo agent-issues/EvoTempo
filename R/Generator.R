@@ -10,7 +10,7 @@
 #'    law of \eqn{x} is \eqn{N(-s^2/2, s^2)}, centred on the grid, so
 #'    \eqn{E[e^x] = 1} and every rate parameter is a lineage-mean rate;
 #'  - `bm`: \eqn{x = s z}, Budd & Mann's parameterization (Ornstein-Uhlenbeck
-#'    mean 0), whose lineage-stationary law is \eqn{N(-lpha s^2, s^2)}.
+#'    mean 0), whose lineage-stationary law is \eqn{N(-\alpha s^2, s^2)}.
 #'
 #' @param nBin Integer giving the number of bins, \eqn{K}.
 #' @param zRange Numeric vector giving the lowest and highest bin centres, in
@@ -50,11 +50,11 @@ TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1,
 
 #' Discretized tempo generator
 #'
-#' Constructs the generator \eqn{Q = \mathrm{diag}(e^{lpha x_k}) A} of
+#' Constructs the generator \eqn{Q = \mathrm{diag}(e^{\alpha x_k}) A} of
 #' discretized covariant tempo, where the tridiagonal \eqn{A} discretizes the
-#' Ornstein-Uhlenbeck operator \eqn{-	heta (z - \zeta) f' + 	heta f''} with
+#' Ornstein-Uhlenbeck operator \eqn{-\theta (z - \zeta) f' + \theta f''} with
 #' reflecting ends.
-#' The drift centre is \eqn{\zeta = lpha s} on a grid with
+#' The drift centre is \eqn{\zeta = \alpha s} on a grid with
 #' `location = "mean"`, which centres the stationary law of \eqn{Q} on the
 #' grid (\eqn{N(0, 1)} in \eqn{z}), and \eqn{\zeta = 0} with
 #' `location = "bm"`.
@@ -62,12 +62,12 @@ TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1,
 #' Central differences are second order, but have non-negative rates only if
 #' \eqn{h \max_k |z_k - \zeta| \le 2}; this is enforced.
 #' Upwind differences are always valid, but first order, adding numerical
-#' diffusion \eqn{	heta |z - \zeta| h / 2}.
+#' diffusion \eqn{\theta |z - \zeta| h / 2}.
 #' The square-root approximation is second order and always valid, and the
 #' stationary law of \eqn{Q} is exactly the Gaussian on the grid when
-#' \eqn{\zeta = lpha s}.
+#' \eqn{\zeta = \alpha s}.
 #' Central and upwind schemes satisfy \eqn{(A (z - \zeta))_k =
-#' -	heta (z_k - \zeta)} exactly in the interior.
+#' -\theta (z_k - \zeta)} exactly in the interior.
 #'
 #' @param grid A [`TempoGrid`][TempoGrid()].
 #' @param theta Positive numeric giving the mean-reversion rate per unit
@@ -79,7 +79,7 @@ TempoGrid <- function(nBin, zRange = c(-5, 5), s = 1,
 #'  - `sqra`: square-root approximation.
 #'
 #' `NULL` selects `sqra` on a `mean` grid and `central` on a `bm` grid.
-#' @returns `TempoGenerator()` returns a \eqn{K 	imes K} generator matrix:
+#' @returns `TempoGenerator()` returns a \eqn{K \times K} generator matrix:
 #' non-negative off-diagonal entries; rows summing to zero.
 #' @references
 #' Budd GE, Mann RP (2025). Evolutionary tempo, supertaxa, and living fossils.
@@ -105,7 +105,24 @@ TempoGenerator <- function(grid, theta, alpha = 1, scheme = NULL) {
 
 # Location of a grid; grids built before #116 carry none and are "bm"
 .GridLocation <- function(grid) {
-  if (is.null(grid[["location"]])) "bm" else grid[["location"]]
+  if (is.null(grid[["location"]])) .LegacyLocation("grid") else grid[["location"]]
+}
+
+# Objects saved before #116 carry no location and are read as "bm", Budd &
+# Mann's parameterization, which is not the model of an empirical analysis.
+# Warn, once per session and kind of object, with class `legacyLocation`.
+.legacyWarned <- new.env(parent = emptyenv())
+.LegacyLocation <- function(what) {
+  if (is.null(.legacyWarned[[what]])) {
+    assign(what, TRUE, envir = .legacyWarned)
+    warning(structure(
+      class = c("legacyLocation", "warning", "condition"),
+      list(message = paste0(
+        "This ", what, " has no tempo location (saved before #116); it is read as ",
+        "location = \"bm\", Budd & Mann's parameterization. Rebuild it to use the ",
+        "default lineage-mean location."), call = NULL)))
+  }
+  "bm"
 }
 
 # Default scheme for a tempo location
@@ -124,8 +141,10 @@ TempoGenerator <- function(grid, theta, alpha = 1, scheme = NULL) {
     scheme,
     central = {
       if (h * max(abs(y)) > 2 * (1 + 1e-12)) {
-        stop("Central scheme needs h * max|z - centre| <= 2 (here ",
-             signif(h * max(abs(y)), 4), "); increase `nBin` or use \"sqra\"")
+        # An infeasible proposal inside MCMC moves (the bound depends on s
+        # under "mean"); an error everywhere else
+        .Infeasible(paste0("Central scheme needs h * max|z - centre| <= 2 (here ",
+                           signif(h * max(abs(y)), 4), "); increase `nBin` or use \"sqra\""))
       }
       list(up = base - theta * y / (2 * h), down = base + theta * y / (2 * h))
     },

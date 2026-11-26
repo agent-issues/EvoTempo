@@ -36,7 +36,7 @@ The \code{location} fixes where log-tempo \eqn{x} sits on the grid (spec
 law of \eqn{x} is \eqn{N(-s^2/2, s^2)}, centred on the grid, so
 \eqn{E[e^x] = 1} and every rate parameter is a lineage-mean rate;
 \item \code{bm}: \eqn{x = s z}, Budd & Mann's parameterization (Ornstein-Uhlenbeck
-mean 0), whose lineage-stationary law is \eqn{N(-lpha s^2, s^2)}.
+mean 0), whose lineage-stationary law is \eqn{N(-\alpha s^2, s^2)}.
 }
 }
 \examples{

@@ -109,7 +109,8 @@ test_that("Exact / frozen importance weights recover the marginal likelihood", {
 
 test_that("Path moves leave the exact conditional law invariant", {
   set.seed(3)
-  run <- TempoMCMC(pathTree, pathModel, pathPar, list(), nIter = nMC / 75, nSlice = 6,
+  # 40 iterations also under coverage, so that the check below keeps its power
+  run <- TempoMCMC(pathTree, pathModel, pathPar, list(), nIter = 40, nSlice = 6,
                    moves = c(tree = 0, node = 2, tip = 2, branch = 2))
   expect_true(all(run$acceptance[c("node", "tip", "branch")] > 0.9))
   st <- run$state
@@ -122,9 +123,7 @@ test_that("Path moves leave the exact conditional law invariant", {
   # Mean log-tempo agrees with importance-weighted FFBS draws
   maps <- SampleTempoPaths(pathTree, pathPar, pathModel, n = nMC / 30, nSlice = 6)
   w <- exp(maps$logWeight - max(maps$logWeight))
-  # Under coverage the chain has two iterations: sd of its mean about 0.45
-  tol <- if (identical(Sys.getenv("R_COVR"), "true")) 2 else 1
-  expect_lt(abs(mean(run$samples$meanX) - sum(w * maps$meanX) / sum(w)), tol)
+  expect_lt(abs(mean(run$samples$meanX) - sum(w * maps$meanX) / sum(w)), 1)
 })
 
 test_that("TempoMCMC() updates parameters and records summaries", {

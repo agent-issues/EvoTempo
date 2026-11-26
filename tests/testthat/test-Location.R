@@ -53,10 +53,12 @@ test_that("Default schemes and the centred positivity bound", {
 test_that("A grid without a location is Budd & Mann's", {
   bm <- TempoGrid(21, c(-4, 4), s = 1.3, "bm")
   legacy <- structure(bm[c("z", "x", "h", "s")], class = "TempoGrid")
-  for (scheme in c("central", "sqra")) {
-    expect_identical(TempoGenerator(legacy, 0.2, scheme = scheme),
-                     TempoGenerator(bm, 0.2, scheme = scheme))
-  }
+  rm(list = ls(.legacyWarned), envir = .legacyWarned)
+  expect_warning(Q <- TempoGenerator(legacy, 0.2, scheme = "central"),
+                 class = "legacyLocation")
+  expect_identical(Q, TempoGenerator(bm, 0.2, scheme = "central"))
+  expect_identical(TempoGenerator(legacy, 0.2, scheme = "sqra"),
+                   TempoGenerator(bm, 0.2, scheme = "sqra"))
 })
 
 test_that("The stationary law is the grid Gaussian, centred on the grid", {
@@ -79,7 +81,11 @@ test_that("Mean-rate model = Budd & Mann on the shifted window (spec L.3)", {
                        delta = c(0, 1), start = c("root", "origin"),
                        scheme = c("sqra", "upwind", "central"),
                        stringsAsFactors = FALSE)
-  cases <- cases[c(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 47, 48), ]
+  # Rows 1-32 SqRA, 33-64 upwind, 65-96 central; within each, 1-16 root and
+  # 17-32 origin start
+  cases <- cases[c(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 52, 59, 65, 70, 75, 80, 86, 91, 96), ]
+  expect_setequal(paste(cases$scheme, cases$start),
+                  paste(rep(c("sqra", "upwind", "central"), each = 2), c("root", "origin")))
   par <- list(lambda = 0.6, mu = 0.25, psi = 0.15, theta = 0.4, s = 0.9,
               rate = 0.3)
   character <- c(0, 1, 1, 0, 1)
@@ -118,7 +124,15 @@ test_that("A model without a location is Budd & Mann's", {
   bm <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.6, location = "bm")
   legacy <- bm
   legacy$location <- NULL
-  expect_identical(.Setup(par, legacy), .Setup(par, bm))
+  rm(list = ls(.legacyWarned), envir = .legacyWarned)
+  expect_warning(legacySet <- .Setup(par, legacy), class = "legacyLocation")
+  expect_identical(legacySet, .Setup(par, bm))
+  # Once per session and kind of object
+  expect_no_warning(.Setup(par, legacy))
+  grid <- TempoGrid(11, c(-2, 2), 0.9, "bm")
+  grid$location <- NULL
+  expect_warning(legacyQ <- TempoGenerator(grid, 0.4), class = "legacyLocation")
+  expect_identical(legacyQ, TempoGenerator(TempoGrid(11, c(-2, 2), 0.9, "bm"), 0.4))
   expect_identical(TreeLikelihood(TempoTree(locTree), par, legacy),
                    TreeLikelihood(TempoTree(locTree), par, bm))
 })
@@ -140,8 +154,65 @@ test_that("SimulateCET() reverts to the location's mean", {
                      ouMean = m)
   expect_lt(abs(mean(long$x) - m), 0.03)
   expect_lt(abs(sd(long$x) - 0.7), 0.03)
-  set.seed(6)
-  history <- SimulateCET(5, theta = 0.5, s = 0.7, lambda = 0.3, mu = 0.1,
-                         location = "bm")
-  expect_s3_class(history, "TempoHistory")
+  # SimulateCET() passes the location's OU mean to every segment
+  ouMeans <- numeric(0)
+  segment <- .OUSegment
+  local_mocked_bindings(.OUSegment = function(width, x0, theta, s, dw, decay, noise,
+                                              ouMean = 0) {
+    ouMeans <<- c(ouMeans, ouMean)
+    segment(width, x0, theta, s, dw, decay, noise, ouMean)
+  })
+  for (location in c("mean", "bm")) {
+    ouMeans <- numeric(0)
+    set.seed(6)
+    history <- SimulateCET(5, theta = 0.5, s = 0.7, lambda = 0.3, mu = 0.1,
+                           location = location)
+    expect_s3_class(history, "TempoHistory")
+    expect_gt(length(ouMeans), 0)
+    expect_equal(unique(ouMeans), if (location == "mean") m else 0)
+  }
+})
+
+test_that("location = \"bm\" reproduces the chains of the pre-#116 default", {
+  # Column sums of a seeded chain with every move, free s and characters, as
+  # produced by origin/main before #116 (e563e0c; identical() samples there and
+  # here, in both engines). The tolerance allows for platform round-off only.
+  tree <- TempoTree(locTree)
+  chars <- matrix(c(0, 1, 1, 0, 1, 1, 1, 0, 0, 0), 5,
+                  dimnames = list(locTree$tip.label, NULL))
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.6, gamma = 1, location = "bm")
+  par <- list(lambda = 0.6, mu = 0.25, psi = 0.15, theta = 0.4, s = 0.9, rate = 0.3)
+  priors <- c(TempoPriors(), rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  expected <- list(
+    R = c(lambda = 8.7267744725229, s = 19.8004214405854, rate = 20.6907687532836,
+          logPost = -635.747520580079, meanX = -9.46748009258043,
+          treeLength = 294.830494052661, rootBin = 152),
+    cpp = c(lambda = 8.7267744725229, s = 19.8004214405854, rate = 20.6907687532836,
+            logPost = -635.74752057641, meanX = -9.46748009257895,
+            treeLength = 294.830494052661, rootBin = 152))
+  for (engine in names(expected)) {
+    old <- options(EvoTempo.engine = engine)
+    set.seed(11)
+    run <- TempoMCMC(tree, model, par, priors, nIter = 30, nSlice = 6, characters = chars,
+                     moves = c(tree = 1, node = 1, tip = 1, branch = 1, joint = 1, shift = 1,
+                               nodeAge = 1, fossilAge = 1, slide = 1, saJump = 1))
+    options(old)
+    expect_equal(colSums(run$samples[names(expected[[engine]])]), expected[[engine]],
+                 tolerance = 1e-9, info = engine)
+  }
+})
+
+test_that("The central scheme's bound is an infeasible proposal, not an error", {
+  # Under "mean" the bound h * max|z - alpha s| <= 2 depends on s: here s <= 3
+  tree <- TempoTree(ape::read.tree(text = "((a:1,b:1):1,c:2);"))
+  par <- list(lambda = 0.5, mu = 0.2, psi = 0.1, theta = 0.3, s = 1)
+  cm <- DCETModel(nBin = 41, zRange = c(-5, 5), scheme = "central", rho = 1)
+  expect_true(is.finite(TreeLikelihood(tree, modifyList(par, list(s = 2.9)), cm)))
+  expect_error(TreeLikelihood(tree, modifyList(par, list(s = 3.5)), cm),
+               class = "infeasibleProposal")
+  priors <- sapply(names(par), function(n) function(x) 0, simplify = FALSE)
+  set.seed(1)
+  run <- MarginalMCMC(tree, cm, par, priors, nIter = 60)
+  expect_true(all(run$s <= 3))
+  expect_gt(max(run$s), 1.5)
 })

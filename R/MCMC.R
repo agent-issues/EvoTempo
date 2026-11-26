@@ -1,7 +1,9 @@
 #' Default parameter priors
 #'
 #' Log-normal priors on the positive dCET parameters, as a named list of
-#' functions returning log densities.
+#' functions returning log densities.  Under the default tempo location
+#' (`location = "mean"`, see [TempoGrid()]) the rate parameters are
+#' lineage-mean rates, so their priors are priors on lineage-mean rates.
 #'
 #' @param meanlog,sdlog Named numeric vectors giving the parameters of each
 #' log-normal prior; names select the parameters.

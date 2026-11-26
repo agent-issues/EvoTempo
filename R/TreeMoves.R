@@ -234,6 +234,66 @@
   crossing[.MRCAAge(tree, .PrunedParent(tree, p), sib, crossing) <= threshold]
 }
 
+# Most candidate positions, the current one included, that a wfnpr move scores
+.wfnprMax <- 8L
+
+# Character log-likelihood of a candidate tree of a wfnpr move.  All candidate
+# scoring goes through here: an incremental likelihood replaces this full pass
+.CandidateLogLik <- function(st, tree, paths) {
+  CharLL <- st[["CharLL"]]
+  if (is.null(CharLL)) {
+    return(0)
+  }
+  CharLL(tree, paths, st[["par"]], st[["set"]])
+}
+
+# Ensemble of a wfnpr move (dev/spec/weighted-regraft.md): the states with v's
+# parent regrafted, at its unchanged age, onto each of `targets`.  They share
+# one redrawn path on the old sibling's branch, which makes the log weights
+# `logW` (relative to the current state's, 0) the same from every member
+.WfnprEnsemble <- function(tree, set, st, v, targets) {
+  bin <- st[["bin"]]
+  paths <- st[["paths"]]
+  nTip <- tree[["nTip"]]
+  p <- tree[["parent"]][[v]]
+  pp <- tree[["parent"]][[p]]
+  sib <- setdiff(tree[["kids"]][p - nTip, ], v)
+  lwOld <- .NodeLogWeights(tree, set, p, set[["lambda"]], bin[[pp]], c(sib, v),
+                           bin[c(sib, v)])
+  logSplit <- .LogBridges(tree, set, c(p, sib, v), paths) + lwOld[[bin[[p]]]] -
+    .LogSumExp(lwOld)
+  current <- .LogAugmented(tree, set, paths, bin) +
+    if (is.null(st[["CharLL"]])) 0 else st[["charLL"]]
+  intact <- NULL
+  lapply(targets, function(y) {
+    newTree <- tree
+    newTree[["parent"]][sib] <- pp
+    x <- newTree[["parent"]][[y]]
+    newTree[["parent"]][p] <- x
+    newTree[["parent"]][y] <- p
+    newTree <- .Rebuild(newTree)
+    if (is.null(intact)) {
+      intact <<- .DrawBridges(newTree, set, sib, bin, paths)
+    }
+    lwNew <- .NodeLogWeights(newTree, set, p, set[["lambda"]], bin[[x]], c(y, v),
+                             bin[c(y, v)])
+    draw <- .DrawFromLog(lwNew)
+    newBin <- bin
+    newBin[p] <- draw[["k"]]
+    split <- .DrawBridges(newTree, set, c(p, y, v), newBin, intact[["paths"]])
+    logTarget <- .LogAugmented(newTree, set, split[["paths"]], newBin)
+    # A candidate of zero density (no extant tip below a root daughter) is
+    # not scored
+    charLL <- if (logTarget == -Inf) 0 else .CandidateLogLik(st, newTree, split[["paths"]])
+    logTarget <- logTarget + charLL - current
+    logW <- logTarget + logSplit + .LogBridges(tree, set, y, paths) -
+      intact[["logQ"]] - split[["logQ"]] - draw[["logQ"]]
+    list(y = y, tree = newTree, bin = newBin, paths = split[["paths"]],
+         charLL = charLL, logTarget = logTarget,
+         logW = if (is.finite(logW)) logW else -Inf)
+  })
+}
+
 .Descendants <- function(tree, v) {
   out <- v
   frontier <- v
@@ -381,6 +441,34 @@
            logHastings = OldQ(nodes) + lwOld[[bin[[p]]]] - .LogSumExp(lwOld) -
              fwd[["logQ"]] - draw[["logQ"]],
            fnpr = list(v = v, y = y, threshold = threshold))
+    },
+    wfnpr = {
+      # Likelihood-weighted fnpr (dev/spec/weighted-regraft.md): at most
+      # .wfnprMax - 1 of fnpr's targets are scored by the exact target, and
+      # one is chosen by Metropolized Gibbs sampling over them and the
+      # current position
+      cand <- .SlideNodes(tree)
+      if (!length(cand)) return(NULL)
+      v <- cand[[.Sample1(rep(1, length(cand)))]]
+      p <- parent[[v]]
+      sib <- setdiff(tree[["kids"]][p - nTip, ], v)
+      excess <- age[[tree[["root"]]]] - age[[p]]
+      threshold <- age[[p]] + excess * .fnprSpan ^ -stats::runif(1, -1, 1)
+      targets <- .FnprTargets(tree, p, sib, .Descendants(tree, v), threshold)
+      if (!length(targets)) return(NULL)
+      if (length(targets) >= .wfnprMax) {
+        targets <- targets[order(stats::runif(length(targets)))[seq_len(.wfnprMax - 1L)]]
+      }
+      members <- .WfnprEnsemble(tree, set, st, v, sort(targets))
+      logW <- vapply(members, `[[`, 0, "logW")
+      if (max(logW) == -Inf) return(NULL)
+      i <- .Sample1(exp(logW - max(logW)))
+      chosen <- members[[i]]
+      # (W - w_current) / (W - w_chosen), with w_current = 1
+      logRatio <- .LogSumExp(logW) - .LogSumExp(c(0, logW[-i]))
+      list(tree = chosen[["tree"]], bin = chosen[["bin"]], paths = chosen[["paths"]],
+           charLL = chosen[["charLL"]], logRatio = logRatio,
+           logHastings = logRatio - chosen[["logTarget"]])
     },
     saJump = {
       fossils <- which(tree[["tipType"]] != "extant")

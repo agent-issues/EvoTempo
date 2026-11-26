@@ -203,6 +203,13 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' (as RevBayes's `mvFNPR`); otherwise \eqn{H - t_p} is log-uniform on
 #' \eqn{[(R - t_p) / 100, R - t_p]}, with \eqn{t_p} the parent's age and
 #' \eqn{R} the root age, which gives local rearrangements (as `mvNarrow`);
+#' `wfnpr` scores `fnpr`'s targets (seven of them, drawn uniformly, if there
+#' are more) by the exact target density with the characters, proposes one in
+#' proportion to its score \eqn{w}, and accepts it with probability
+#' \eqn{\min(1, (W - w_0) / (W - w))}{min(1, (W - w0) / (W - w))}, where
+#' \eqn{W} sums the scores of the targets and of the current position, whose
+#' score is \eqn{w_0}{w0} (Metropolized Gibbs sampling; Liu 1996), at the cost
+#' of one character likelihood per target;
 #' `saJump` converts a fossil tip to a sampled ancestor
 #' or back (Gavryushkina et al. 2014).
 #' Each redraws affected node bins and paths from the frozen model, with
@@ -301,6 +308,9 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' of sampled ancestor trees for epidemiology and fossil calibration. PLoS
 #' Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}
 #'
+#' Liu JS (1996). Peskun's theorem and a modified discrete-state Gibbs
+#' sampler. Biometrika 83:681--682. \doi{10.1093/biomet/83.3.681}
+#'
 #' Hobolth A, Stone EA (2009). Simulation from endpoint-conditioned,
 #' continuous-time Markov chains on a finite state space, with applications to
 #' molecular evolution. Annals of Applied Statistics 3:1204--1231.
@@ -327,7 +337,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   tree <- .NoRootAncestor(.ForModel(TempoTree(tree), model))
   origin <- .Origin(tree)
   moveNames <- c("tree", "node", "tip", "branch", "joint", "shift", "nodeAge",
-                 "fossilAge", "slide", "fnpr", "saJump", "rootAge", "originAge")
+                 "fossilAge", "slide", "fnpr", "wfnpr", "saJump", "rootAge", "originAge")
   if (is.null(moves)) {
     moves <- TempoMoves(tree, characters, model)
   }
@@ -424,7 +434,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   branchX <- matrix(NA_real_, nKeep, length(pathNodes))
   moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L + alphaFree),
                                  c(moveNames, "parameters", if (alphaFree) "alpha"))
-  treeMoves <- c("nodeAge", "fossilAge", "slide", "fnpr", "saJump")
+  treeMoves <- c("nodeAge", "fossilAge", "slide", "fnpr", "wfnpr", "saJump")
   # Character lengths below the root, for the clock statistics
   Below <- function(tr, gamma) {
     replace(.CharacterLengths(tr, st[["set"]][["grid"]][["x"]], st[["paths"]], 1,
@@ -647,7 +657,8 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 #' `node`, `tip` and `branch` moves are run for a fraction `local` of the
 #' internal nodes, the tips with paths and the branches with paths
 #' respectively (rounded up), with one `shift`.
-#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `fnpr`, `saJump`) are not included;
+#' Tree moves (`nodeAge`, `fossilAge`, `slide`, `fnpr`, `wfnpr`, `saJump`) are not
+#' included;
 #' add them to the returned vector.
 #'
 #' @param tree A [`TempoTree`][TempoTree()], or a tree that it accepts.
@@ -833,18 +844,26 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
 .TreeMove <- function(move, st, CharLL) {
   tree <- st[["tree"]]
   set <- st[["set"]]
-  prop <- tryCatch(.ProposeTreeMove(move, tree, set, st),
-                   infeasibleProposal = function(e) NULL)
+  # `wfnpr` scores its candidates itself, and returns the complete `logRatio`
+  prop <- tryCatch(
+    .ProposeTreeMove(move, tree, set, c(st, if (move == "wfnpr") list(CharLL = CharLL))),
+    infeasibleProposal = function(e) NULL
+  )
   if (is.null(prop)) {
     return(list(state = st, accepted = FALSE))
   }
   newTree <- prop[["tree"]]
-  newChar <- CharLL(newTree, prop[["paths"]], st[["par"]], set)
   nBif <- function(tr) sum(!tr[["sampled"]])
-  logRatio <- .LogAugmented(newTree, set, prop[["paths"]], prop[["bin"]]) -
-    .LogAugmented(tree, set, st[["paths"]], st[["bin"]]) +
-    (nBif(newTree) - nBif(tree)) * log(2) + newChar - st[["charLL"]] +
-    prop[["logHastings"]]
+  if (is.null(prop[["logRatio"]])) {
+    newChar <- CharLL(newTree, prop[["paths"]], st[["par"]], set)
+    logRatio <- .LogAugmented(newTree, set, prop[["paths"]], prop[["bin"]]) -
+      .LogAugmented(tree, set, st[["paths"]], st[["bin"]]) +
+      (nBif(newTree) - nBif(tree)) * log(2) + newChar - st[["charLL"]] +
+      prop[["logHastings"]]
+  } else {
+    newChar <- prop[["charLL"]]
+    logRatio <- prop[["logRatio"]]
+  }
   if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
     st[["tree"]] <- newTree
     st[["paths"]] <- prop[["paths"]]

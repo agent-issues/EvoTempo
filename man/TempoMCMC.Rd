@@ -178,6 +178,13 @@ threshold \eqn{H}.  With probability 1/2, \eqn{H} admits every branch
 (as RevBayes's \code{mvFNPR}); otherwise \eqn{H - t_p} is log-uniform on
 \eqn{[(R - t_p) / 100, R - t_p]}, with \eqn{t_p} the parent's age and
 \eqn{R} the root age, which gives local rearrangements (as \code{mvNarrow});
+\code{wfnpr} scores \code{fnpr}'s targets (seven of them, drawn uniformly, if there
+are more) by the exact target density with the characters, proposes one in
+proportion to its score \eqn{w}, and accepts it with probability
+\eqn{\min(1, (W - w_0) / (W - w))}{min(1, (W - w0) / (W - w))}, where
+\eqn{W} sums the scores of the targets and of the current position, whose
+score is \eqn{w_0}{w0} (Metropolized Gibbs sampling; Liu 1996), at the cost
+of one character likelihood per target;
 \code{saJump} converts a fossil tip to a sampled ancestor
 or back (Gavryushkina et al. 2014).
 Each redraws affected node bins and paths from the frozen model, with
@@ -235,6 +242,9 @@ run$samples
 Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference
 of sampled ancestor trees for epidemiology and fossil calibration. PLoS
 Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}
+
+Liu JS (1996). Peskun's theorem and a modified discrete-state Gibbs
+sampler. Biometrika 83:681--682. \doi{10.1093/biomet/83.3.681}
 
 Hobolth A, Stone EA (2009). Simulation from endpoint-conditioned,
 continuous-time Markov chains on a finite state space, with applications to

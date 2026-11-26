@@ -1,0 +1,23 @@
+"label","statistic","exact","wfnpr","wfnprSe","fnpr","fnprSe","zExact","zFnprExact","zFnpr"
+"sa5-tempoCharacters-max8-2000","topology 001",NA,0.1609,0.0007209,0.1615,0.0007442,NA,NA,-0.6273
+"sa5-tempoCharacters-max8-2000","topology 002",NA,0.08359,0.0003156,0.08343,0.0003109,NA,NA,0.3566
+"sa5-tempoCharacters-max8-2000","topology 003",NA,0.1051,0.0003809,0.1048,0.0003901,NA,NA,0.5724
+"sa5-tempoCharacters-max8-2000","topology 004",NA,0.08799,0.0003641,0.08748,0.0004047,NA,NA,0.9268
+"sa5-tempoCharacters-max8-2000","topology 008",NA,0.1309,0.0003964,0.1314,0.0004571,NA,NA,-0.9293
+"sa5-tempoCharacters-max8-2000","topology 009",NA,0.0579,0.0003559,0.057,0.0003861,NA,NA,1.712
+"sa5-tempoCharacters-max8-2000","topology 011",NA,0.06071,0.0002439,0.06046,0.0002461,NA,NA,0.716
+"sa5-tempoCharacters-max8-2000","topology 012",NA,0.07,0.0004048,0.06863,0.0003918,NA,NA,2.441
+"sa5-tempoCharacters-max8-2000","topology 015",NA,0.06455,0.0002915,0.06419,0.0003053,NA,NA,0.8561
+"sa5-tempoCharacters-max8-2000","topology 018",NA,0.1784,0.0007502,0.1811,0.0008432,NA,NA,-2.344
+"sa5-tempoCharacters-max8-2000","clade a+b+c+f",NA,0.2132,0.0006289,0.2121,0.0006461,NA,NA,1.235
+"sa5-tempoCharacters-max8-2000","clade a+b+d+f",NA,0,0,0,0,NA,NA,NA
+"sa5-tempoCharacters-max8-2000","clade a+b+f",NA,0.4273,0.0007803,0.4301,0.0008554,NA,NA,-2.411
+"sa5-tempoCharacters-max8-2000","clade a+c",NA,0.1443,0.0004137,0.1439,0.0004168,NA,NA,0.6914
+"sa5-tempoCharacters-max8-2000","clade a+c+d",NA,0.3195,0.0007462,0.3196,0.0007281,NA,NA,-0.08847
+"sa5-tempoCharacters-max8-2000","clade a+d",NA,0.233,0.0006049,0.2304,0.0006561,NA,NA,2.898
+"sa5-tempoCharacters-max8-2000","clade b+c+d+f",NA,0,0,0,0,NA,NA,NA
+"sa5-tempoCharacters-max8-2000","clade b+c+f",NA,0.1925,0.0005813,0.1898,0.0006634,NA,NA,2.988
+"sa5-tempoCharacters-max8-2000","clade b+d+f",NA,0,0,0,0,NA,NA,NA
+"sa5-tempoCharacters-max8-2000","clade b+f",NA,1,5.049e-18,1,5.105e-18,NA,NA,0
+"sa5-tempoCharacters-max8-2000","clade c+d",NA,0.4702,0.0007789,0.474,0.0008907,NA,NA,-3.261
+"sa5-tempoCharacters-max8-2000","acceptance",NA,0.2548,0.0002591,0.2152,0.0002279,NA,NA,114.8

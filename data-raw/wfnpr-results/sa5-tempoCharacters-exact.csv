@@ -1,0 +1,23 @@
+"statistic","exact"
+"topology 001",0.16103138
+"topology 002",0.083458467
+"topology 003",0.10515171
+"topology 004",0.08731742
+"topology 008",0.13118652
+"topology 009",0.058032097
+"topology 011",0.060274678
+"topology 012",0.068919165
+"topology 015",0.064439758
+"topology 018",0.1801888
+"clade a+b+c+f",0.21203185
+"clade a+b+d+f",0
+"clade a+b+f",0.4285376
+"clade a+c",0.14373314
+"clade a+c+d",0.3197967
+"clade a+d",0.23210298
+"clade b+c+d+f",0
+"clade b+c+f",0.19139102
+"clade b+d+f",0
+"clade b+f",1
+"clade c+d",0.4724067
+"acceptance",NA

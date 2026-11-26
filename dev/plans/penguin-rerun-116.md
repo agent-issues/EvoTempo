@@ -13,7 +13,8 @@ switch penguins and rerun everything: production, γ-rungs and Bayes factors.
    If #110's new topology moves are about to land, wait for them as well. Penguins need a rerun once they exist
    anyway, and one rerun costs about 3,300 core-hours (below).
 2. **Use a fresh tree, `W2`.** Never resume in `/nobackup/pjjg18/evotempo-penguin-cet/runs`. The old checkpoints hold
-   `DCETModel`s without a `location`, which the new code reads as `"bm"`; the resume guard also refuses a new lib.
+   no `location`: `run-chain.R` now refuses to resume them, and `bayes-factors.R eval` refuses to score them, because
+   they were run under `"bm"` (review of #123, M3). Nothing checks the library itself.
 
 ## Commands
 

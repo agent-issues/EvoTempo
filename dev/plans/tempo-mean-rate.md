@@ -18,9 +18,11 @@ one model for every dataset; penguins switch and rerun everything; trilobites wa
    check uses max|z − ζ|.
 3. **SqRA with centre.** The potential is U = (z − ζ)²/2, so the stationary law of Q is exactly the grid Gaussian (spec
    L.2).
-4. **Old saved models.** A `DCETModel` without a `location` element (checkpoints written before this change) is read
-   as `"bm"` with its stored scheme. Resuming an old chain therefore reproduces it, and the pipelines' own build check
-   still refuses a new lib.
+4. **Old saved models.** A `DCETModel` or grid without a `location` element is read as `"bm"` with its stored scheme,
+   with a `legacyLocation` warning (review of #123, M3). The pipelines' checkpoints store the built state but not the
+   model, so the model on resume comes from `CetModel()`. Since the review, checkpoints record `location` and `scheme`,
+   and resume and Bayes-factor eval refuse a chain of another location. No library check exists: a checkpoint from
+   before #116 is refused because it records no location.
 5. **`SimulateCET()` gains `location`.** The OU in tempo time has mean m = s²/2 under `"mean"` (α = 1 in that
    simulator) and 0 under `"bm"`. `SimulateDCET()` takes Q and x, so it needs no change.
 6. **No C++ change.** The C++ engine reads `set$Q`, the per-bin rates, the start prior and x from R. It never builds the

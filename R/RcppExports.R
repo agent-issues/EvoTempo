@@ -5,8 +5,20 @@
     .Call(`_EvoTempo_MkCharactersCpp`, tree, partitions, lengths, rates, variable)
 }
 
-.MkLikelihoodCpp <- function(tree, characters, lengths, nState) {
-    .Call(`_EvoTempo_MkLikelihoodCpp`, tree, characters, lengths, nState)
+.MkCpp <- function(tree, characters, lengths, nState, sites, cache) {
+    .Call(`_EvoTempo_MkCpp`, tree, characters, lengths, nState, sites, cache)
+}
+
+.MkSetCpp <- function(nTip, matrices, nState, sites) {
+    .Call(`_EvoTempo_MkSetCpp`, nTip, matrices, nState, sites)
+}
+
+.MkSetLogLikCpp <- function(handle, parent, lengths, matrices, nState) {
+    .Call(`_EvoTempo_MkSetLogLikCpp`, handle, parent, lengths, matrices, nState)
+}
+
+.MkCacheCpp <- function(clear, corrupt) {
+    .Call(`_EvoTempo_MkCacheCpp`, clear, corrupt)
 }
 
 .PiecesCpp <- function(tree, set, v) {

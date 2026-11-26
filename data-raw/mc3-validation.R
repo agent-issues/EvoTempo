@@ -38,7 +38,8 @@ Say <- function(...) cat(..., "\n", sep = "", file = out, append = TRUE)
 Table <- function(x) utils::capture.output(print(round(x, 2)))
 unlink(out)
 Say("mc3-validation.R: nIter ", nIter, ", nRep ", nRep, "; EvoTempo at ",
-    system("git rev-parse --short HEAD", intern = TRUE))
+    # MC3_COMMIT: for a source archive, where git has nothing to report
+    Sys.getenv("MC3_COMMIT", system("git rev-parse --short HEAD", intern = TRUE)))
 
 Oracle <- function(seed) unlist(env$OracleMc3(seed = seed, nIter = nIter, nChain = 1))
 exact <- do.call(rbind, parallel::parLapply(cl, seq_len(nRep), Oracle))

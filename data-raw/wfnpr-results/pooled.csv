@@ -1,0 +1,13 @@
+"group","move","chains","statistics","maxAbsZ","worst","rmsZ","pMax"
+"extant5-characters-max2","wfnpr",32,39,2.16,"topology 177",1.07,0.78
+"extant5-characters-max2","fnpr",32,39,2.25,"clade b+c+e",1.27,0.71
+"extant5-characters-max3","wfnpr",32,39,2.1,"topology 152",0.855,0.83
+"extant5-characters-max3","fnpr",32,39,2.25,"clade b+c+e",1.27,0.71
+"extant5-characters-max8","wfnpr",32,39,2.11,"clade b+c+d+e",1.06,0.82
+"extant5-characters-max8","fnpr",32,39,2.25,"clade b+c+e",1.27,0.71
+"extant5-prior-max3","wfnpr",32,25,2.78,"clade a+b+c+e",1.2,0.21
+"extant5-prior-max3","fnpr",32,25,1.83,"clade a+b+c+d",0.978,0.87
+"sa5-characters-max8","wfnpr",32,17,1.33,"clade a+b+f",0.792,0.97
+"sa5-characters-max8","fnpr",32,17,2.15,"topology 018",0.983,0.49
+"sa5-prior-max8","wfnpr",32,17,1.51,"clade a+c",0.781,0.92
+"sa5-prior-max8","fnpr",32,17,1.98,"topology 009",1.15,0.63

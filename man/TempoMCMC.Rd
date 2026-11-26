@@ -20,6 +20,9 @@ TempoMCMC(
   minAcceptance = 0.01,
   agePriors = list(),
   charPriors = list(),
+  nChain = 1L,
+  deltaHeat = 0.1,
+  swapInterval = 1L,
   engine = getOption("EvoTempo.engine", "cpp")
 )
 }
@@ -70,6 +73,15 @@ among characters (for \code{\link[=MkCharacters]{MkCharacters()}} with \code{nRa
 then free; without it (or with \code{charPriors = NULL}), \code{alpha} stays at
 \code{start$alpha}.}
 
+\item{nChain}{Integer specifying the number of Metropolis-coupled chains,
+of which one is cold.}
+
+\item{deltaHeat}{Numeric specifying the increment \eqn{\Delta} of the
+heat ladder (see Details).}
+
+\item{swapInterval}{Integer specifying the number of iterations between
+attempts to swap two adjacent levels.}
+
 \item{engine}{Character string selecting the engine:
 \itemize{
 \item \code{cpp}: compiled C++, with a stiff Radau IIA solver for the backward
@@ -106,8 +118,14 @@ moves not run), including the \code{alpha} move when \code{alpha} is free;
 \item \code{burninAcceptance}: acceptance rate of each move during burn-in, or
 \code{NULL} without burn-in;
 \item \code{moves}: the move counts used after burn-in;
-\item \code{state}: the final state.
+\item \code{state}: the final state;
+\item with \code{nChain > 1}, \code{heats}, the heat of each level, and \code{swaps}, a data
+frame with one row per pair of adjacent levels giving their heats
+(\code{hotter}, \code{colder}) and the swaps attempted (\code{tries}) and \code{accepted}
+after burn-in, with their \code{rate}.
 }
+
+Acceptance rates, move counts and the state are those of the cold level.
 }
 \description{
 Samples parameters jointly with the tempo path on every branch of a time
@@ -220,6 +238,24 @@ sweep, which scales it by \eqn{e^{u}}, \eqn{u \sim U(-\epsilon/2,
 whose step \eqn{\epsilon} adapts during burn-in.
 Matrices of characters (not from \code{\link[=MkCharacters]{MkCharacters()}}) are scored as before,
 with one number of states, \code{nState}.
+
+With \code{nChain > 1} the chains are Metropolis-coupled (Geyer 1991).
+Level \eqn{r} of a ladder of \code{nChain} levels raises the character
+likelihood to the heat \eqn{h_r = 1 / (1 + \Delta (r - 1))}, \eqn{\Delta}
+being \code{deltaHeat}; the priors and the augmented density of the tree and
+its paths are not heated, so every move proposes as it does in the cold
+chain.
+In each iteration every level runs the move schedule in turn, coldest
+first; then, every \code{swapInterval} iterations, the states at one pair of
+adjacent levels \eqn{a, b}, chosen uniformly, exchange levels with
+probability \eqn{\min(1, (L_b / L_a)^{h_a - h_b})}, \eqn{L} being their
+character likelihoods.
+Step sizes, and the moves dropped after burn-in, belong to a level, not to
+a state.
+Only the cold level (\eqn{h = 1}) is sampled, so the cost per iteration
+is \code{nChain} times that of a single chain.
+All levels draw from one stream of random numbers, and \code{nChain = 1} draws
+exactly the numbers of an uncoupled chain.
 }
 \examples{
 tree <- structure(list(edge = rbind(c(4, 5), c(5, 1), c(5, 2), c(4, 3)),
@@ -232,6 +268,11 @@ run <- TempoMCMC(tree, DCETModel(nBin = 11, zRange = c(-2, 2)),
 run$samples
 }
 \references{
+Geyer CJ (1991). Markov chain Monte Carlo maximum likelihood. In Keramidas
+EM (ed.), Computing Science and Statistics: Proceedings of the 23rd
+Symposium on the Interface, pp. 156--163. Interface Foundation, Fairfax
+Station.
+
 Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference
 of sampled ancestor trees for epidemiology and fossil calibration. PLoS
 Computational Biology 10:e1003919. \doi{10.1371/journal.pcbi.1003919}

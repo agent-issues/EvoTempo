@@ -174,3 +174,30 @@ OracleGamma0 <- function(seed = 1, nIter = 3000, nChain = 2, burnin = 200) {
   list(z = z, moves = runs[[1]]$moves,
        shift = mean(vapply(runs, function(r) r$acceptance[["shift"]], 0)))
 }
+
+# Metropolis-coupled chains (#110) on a steep ladder (heats 1, 1/5, 1/9), with
+# only `rate` free at gamma = 0 and a prior that the six characters contradict,
+# so that the heated levels sit far from the cold one and a wrong swap ratio
+# moves the cold level.  Exact target of the cold level: MkLikelihood() x
+# prior on a grid of `rate`.
+OracleMc3 <- function(seed = 1, nIter = 4000, nChain = 2, burnin = 200,
+                      levels = 3, deltaHeat = 4) {
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, gamma = 0)
+  priors <- TempoPriors(c(rate = log(0.02)), c(rate = 1))
+  runs <- lapply(seq_len(nChain), function(i) {
+    set.seed(1000 * seed + i)
+    TempoMCMC(oracleTree, model, oraclePar, priors, nIter = nIter, burnin = burnin,
+              nSlice = 4, characters = oracleChars, moves = c(node = 1),
+              nChain = levels, deltaHeat = deltaHeat)
+  })
+  nodes <- .PathNodes(oracleTree)
+  age <- oracleTree$age
+  unitLengths <- replace(numeric(length(age)), nodes, age[oracleTree$parent[nodes]] - age[nodes])
+  logRate <- log(0.02) + seq(-5, 7, length.out = 241)
+  postRate <- vapply(logRate, function(lr) {
+    MkLikelihood(oracleTree, oracleChars, exp(lr) * unitLengths) + priors$rate(exp(lr))
+  }, 0) + logRate
+  list(z = MarginalZ(lapply(runs, function(r) r$samples$rate),
+                     GridPosterior(logRate, postRate)),
+       swaps = Reduce(`+`, lapply(runs, function(r) r$swaps$rate)) / nChain)
+}

@@ -1,5 +1,9 @@
 # EvoTempo 0.0.0.9000
 
+- `TempoMCMC()` runs Metropolis-coupled chains with `nChain > 1`: heated
+  levels power the character likelihood, adjacent levels swap every
+  `swapInterval` iterations, and swap rates are returned in `swaps`
+  ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).
 - Package scaffold.
 - dCET numerics: `TempoGrid()`, `TempoGenerator()` (central, upwind, square-root
   approximation), `BuddMannGenerator()`, `BinRates()`, `ExtinctionProbability()`,

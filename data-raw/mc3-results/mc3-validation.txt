@@ -1,0 +1,42 @@
+mc3-validation.R: nIter 20000, nRep 16; EvoTempo at e9ad515 (source archive without git; Slurm 19572297; commit added by hand)
+
+1. Exact oracle, cold level of heats 1, 1/5, 1/9 (rows: seeds)
+      z.mean z.q25 z.q50 z.q75 swaps1 swaps2
+ [1,]   0.20  0.36 -0.76  0.78   0.17   0.67
+ [2,]  -0.39 -1.15  0.90  0.10   0.16   0.67
+ [3,]  -1.43 -0.42  1.48  2.59   0.16   0.67
+ [4,]  -1.30  0.40  1.35 -0.97   0.17   0.66
+ [5,]   1.46 -1.17 -0.23 -0.80   0.16   0.67
+ [6,]   1.20 -0.84 -1.59 -0.17   0.16   0.67
+ [7,]   0.33 -0.79 -0.27 -0.14   0.17   0.67
+ [8,]   1.44  0.29 -2.78 -1.09   0.17   0.66
+ [9,]  -0.21  2.42  1.16 -1.73   0.15   0.67
+[10,]   0.90 -0.59  0.51 -0.24   0.16   0.67
+[11,]   0.09  0.08  0.88  0.78   0.16   0.66
+[12,]  -0.55 -0.38  0.08  0.56   0.17   0.66
+[13,]   0.31 -0.33  0.74 -0.13   0.16   0.65
+[14,]   0.52 -2.65  0.52  0.08   0.16   0.66
+[15,]   0.19  0.55 -0.13 -0.05   0.16   0.68
+[16,]  -1.49  1.06  3.04  1.19   0.16   0.67
+max |z| 3.04
+
+2. Mutants (seed 1)
+sign flipped: z.mean -80.34, z.q25 88.96, z.q50 64.27, z.q75 32.37, swaps1 0.65, swaps2 0.8
+always accepted: z.mean -88.35, z.q25 72.83, z.q50 47.05, z.q75 24.9, swaps1 1, swaps2 1
+
+3. Tree moves: single chains against the cold level of 4 coupled chains (deltaHeat 2: heats 1, 1/3, 1/5, 1/7)
+               single  coupled        se       z
+lambda         0.3503   0.3500 0.0004889 -0.7342
+theta          0.1192   0.1168 0.0014470 -1.6190
+rate           0.5274   0.5278 0.0014690  0.2729
+logPost      -47.6900 -47.8900 0.1606000 -1.2600
+meanX          0.1920   0.1946 0.0042110  0.6147
+nAncestor      1.5190   1.5130 0.0055310 -1.1010
+treeLength     9.8000   9.8050 0.0083120  0.6309
+cherries       0.6534   0.6592 0.0034460  1.6870
+oldestFossil   2.4930   2.4870 0.0040080 -1.5550
+max |z| 1.69; swap rates (cold to hot) 0.479, 0.761, 0.86; slide acceptance 0.437 single, 0.436 cold level
+
+4. Mutant: tree moves accepted on the unheated likelihood at every level
+lambda 9.66, theta 11.1, rate -19.56, logPost 7.87, meanX -2.75, nAncestor -25.49, treeLength 29.71, cherries 22.9, oldestFossil -4.68
+max |z| 29.71

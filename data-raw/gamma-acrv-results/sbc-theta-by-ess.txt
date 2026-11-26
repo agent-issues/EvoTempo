@@ -1,0 +1,11 @@
+sbc20k-g0plain ESS<50   n  92  theta 5-bin 9 25 18 21 19  chisq p 0.109  KS p 0.161  mean rank 0.540  extreme(<=2|>=48) 10 (exp 10.8)
+sbc20k-g0plain ESS>=50  n 108  theta 5-bin 17 19 23 24 25  chisq p 0.702  KS p 0.017  mean rank 0.557  extreme(<=2|>=48) 17 (exp 12.7)
+sbc20k-g0plain cor(theta rank deviation |r-25|, ESS) = 0.095
+sbc20k-g1  ESS<50   n  99  theta 5-bin 17 17 23 20 22  chisq p 0.817  KS p 0.492  mean rank 0.529  extreme(<=2|>=48) 15 (exp 11.6)
+sbc20k-g1  ESS>=50  n 101  theta 5-bin 15 14 23 21 28  chisq p 0.154  KS p 0.080  mean rank 0.565  extreme(<=2|>=48) 13 (exp 11.9)
+sbc20k-g1  cor(theta rank deviation |r-25|, ESS) = -0.013
+sbc20k-g4  ESS<50   n  79  theta 5-bin 13 19 10 23 14  chisq p 0.149  KS p 0.630  mean rank 0.517  extreme(<=2|>=48) 7 (exp 9.3)
+sbc20k-g4  ESS>=50  n 121  theta 5-bin 23 13 23 28 34  chisq p 0.043  KS p 0.029  mean rank 0.568  extreme(<=2|>=48) 30 (exp 14.2)
+sbc20k-g4  cor(theta rank deviation |r-25|, ESS) = 0.015
+sbc3k-g1   ESS<50   n  99  theta 5-bin 22 10 14 22 31  chisq p 0.010  KS p 0.004  mean rank 0.574  extreme(<=2|>=48) 29 (exp 11.6)
+sbc3k-g1   cor(theta rank deviation |r-25|, ESS) = -0.035

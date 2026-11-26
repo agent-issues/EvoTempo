@@ -224,6 +224,19 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' Characters follow the Mk model on branch lengths
 #' \eqn{\ell_e = c \int_e e^{\gamma x} dt}, with \eqn{c} the parameter `rate`
 #' and \eqn{\gamma} from `model`; see [MkLikelihood()].
+#' Characters from [MkCharacters()] may have their own numbers of states, be
+#' ordered, hold sets of states, be conditioned on variability, and have
+#' rates that vary among characters: with `nRateCat > 1`, each character's
+#' lengths are scaled by discrete Gamma rates with shape \eqn{\alpha}
+#' (`start$alpha`; not the tempo exponent `model$alpha` of `theta`), which
+#' multiply the tempo-dependent rate.
+#' \eqn{\alpha} is fixed unless `charPriors$alpha` gives its log prior
+#' density; it then has its own move, once per iteration after the parameter
+#' sweep, which scales it by \eqn{e^{u}}, \eqn{u \sim U(-\epsilon/2,
+#' \epsilon/2)}, with the characters' likelihood at the current paths, and
+#' whose step \eqn{\epsilon} adapts during burn-in.
+#' Matrices of characters (not from [MkCharacters()]) are scored as before,
+#' with one number of states, `nState`.
 #'
 #' With `nChain > 1` the chains are Metropolis-coupled (Geyer 1991).
 #' Level \eqn{r} of a ladder of `nChain` levels raises the character
@@ -250,15 +263,21 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' iteration (see Details); unnamed moves are not used.  Defaults to
 #' [TempoMoves()] for `tree` and `characters`.
 #' @param characters Optional matrix of character states, as for
-#' [MkLikelihood()].
+#' [MkLikelihood()], or characters prepared by [MkCharacters()].
 #' @param updateParameters Logical; if `FALSE`, hold parameters fixed (`shift`
-#' then moves the bins only).
+#' then moves the bins only), including a free `alpha`, whose acceptance is
+#' then 0.
 #' @param minAcceptance Numeric giving the burn-in acceptance below which
 #' `tree` and `joint` moves are dropped after burn-in (see Details).
 #' @param agePriors Named list of functions giving log prior densities of
 #' the root age (`root`; with `start = "root"`) and of the origin age
 #' (`origin`; with `start = "origin"`), needed by the `rootAge` and
 #' `originAge` moves.
+#' @param charPriors Named list of functions giving log prior densities of
+#' parameters of the character model: `alpha`, the shape of the Gamma rates
+#' among characters (for [MkCharacters()] with `nRateCat > 1`), which is
+#' then free; without it (or with `charPriors = NULL`), `alpha` stays at
+#' `start$alpha`.
 #' @param nChain Integer specifying the number of Metropolis-coupled chains,
 #' of which one is cold.
 #' @param deltaHeat Numeric specifying the increment \eqn{\Delta} of the
@@ -266,10 +285,12 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #' @param swapInterval Integer specifying the number of iterations between
 #' attempts to swap two adjacent levels.
 #' @returns `TempoMCMC()` returns a list with elements
-#' - `samples`: data frame with one column per free parameter, `logPost`
+#' - `samples`: data frame with one column per free parameter, then, with
+#'   Gamma rates among characters, `alpha` (so the later columns move by
+#'   one; index them by name), then `logPost`
 #'   (log augmented density, plus character log-likelihood, log prior of the
-#'   parameters and, when `rootAge` or `originAge` moves it, log prior of the
-#'   start age), `rootBin` (the bin at the root), `meanX`
+#'   parameters, of a free `alpha`, and, when `rootAge` or `originAge` moves
+#'   it, log prior of the start age), `rootBin` (the bin at the root), `meanX`
 #'   (lineage-time-averaged log-tempo over the tree) and
 #'   tree statistics: `nAncestor`, `treeLength`, `meanNodeAge` (of non-root
 #'   bifurcations), `cherries`, `oldestFossil`, `youngestFossil`, `clock`
@@ -286,7 +307,7 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 #'   path (with an origin, including the stem; for chains without tree
 #'   moves);
 #' - `acceptance`: acceptance rate of each move after burn-in (zero for
-#'   moves not run);
+#'   moves not run), including the `alpha` move when `alpha` is free;
 #' - `burninAcceptance`: acceptance rate of each move during burn-in, or
 #'   `NULL` without burn-in;
 #' - `moves`: the move counts used after burn-in;
@@ -326,8 +347,8 @@ MarginalMCMC <- function(tree, model, start, priors, nIter, burnin = 0,
 TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
                       nSlice = 20, moves = NULL, characters = NULL,
                       nState = 2L, updateParameters = TRUE, minAcceptance = 0.01,
-                      agePriors = list(), nChain = 1L, deltaHeat = 0.1,
-                      swapInterval = 1L,
+                      agePriors = list(), charPriors = list(), nChain = 1L,
+                      deltaHeat = 0.1, swapInterval = 1L,
                       engine = getOption("EvoTempo.engine", "cpp")) {
   old <- options(EvoTempo.engine = TempoEngine(engine))
   on.exit(options(old))
@@ -338,7 +359,7 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   if (!Count(nChain) || !Count(swapInterval)) {
     stop("`nChain` and `swapInterval` must be positive whole numbers")
   }
-  if (nChain > 1 && (is.null(characters) || NCOL(characters) == 0)) {
+  if (nChain > 1 && (is.null(characters) || .NCharacters(characters) == 0)) {
     stop("`nChain > 1` needs `characters`: heat applies to their likelihood")
   }
   if (!is.numeric(deltaHeat) || !isTRUE(is.finite(deltaHeat) & deltaHeat > 0)) {
@@ -379,15 +400,27 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   ageStep <- c(rootAge = 1, originAge = 1)
   ageHits <- 0 * ageStep
   par <- as.list(start)
+  # Gamma rates among characters (#97): shape `alpha` in `par`, outside the
+  # parameter sweep, the joint and shift moves and the frozen model
+  gammaRates <- inherits(characters, "MkCharacters") &&
+    characters[["nRateCat"]] > 1L
+  alphaFree <- .CheckCharPriors(charPriors, priors, par, gammaRates)
+  AlphaPrior <- if (alphaFree) charPriors[["alpha"]] else function(a) 0
+  alphaStep <- 1
+  alphaHits <- 0
   # Heat of the level being updated: the power on the character likelihood
   heat <- 1
   CharLL <- function(tr, paths, p, set, h = heat) {
     if (is.null(characters)) {
       return(0)
     }
-    h * MkLikelihood(tr, characters,
-                     .CharacterLengths(tr, set[["grid"]][["x"]], paths, p[["rate"]],
-                                       model[["gamma"]]), nState)
+    lengths <- .CharacterLengths(tr, set[["grid"]][["x"]], paths, p[["rate"]],
+                                 model[["gamma"]])
+    h * if (gammaRates) {
+      MkLikelihood(tr, characters, lengths, alpha = p[["alpha"]])
+    } else {
+      MkLikelihood(tr, characters, lengths, nState)
+    }
   }
   set <- .AddSlices(tree, .Precompute(tree, par, model), nSlice)
   msg <- .Messages(tree, set)
@@ -395,6 +428,12 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   st <- list(tree = tree, par = par, set = set, msg = msg,
              paths = draw[["paths"]], bin = draw[["bin"]])
   st[["charLL"]] <- CharLL(tree, st[["paths"]], par, set)
+  # A non-finite start would make every acceptance ratio non-finite (#98, R98-1)
+  if (!is.finite(st[["charLL"]])) {
+    stop("The character log-likelihood at the start is not finite (",
+         st[["charLL"]], "): check `start$rate` (and `start$alpha`); a very low ",
+         "rate can underflow a character's likelihood in the C++ engine")
+  }
   # Reuses the current set when only parameters outside E change (`rate`)
   Target <- function(p, current) {
     s <- if (.SameSet(current[["set"]], st[["tree"]], p)) {
@@ -409,10 +448,11 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   hits <- numeric(length(priors))
   jointStep <- step
   jointHits <- hits
-  moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L),
-                                 c(moveNames, "parameters"))
+  moveTry <- moveAcc <- setNames(numeric(length(moveNames) + 1L + alphaFree),
+                                 c(moveNames, "parameters", if (alphaFree) "alpha"))
   burninAcceptance <- NULL
   tuneNames <- c("step", "hits", "jointStep", "jointHits", "ageStep", "ageHits",
+                 "alphaStep", "alphaHits",
                  "moves", "moveTry", "moveAcc", "burninAcceptance")
   mc3 <- if (nChain > 1) .Mc3Init(st, nChain, deltaHeat, mget(tuneNames), CharLL)
   pathNodes <- .PathNodes(tree)
@@ -424,9 +464,11 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
   } else {
     function(a) 0
   }
-  samples <- matrix(NA_real_, nKeep, length(priors) + 3L + length(statNames),
-                    dimnames = list(NULL, c(names(priors), "logPost", "rootBin",
-                                            "meanX", statNames)))
+  alphaName <- if (gammaRates) "alpha"
+  samples <- matrix(NA_real_, nKeep,
+                    length(priors) + length(alphaName) + 3L + length(statNames),
+                    dimnames = list(NULL, c(names(priors), alphaName, "logPost",
+                                            "rootBin", "meanX", statNames)))
   occupancy <- matrix(NA_real_, nKeep, model[["nBin"]])
   branchX <- matrix(NA_real_, nKeep, length(pathNodes))
   treeMoves <- c("nodeAge", "fossilAge", "slide", "saJump")
@@ -509,6 +551,17 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
         }
       }
     }
+    if (alphaFree && updateParameters) {
+      res <- .AlphaMove(st, alphaStep, AlphaPrior, CharLL)
+      st <- res[["state"]]
+      moveTry[["alpha"]] <- moveTry[["alpha"]] + 1
+      moveAcc[["alpha"]] <- moveAcc[["alpha"]] + res[["accepted"]]
+      alphaHits <- alphaHits + res[["accepted"]]
+      if (i <= burnin && i %% 20 == 0) {
+        alphaStep <- .Adapt(alphaStep, alphaHits / 20)
+        alphaHits <- 0
+      }
+    }
     if (i <= burnin && i %% 20 == 0) {
       for (move in names(ageMoves)[moves[names(ageMoves)] > 0]) {
         ageStep[[move]] <- .Adapt(ageStep[[move]], ageHits[[move]] / (20 * moves[[move]]))
@@ -545,8 +598,10 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
       x <- st[["set"]][["grid"]][["x"]]
       samples[j / thin, ] <- c(
         unlist(st[["par"]][names(priors)]),
+        if (gammaRates) st[["par"]][["alpha"]],
         .LogAugmented(tr, st[["set"]], st[["paths"]], st[["bin"]]) +
-          st[["charLL"]] + .LogPrior(st[["par"]], priors) + AgePrior(.StartAge(tr)),
+          st[["charLL"]] + .LogPrior(st[["par"]], priors) + AgePrior(.StartAge(tr)) +
+          AlphaPrior(st[["par"]][["alpha"]]),
         st[["bin"]][[tr[["root"]]]], summ[["meanX"]],
         .TreeStats(tr, Below(tr, 1), Below(tr, -1)),
         if (origin) c(.StartAge(tr), .TopBin(tr, st[["bin"]], tr[["root"]])))
@@ -564,6 +619,64 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
     ),
     if (nChain > 1) list(heats = mc3[["heats"]], swaps = .SwapTable(mc3))
   )
+}
+
+# Checks the Gamma shape of the character model (#97): its start value, and
+# its prior `charPriors$alpha`, if any; returns whether alpha is free
+.CheckCharPriors <- function(charPriors, priors, par, gammaRates) {
+  if (is.null(charPriors)) {
+    charPriors <- list()
+  }
+  if (!is.list(charPriors) || length(setdiff(names(charPriors), "alpha")) ||
+      length(charPriors) != sum(names(charPriors) %in% "alpha")) {
+    stop("`charPriors` must be a list with at most an element `alpha`")
+  }
+  if ("alpha" %in% names(priors)) {
+    stop("The prior of the Gamma shape `alpha` goes in `charPriors`, not `priors`")
+  }
+  if (!is.null(charPriors[["alpha"]]) && !is.function(charPriors[["alpha"]])) {
+    stop("`charPriors$alpha` must be a function giving the log prior density ",
+         "of alpha")
+  }
+  free <- is.function(charPriors[["alpha"]])
+  if (!gammaRates) {
+    if (free) {
+      stop("`charPriors$alpha` needs `characters` from MkCharacters() with ",
+           "`nRateCat` > 1")
+    }
+    return(FALSE)
+  }
+  alpha <- par[["alpha"]]
+  if (!is.numeric(alpha) || length(alpha) != 1L || !isTRUE(is.finite(alpha) && alpha > 0)) {
+    stop("`start$alpha` must give the shape of the Gamma rates among characters, ",
+         "a positive number")
+  }
+  if (free && !is.finite(charPriors[["alpha"]](alpha))) {
+    stop("`start$alpha` is outside the support of `charPriors$alpha`")
+  }
+  free
+}
+
+# Scale move on the Gamma shape alpha, on the characters' likelihood at the
+# current tree, paths and rate (nothing else depends on alpha)
+.AlphaMove <- function(st, step, prior, CharLL) {
+  reject <- list(state = st, accepted = FALSE)
+  proposal <- st[["par"]]
+  factor <- exp(step * (stats::runif(1) - 0.5))
+  proposal[["alpha"]] <- proposal[["alpha"]] * factor
+  lp <- prior(proposal[["alpha"]])
+  if (!is.finite(lp)) {
+    return(reject)
+  }
+  charLL <- CharLL(st[["tree"]], st[["paths"]], proposal, st[["set"]])
+  logRatio <- charLL - st[["charLL"]] + lp - prior(st[["par"]][["alpha"]]) +
+    log(factor)
+  if (is.finite(logRatio) && log(stats::runif(1)) < logRatio) {
+    st[["par"]] <- proposal
+    st[["charLL"]] <- charLL
+    return(list(state = st, accepted = TRUE))
+  }
+  reject
 }
 
 # Whole-tree draws (`tree`, `joint`) that the characters reject are dropped
@@ -614,8 +727,8 @@ TempoMCMC <- function(tree, model, start, priors, nIter, burnin = 0, thin = 1,
 #' add them to the returned vector.
 #'
 #' @param tree A [`TempoTree`][TempoTree()], or a tree that it accepts.
-#' @param characters Optional matrix of character states, as for
-#' [TempoMCMC()].
+#' @param characters Optional matrix of character states, or characters
+#' from [MkCharacters()], as for [TempoMCMC()].
 #' @param model Optional [`DCETModel`][DCETModel()]; only its `gamma` is used.
 #' @param local Numeric giving the number of each local path move per
 #' iteration, as a fraction of the elements it updates.
@@ -635,7 +748,7 @@ TempoMoves <- function(tree, characters = NULL, model = NULL, local = 0.25) {
     stop("`local` must be a single positive number")
   }
   tree <- TempoTree(tree)
-  scored <- !is.null(characters) && NCOL(characters) > 0 &&
+  scored <- !is.null(characters) && .NCharacters(characters) > 0 &&
     (is.null(model) || model[["gamma"]] != 0)
   if (!scored) {
     return(c(tree = 1, node = 2, tip = 2, branch = 2, joint = 1, shift = 1))

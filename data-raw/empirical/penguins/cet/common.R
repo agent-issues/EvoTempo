@@ -318,6 +318,226 @@ Chains <- function(root) {
   out
 }
 
+# ---- Expected chain set (#101) ----------------------------------------------------
+# `bayes-factors.R combine` must use every chain that was launched, not just the
+# chains it happens to find with a cross.csv: eval writes cross.csv only after
+# its checks pass, so a chain whose eval failed (or was never run) used to drop
+# out of the Bayes factors without a message (found in the trilobite pipeline,
+# #91 delta review, N2; this pipeline had the same gap).
+#
+# The expected set comes from the launch record <run root>/launch.csv, one row
+# per launched group of chains (cells x replicates x rungs):
+#   cell   the (beta, gamma) label as run-chain.R writes it: b0g0, b1g1, b0.5g0
+#   reps   number of replicates; the group is runs 1..reps
+#   power  character power (optional; default 1)
+#   mkv    Mkv variant (optional; default "pattern")
+# For example, the production launch (run-array.sh --array=1-16) plus one rung
+# of 4 replicates (CET_CELL=b0.5g0, --array=1-4):
+#   cell,reps
+#   b0g0,4
+#   b0g1,4
+#   b1g0,4
+#   b1g1,4
+#   b0.5g0,4
+# A rung launched with its own replicate count, a power ladder (power = t) or
+# another Mkv variant (mkv = allTips or none) gets its own row.
+# Without launch.csv the expected set is the production launch alone: the four
+# cells x CET_BF_REPS (default 4) replicates at power 1.  `reps` must be a
+# whole number >= 1 (2.7 used to be truncated to 2), and a record that selects
+# no chain of the CET_MKV variant stops (#103 review, R103-8, R103-10).
+ExpectedChains <- function(root, mkv = .cet$mkv) {
+  f <- file.path(root, "launch.csv")
+  if (file.exists(f)) {
+    L <- utils::read.csv(f, colClasses = "character", strip.white = TRUE)
+    if (!all(c("cell", "reps") %in% names(L)) || !nrow(L)) {
+      stop(f, " needs columns cell and reps (optional: power, mkv) and at least one row")
+    }
+    source <- f
+  } else {
+    L <- data.frame(cell = mapply(CellLabel, cells$beta, cells$gamma),
+                    reps = Sys.getenv("CET_BF_REPS", "4"))
+    source <- sprintf("no launch.csv: production default, 4 cells x %s replicates", L$reps[1])
+  }
+  if (is.null(L$power)) L$power <- "1"
+  if (is.null(L$mkv)) L$mkv <- "pattern"
+  L$power[is.na(L$power) | !nzchar(L$power)] <- "1"
+  L$mkv[is.na(L$mkv) | !nzchar(L$mkv)] <- "pattern"
+  out <- do.call(rbind, lapply(seq_len(nrow(L)), function(i) {
+    reps <- if (grepl("^[0-9]+$", trimws(L$reps[i]))) as.integer(L$reps[i]) else NA_integer_
+    power <- suppressWarnings(as.numeric(L$power[i]))
+    if (is.na(reps) || reps < 1L || is.na(power)) {
+      stop(sprintf("%s row %d: reps must be a whole number >= 1 (got '%s') and power a number",
+                   source, i, L$reps[i]))
+    }
+    cell <- ParseLabel(paste0(L$cell[i], "_run1"))
+    label <- paste0(CellLabel(cell$beta, cell$gamma), MkvSuffix(L$mkv[i]),
+                    if (power != 1) paste0("_t", FormatValue(power)), "_run", seq_len(reps))
+    do.call(rbind, lapply(label, ParseLabel))
+  }))
+  out <- out[out$mkv == mkv, ]
+  if (!nrow(out)) stop(sprintf("%s: no expected chain of Mkv variant %s (CET_MKV)", source, mkv))
+  if (anyDuplicated(ChainKey(out))) stop(source, " lists a chain twice")
+  attr(out, "source") <- source
+  out
+}
+ChainKey <- function(x) {
+  if (!nrow(x)) return(character())
+  paste(vapply(x$beta, FormatValue, ""), vapply(x$gamma, FormatValue, ""), x$mkv,
+        vapply(x$power, FormatValue, ""), x$rep)
+}
+# Every chain directory under `root` (run-chain.R output: seg*_samples.csv,
+# checkpoint.rds or progress.txt), with or without a complete segment, so that a
+# launched chain missing from the record is flagged even before it has written
+# a segment (R103-9)
+ChainDirs <- function(root) {
+  dirs <- list.dirs(root, recursive = FALSE)
+  isChain <- vapply(dirs, function(d) {
+    length(Sys.glob(file.path(d, "seg*_samples.csv"))) > 0L ||
+      file.exists(file.path(d, "checkpoint.rds")) || file.exists(file.path(d, "progress.txt"))
+  }, TRUE)
+  out <- do.call(rbind, lapply(dirs[isChain], function(d) cbind(ParseLabel(basename(d)), dir = d)))
+  if (is.null(out)) {
+    out <- data.frame(label = character(), beta = numeric(), gamma = numeric(),
+                      mkv = character(), power = numeric(), rep = integer(), dir = character())
+  }
+  out
+}
+# A chain is complete when the last line of its progress.txt says so
+# (run-chain.R writes "<time> complete" after the last segment, and a resumed
+# or extended chain writes later lines after any earlier "complete")
+ChainComplete <- function(dir) {
+  f <- file.path(dir, "progress.txt")
+  if (!file.exists(f)) return(FALSE)
+  x <- trimws(readLines(f, warn = FALSE))
+  x <- x[nzchar(x)]
+  length(x) > 0L && grepl(" complete$", x[length(x)])
+}
+# What eval read (R103-2): the number of sample rows and an md5 over the
+# chain's seg*_samples.csv files (not the states files, which may be deleted
+# once eval has run).  eval records both in cross.csv (evalSamples,
+# evalSegMd5), and combine refuses a cross.csv whose chain has changed since.
+SegmentFingerprint <- function(dir) {
+  f <- sort(Sys.glob(file.path(dir, "seg*_samples.csv")))
+  n <- sum(vapply(f, function(x) nrow(utils::read.csv(x)), 0L))
+  tmp <- tempfile()
+  on.exit(unlink(tmp))
+  writeLines(paste(basename(f), unname(tools::md5sum(f))), tmp)
+  # "md5:" keeps read.csv from reading an all-digit hash as a number
+  list(samples = n, md5 = paste0("md5:", unname(tools::md5sum(tmp))))
+}
+# Problems with the cross.csv files combine is about to use (`cross`, named by
+# chain label; `ch`, their rows of Chains()): stale (eval read other sample
+# files than the chain has now, or recorded nothing; R103-2), and, when `tol`
+# is given, eval's checks: `check` and `checkChar` must be within the stricter
+# of `tol` and the tolerance eval recorded (evalTol) (review of #91, A2;
+# R103-2).  Returns one line per bad chain.
+CrossProblems <- function(ch, cross, tol = NULL) {
+  unlist(lapply(seq_along(cross), function(i) {
+    x <- cross[[i]]
+    lab <- names(cross)[i]
+    if (!all(c("evalSamples", "evalSegMd5") %in% names(x))) {
+      return(sprintf("%s: cross.csv does not record what eval read (written before #103); rerun eval", lab))
+    }
+    fp <- SegmentFingerprint(ch$dir[ch$label == lab])
+    if (x$evalSamples[1] != fp$samples || x$evalSegMd5[1] != fp$md5) {
+      return(sprintf("%s: cross.csv is stale: eval read %d samples (md5 %s), the chain now has %d (md5 %s); rerun eval",
+                     lab, x$evalSamples[1], x$evalSegMd5[1], fp$samples, fp$md5))
+    }
+    if (is.null(tol)) return(NULL)
+    cols <- intersect(c("check", "checkChar"), names(x))
+    if (length(cols) < 2L) return(sprintf("%s: cross.csv has no checkChar column; rerun eval", lab))
+    use <- min(tol, if (!is.null(x$evalTol)) x$evalTol[1] else tol)
+    v <- as.matrix(x[, cols])
+    if (!all(is.finite(v)) || !all(abs(v) <= use)) {
+      return(sprintf("%s: cross.csv fails eval's checks (max |check|, |checkChar| %.3g > tolerance %g)",
+                     lab, max(abs(v)), use))
+    }
+    NULL
+  }))
+}
+# Compare the chains under `root` (`found`: Chains(), chains with a complete
+# segment) with the expected set.  For the CET_MKV variant, combine stops if:
+# - an expected chain has no complete segment;
+# - an expected chain at power 1 (the chains the bridges use) has no cross.csv;
+# - an expected chain is not complete (last progress.txt line; R103-2);
+# - a chain directory, with or without a segment, is not in the record (R103-9);
+# - two directories hold the same chain (e.g. b0g0_run1 and b0g0_run01; R103-7).
+# The opt-outs are explicit and per chain: CET_BF_ALLOW_MISSING (labels such as
+# b0g0_run3) lets combine leave a missing chain out, everywhere: bridges and
+# stepping-stone; CET_BF_ALLOW_INCOMPLETE lets it use a chain that is not
+# complete.  Each named chain must be expected.  Returns the labels left out,
+# with attribute "incomplete" (the incomplete chains used on request).
+CheckChainSet <- function(root, found, mkv = .cet$mkv,
+                          allow = strsplit(Sys.getenv("CET_BF_ALLOW_MISSING"), ",")[[1]],
+                          allowIncomplete = strsplit(Sys.getenv("CET_BF_ALLOW_INCOMPLETE"), ",")[[1]]) {
+  allow <- trimws(allow[nzchar(trimws(allow))])
+  allowIncomplete <- trimws(allowIncomplete[nzchar(trimws(allowIncomplete))])
+  expected <- ExpectedChains(root, mkv)
+  found <- found[found$mkv == mkv, ]
+  dirs <- ChainDirs(root)
+  dirs <- dirs[dirs$mkv == mkv, ]
+  dKey <- ChainKey(dirs)
+  fKey <- ChainKey(found)
+  eKey <- ChainKey(expected)
+  hasCross <- file.exists(file.path(found$dir, "cross.csv"))
+  absent <- expected$label[!eKey %in% fKey]
+  noCross <- found$label[fKey %in% eKey & found$power == 1 & !hasCross]
+  unknown <- dirs$label[!dKey %in% eKey]
+  unknown <- paste0(unknown, ifelse(dirs$label[!dKey %in% eKey] %in% found$label, "",
+                                    " (no complete segment yet)"))
+  dup <- dirs$label[dKey %in% dKey[duplicated(dKey)]]
+  missing <- c(absent, noCross)
+  leftOut <- intersect(missing, allow)
+  # Completeness matters for every chain that will be used (not for one left out)
+  incomplete <- setdiff(found$label[fKey %in% eKey & !vapply(found$dir, ChainComplete, TRUE)], leftOut)
+  badAllow <- setdiff(c(allow, allowIncomplete), expected$label)
+  cat(sprintf(paste("Expected chains (mkv %s): %d (%s); found %d; missing %d; not complete %d;",
+                    "not in the launch record %d\n"),
+              mkv, nrow(expected), attr(expected, "source"), nrow(found), length(missing),
+              length(incomplete), length(unknown)))
+  List <- function(what, x) if (length(x)) paste0(what, ": ", paste(x, collapse = ", "))
+  problems <- c(
+    List("no complete segment (chain directory missing or empty)", setdiff(absent, allow)),
+    List("no cross.csv (eval failed or was not run)", setdiff(noCross, allow)),
+    List("not complete (last line of progress.txt is not 'complete'; CET_BF_ALLOW_INCOMPLETE to use anyway)",
+         setdiff(incomplete, allowIncomplete)),
+    List("found but not in the launch record (add to <run root>/launch.csv)", unknown),
+    List("two directories hold the same chain", dup),
+    List("CET_BF_ALLOW_MISSING / CET_BF_ALLOW_INCOMPLETE name chains that are not expected", badAllow))
+  if (length(problems)) {
+    stop("combine: the chain set does not match the launch record; no Bayes factor is reported.\n  ",
+         paste(problems, collapse = "\n  "),
+         "\n  To leave a chain out on purpose, name it in CET_BF_ALLOW_MISSING.", call. = FALSE)
+  }
+  if (length(leftOut)) {
+    cat(sprintf("Left out on request (CET_BF_ALLOW_MISSING): %s (from bridges and stepping-stone)\n",
+                paste(leftOut, collapse = ", ")))
+  }
+  usedIncomplete <- intersect(incomplete, allowIncomplete)
+  if (length(usedIncomplete)) {
+    cat(sprintf("Used although not complete (CET_BF_ALLOW_INCOMPLETE): %s\n",
+                paste(usedIncomplete, collapse = ", ")))
+  }
+  structure(leftOut, incomplete = usedIncomplete)
+}
+# chains-used.csv (R103-12): every chain of the CET_MKV variant combine found
+# or expected, with its role in the outputs beside it
+ChainsUsed <- function(chAll, leftOut, cross, mkv = .cet$mkv) {
+  x <- chAll[chAll$mkv == mkv, c("label", "beta", "gamma", "mkv", "power", "rep")]
+  if (length(leftOut)) {
+    x <- rbind(x, do.call(rbind, lapply(leftOut, ParseLabel))[, names(x)])
+    x <- x[!duplicated(x$label), ]
+  }
+  x$role <- ifelse(x$label %in% leftOut, "left out (CET_BF_ALLOW_MISSING)",
+                   ifelse(x$power == 1, "bridge", "stepping-stone"))
+  x$incompleteAllowed <- x$label %in% attr(leftOut, "incomplete")
+  x$evalSamples <- vapply(x$label, function(l) if (is.null(cross[[l]])) NA_real_ else
+    as.numeric(cross[[l]]$evalSamples[1]), 0)
+  x$evalSegMd5 <- vapply(x$label, function(l) if (is.null(cross[[l]]$evalSegMd5)) NA_character_ else
+    as.character(cross[[l]]$evalSegMd5[1]), "")
+  x
+}
+
 CetModel <- function(beta, gamma,
                      nBin = as.integer(Sys.getenv("CET_NBIN", "26")),
                      zMax = as.numeric(Sys.getenv("CET_ZMAX", "5"))) {

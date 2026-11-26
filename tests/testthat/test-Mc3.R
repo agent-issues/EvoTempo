@@ -109,7 +109,12 @@ test_that("Heat acts as a power on the character likelihood in every move", {
          agePriors = list(origin = function(a) stats::dunif(a, 4, 8, log = TRUE))),
     # With `rate` fixed a shift changes the character likelihood
     list(model = mc3Model, moves = c(node = 1, tip = 1, shift = 3),
-         priors = mc3Priors[c("lambda", "theta")], agePriors = list())
+         priors = mc3Priors[c("lambda", "theta")], agePriors = list()),
+    # Gamma rates among characters: the move on their shape
+    list(model = mc3Model, moves = c(node = 1, tip = 1, slide = 1), priors = mc3Priors,
+         agePriors = list(), characters = MkCharacters(oracleChars, nRateCat = 4),
+         start = c(oraclePar, alpha = 0.8),
+         charPriors = list(alpha = function(a) stats::dexp(a, 1, log = TRUE)))
   )
   Mk <- MkLikelihood
   for (case in cases) {
@@ -119,10 +124,12 @@ test_that("Heat acts as a power on the character likelihood in every move", {
         MkLikelihood = function(...) power * Mk(...)
       )
       set.seed(21)
-      TempoMCMC(TempoTree(phylo, ranges = ranges), case$model, oraclePar, case$priors,
-                nIter = 30, burnin = 20, nSlice = 4, characters = oracleChars,
-                moves = case$moves, agePriors = case$agePriors, minAcceptance = 0,
-                nChain = 2)
+      TempoMCMC(TempoTree(phylo, ranges = ranges), case$model,
+                if (is.null(case$start)) oraclePar else case$start, case$priors,
+                nIter = 30, burnin = 20, nSlice = 4,
+                characters = if (is.null(case$characters)) oracleChars else case$characters,
+                moves = case$moves, agePriors = case$agePriors,
+                charPriors = as.list(case$charPriors), minAcceptance = 0, nChain = 2)
     }
     heated <- Run(c(0.5, 0.2), 1)
     powered <- Run(c(1, 0.4), 0.5)
@@ -130,7 +137,7 @@ test_that("Heat acts as a power on the character likelihood in every move", {
     expect_identical(heated$acceptance, powered$acceptance)
     expect_identical(heated$swaps[c("tries", "accepted")], powered$swaps[c("tries", "accepted")])
     # Every move ran and was accepted at least once, and levels were exchanged
-    expect_true(all(heated$acceptance[names(case$moves)] > 0))
+    expect_true(all(heated$acceptance[c(names(case$moves), names(case$charPriors))] > 0))
     expect_gt(sum(heated$swaps$accepted), 0)
     # The likelihood matters: the unheated chain differs
     expect_false(isTRUE(all.equal(heated$samples, Run(c(1, 0.4), 1)$samples)))

@@ -103,3 +103,10 @@
   nearby lineage, chosen within a log-uniform MRCA-age threshold, so that it
   mixes local (narrow-exchange-like) and global rearrangements
   ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).
+- The C++ engine of `MkLikelihood()` caches partial likelihoods per character
+  matrix between calls, so a `TempoMCMC()` proposal recomputes only the nodes
+  whose subtree or child branch lengths changed; results are bitwise those of a
+  full evaluation.  `options(EvoTempo.mkCache = FALSE)` turns the cache off.
+  On the penguin data the cache saves 5-15% of an iteration; the penguin
+  pipeline's Mkv correction, now computed in C++, gives most of a 1.7-1.9x
+  speed-up ([#110](https://github.com/agent-issues/EvoTempo/issues/110)).

@@ -25,9 +25,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// MkLikelihoodCpp
-double MkLikelihoodCpp(List tree, IntegerMatrix characters, NumericVector lengths, int nState);
-RcppExport SEXP _EvoTempo_MkLikelihoodCpp(SEXP treeSEXP, SEXP charactersSEXP, SEXP lengthsSEXP, SEXP nStateSEXP) {
+// MkCpp
+NumericVector MkCpp(List tree, IntegerMatrix characters, NumericVector lengths, int nState, bool sites, bool cache);
+RcppExport SEXP _EvoTempo_MkCpp(SEXP treeSEXP, SEXP charactersSEXP, SEXP lengthsSEXP, SEXP nStateSEXP, SEXP sitesSEXP, SEXP cacheSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -35,7 +35,21 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerMatrix >::type characters(charactersSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type lengths(lengthsSEXP);
     Rcpp::traits::input_parameter< int >::type nState(nStateSEXP);
-    rcpp_result_gen = Rcpp::wrap(MkLikelihoodCpp(tree, characters, lengths, nState));
+    Rcpp::traits::input_parameter< bool >::type sites(sitesSEXP);
+    Rcpp::traits::input_parameter< bool >::type cache(cacheSEXP);
+    rcpp_result_gen = Rcpp::wrap(MkCpp(tree, characters, lengths, nState, sites, cache));
+    return rcpp_result_gen;
+END_RCPP
+}
+// MkCacheCpp
+List MkCacheCpp(bool clear, bool corrupt);
+RcppExport SEXP _EvoTempo_MkCacheCpp(SEXP clearSEXP, SEXP corruptSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< bool >::type clear(clearSEXP);
+    Rcpp::traits::input_parameter< bool >::type corrupt(corruptSEXP);
+    rcpp_result_gen = Rcpp::wrap(MkCacheCpp(clear, corrupt));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -418,7 +432,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_EvoTempo_MkCharactersCpp", (DL_FUNC) &_EvoTempo_MkCharactersCpp, 5},
-    {"_EvoTempo_MkLikelihoodCpp", (DL_FUNC) &_EvoTempo_MkLikelihoodCpp, 4},
+    {"_EvoTempo_MkCpp", (DL_FUNC) &_EvoTempo_MkCpp, 6},
+    {"_EvoTempo_MkCacheCpp", (DL_FUNC) &_EvoTempo_MkCacheCpp, 2},
     {"_EvoTempo_PiecesCpp", (DL_FUNC) &_EvoTempo_PiecesCpp, 3},
     {"_EvoTempo_SliceExpCpp", (DL_FUNC) &_EvoTempo_SliceExpCpp, 3},
     {"_EvoTempo_MessagesCpp", (DL_FUNC) &_EvoTempo_MessagesCpp, 2},

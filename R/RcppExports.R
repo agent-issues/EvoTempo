@@ -5,8 +5,12 @@
     .Call(`_EvoTempo_MkCharactersCpp`, tree, partitions, lengths, rates, variable)
 }
 
-.MkLikelihoodCpp <- function(tree, characters, lengths, nState) {
-    .Call(`_EvoTempo_MkLikelihoodCpp`, tree, characters, lengths, nState)
+.MkCpp <- function(tree, characters, lengths, nState, sites, cache) {
+    .Call(`_EvoTempo_MkCpp`, tree, characters, lengths, nState, sites, cache)
+}
+
+.MkCacheCpp <- function(clear, corrupt) {
+    .Call(`_EvoTempo_MkCacheCpp`, clear, corrupt)
 }
 
 .PiecesCpp <- function(tree, set, v) {

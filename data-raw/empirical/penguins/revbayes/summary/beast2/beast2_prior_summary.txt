@@ -1,0 +1,45 @@
+n samples 9001
+samplingProportion,0.25368,0.0024853,0.63158
+turnover,0.84357,0.53603,0.99733
+diversificationRate,0.021732,0.0013394,0.048272
+SACount,16.568,3,29
+origin,72.245,60.756,91.487
+lambda_minus_mu_minus_psi,-0.01897,-0.05566,0.020763
+SA count: n, mean s: 0:7,0.006; 1:18,0.016; 2:44,0.021; 3:62,0.024; 4:94,0.032; 5:144,0.041; 6:184,0.050; 7:218,0.065; 8:320,0.071; 9:324,0.090; 10:407,0.102; 11:406,0.110; 12:502,0.133; 13:454,0.148; 14:501,0.168; 15:512,0.189; 16:480,0.205; 17:490,0.230; 18:469,0.254; 19:433,0.279; 20:413,0.305; 21:353,0.340; 22:311,0.372; 23:307,0.402; 24:279,0.429; 25:244,0.472; 26:229,0.508; 27:172,0.549; 28:160,0.584; 29:135,0.601; 30:98,0.657; 31:79,0.689; 32:46,0.715; 33:55,0.781; 34:29,0.831; 35:16,0.884; 36:6,0.903
+trees 9001
+PSA,Anthropornis_grandis,0.491
+PSA,Anthropornis_nordenskjoeldi,0.488
+PSA,Archaeospheniscus_lopdelli,0.402
+PSA,Archaeospheniscus_lowei,0.406
+PSA,Burnside_Palaeudyptes,0.472
+PSA,Delphinornis_arctowskii,0.464
+PSA,Delphinornis_gracilis,0.456
+PSA,Delphinornis_larseni,0.506
+PSA,Delphinornis_wimani,0.501
+PSA,Duntroonornis_parvus,0.393
+PSA,Eretiscus_tonnii,0.409
+PSA,Icadyptes_salasi,0.437
+PSA,Inkayacu_paracasensis,0.440
+PSA,Kairuku_grebneffi,0.399
+PSA,Kairuku_waitaki,0.397
+PSA,Madrynornis_mirandus,0.518
+PSA,Marambiornis_exilis,0.467
+PSA,Marplesornis_novaezealandiae,0.489
+PSA,Mesetaornis_polaris,0.465
+PSA,Pachydyptes_ponderosus,0.396
+PSA,Palaeeudyptes_antarcticus,0.390
+PSA,Palaeeudyptes_gunnari,0.492
+PSA,Palaeeudyptes_klekowskii,0.500
+PSA,Palaeospheniscus_bergi,0.433
+PSA,Palaeospheniscus_biloculata,0.403
+PSA,Palaeospheniscus_patagonicus,0.404
+PSA,Paraptenodytes_antarcticus,0.398
+PSA,Perudyptes_devriesi,0.525
+PSA,Platydyptes_marplesi,0.393
+PSA,Platydyptes_novaezealandiae,0.378
+PSA,Pygoscelis_grandis,0.579
+PSA,Spheniscus_megaramphus,0.509
+PSA,Spheniscus_muizoni,0.512
+PSA,Spheniscus_urbinai,0.516
+PSA,Waimanu_manneringi,0.620
+PSA,Waimanu_tuatahi,0.521

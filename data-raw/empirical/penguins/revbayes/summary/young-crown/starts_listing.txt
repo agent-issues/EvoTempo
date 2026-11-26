@@ -1,0 +1,11 @@
+total 24
+drwxr-xr-x  2 pjjg18 URP_dgl 4096 Nov 13 13:16 .
+drwxr-xr-x 11 pjjg18 URP_dgl 4096 Nov 16 08:09 ..
+-rw-r--r--  1 pjjg18 URP_dgl 2909 Nov 13 13:16 yc_100000000.nwk
+-rw-r--r--  1 pjjg18 URP_dgl 2279 Nov 13 13:16 yc_100000000.Rev
+-rw-r--r--  1 pjjg18 URP_dgl 2909 Nov 13 13:16 yc_72380000.nwk
+-rw-r--r--  1 pjjg18 URP_dgl 2281 Nov 13 13:16 yc_72380000.Rev
+691dc847b162a4cf90cff446a3ec59da  starts/yc_100000000.nwk
+b0b7f2f4340de658ad43d901d1ce7efc  starts/yc_100000000.Rev
+17d40af3a418661a27f99c8d5e27458b  starts/yc_72380000.nwk
+f22bdedf4df3c0f94f756f3c3423b07e  starts/yc_72380000.Rev

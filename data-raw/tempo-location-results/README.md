@@ -15,7 +15,7 @@ first and last parameters. The rates are mapped to lineage-mean rates by multipl
 **Decomposition.** `v0/decomp.R` and `v0/decomp2.R` split each point's error into its window and grid-spacing parts.
 Their output is in `v0/decomposition-t*.txt`. Both scripts read the pilot chain from a local path; it is not in the repo.
 
-| t | s | secs | logLik | logLik, reference (K = 51 on [-7, 7] - alpha s) | difference | top-3 mass, root prior | top-3 mass, e^x-tilted law |
+| t | s | secs | logLik | logLik, reference (K = 51, z in [-7, 7]) | difference | top-3 mass, root prior | top-3 mass, e^x-tilted law |
 |---|---|---|---|---|---|---|---|
 | 0.0 | 0.96 | 0.31 | -830.972 | -831.055 | 0.083 | 7.3e-4 | 1.1e-3 |
 | 0.2 | 1.16 | 0.85 | -828.056 | -828.150 | 0.095 | 3.4e-4 | 2.1e-3 |
@@ -50,7 +50,7 @@ for the maintainer; see the PR.
 | 3 | beta = 0 collapse (`rung3-collapse.csv`) | <= 4.8e-10 relative |
 | 3 | Monte Carlo (`rung3-montecarlo*.csv`) | chi-squared p = 0.32, max abs(z) 2.80 |
 | 4a(i) | Augmented vs marginal posterior, 20 000 iterations (`rung4a-quantiles.csv`, `rung4a-summary.csv`) | max abs(z) 2.45 over 25 quantiles; KS p >= 0.085 |
-| 4a(ii) | Local moves vs weighted FFBS, 16 chains x 20 000 (`rung4a-ffbs-pooled16.csv`) | max abs(z) 2.73 (branch means), 2.36 (occupancy, bins with a non-zero reference) |
+| 4a(ii) | Local moves vs weighted FFBS, 16 chains, iterations 10 001-20 000 (`rung4a-ffbs-pooled16.csv`) | max abs(z) 0.84 (branch means), 1.67 (occupancy, bins with a non-zero reference) |
 | 4b | Likelihood check (`rung4b-likelihood-check.csv`) | abs(z) <= 1.34 |
 | 4b | One-parameter exact posterior: lambda, mu, theta (8 chains); s; psi (16 chains x 6000) | All abs(z) <= 1.65 (`log-onepar2.txt`, `log-ones.txt`) |
 | 4b | One-parameter, `shift` arm on theta (16 chains) | abs(z) <= 1.92 (`log-shift.txt`) |
@@ -65,15 +65,19 @@ for the maintainer; see the PR.
 - **4a(i).** A first run at 5000 iterations gave psi q50 z = 5.7 and s KS p = 0.001. At 20 000 iterations both pass, so
   the 5000-iteration result was mixing error. The old (`bm`) run at its own length flagged mu (z = 3.58) and psi
   (KS p = 0.01) in the same way.
-- **4a(ii).** The first 8 chains (seeds 501-508; `rung4a-ffbs.csv` is the report's table for these) gave branch means
-  1.5-2 sigma above FFBS (max abs(z) 3.10). A second, independent set of 8 chains (seeds 601-608) gave max abs(z) 1.87.
-  Pooled over 16 chains, the mean branch offset is 0.019 +/- 0.010.
+- **4a(ii).** The report's own table (`rung4a-ffbs.csv`: 8 chains, seeds 501-508, 20 000 iterations, all after
+  `burnin = 100`) shows branch means 1.5-3 sigma above FFBS, all of one sign. A second set of 8 chains (seeds 601-608)
+  was run to check this. Splitting the 16 chains in half shows a start-up transient, not a sampler bias.
+  - Iterations 1-10 000: branch max abs(z) 3.38, all positive.
+  - Iterations 10 001-20 000: branch max abs(z) 0.84, 10 of 16 positive; occupancy max abs(z) 1.67.
 
-  Occupancy bin 25 shows abs(z) of about 5. It is not a discrepancy: the FFBS reference has no draws in that bin, so
-  its SE is 0. The chains visit the bin with frequency 1e-5.
+  The cause is the short burn-in. The local chains start from paths up to +/-0.45 from the reference, and the
+  lag-100 autocorrelation of the branch mean is 0.53, so `burnin = 100` does not remove the transient. The committed
+  table uses the second half. `rung4-local-chains.R` keeps its 100-iteration burn-in; a longer burn-in there would
+  make the report's own table usable.
 
-  The `bm` table on `main` has 3-6 times larger chain SEs (3000 iterations), so it could not have resolved an offset of
-  this size.
+  Occupancy bin 25 has an undefined z. The FFBS reference has no draws there, so its SE is 0, while the chains visit
+  the bin with frequency 1e-5.
 - **4b one-parameter oracle.** `rung4b-one-parameter.R` now rebuilds stored pre-#116 models under `EVOTEMPO_LOCATION`,
   and its grid includes s.
 - **Not run.**
@@ -83,5 +87,6 @@ for the maintainer; see the PR.
   - V5, the Hymenoptera re-pilot, which belongs to the Hymenoptera pipeline.
 - **Running at the time of the PR.** `rung4b-theta-identity.R` (with and without the character), `rung4b-shift-fixed.R`,
   `rung5-age-oracle.R` (root, origin) and `rung5-age-validation.R` (root, origin, originFree). Hamilton jobs
-  19572305-11. The PR thread reports their results.
+  19572305-11. These scripts use their own fixtures, not the default grid: the rung 4b fixture, and K = 16 on
+  [-3, 3] for the start-age scripts. They run under `location = "mean"`. The PR thread reports their results.
 - **Logs.** `log-*.txt` are the Hamilton job logs. Each records the lib SHA and the source SHA.

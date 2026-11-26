@@ -1,7 +1,7 @@
 #!/bin/bash
 # Trilobite CET pipeline: smoke run on Hamilton's `test` partition.
 #
-#   sbatch -J evotempo-trilobite-cet-smoke --array=1-7 smoke.sh
+#   sbatch -J evotempo-trilobite-cet-smoke --array=1-10 smoke.sh
 #
 # From a checkout at $SRC with EvoTempo installed in $LIB and cet/data/ written
 # by prepare.R.  Tasks 1-4: cells (0,0), (0,1), (1,0), (1,1), replicate 1,
@@ -11,7 +11,9 @@
 # continuation; check-smoke.R).  Tasks 6 and 7: cells (1,1) and (0,0),
 # replicate 2, as tasks 1-4: their start trees (draws 8 and 5) have other tip
 # orders than replicate 1's, so check-smoke.R's eval of them covers the
-# start-tree path of bayes-factors.R (review of #91, A3).
+# start-tree path of bayes-factors.R (review of #91, A3).  Tasks 8-10: resume
+# in a second process, the predictive stop, and a kill before a checkpoint
+# (below; review of #114).
 # Logs: $W/out/<smoke dir>-<label>_run<rep>-<task>.txt.
 #SBATCH -p test
 #SBATCH -c 1
@@ -32,13 +34,78 @@ cd $SRC
 #   -p shared --time=02:00:00 --export=ALL,SMOKE_NITER=3000,SMOKE_BURNIN=500,SMOKE_SEG=1000,SMOKE_OUT=$W/pilot
 export CET_NITER=${SMOKE_NITER:-200} CET_BURNIN=${SMOKE_BURNIN:-40} CET_THIN=10
 export CET_SEG=${SMOKE_SEG:-100} CET_OUT=${SMOKE_OUT:-$W/smoke}
-cell=$SLURM_ARRAY_TASK_ID; rep=1
-if [ "$cell" = 5 ]; then cell=4; export CET_SEG=$CET_NITER CET_OUT=$CET_OUT-identity; fi
-if [ "$cell" = 6 ]; then cell=4; rep=2; fi
-if [ "$cell" = 7 ]; then cell=1; rep=2; fi
+task=$SLURM_ARRAY_TASK_ID; cell=$task; rep=1; runs=1
+if [ "$task" = 5 ]; then cell=4; export CET_SEG=$CET_NITER CET_OUT=$CET_OUT-identity; fi
+if [ "$task" = 6 ]; then cell=4; rep=2; fi
+if [ "$task" = 7 ]; then cell=1; rep=2; fi
+# Tasks 8-10 (review of #114, R114-1, R114-2): each runs run-chain.R in two to
+# four Rscript processes; a later process on the same chain resumes from the
+# checkpoint on disk.
+# 8: cell (1, 1) as task 4 with CET_HOURS=0: the first process stops after
+#    segment 1, the second resumes; check-smoke.R compares it with task 4 (one
+#    process) and task 5 (one segment).
+# 9: cell (0, 0), segments of 50, in four processes.  The first stops after
+#    segment 1 (CET_HOURS=0); its checkpoint records that segment's time,
+#    segSecs, and the shell records the process's wall time, wallSecs.
+#    The second starts a fresh chain, the same as the first, in its own
+#    directory ($CET_OUT-fresh), under a fake limit CET_WALL_HOURS =
+#    (wallSecs + 1.25 x segSecs) / 3600 (margin 0).  Before segment 2 its
+#    elapsed time (about wallSecs) + 1.5 x its own segment-1 time passes the
+#    limit; elapsed + 1.0 x that time does not, nor does 1.5 x that time
+#    alone.  So it must stop before segment 2 by the predictive term, using
+#    the elapsed time and the segment time measured in this process
+#    (run-chain.R's in-process update of lastSecs) (#114 delta review,
+#    D114-9a, 9b).  This needs the second run of segment 1, right after the
+#    first on the same node, to take between about 0.9 and 1.12 x the first's
+#    time; outside that the check fails rather than passes.
+#    The third resumes the first chain under CET_WALL_HOURS = (1.25 x segSecs
+#    + 5 s) / 3600: its elapsed time at the start is a few seconds, so elapsed
+#    + 1.5 x segSecs passes the limit and elapsed + 1.0 x segSecs does not
+#    (while elapsed < 0.25 x segSecs + 5 s; beyond that the check fails).  It
+#    must stop before its first segment, by the predictive term with the
+#    segSecs carried over in the checkpoint (a resubmitted job's first
+#    segment).  The fourth resumes with the default limit and completes.
+#    (#114 follow-up check: a fixed fake limit of 0.043 h falsely failed
+#    unmodified code on slower nodes.)
+# 10: as 9, but the first process is killed after writing segment 2's
+#    acceptance.csv rows and before its checkpoint (CET_TEST_KILL_SEGMENT=2):
+#    the second redoes segment 2; acceptance.csv must hold each segment once,
+#    and the samples must equal task 9's.
+case $task in
+  8) cell=4; runs=2; export CET_OUT=$CET_OUT-twoproc ;;
+  9) cell=1; runs=4; export CET_SEG=50 CET_OUT=$CET_OUT-predict ;;
+  10) cell=1; runs=2; export CET_SEG=50 CET_OUT=$CET_OUT-kill ;;
+esac
 labels=(x b0g0 b0g1 b1g0 b1g1)
 sfx=""; if [ -n "$CET_MKV" ] && [ "$CET_MKV" != pattern ]; then sfx=_mkv$CET_MKV; fi
-rm -rf $CET_OUT/${labels[$cell]}${sfx}_run$rep
-log=$W/out/$(basename $CET_OUT)-${labels[$cell]}${sfx}_run$rep-$SLURM_ARRAY_TASK_ID
-/usr/bin/time -v Rscript data-raw/empirical/trilobites/cet/run-chain.R $cell $rep > $log.txt 2> $log.err
-echo "exit $?" >> $log.txt
+rm -rf $CET_OUT/${labels[$cell]}${sfx}_run$rep $CET_OUT-fresh/${labels[$cell]}${sfx}_run$rep
+log=$W/out/$(basename $CET_OUT)-${labels[$cell]}${sfx}_run$rep-$task
+rm -f $log.txt $log.err
+for run in $(seq 1 $runs); do
+  first=""
+  if [ "$run" = 1 ]; then
+    case $task in
+      8|9) first="CET_HOURS=0" ;;
+      10) first="CET_TEST_KILL_SEGMENT=2" ;;
+    esac
+  fi
+  if [ "$task" = 9 ] && [ "$run" = 2 ]; then
+    secs=$(Rscript -e "cat(readRDS('$CET_OUT/${labels[$cell]}${sfx}_run$rep/checkpoint.rds')\$segSecs)")
+    wall=$(awk -v w="$wallSecs" -v s="$secs" 'BEGIN { printf "%.8f", (w + 1.25 * s) / 3600 }')
+    echo "fresh chain in $CET_OUT-fresh; wallSecs of process 1: $wallSecs; segSecs: $secs; CET_WALL_HOURS = ($wallSecs + 1.25 x $secs) / 3600 = $wall" >> $log.txt
+    first="CET_OUT=$CET_OUT-fresh CET_WALL_HOURS=$wall CET_WALL_MARGIN=0"
+  fi
+  if [ "$task" = 9 ] && [ "$run" = 3 ]; then
+    secs=$(Rscript -e "cat(readRDS('$CET_OUT/${labels[$cell]}${sfx}_run$rep/checkpoint.rds')\$segSecs)")
+    wall=$(awk -v s="$secs" 'BEGIN { printf "%.8f", (1.25 * s + 5) / 3600 }')
+    echo "segSecs from the checkpoint: $secs; CET_WALL_HOURS = (1.25 x $secs + 5) / 3600 = $wall" >> $log.txt
+    first="CET_WALL_HOURS=$wall CET_WALL_MARGIN=0"
+  fi
+  echo "process $run of $runs: $first" >> $log.txt
+  tStart=$(date +%s.%N)
+  env $first /usr/bin/time -v Rscript data-raw/empirical/trilobites/cet/run-chain.R $cell $rep \
+    >> $log.txt 2>> $log.err
+  status=$?
+  wallSecs=$(awk -v a="$tStart" -v b="$(date +%s.%N)" 'BEGIN { printf "%.3f", b - a }')
+  echo "exit $status" >> $log.txt
+done

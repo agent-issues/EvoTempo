@@ -1,0 +1,5 @@
+Resume of a checkpoint written before Gamma rates (round-1 smoke chain b0g0_run1, 48e6bf7):
+Error: /nobackup/pjjg18/evotempo-trilobite-gamma/guard/runs/b0g0_run1/checkpoint.rds holds a chain with another target; it differs in: nRateCat (checkpoint (none); this run 4); alphaPrior (checkpoint (none); this run alpha ~ Exponential(rate 2); 4 Gamma categories); alphaPriorCode (checkpoint (none); this run md5:2848b1ebf5692b45c5e7a08d5e406fde); charactersMd5 (checkpoint (none); this run md5:84162afedf9e1978eb926f7c454b3f3d); partitionsMd5 (checkpoint (none); this run md5:a04d8a3ae602df0d354d1fa5a5b3236a); evotempoVersion (checkpoint (none); this run 0.0.0.9000); evotempoSha (checkpoint (none); this run bf8ce1c2315dbb483c795c4832a70e0e90e05bd3); evotempoMd5 (checkpoint (none); this run md5:72a086483b7718f806af877fbc7b068e)
+Execution halted
+exit 1
+2026-11-11 15:37:56 complete 

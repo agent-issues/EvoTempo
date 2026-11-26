@@ -6,7 +6,7 @@
 # The procedure of the penguin pipeline (../../penguins/cet/bayes-factors.R and
 # its README, "Bayes factors"): all four cells share one state space (time
 # tree with sampled ancestors, tempo paths and bins, lambda, mu, psi, theta, s,
-# rate, origin) and one prior on it, so for cells A and B
+# rate, origin, and the Gamma shape alpha of the characters) and one prior on it, so for cells A and B
 #   log q_B(x) - log q_A(x) = [log p(T, paths | Theta, beta_B) - log p(T, paths | Theta, beta_A)]
 #                            + [log Mkv(D | T, paths, rate, gamma_B) - log Mkv(D | T, paths, rate, gamma_A)]
 # at every recorded state (`eval`), and two-sample bridge sampling (Meng & Wong
@@ -81,12 +81,13 @@ LogAugAt <- function(state, beta, gamma) {
                                      state$paths, state$bin),
            error = function(e) -Inf)
 }
+# Characters (MkCharacters(), Gamma rates) at power 1, at the state's alpha
 CharLLAt <- function(state, gamma, characters) {
   model <- CetModel(0, gamma)
   x <- TempoGrid(model$nBin, model$zRange, state$par$s)$x
-  PartitionedMk(state$tree, characters,
-                get(".CharacterLengths", .ns)(state$tree, x, state$paths, state$par$rate, gamma),
-                power = 1)
+  PoweredMk(state$tree, characters,
+            get(".CharacterLengths", .ns)(state$tree, x, state$paths, state$par$rate, gamma),
+            alpha = state$par$alpha, power = 1)
 }
 
 if (args[[1]] == "eval") {
@@ -121,7 +122,7 @@ if (args[[1]] == "eval") {
   tipLabel <- states[[1]]$tree$tipLabel
   stopifnot(all(vapply(states, function(st) identical(st$tree$tipLabel, tipLabel), TRUE)))
   dat <- LoadCharacters(tipLabel)
-  stopifnot(identical(rownames(dat$characters), tipLabel))
+  stopifnot(identical(dat$characters$tipLabel, tipLabel))
   idx <- which(s$keep)
   t0 <- proc.time()[["elapsed"]]
   out <- do.call(rbind, lapply(idx, function(i) {
@@ -132,8 +133,11 @@ if (args[[1]] == "eval") {
     # The chain's logPost includes the origin age prior (constant on its
     # support, so it cancels in the Bayes factors and is not in logPrior)
     la <- CetAgePriors()$origin(get(".StartAge", .ns)(st$tree))
+    # and that of the Gamma shape alpha (shared by every cell, so it too
+    # cancels in the Bayes factors)
+    lalpha <- CetCharPriors()$alpha(st$par$alpha)
     ownChar <- CharLLAt(st, me$gamma, dat$characters)
-    own <- LogAugAt(st, me$beta, me$gamma) + me$power * ownChar + lp + la
+    own <- LogAugAt(st, me$beta, me$gamma) + me$power * ownChar + lp + la + lalpha
     c(sample = i, setNames(aug, paste0("aug_b", vapply(betas, FormatValue, ""))),
       setNames(chr, paste0("chr_g", vapply(gammas, FormatValue, ""))), logPrior = lp,
       logJointW = JointPriorLogWeight(st$par, priors), check = own - s$samples$logPost[i],

@@ -1,0 +1,7 @@
+builds: /nobackup/pjjg18/evotempo-trilobite-cet/lib-48e6bf7/EvoTempo vs /nobackup/pjjg18/evotempo-trilobite-gamma/lib-bf8ce1c/EvoTempo
+free-parameter chain (survival, 120 samples x 19 columns): identical TRUE
+free-parameter chain (none, 120 samples x 19 columns): identical TRUE
+check-window.R (survival: 32 simulated trees, 2 chains x 30 samples): identical TRUE
+check-window.R (none: 32 simulated trees, 2 chains x 30 samples): identical TRUE
+check-identity.R: PASS (the character-free path is unchanged)
+exit 0

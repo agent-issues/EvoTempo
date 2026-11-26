@@ -14,7 +14,7 @@ pilot <- args[[1]]
 outDir <- if (length(args) > 1) args[[2]] else pilot
 dirs <- sort(list.dirs(pilot, recursive = FALSE))
 dirs <- dirs[grepl("_run[0-9]+$", basename(dirs))]
-quantities <- c("lambda", "mu", "psi", "theta", "s", "rate", "logPost", "charLL", "meanX",
+quantities <- c("lambda", "mu", "psi", "theta", "s", "rate", "alpha", "logPost", "charLL", "meanX",
                 "treeLength", "rootAge", "originAge", "nAncestor", "clock")
 conv <- list()
 timing <- list()

@@ -19,9 +19,24 @@
 #   CET_THIN         thinning (default 50)
 #   CET_SEG          sampling iterations per segment (default 2000; a multiple
 #                    of CET_THIN)
-#   CET_HOURS        stop cleanly after the segment that passes this many hours
-#                    (default 70, inside the 3-day `shared` limit); resubmit
-#                    the same command to continue from the checkpoint
+#   CET_HOURS        hard cap: stop cleanly after the segment that passes this
+#                    many hours (default 65); resubmit the same command to
+#                    continue from the checkpoint
+#   CET_WALL_HOURS   the job's wall-clock limit in hours (default 72, `shared`;
+#                    it is not read from Slurm: set it to match a shorter
+#                    --time),
+#   CET_WALL_MARGIN  less this margin (default 0.25): before each segment, stop
+#                    cleanly if the time elapsed plus 1.5 x the last segment's
+#                    time would pass CET_WALL_HOURS - CET_WALL_MARGIN, so that
+#                    Slurm never kills a chain inside a segment (review of
+#                    #114, R114-1: a 10 000-iteration segment takes 2.6-4.4 h)
+#   CET_ALLOW_REINSTALL  1 to resume under a reinstall of the same commit:
+#                    compare EvoTempo's version and BUILD_SHA but not the md5
+#                    of the installed code (do not rebuild lib-<sha> while
+#                    chains await resubmission; this is the way out if it was)
+#   CET_TEST_KILL_SEGMENT  testing only (smoke.sh task 10): quit with status
+#                    137 after writing segment k's acceptance.csv rows and
+#                    before its checkpoint, as a kill in that window would
 #   CET_POWER        power on the character likelihood (default 1)
 #   CET_MKV          "pattern" (default; one Mkv correction per missing-data
 #                    pattern, as RevBayes coding = "variable") or "none"; a
@@ -32,14 +47,20 @@
 #   CET_NBIN, CET_ZMAX   tempo grid (default 26 bins, z in [-5, 5])
 #   CET_STATES       "true" (default) to save per-sample states for
 #                    bayes-factors.R
-# The checkpoint records the target (beta, gamma, power, Mkv variant, grid) and
+# The checkpoint records the target (beta, gamma, power, Mkv variant, Gamma
+# rate categories, the alpha prior, md5s of data/characters.csv and
+# data/partitions.csv, the EvoTempo build: packageVersion(), the commit SHA
+# recorded in the install (BUILD_SHA) and an md5 of the installed code (R114-3,
+# R114-6); grid) and
 # the thinning and segment length, and a run with any of them different stops
 # rather than continue it (#74, #76).  It also records the start tree (md5,
 # and path relative to cet/), and a resume from a tree with another md5 or tip
 # order stops; the checkout path does not matter (#102).
-# Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples plus charLL;
+# Outputs per segment k: seg<k>_samples.csv (TempoMCMC() samples, with the
+# Gamma shape alpha, plus charLL;
 # logPrior, the log prior of the parameters; logOriginPrior, that of the origin
-# age, which TempoMCMC()'s logPost also includes; the iteration), seg<k>_trees.nwk
+# age, and logAlphaPrior, that of alpha, both of which TempoMCMC()'s logPost
+# also includes; the iteration), seg<k>_trees.nwk
 # (ages in Myr before 485.4 Ma), seg<k>_states.rds; acceptance.csv (per segment,
 # with constraint rejections per tree move); checkpoint.rds; progress.txt.
 t0 <- proc.time()[["elapsed"]]
@@ -72,7 +93,10 @@ nIter <- EnvNum("CET_NITER", 100000)
 burnin <- EnvNum("CET_BURNIN", 2000)
 thin <- EnvNum("CET_THIN", 50)
 seg <- EnvNum("CET_SEG", 2000)
-hours <- EnvNum("CET_HOURS", 70)
+hours <- EnvNum("CET_HOURS", 65)
+wallHours <- EnvNum("CET_WALL_HOURS", 72)
+wallMargin <- EnvNum("CET_WALL_MARGIN", 0.25)
+killSegment <- EnvNum("CET_TEST_KILL_SEGMENT", 0)
 nSlice <- EnvNum("CET_NSLICE", 20)
 grid <- GridSettings()
 saveStates <- Sys.getenv("CET_STATES", "true") == "true"
@@ -96,17 +120,39 @@ moves <- CetMoves(dat$tree, dat$characters, model)
 Progress <- function(...) {
   cat(sprintf(...), "\n", file = file.path(outDir, "progress.txt"), append = TRUE)
 }
+# nRateCat: a checkpoint from before Gamma rates (#97), which records none, stops
+# The build and the data: a resubmission must resume under the same EvoTempo
+# build, characters and alpha prior, or stop (review of #114, R114-3, R114-6)
+build <- BuildId()
 target <- list(mkv = mkv, power = power, beta = beta, gamma = gamma, nBin = grid$nBin,
-               zMax = grid$zMax, thin = thin, seg = seg)
+               zMax = grid$zMax, thin = thin, seg = seg, nRateCat = cetRateCats,
+               alphaPrior = CetCharPriorTag(), alphaPriorCode = CetCharPriorCode(),
+               charactersMd5 = DataMd5("characters.csv"), partitionsMd5 = DataMd5("partitions.csv"),
+               evotempoVersion = build$version, evotempoSha = build$sha, evotempoMd5 = build$md5)
 ckpFile <- file.path(outDir, "checkpoint.rds")
 if (file.exists(ckpFile)) {
   ckp <- readRDS(ckpFile)
   same <- vapply(names(target), function(n) identical(ckp[[n]], target[[n]]), TRUE)
+  # CET_ALLOW_REINSTALL=1: a reinstall of the same commit changes the code md5
+  # but not the version or SHA; compare those only (#114 delta review, N2).
+  # Refused when the SHA is unrecorded, which would leave nothing to compare
+  reinstall <- Sys.getenv("CET_ALLOW_REINSTALL") == "1" && !same[["evotempoMd5"]] &&
+    all(same[setdiff(names(same), "evotempoMd5")])
+  if (reinstall) {
+    if (identical(target$evotempoSha, "unrecorded")) {
+      stop("CET_ALLOW_REINSTALL needs the build's commit in <lib>/EvoTempo/BUILD_SHA; ",
+           "this install records none")
+    }
+    same[["evotempoMd5"]] <- TRUE
+  }
   if (!all(same)) {
-    stop(sprintf("%s holds a chain with %s; this run has %s", ckpFile,
-                 paste(names(target), vapply(names(target), function(n) format(ckp[[n]]), ""),
-                       collapse = ", "),
-                 paste(names(target), vapply(target, format, ""), collapse = ", ")))
+    # Only the fields that differ (review of #114: the build and data fields
+    # made the full list hard to read)
+    bad <- names(target)[!same]
+    stop(sprintf("%s holds a chain with another target; it differs in: %s", ckpFile,
+                 paste(sprintf("%s (checkpoint %s; this run %s)", bad,
+                               vapply(bad, function(n) format(ckp[[n]] %||% "(none)"), ""),
+                               vapply(target[bad], format, "")), collapse = "; ")))
   }
   # The characters must be in the tip order of the chain's tree (review of #91,
   # F1).  Same start tree = same md5 (#102; checkpoints written before #102
@@ -114,7 +160,7 @@ if (file.exists(ckpFile)) {
   sameTree <- if (is.null(ckp$startTreeMd5)) {
     identical(ckp$startTree, startTree)
   } else identical(ckp$startTreeMd5, startTreeMd5)
-  if (!sameTree || !identical(ckp$captured$st$tree$tipLabel, rownames(dat$characters))) {
+  if (!sameTree || !identical(ckp$captured$st$tree$tipLabel, dat$characters$tipLabel)) {
     if (is.null(ckp$startTreeMd5)) {
       # Checkpoint written before #102: no md5, so only the path can be compared
       # (#103 review, R103-11)
@@ -129,6 +175,11 @@ if (file.exists(ckpFile)) {
                  startTreeRel, startTreeMd5,
                  if (sameTree) ": tip orders differ" else ": a different start tree"))
   }
+  if (reinstall) {
+    Progress("%s CET_ALLOW_REINSTALL: same version %s and commit %s, installed code md5 %s (was %s)",
+             format(Sys.time()), target$evotempoVersion, target$evotempoSha, target$evotempoMd5,
+             ckp$evotempoMd5)
+  }
   Progress("%s resuming after segment %d", format(Sys.time()), ckp$segment)
 } else {
   set.seed(EnvNum("CET_SEED", 1000 * cell + rep))
@@ -141,25 +192,39 @@ if (file.exists(ckpFile)) {
 }
 nSeg <- nIter %/% seg
 first <- if (is.null(ckp)) 1L else ckp$segment + 1L
+# Time of the last segment run, for the predictive stop (from the checkpoint
+# when resuming)
+lastSecs <- if (is.null(ckp$segSecs)) NA_real_ else ckp$segSecs
 for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
+  elapsed <- proc.time()[["elapsed"]] - t0
+  limit <- (wallHours - wallMargin) * 3600
+  if (!is.na(lastSecs) && elapsed + 1.5 * lastSecs > limit) {
+    Progress(paste("%s stopping before segment %d: %.3f h elapsed + 1.5 x %.3f h (last segment)",
+                   "would pass %.3f h (CET_WALL_HOURS %g - CET_WALL_MARGIN %g); resubmit to continue"),
+             format(Sys.time()), k, elapsed / 3600, lastSecs / 3600, limit / 3600, wallHours,
+             wallMargin)
+    break
+  }
   .cet$records <- list()
   .cet$injected <- FALSE
   .cet$constraintRejections <- list()
   tSeg <- proc.time()[["elapsed"]]
-  stopifnot(identical(rownames(dat$characters), dat$tree$tipLabel))
+  stopifnot(identical(dat$characters$tipLabel, dat$tree$tipLabel))
   if (is.null(ckp)) {
     run <- TempoMCMC(dat$tree, model, CetStart(startIndex), priors, nIter = seg, burnin = burnin,
                      thin = thin, nSlice = nSlice, moves = moves,
-                     characters = dat$characters, agePriors = CetAgePriors())
+                     characters = dat$characters, agePriors = CetAgePriors(),
+                     charPriors = CetCharPriors())
   } else {
     .cet$resume <- ckp$captured
     run <- TempoMCMC(ckp$captured$st$tree, model, ckp$captured$st$par, priors,
                      nIter = seg, burnin = 0, thin = thin, nSlice = nSlice,
                      moves = ckp$captured$moves, characters = dat$characters,
-                     agePriors = CetAgePriors())
+                     agePriors = CetAgePriors(), charPriors = CetCharPriors())
     stopifnot(.cet$injected)
   }
   secs <- proc.time()[["elapsed"]] - tSeg
+  lastSecs <- secs
   rec <- .cet$records
   stopifnot(length(rec) == nrow(run$samples))
   smp <- run$samples
@@ -169,6 +234,7 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
   }, 0)
   smp$logOriginPrior <- vapply(rec, function(r) CetAgePriors()$origin(
     r$state$tree$age[[r$state$tree$root]] + r$state$tree$stem), 0)
+  smp$logAlphaPrior <- vapply(rec, function(r) CetCharPriors()$alpha(r$state$par$alpha), 0)
   smp$iteration <- (k - 1) * seg + seq(thin, seg, by = thin)
   smp$segment <- k
   tag <- sprintf("seg%04d", k)
@@ -182,12 +248,28 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
                     constraintRejections = ifelse(names(run$acceptance) %in% names(cr),
                                                   cr[names(run$acceptance)], 0),
                     secs = secs, burnin = if (is.null(ckp)) burnin else 0)
+  # acceptance.csv is rewritten with any earlier rows of segment k replaced: a
+  # kill after this write and before the checkpoint below reruns segment k on
+  # resubmission, which used to append its rows a second time (R114-1).
+  # Written before the checkpoint so that a kill between the two never loses
+  # a segment's rows
   accFile <- file.path(outDir, "acceptance.csv")
-  utils::write.table(acc, accFile, sep = ",", row.names = FALSE, col.names = !file.exists(accFile),
-                     append = file.exists(accFile))
+  if (file.exists(accFile)) {
+    old <- utils::read.csv(accFile)
+    acc <- rbind(old[old$segment != k, names(acc)], acc)
+  }
+  accTmp <- paste0(accFile, ".tmp")
+  utils::write.csv(acc, accTmp, row.names = FALSE)
+  file.rename(accTmp, accFile)
+  if (killSegment == k) {
+    Progress("%s test kill after segment %d's acceptance.csv, before its checkpoint (CET_TEST_KILL_SEGMENT)",
+             format(Sys.time()), k)
+    quit(save = "no", status = 137)
+  }
+  acc <- acc[acc$segment == k, ]
   ckp <- c(list(segment = k, captured = .cet$captured, label = label, rep = rep,
                 startIndex = startIndex, startTree = startTree, startTreeRel = startTreeRel,
-                startTreeMd5 = startTreeMd5), target)
+                startTreeMd5 = startTreeMd5, segSecs = secs), target)
   tmp <- paste0(ckpFile, ".tmp")
   saveRDS(ckp, tmp)
   file.rename(tmp, ckpFile)
@@ -195,7 +277,7 @@ for (k in seq.int(first, length.out = max(0L, nSeg - first + 1L))) {
            format(Sys.time()), k, nSeg, secs, secs / (seg + acc$burnin[1]), acc$burnin[1],
            utils::tail(smp$logPost, 1), utils::tail(smp$charLL, 1))
   if ((proc.time()[["elapsed"]] - t0) / 3600 > hours && k < nSeg) {
-    Progress("%s stopping after %.1f h; resubmit to continue", format(Sys.time()), hours)
+    Progress("%s stopping after %.1f h (CET_HOURS); resubmit to continue", format(Sys.time()), hours)
     break
   }
 }

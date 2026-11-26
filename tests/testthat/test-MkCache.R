@@ -482,3 +482,69 @@ test_that("Random call sequences give the one-shot result, bitwise", {
   expect_gt(nRoot, 0)
   expect_equal(.MkCache()$checkFailures, 0)
 })
+
+test_that("Cached chains with fnpr match uncached chains and the R engine", {
+  set.seed(12)
+  chars <- matrix(sample(c(0:2, NA), 5 * 6, replace = TRUE, prob = c(3, 3, 3, 1)), 5)
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, gamma = 1)
+  priors <- c(TempoPriors()["lambda"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  # Every iteration is stored; with the cache on, each evaluation is also
+  # checked bitwise against a fresh one
+  Run <- function(on, engine = "cpp") {
+    .MkCache(clear = TRUE)
+    set.seed(13)
+    WithCache(on, TempoMCMC(cacheTree, model, cachePar, priors, nIter = 40,
+                            burnin = 0, thin = 1, nSlice = 4, characters = chars,
+                            nState = 3L, moves = c(branch = 1, fnpr = 3, nodeAge = 1),
+                            minAcceptance = 0, engine = engine))
+  }
+  cached <- Run(TRUE)
+  expect_equal(.MkCache()$checkFailures, 0)
+  expect_gt(.MkCache()$entries, 0)
+  # fnpr is both accepted (the cache keeps the regrafted tree) and rejected
+  # (it returns to the tree before)
+  expect_gt(cached$acceptance[["fnpr"]], 0)
+  expect_lt(cached$acceptance[["fnpr"]], 1)
+  expect_equal(nrow(cached$samples), 40)
+  expect_identical(cached$samples, Run(FALSE)$samples)
+  expect_equal(cached$samples, Run(FALSE, "R")$samples, tolerance = 1e-8)
+})
+
+test_that("A set handle follows fnpr proposals, accepted and rejected", {
+  set.seed(14)
+  chars <- matrix(sample(0:2, 5 * 6, replace = TRUE), 5)
+  chars[, 1:3] <- chars[, 1:3] %% 2L
+  matrices <- list(chars[, 1:3], chars[, 4:6], chars[, 1:2] * 0L)
+  nState <- c(2L, 3L, 3L)
+  original <- MkLikelihood
+  Split <- function(tree, characters, lengths, nState = 2L, engine = "cpp") {
+    original(tree, matrices[[1]], lengths, 2L, engine) +
+      original(tree, matrices[[2]], lengths, 3L, engine) +
+      sum(.MkSiteLogLik(tree, matrices[[3]], lengths, 3L))
+  }
+  set <- .MkSet(5L, matrices, nState, c(FALSE, FALSE, TRUE))
+  # The handle is checked against the matrices of the call at every evaluation
+  Together <- function(tree, characters, lengths, nState = 2L, engine = "cpp") {
+    value <- .MkSetLogLik(set, tree, lengths, matrices, c(2L, 3L, 3L))
+    value[[1]] + value[[2]] + sum(value[3:4])
+  }
+  model <- DCETModel(nBin = 11, zRange = c(-2, 2), rho = 0.7, gamma = 1)
+  priors <- c(TempoPriors()["lambda"],
+              rate = function(x) stats::dlnorm(x, log(0.3), 0.5, log = TRUE))
+  Run <- function(on, Likelihood) {
+    .MkCache(clear = TRUE)
+    set.seed(15)
+    local_mocked_bindings(MkLikelihood = Likelihood)
+    WithCache(on, TempoMCMC(cacheTree, model, cachePar, priors, nIter = 40,
+                            burnin = 0, thin = 1, nSlice = 4, characters = chars,
+                            moves = c(branch = 1, fnpr = 3, nodeAge = 1),
+                            minAcceptance = 0))
+  }
+  together <- Run(TRUE, Together)
+  expect_equal(.MkCache()$checkFailures, 0)
+  expect_gt(.MkCache()$recomputed, 0)
+  expect_gt(together$acceptance[["fnpr"]], 0)
+  expect_lt(together$acceptance[["fnpr"]], 1)
+  expect_identical(together$samples, Run(FALSE, Split)$samples)
+})
